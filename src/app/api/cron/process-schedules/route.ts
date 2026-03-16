@@ -1,82 +1,143 @@
 import { db } from "@/db";
 import { reportSchedules } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
-import { send } from "@vercel/queue";
-import {logAction} from "@/lib/audit";
+import { eq } from "drizzle-orm";
+import { Resend } from 'resend';
+import { handleCallback } from "@vercel/queue";
+import { generateReportInsights, generateEmailBody } from "@/lib/ai-service";
+import { MyReportPDF } from "@/service/pdf-service";
+import { renderToStream } from "@react-pdf/renderer";
+import React from "react";
+import {
+    fetchAccountMonthlySummary,
+    fetchAccountKeywords,
+    fetchAccountLastMonthSummary
+} from "@/lib/google-ads";
+import { transformAdsData } from "@/lib/report-utils";
+import { logAction } from "@/lib/audit";
+import { cleanCcEmails } from "@/lib/cleaners";
 
-export async function GET(req: Request) {
-    const SYSTEM_ACTOR = "SYSTEM_AUTOMATION";
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-    // 1. Auth check
-    const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        console.error("[Cron] Unauthorized attempt to trigger schedules.");
-        return new Response('Unauthorized', { status: 401 });
-    }
+// Helper to convert the PDF stream to a buffer for Resend
+async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of stream) chunks.push(chunk as any);
+    return Buffer.concat(chunks);
+}
 
-    const today = new Date();
-    const currentDay = today.getDate();
+// Ensure the function has enough time for AI and PDF generation
+export const maxDuration = 300;
+
+/**
+ * Vercel Queue Worker
+ * This handles the heavy lifting of generating and sending reports.
+ */
+export const POST = handleCallback(async (payload: any) => {
+    const { scheduleId, googleAccountId, clientName, userId } = payload;
+
+    // Fallback to SYSTEM_AUTOMATION if no userId (Cron jobs)
+    // Note: Ensure this ID exists in your 'user' table to satisfy FK constraints
+    const ACTOR = userId || "SYSTEM_AUTOMATION";
+
+    console.log(`[Queue] Processing report for: ${clientName} (ID: ${scheduleId})`);
 
     try {
-        // 2. Find pending schedules
-        const pendingSchedules = await db.query.reportSchedules.findMany({
-            where: and(
-                eq(reportSchedules.isActive, true),
-                eq(reportSchedules.dayOfMonth, currentDay),
-                sql`${reportSchedules.lastRunAt} IS NULL OR ${reportSchedules.lastRunAt} < NOW() - INTERVAL '20 hours'`
-            ),
-            with: { account: true }
+        // 1. Fetch the schedule configuration
+        const schedule = await db.query.reportSchedules.findFirst({
+            where: eq(reportSchedules.id, scheduleId)
+        });
+        if (!schedule) throw new Error(`Schedule ${scheduleId} not found`);
+
+        // 2. Fetch Google Ads data in parallel to save time
+        const [rawSummary, rawKeywords, lastMonth] = await Promise.all([
+            fetchAccountMonthlySummary(googleAccountId),
+            fetchAccountKeywords(googleAccountId),
+            fetchAccountLastMonthSummary(googleAccountId)
+        ]);
+
+        // 3. Transform raw API data into report-friendly format
+        const baseData = transformAdsData(clientName, rawSummary, rawKeywords, lastMonth);
+
+        // 4. Generate AI Insights and Email Body in parallel
+        const [pdfAi, emailAi] = await Promise.all([
+            generateReportInsights({
+                ...baseData,
+                customInstructions: schedule.customAiInstructions
+            }),
+            generateEmailBody({
+                ...baseData,
+                customInstructions: schedule.customAiInstructions
+            })
+        ]);
+
+        // 5. Render React-PDF to Buffer
+        const pdfElement = React.createElement(MyReportPDF, {
+            data: { ...baseData, ai: pdfAi }
+        });
+        const stream = await renderToStream(pdfElement as any);
+        const pdfBuffer = await streamToBuffer(stream);
+
+        // 6. Send the email via Resend
+        // cleanCcEmails converts "test@test.com, dev@test.com" into ["test@test.com", "dev@test.com"]
+        const emailResult = await resend.emails.send({
+            from: 'Uprise Digital <reports@uprisedigital.com.au>',
+            to: schedule.recipientEmail,
+            cc: cleanCcEmails(schedule.ccEmails),
+            subject: schedule.emailSubject || `Performance Report: ${clientName}`,
+            text: emailAi.emailBody,
+            attachments: [
+                {
+                    filename: `${clientName.replace(/\s+/g, '_')}_Report.pdf`,
+                    content: pdfBuffer,
+                },
+            ],
         });
 
-        if (pendingSchedules.length === 0) {
-            return new Response("No reports due today.");
+        if (emailResult.error) {
+            throw new Error(`Resend API Error: ${emailResult.error.message}`);
         }
 
-        // 3. Enqueue tasks
-        const queueResults = await Promise.allSettled(
-            pendingSchedules.map((schedule) =>
-                send("google-ads-reports", {
-                    scheduleId: schedule.id,
-                    googleAccountId: schedule.account.googleAccountId,
-                    clientName: schedule.account.name
-                })
-            )
-        );
+        // 7. Success: Update the schedule's last run timestamp
+        await db.update(reportSchedules)
+            .set({ lastRunAt: new Date() })
+            .where(eq(reportSchedules.id, scheduleId));
 
-        const successful = queueResults.filter(r => r.status === 'fulfilled').length;
-        const failed = queueResults.filter(r => r.status === 'rejected').length;
+        // 8. Audit Log - Wrapped in try/catch so logging errors don't trigger re-sends
+        try {
+            await logAction(
+                ACTOR,
+                "AUTOMATED_REPORT_SENT",
+                "report_schedules",
+                scheduleId.toString(),
+                { clientName, recipient: schedule.recipientEmail, status: "SUCCESS" }
+            );
+        } catch (auditErr) {
+            console.error("[Queue] Audit logging failed:", auditErr);
+        }
 
-        // 4. LOG SUCCESS/PARTIAL SUCCESS
-        await logAction(
-            SYSTEM_ACTOR,
-            "CRON_ENQUEUE_REPORTS",
-            "report_schedules",
-            "BATCH",
-            {
-                dayOfMonth: currentDay,
-                totalFound: pendingSchedules.length,
-                successfulEnqueued: successful,
-                failedEnqueued: failed,
-                scheduleIds: pendingSchedules.map(s => s.id)
-            }
-        );
-
-        return new Response(`Enqueued ${successful} reports.`, { status: 200 });
+        console.log(`[Queue] Successfully delivered report for ${clientName}`);
 
     } catch (error: any) {
-        // 5. LOG CRITICAL CRON FAILURE
-        await logAction(
-            SYSTEM_ACTOR,
-            "CRON_CRITICAL_FAILURE",
-            "system",
-            "CRON_ROUTE",
-            {
-                error: error.message || "Unknown error",
-                dayOfMonth: currentDay
-            }
-        );
+        // 9. Failure: Log the error and re-throw to allow Vercel Queue to retry
+        try {
+            await logAction(
+                ACTOR,
+                "AUTOMATED_REPORT_FAILED",
+                "report_schedules",
+                scheduleId?.toString() || "UNKNOWN",
+                {
+                    clientName,
+                    error: error.message || "Unknown error",
+                    status: "FAILURE"
+                }
+            );
+        } catch (auditErr) {
+            console.error("[Queue] Failed to log failure audit:", auditErr);
+        }
 
-        console.error("[Cron] Critical Error:", error);
-        return new Response("Internal Server Error", { status: 500 });
+        console.error(`[Queue] Worker Failure:`, error.message);
+
+        // Throwing here triggers the Queue Retry Policy (up to 10 times)
+        throw error;
     }
-}
+});

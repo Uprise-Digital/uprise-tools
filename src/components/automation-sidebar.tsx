@@ -105,6 +105,15 @@ export function AutomationSidebar({
         setTestingRuleId(rule.id);
         const toastId = toast.loading(`Triggering test for ${rule.recipientEmail}...`);
 
+        // 1. Log the initiation and the payload being sent
+        console.log("🚀 [Frontend] Starting manual test trigger...");
+        console.table({
+            scheduleId: rule.id,
+            googleAccountId: adAccount.googleAccountId,
+            clientName: adAccount.name,
+            recipient: rule.recipientEmail
+        });
+
         try {
             const result = await triggerManualQueueTestAction({
                 scheduleId: rule.id,
@@ -114,14 +123,21 @@ export function AutomationSidebar({
             });
 
             if (result.success) {
+                // 2. Log success from the Server Action
+                console.log("✅ [Frontend] Server Action reported success. Message is now in the Vercel Queue.");
+
                 toast.success("Test job enqueued! Check Vercel logs.", {
                     id: toastId,
                     icon: <CheckCircle2 className="h-4 w-4 text-green-500" />
                 });
             } else {
+                // 3. Log logical errors (e.g., unauthorized)
+                console.error("❌ [Frontend] Server Action returned a failure state:", result.error);
                 throw new Error(result.error);
             }
         } catch (error: any) {
+            // 4. Log network or unexpected crashes
+            console.error("💥 [Frontend] Critical error during manual trigger:", error);
             toast.error(error.message || "Failed to trigger test", { id: toastId });
         } finally {
             setTestingRuleId(null);

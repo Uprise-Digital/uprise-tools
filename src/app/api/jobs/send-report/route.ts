@@ -14,6 +14,7 @@ import {
 } from "@/lib/google-ads";
 import { transformAdsData } from "@/lib/report-utils";
 import {logAction} from "@/lib/audit";
+import {cleanCcEmails} from "@/lib/cleaners";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -67,7 +68,7 @@ export const POST = handleCallback(async (payload: any) => {
         const emailResult = await resend.emails.send({
             from: 'Uprise Digital <reports@uprisedigital.com.au>',
             to: schedule.recipientEmail,
-            cc: schedule.ccEmails || undefined,
+            cc: cleanCcEmails(schedule.ccEmails), // Returns an array: ["email1@test.com", "email2@test.com"]
             subject: schedule.emailSubject || `Performance Report: ${clientName}`,
             text: emailAi.emailBody,
             attachments: [

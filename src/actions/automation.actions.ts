@@ -84,7 +84,7 @@ export async function triggerManualQueueTestAction(params: {
     try {
         await send("google-ads-reports", {
             ...params,
-            triggeredBy: session.user.email
+            triggeredBy: session.user.id
         });
 
         await logAction(
