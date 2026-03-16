@@ -1,9 +1,14 @@
 "use server";
 
 import React from "react";
-import { renderToStream } from "@react-pdf/renderer";
-import { MyReportPDF } from "@/service/pdf-service";
-import { fetchAccountMonthlySummary, fetchAccountKeywords } from "@/lib/google-ads";
+import {renderToStream} from "@react-pdf/renderer";
+import {MyReportPDF} from "@/service/pdf-service";
+import {fetchAccountKeywords, fetchAccountLastMonthSummary, fetchAccountMonthlySummary} from "@/lib/google-ads";
+import {generateReportInsights} from "@/lib/ai-service";
+import {transformAdsData} from "@/lib/report-utils";
+import {auth} from "@/lib/auth"; // Import your auth instance
+import {headers} from "next/headers";
+import {logAction} from "@/lib/audit";
 
 async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
     const chunks: Uint8Array[] = [];
@@ -12,74 +17,55 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
 }
 
 export async function generateClientReportAction(googleAccountId: string, clientName: string) {
+    // 1. Identify the user performing the action
+    const session = await auth.api.getSession({
+        headers: await headers()
+    });
+
+    if (!session) {
+        throw new Error("Unauthorized: You must be logged in to generate reports.");
+    }
+
+    const userId = session.user.id;
+
     try {
-        const [rawSummary, rawKeywords] = await Promise.all([
+        console.log(`[Manual Report Gen] Initiating for ${clientName} by ${session.user.email}`);
+
+        // 2. Fetch raw data in parallel
+        const [rawSummary, rawKeywords, lastMonth] = await Promise.all([
             fetchAccountMonthlySummary(googleAccountId),
-            fetchAccountKeywords(googleAccountId)
+            fetchAccountKeywords(googleAccountId),
+            fetchAccountLastMonthSummary(googleAccountId)
         ]);
 
-        let totals = {
-            cost: 0,
-            clicks: 0,
-            impressions: 0,
-            conversions: 0,
-        };
+        // 3. Transform raw metrics
+        const baseData = transformAdsData(clientName, rawSummary, rawKeywords, lastMonth);
 
-        const campaigns = rawSummary.map((row: any) => {
-            const cost = Number(row.metrics.costMicros) / 1_000_000;
-            const conv = Number(row.metrics.conversions);
-            const clicks = Number(row.metrics.clicks);
-
-            totals.cost += cost;
-            totals.clicks += clicks;
-            totals.impressions += Number(row.metrics.impressions);
-            totals.conversions += conv;
-
-            return {
-                name: row.campaign.name,
-                conversions: conv,
-                costPerConv: conv > 0 ? (cost / conv).toFixed(2) : "0.00",
-                spend: cost.toFixed(2),
-                clicks: clicks,
-                ctr: (Number(row.metrics.ctr) * 100).toFixed(2),
-                cpc: (Number(row.metrics.averageCpc) / 1_000_000).toFixed(2)
-            };
+        // 4. Generate AI Insights
+        const aiInsights = await generateReportInsights({
+            ...baseData,
+            customInstructions: ""
         });
 
-        const keywords = rawKeywords.map((row: any) => {
-            const kwCost = Number(row.metrics.costMicros) / 1_000_000;
-            const kwConv = Number(row.metrics.conversions);
-            const kwClicks = Number(row.metrics.clicks);
-
-            return {
-                text: row.adGroupCriterion.keyword.text,
-                matchType: row.adGroupCriterion.keyword.matchType,
-                conversions: kwConv,
-                costPerConv: kwConv > 0 ? (kwCost / kwConv).toFixed(2) : "0.00",
-                spend: kwCost.toFixed(2),
-                clicks: kwClicks,
-                ctr: (Number(row.metrics.ctr) * 100).toFixed(2),
-                cpc: (Number(row.metrics.averageCpc) / 1_000_000).toFixed(2)
-            };
-        });
-
-        const data = {
-            clientName,
-            metrics: {
-                cost: totals.cost.toLocaleString(undefined, { minimumFractionDigits: 2 }),
-                clicks: totals.clicks.toLocaleString(),
-                ctr: totals.impressions > 0 ? ((totals.clicks / totals.impressions) * 100).toFixed(2) : "0.00",
-                conversions: totals.conversions,
-                avgCpc: totals.clicks > 0 ? (totals.cost / totals.clicks).toFixed(2) : "0.00",
-                costPerConv: totals.conversions > 0 ? (totals.cost / totals.conversions).toFixed(2) : "0.00"
-            },
-            campaigns: campaigns.sort((a: any, b: any) => parseFloat(b.spend) - parseFloat(a.spend)).slice(0, 10),
-            keywords: keywords
+        // 5. Combine data
+        const finalData = {
+            ...baseData,
+            ai: aiInsights
         };
 
-        const pdfElement = React.createElement(MyReportPDF, { data });
+        // 6. Render PDF to Buffer
+        const pdfElement = React.createElement(MyReportPDF, {data: finalData});
         const stream = await renderToStream(pdfElement as any);
         const buffer = await streamToBuffer(stream);
+
+        // SUCCESS LOGGING
+        await logAction(
+            userId,
+            "MANUAL_REPORT_GENERATE",
+            "ad_accounts",
+            googleAccountId,
+            {clientName, fileName: `${clientName}_Report.pdf`}
+        );
 
         return {
             success: true,
@@ -87,8 +73,20 @@ export async function generateClientReportAction(googleAccountId: string, client
             fileName: `${clientName.replace(/\s+/g, '_')}_Report.pdf`
         };
 
-    } catch (error) {
-        console.error("Report Gen Error:", error);
-        return { success: false, error: "Failed to generate report" };
+    } catch (error: any) {
+        // FAILURE LOGGING
+        await logAction(
+            userId,
+            "MANUAL_REPORT_GENERATE_FAILED",
+            "ad_accounts",
+            googleAccountId,
+            {clientName, error: error.message || "Unknown error"}
+        );
+
+        console.error("Manual Report Gen Error:", error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Internal Server Error"
+        };
     }
 }

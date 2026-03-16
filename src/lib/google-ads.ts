@@ -132,3 +132,35 @@ export async function fetchAccountKeywords(googleAccountId: string) {
     const data = await response.json();
     return data.results || [];
 }
+
+export async function fetchAccountLastMonthSummary(googleAccountId: string) {
+    const accessToken = await getManagementAccessToken();
+    const sanitizedId = googleAccountId.replace(/-/g, "");
+
+    const query = `
+        SELECT
+            metrics.cost_micros,
+            metrics.clicks,
+            metrics.impressions,
+            metrics.conversions
+        FROM customer
+        WHERE segments.date DURING LAST_MONTH
+    `;
+
+    const response = await fetch(
+        `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+                "Authorization": `Bearer ${accessToken}`,
+                "login-customer-id": process.env.GOOGLE_ADS_MANAGER_ID!,
+            },
+            body: JSON.stringify({ query }),
+        }
+    );
+
+    const data = await response.json();
+    return data.results?.[0]?.metrics || null;
+}

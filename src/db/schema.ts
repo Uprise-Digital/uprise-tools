@@ -122,6 +122,7 @@ export const auditLogs = pgTable("audit_logs", {
 export const adAccountRelations = relations(adAccounts, ({ many }) => ({
     rules: many(alertRules),
     metrics: many(accountMetrics),
+    reportSchedules: many(reportSchedules), // Add this line
 }));
 
 export const alertRuleRelations = relations(alertRules, ({ one, many }) => ({
@@ -143,6 +144,41 @@ export const auditLogRelations = relations(auditLogs, ({ one }) => ({
 export const accountMetricRelations = relations(accountMetrics, ({ one }) => ({
     account: one(adAccounts, {
         fields: [accountMetrics.adAccountId],
+        references: [adAccounts.id],
+    }),
+}));
+
+export const reportSchedules = pgTable('report_schedules', {
+    id: serial('id').primaryKey(),
+    adAccountId: integer('ad_account_id').references(() => adAccounts.id, { onDelete: 'cascade' }).notNull(),
+
+    // Schedule Logic
+    frequency: text('frequency').notNull(),
+    dayOfMonth: integer('day_of_month').default(1),
+    dayOfWeek: integer('day_of_week'),
+
+    // Email Metadata
+    recipientEmail: text('recipient_email').notNull(),
+    ccEmails: text('cc_emails'),
+    bccEmails: text('bcc_emails'),
+
+    // Content Logic
+    emailSubject: text('email_subject').notNull(),
+    useAiSummary: boolean('use_ai_summary').default(true).notNull(),
+
+    // NEW COLUMN HERE
+    customAiInstructions: text('custom_ai_instructions'),
+
+    customMessage: text('custom_message'), // Keep this for static non-AI messages
+
+    isActive: boolean('is_active').default(true).notNull(),
+    lastRunAt: timestamp('last_run_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const reportScheduleRelations = relations(reportSchedules, ({ one }) => ({
+    account: one(adAccounts, {
+        fields: [reportSchedules.adAccountId],
         references: [adAccounts.id],
     }),
 }));

@@ -1,65 +1,97 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { generateReportAction } from "@/actions/pdf.actions";
-import { FileDown, Loader2 } from "lucide-react";
+import { generateClientReportAction } from "@/actions/pdf.actions";
+import { AutomationSidebar } from "@/components/automation-sidebar";
+import { FileDown, Loader2, Settings2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function TestPdfPage() {
-    const [loading, setLoading] = useState(false);
+    const [downloading, setDownloading] = useState(false);
 
-    const handleDownload = async () => {
-        setLoading(true);
-        const result = await generateReportAction();
+    // Mocking an ad account for the UI test
+    // In production, you'd fetch this from your DB or pass it via props
+    const mockAccount = {
+        id: 1,
+        googleAccountId: "123-456-7890",
+        name: "Providence Auto Group",
+    };
 
-        if (result.success && result.pdfBase64) {
-            const linkSource = `data:application/pdf;base64,${result.pdfBase64}`;
-            const downloadLink = document.createElement("a");
-            downloadLink.href = linkSource;
-            downloadLink.download = result.fileName || "report.pdf";
-            downloadLink.click();
-        } else {
-            alert("Error generating PDF");
+    const handleQuickDownload = async () => {
+        setDownloading(true);
+        try {
+            const result = await generateClientReportAction(
+                mockAccount.googleAccountId,
+                mockAccount.name
+            );
+
+            if (result.success && result.pdfBase64) {
+                const linkSource = `data:application/pdf;base64,${result.pdfBase64}`;
+                const downloadLink = document.createElement("a");
+                downloadLink.href = linkSource;
+                downloadLink.download = result.fileName || "report.pdf";
+                downloadLink.click();
+            }
+        } catch (error) {
+            console.error("Download failed", error);
+        } finally {
+            setDownloading(false);
         }
-        setLoading(false);
     };
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">PDF Automation Test</h1>
-                <p className="text-muted-foreground">Verify the Google Ads report generation flow.</p>
+        <div className="container max-w-4xl py-10 space-y-8">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Account Settings</h1>
+                    <p className="text-muted-foreground">Manage reporting and automation for {mockAccount.name}.</p>
+                </div>
+
+
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Generate Sample Report</CardTitle>
-                    <CardDescription>
-                        This will trigger the server-side PDF engine and download a mockup of the Providence Auto report.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-lg">
-                    <Button
-                        size="lg"
-                        onClick={handleDownload}
-                        disabled={loading}
-                        className="w-full max-w-xs"
-                    >
-                        {loading ? (
-                            <>
+            <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Report Preview</CardTitle>
+                        <CardDescription>
+                            Generate a one-off report to verify current data and AI insights.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button
+                            variant="secondary"
+                            className="w-full"
+                            onClick={handleQuickDownload}
+                            disabled={downloading}
+                        >
+                            {downloading ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Generating PDF...
-                            </>
-                        ) : (
-                            <>
+                            ) : (
                                 <FileDown className="mr-2 h-4 w-4" />
-                                Download Test PDF
-                            </>
-                        )}
-                    </Button>
-                </CardContent>
-            </Card>
+                            )}
+                            Download Latest Report
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Automation Status</CardTitle>
+                        <CardDescription>
+                            Configure the schedule for automated email delivery.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex items-center justify-between py-4">
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium">Monthly Reports</p>
+                            <p className="text-xs text-muted-foreground">Next run: April 1st, 2026</p>
+                        </div>
+                        <Settings2 className="h-5 w-5 text-muted-foreground" />
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }

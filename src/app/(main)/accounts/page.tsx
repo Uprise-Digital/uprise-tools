@@ -7,10 +7,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { syncAdAccountsAction } from "@/actions/ads.actions";
 import { SyncButton } from "@/components/sync-button";
-import { GenerateReportButton } from "@/components/generate-report-button"; // New component
+import {ReportAutomationTrigger} from "@/components/reportAutomationTrigger";
 
 export default async function AdAccountsPage() {
+    // Fetch accounts with their associated report schedules
     const accounts = await db.query.adAccounts.findMany({
+        with: {
+            // Ensure you have defined this relation in your schema.ts
+            reportSchedules: true,
+        },
         orderBy: (acc, { desc }) => [desc(acc.createdAt)],
     });
 
@@ -24,41 +29,48 @@ export default async function AdAccountsPage() {
                 <SyncButton action={syncAdAccountsAction} />
             </div>
 
-            <Card>
+            <Card className="border-slate-200 shadow-sm">
                 <CardHeader>
                     <CardTitle>Connected Clients</CardTitle>
                     <CardDescription>Accounts currently being monitored for alerts and reports.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader>
+                        <TableHeader className="bg-slate-50/50">
                             <TableRow>
-                                <TableHead>Account Name</TableHead>
-                                <TableHead>Google ID</TableHead>
-                                <TableHead>Currency</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead className="font-bold">Account Name</TableHead>
+                                <TableHead className="font-bold">Google ID</TableHead>
+                                <TableHead className="font-bold">Currency</TableHead>
+                                <TableHead className="font-bold">Status</TableHead>
+                                <TableHead className="text-right font-bold">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {accounts.map((acc) => (
-                                <TableRow key={acc.id}>
-                                    <TableCell className="font-medium">{acc.name}</TableCell>
-                                    <TableCell className="font-mono text-xs">{acc.googleAccountId}</TableCell>
-                                    <TableCell>{acc.currencyCode}</TableCell>
+                                <TableRow key={acc.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <TableCell className="font-semibold text-slate-900">{acc.name}</TableCell>
+                                    <TableCell className="font-mono text-xs text-slate-500">{acc.googleAccountId}</TableCell>
+                                    <TableCell className="text-slate-600">{acc.currencyCode}</TableCell>
                                     <TableCell>
-                                        <Badge variant={acc.isActive ? "default" : "secondary"}>
+                                        <Badge variant={acc.isActive ? "default" : "secondary"} className="rounded-md">
                                             {acc.isActive ? "Active" : "Inactive"}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right flex justify-end gap-2">
-                                        <GenerateReportButton
-                                            googleAccountId={acc.googleAccountId}
-                                            clientName={acc.name}
-                                        />
-                                        <Button variant="ghost" size="sm">
-                                            Alerts
-                                        </Button>
+                                    <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            {/* Passing the real rules from the DB */}
+                                            <ReportAutomationTrigger
+                                                adAccount={{
+                                                    id: acc.id,
+                                                    googleAccountId: acc.googleAccountId,
+                                                    name: acc.name
+                                                }}
+                                                initialRules={acc.reportSchedules || []}
+                                            />
+                                            <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900">
+                                                Alerts
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
