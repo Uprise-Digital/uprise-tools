@@ -1,8 +1,8 @@
+import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { reportSchedules } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { Resend } from 'resend';
-import { handleCallback } from "@vercel/queue";
 import { generateReportInsights, generateEmailBody } from "@/lib/ai-service";
 import { MyReportPDF } from "@/service/pdf-service";
 import { renderToStream } from "@react-pdf/renderer";
@@ -13,8 +13,8 @@ import {
     fetchAccountLastMonthSummary
 } from "@/lib/google-ads";
 import { transformAdsData } from "@/lib/report-utils";
-import {logAction} from "@/lib/audit";
-import {cleanCcEmails} from "@/lib/cleaners";
+import { logAction } from "@/lib/audit";
+import { cleanCcEmails } from "@/lib/cleaners";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -24,99 +24,80 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
     return Buffer.concat(chunks);
 }
 
+// Ensure Vercel allocates maximum time for AI and PDF rendering
 export const maxDuration = 300;
 
-export const POST = handleCallback(async (payload: any) => {
-    const { scheduleId, googleAccountId, clientName } = payload;
-    const SYSTEM_ACTOR = "SYSTEM_AUTOMATION";
+export async function POST(request: Request) {
+    // 1. Security Check: Only allow requests from your Cloudflare Worker
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.WORKER_SECRET_KEY}`) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     try {
-        // 1. Fetch the schedule
+        const payload = await request.json();
+        const { scheduleId, googleAccountId, clientName } = payload;
+        const SYSTEM_ACTOR = "SYSTEM_AUTOMATION";
+
+        // Fetch the schedule
         const schedule = await db.query.reportSchedules.findFirst({
             where: eq(reportSchedules.id, scheduleId)
         });
-        if (!schedule) throw new Error(`Schedule ${scheduleId} not found`);
 
-        // 2. Fetch raw Ads data in parallel
+        if (!schedule) {
+            return NextResponse.json({ error: `Schedule ${scheduleId} not found` }, { status: 404 });
+        }
+
+        // Parallel Data Fetching
         const [rawSummary, rawKeywords, lastMonth] = await Promise.all([
             fetchAccountMonthlySummary(googleAccountId),
             fetchAccountKeywords(googleAccountId),
             fetchAccountLastMonthSummary(googleAccountId)
         ]);
 
-        // 3. Transform data
         const baseData = transformAdsData(clientName, rawSummary, rawKeywords, lastMonth);
 
-        // 4. Parallel AI generation
+        // Parallel AI Generation
         const [pdfAi, emailAi] = await Promise.all([
-            generateReportInsights({
-                ...baseData,
-                customInstructions: schedule.customAiInstructions
-            }),
-            generateEmailBody({
-                ...baseData,
-                customInstructions: schedule.customAiInstructions
-            })
+            generateReportInsights({ ...baseData, customInstructions: schedule.customAiInstructions }),
+            generateEmailBody({ ...baseData, customInstructions: schedule.customAiInstructions })
         ]);
 
-        // 5. Render PDF to Buffer
+        // PDF Generation
         const pdfElement = React.createElement(MyReportPDF, { data: { ...baseData, ai: pdfAi } });
         const stream = await renderToStream(pdfElement as any);
         const pdfBuffer = await streamToBuffer(stream);
 
-        // 6. Send via Resend
+        // Email Dispatch
         const emailResult = await resend.emails.send({
             from: 'Uprise Digital <reports@uprisedigital.com.au>',
             to: schedule.recipientEmail,
-            cc: cleanCcEmails(schedule.ccEmails), // Returns an array: ["email1@test.com", "email2@test.com"]
+            cc: cleanCcEmails(schedule.ccEmails),
             subject: schedule.emailSubject || `Performance Report: ${clientName}`,
             text: emailAi.emailBody,
-            attachments: [
-                {
-                    filename: `${clientName.replace(/\s+/g, '_')}_Report.pdf`,
-                    content: pdfBuffer,
-                },
-            ],
+            attachments: [{
+                filename: `${clientName.replace(/\s+/g, '_')}_Report.pdf`,
+                content: pdfBuffer,
+            }],
         });
 
         if (emailResult.error) throw new Error(`Resend Error: ${emailResult.error.message}`);
 
-        // 7. Update schedule state
+        // Update DB and Log
         await db.update(reportSchedules)
             .set({ lastRunAt: new Date() })
             .where(eq(reportSchedules.id, scheduleId));
 
-        // SUCCESS LOGGING
-        await logAction(
-            SYSTEM_ACTOR,
-            "AUTOMATED_REPORT_SENT",
-            "report_schedules",
-            scheduleId.toString(),
-            {
-                clientName,
-                recipient: schedule.recipientEmail,
-                status: "SUCCESS"
-            }
-        );
+        await logAction(SYSTEM_ACTOR, "AUTOMATED_REPORT_SENT", "report_schedules", scheduleId.toString(), {
+            clientName, recipient: schedule.recipientEmail, status: "SUCCESS"
+        });
 
-        console.log(`[Queue Worker] Successfully sent report for ${clientName}`);
+        return NextResponse.json({ success: true });
 
     } catch (error: any) {
-        // FAILURE LOGGING
-        // We log the failure before throwing so we have a record even if Vercel retries
-        await logAction(
-            SYSTEM_ACTOR,
-            "AUTOMATED_REPORT_FAILED",
-            "report_schedules",
-            scheduleId?.toString() || "UNKNOWN",
-            {
-                clientName,
-                error: error.message || "Unknown error",
-                status: "FAILURE"
-            }
-        );
-
-        console.error(`[Queue Worker] Critical failure for ${clientName}:`, error);
-        throw error; // Let Vercel Queue retry based on your policy
+        console.error(`[Vercel API] Critical failure:`, error);
+        // Returning a 500 status code triggers the Cloudflare Worker's 'catch' block
+        // which initiates the queue retry mechanism.
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
-});
+}
