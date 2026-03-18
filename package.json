@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "biome check",
-    "format": "biome format --write"
+    "format": "biome format --write",
+    "deploy:worker": "cd workers/report-worker && wrangler deploy",
+    "dev:worker": "cd workers/report-worker && wrangler dev"
   },
   "dependencies": {
     "@google/genai": "^1.45.0",
@@ -27,6 +29,7 @@
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
+    "openai": "^6.29.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -39,6 +42,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",
+    "@cloudflare/workers-types": "^4.20260316.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -49,6 +53,7 @@
     "shadcn": "^3.8.5",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^5"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.73.0"
   }
 }

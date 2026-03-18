@@ -1,0 +1,11 @@
+name = "report-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[queues.consumers]]
+queue = "google-ads-reports"
+max_batch_size = 1
+
+[[queues.producers]]
+queue = "google-ads-reports"
+binding = "REPORT_QUEUE"
