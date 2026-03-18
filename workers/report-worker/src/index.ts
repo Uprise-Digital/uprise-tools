@@ -65,21 +65,26 @@ export default {
 
     // 3. MANUAL TRIGGER (From Vercel/Postman)
     async fetch(request: Request, env: Env) {
-        // Only allow POST requests for security
         if (request.method !== "POST") {
             return new Response("Method Not Allowed", { status: 405 });
+        }
+
+        // SECURITY CHECK: Ensure the request is coming from your authorized Vercel app
+        const authHeader = request.headers.get("authorization");
+        if (authHeader !== `Bearer ${env.WORKER_SECRET_KEY}`) {
+            return new Response("Unauthorized", { status: 401 });
         }
 
         try {
             const payload = await request.json();
 
-            // Basic validation to ensure the payload has what we need
             if (!payload.scheduleId || !payload.googleAccountId || !payload.clientName) {
-                return new Response("Missing required fields in payload", { status: 400 });
+                return new Response("Missing required fields", { status: 400 });
             }
 
             await env.REPORT_QUEUE.send(payload);
-            return new Response(JSON.stringify({ success: true, message: "Manual trigger enqueued" }), {
+
+            return new Response(JSON.stringify({ success: true, message: "Enqueued" }), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' }
             });
