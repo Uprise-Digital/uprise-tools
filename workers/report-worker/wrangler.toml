@@ -1,6 +1,7 @@
 name = "report-worker"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
+account_id = "a2bb749930114e1f77624b003654400d"
 
 # The Cloudflare Cron Trigger (Runs daily at midnight UTC)
 [triggers]
@@ -14,3 +15,7 @@ max_retries = 3 # Cloudflare will automatically retry if Vercel fails
 [[queues.producers]]
 queue = "google-ads-reports"
 binding = "REPORT_QUEUE"
+
+[vars]
+# This points the worker to your Vercel app's domain
+NEXT_PUBLIC_APP_URL = "https://uprise-tools.vercel.app"

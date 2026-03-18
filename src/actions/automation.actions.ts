@@ -4,10 +4,9 @@ import { db } from "@/db";
 import { reportSchedules } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import {auth} from "@/lib/auth";
-import {headers} from "next/headers";
-import {send} from "@vercel/queue";
-import {logAction} from "@/lib/audit";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { logAction } from "@/lib/audit";
 
 /**
  * Handles both creating new schedules and updating existing ones.
@@ -82,11 +81,32 @@ export async function triggerManualQueueTestAction(params: {
     if (!session) throw new Error("Unauthorized");
 
     try {
-        await send("google-ads-reports", {
-            ...params,
-            triggeredBy: session.user.id
+        const workerUrl = process.env.CLOUDFLARE_WORKER_URL;
+        if (!workerUrl) throw new Error("Missing CLOUDFLARE_WORKER_URL environment variable.");
+
+        // 1. Send the payload to the Cloudflare Worker's fetch handler
+        const response = await fetch(workerUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                // We use the same secret key to ensure only your Next.js app can trigger manual runs
+                "Authorization": `Bearer ${process.env.WORKER_SECRET_KEY}`
+            },
+            body: JSON.stringify({
+                scheduleId: params.scheduleId,
+                googleAccountId: params.googleAccountId,
+                clientName: params.clientName,
+                isTest: params.isTest,
+                userId: session.user.id
+            })
         });
 
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Cloudflare Worker failed: ${errorText}`);
+        }
+
+        // 2. Log the action in your database
         await logAction(
             session.user.id,
             "MANUAL_RULE_TEST",
@@ -97,6 +117,7 @@ export async function triggerManualQueueTestAction(params: {
 
         return { success: true };
     } catch (error: any) {
+        console.error("Failed to trigger manual test:", error);
         return { success: false, error: error.message };
     }
 }
