@@ -1,4 +1,3 @@
-// app/admin/accounts/[id]/client-page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,15 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, DollarSign, MousePointerClick, Eye, Target, TrendingUp, Calendar } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-    Area,
-    AreaChart,
-    CartesianGrid,
-    XAxis,
-    YAxis,
-    Tooltip,
-    ResponsiveContainer
+    ArrowLeft, DollarSign, MousePointerClick, Eye, Target,
+    TrendingUp, Calendar, Percent, LineChart, Activity
+} from "lucide-react";
+import {
+    Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer
 } from "recharts";
 
 interface ClientDashboardProps {
@@ -31,7 +28,6 @@ interface ClientDashboardProps {
 export default function ClientDashboard({ account }: ClientDashboardProps) {
     const router = useRouter();
 
-    // Default to current month
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
@@ -40,7 +36,7 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
     const [endDate, setEndDate] = useState(lastDay);
 
     const [isLoading, setIsLoading] = useState(true);
-    const [data, setData] = useState<{ totals: any, timeSeries: any[] } | null>(null);
+    const [data, setData] = useState<any>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -60,25 +56,17 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
         return () => { isMounted = false; };
     }, [account.id, account.googleAccountId, startDate, endDate]);
 
-    // Format currency based on account settings
-    const formatCurrency = (val: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: account.currencyCode || 'AUD',
-            maximumFractionDigits: 0
-        }).format(val);
-    };
+    // Formatters
+    const fCur = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: account.currencyCode || 'AUD' }).format(val);
+    const fNum = (val: number) => new Intl.NumberFormat('en-US').format(val);
+    const fPct = (val: number) => `${val.toFixed(2)}%`;
 
     return (
         <div className="space-y-8 p-8 max-w-[1600px] mx-auto">
             {/* HEADER AREA */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => router.push('/admin/accounts')}
-                    >
+                    <Button variant="outline" size="icon" onClick={() => router.push('/admin/accounts')}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
@@ -87,198 +75,140 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
                     </div>
                 </div>
 
-                {/* DATE CONTROLS */}
                 <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
                     <Calendar className="h-4 w-4 text-slate-400 ml-2" />
                     <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
+                        type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
                         className="border-0 bg-transparent shadow-none h-8 w-[140px] focus-visible:ring-0"
                     />
                     <span className="text-slate-300">—</span>
                     <Input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
+                        type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
                         className="border-0 bg-transparent shadow-none h-8 w-[140px] focus-visible:ring-0"
                     />
                 </div>
             </div>
 
-            {/* KPI OVERVIEW CARDS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="border-slate-200 shadow-sm">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-slate-500">Total Spend</p>
-                                {isLoading ? <Skeleton className="h-8 w-24" /> : (
-                                    <p className="text-3xl font-bold text-slate-900">
-                                        {formatCurrency(data?.totals.totalSpend || 0)}
-                                    </p>
-                                )}
+            {/* FUNNEL KPI GRID (8 Metrics) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: "Cost", val: data ? fCur(data.totals.spend) : null, icon: DollarSign, color: "text-blue-600", bg: "bg-blue-50" },
+                    { label: "Clicks", val: data ? fNum(data.totals.clicks) : null, icon: MousePointerClick, color: "text-purple-600", bg: "bg-purple-50" },
+                    { label: "Impressions", val: data ? fNum(data.totals.impressions) : null, icon: Eye, color: "text-amber-600", bg: "bg-amber-50" },
+                    { label: "CTR", val: data ? fPct(data.totals.ctr) : null, icon: Percent, color: "text-indigo-600", bg: "bg-indigo-50" },
+                    { label: "Conversions", val: data ? fNum(data.totals.conversions) : null, icon: Target, color: "text-emerald-600", bg: "bg-emerald-50" },
+                    { label: "Cost / Conv.", val: data ? fCur(data.totals.cpa) : null, icon: Activity, color: "text-rose-600", bg: "bg-rose-50" },
+                    { label: "Conv. Rate", val: data ? fPct(data.totals.convRate) : null, icon: LineChart, color: "text-teal-600", bg: "bg-teal-50" },
+                    { label: "Avg. CPC", val: data ? fCur(data.totals.cpc) : null, icon: DollarSign, color: "text-slate-600", bg: "bg-slate-100" },
+                ].map((kpi, i) => (
+                    <Card key={i} className="border-slate-200 shadow-sm">
+                        <CardContent className="p-5">
+                            <div className="flex justify-between items-start">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{kpi.label}</p>
+                                    {isLoading ? <Skeleton className="h-7 w-20" /> : <p className="text-2xl font-bold text-slate-900">{kpi.val}</p>}
+                                </div>
+                                <div className={`p-2 rounded-lg ${kpi.bg}`}>
+                                    <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
+                                </div>
                             </div>
-                            <div className="p-2 bg-blue-50 rounded-lg">
-                                <DollarSign className="h-5 w-5 text-blue-600" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-slate-200 shadow-sm">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-slate-500">Conversions</p>
-                                {isLoading ? <Skeleton className="h-8 w-24" /> : (
-                                    <p className="text-3xl font-bold text-slate-900">
-                                        {Number(data?.totals.totalConversions || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="p-2 bg-emerald-50 rounded-lg">
-                                <Target className="h-5 w-5 text-emerald-600" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-slate-200 shadow-sm">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-slate-500">Total Clicks</p>
-                                {isLoading ? <Skeleton className="h-8 w-24" /> : (
-                                    <p className="text-3xl font-bold text-slate-900">
-                                        {Number(data?.totals.totalClicks || 0).toLocaleString()}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="p-2 bg-purple-50 rounded-lg">
-                                <MousePointerClick className="h-5 w-5 text-purple-600" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-slate-200 shadow-sm">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-slate-500">Impressions</p>
-                                {isLoading ? <Skeleton className="h-8 w-24" /> : (
-                                    <p className="text-3xl font-bold text-slate-900">
-                                        {Number(data?.totals.totalImpressions || 0).toLocaleString()}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="p-2 bg-amber-50 rounded-lg">
-                                <Eye className="h-5 w-5 text-amber-600" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             {/* MAIN CHART AREA */}
             <Card className="border-slate-200 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <div className="space-y-1">
-                        <CardTitle className="text-lg font-bold">Spend vs Conversions Trend</CardTitle>
-                        <p className="text-sm text-slate-500">Daily performance metrics for the selected period.</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-blue-500" />
-                            <span className="text-slate-600">Spend</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                            <span className="text-slate-600">Conversions</span>
-                        </div>
-                    </div>
+                    <CardTitle className="text-lg font-bold">Performance Over Time</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
-                        <div className="h-[400px] w-full flex items-center justify-center">
-                            <Skeleton className="h-full w-full rounded-xl" />
-                        </div>
-                    ) : !data?.timeSeries || data.timeSeries.length === 0 ? (
-                        <div className="h-[400px] w-full flex flex-col items-center justify-center text-slate-400 border-2 border-dashed rounded-xl border-slate-100">
+                        <div className="h-[350px] w-full flex items-center justify-center"><Skeleton className="h-full w-full rounded-xl" /></div>
+                    ) : !data?.timeSeries?.length ? (
+                        <div className="h-[350px] w-full flex flex-col items-center justify-center text-slate-400 border-2 border-dashed rounded-xl border-slate-100">
                             <TrendingUp className="h-8 w-8 mb-2 opacity-20" />
                             <p>No data available for this date range.</p>
                         </div>
                     ) : (
-                        <div className="h-[400px] w-full mt-4">
+                        <div className="h-[350px] w-full mt-4">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={data.timeSeries} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
                                             <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                                         </linearGradient>
-                                        <linearGradient id="colorConv" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                        </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                     <XAxis
                                         dataKey="date"
-                                        tickFormatter={(val: any) => {
-                                            const d = new Date(val);
-                                            return `${d.getDate()} ${d.toLocaleString('default', { month: 'short' })}`;
-                                        }}
-                                        stroke="#94a3b8"
-                                        fontSize={12}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        dy={10}
+                                        tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} dy={10}
                                     />
-                                    <YAxis
-                                        yAxisId="left"
-                                        stroke="#94a3b8"
-                                        fontSize={12}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickFormatter={(val: any) => `$${val}`}
+                                    <YAxis yAxisId="left" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
+                                    <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                                    <RechartsTooltip
+                                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                        formatter={(value: any, name: any) => [
+                                            name === 'spend' ? fCur(Number(value || 0)) : fNum(Number(value || 0)),
+                                            String(name).charAt(0).toUpperCase() + String(name).slice(1)
+                                        ]}
                                     />
-                                    <YAxis
-                                        yAxisId="right"
-                                        orientation="right"
-                                        stroke="#94a3b8"
-                                        fontSize={12}
-                                        tickLine={false}
-                                        axisLine={false}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                        labelStyle={{ color: '#64748b', marginBottom: '4px' }}
-                                    />
-                                    <Area
-                                        yAxisId="left"
-                                        type="monotone"
-                                        dataKey="spend"
-                                        stroke="#3b82f6"
-                                        strokeWidth={3}
-                                        fillOpacity={1}
-                                        fill="url(#colorSpend)"
-                                    />
-                                    <Area
-                                        yAxisId="right"
-                                        type="monotone"
-                                        dataKey="conversions"
-                                        stroke="#10b981"
-                                        strokeWidth={3}
-                                        fillOpacity={1}
-                                        fill="url(#colorConv)"
-                                    />
+                                    <Area yAxisId="left" type="monotone" dataKey="spend" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorSpend)" />
+                                    <Area yAxisId="right" type="monotone" dataKey="conversions" stroke="#10b981" strokeWidth={2} fillOpacity={0} />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     )}
                 </CardContent>
+            </Card>
+
+            {/* CAMPAIGN BREAKDOWN TABLE */}
+            <Card className="border-slate-200 shadow-sm overflow-hidden">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100">
+                    <CardTitle className="text-lg font-bold">Campaign Breakdown</CardTitle>
+                </CardHeader>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                                <TableHead className="w-[300px] font-bold text-slate-700">Campaign Name</TableHead>
+                                <TableHead className="text-right font-bold text-slate-700">Cost</TableHead>
+                                <TableHead className="text-right font-bold text-slate-700">Clicks</TableHead>
+                                <TableHead className="text-right font-bold text-slate-700">Impr.</TableHead>
+                                <TableHead className="text-right font-bold text-slate-700">CTR</TableHead>
+                                <TableHead className="text-right font-bold text-slate-700">Avg. CPC</TableHead>
+                                <TableHead className="text-right font-bold text-slate-700">Conv.</TableHead>
+                                <TableHead className="text-right font-bold text-slate-700">Cost / Conv.</TableHead>
+                                <TableHead className="text-right font-bold text-slate-700">Conv. Rate</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                Array.from({ length: 3 }).map((_, i) => (
+                                    <TableRow key={i}><TableCell colSpan={9}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+                                ))
+                            ) : data?.campaigns?.length === 0 ? (
+                                <TableRow><TableCell colSpan={9} className="text-center py-8 text-slate-500">No campaign data found.</TableCell></TableRow>
+                            ) : (
+                                data?.campaigns.map((camp: any, i: number) => (
+                                    <TableRow key={i} className="hover:bg-slate-50 transition-colors">
+                                        <TableCell className="font-medium text-slate-900 truncate max-w-[300px]">{camp.campaignName}</TableCell>
+                                        <TableCell className="text-right font-mono text-xs">{fCur(camp.spend)}</TableCell>
+                                        <TableCell className="text-right font-mono text-xs">{fNum(camp.clicks)}</TableCell>
+                                        <TableCell className="text-right font-mono text-xs text-slate-500">{fNum(camp.impressions)}</TableCell>
+                                        <TableCell className="text-right font-mono text-xs text-slate-500">{fPct(camp.ctr)}</TableCell>
+                                        <TableCell className="text-right font-mono text-xs text-slate-500">{fCur(camp.cpc)}</TableCell>
+                                        <TableCell className="text-right font-mono text-xs font-semibold text-emerald-600">{fNum(camp.conversions)}</TableCell>
+                                        <TableCell className="text-right font-mono text-xs">{fCur(camp.cpa)}</TableCell>
+                                        <TableCell className="text-right font-mono text-xs">{fPct(camp.convRate)}</TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </Card>
         </div>
     );

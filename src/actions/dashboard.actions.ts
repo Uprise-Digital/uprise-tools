@@ -6,7 +6,7 @@ import {revalidatePath} from "next/cache";
 import {auth} from "@/lib/auth";
 import {headers} from "next/headers";
 import {logAction} from "@/lib/audit";
-import {and, eq, gte, lte, sql} from "drizzle-orm";
+import {and, eq, gte, lte, sql, desc} from "drizzle-orm";
 import {fetchDailyCampaignData} from "@/lib/google-ads";
 
 // Fetch all agency users
@@ -112,22 +112,20 @@ async function syncGoogleAdsDataToDb(adAccountId: number, googleAccountId: strin
  */
 export async function getDashboardMetricsAction(adAccountId: number, googleAccountId: string, startDate: string, endDate: string) {
     try {
-        // ---------------------------------------------------------
-        // 1. TEMPORARY SYNC: Remove this line when cron is ready!
-        // ---------------------------------------------------------
+        // 1. TEMPORARY SYNC (Keep this until cron is ready)
         await syncGoogleAdsDataToDb(adAccountId, googleAccountId, startDate, endDate);
-        // ---------------------------------------------------------
 
-        // 2. QUERY THE DATABASE (This is how it works forever)
-        const [totals] = await db.select({
-            totalSpend: sql<number>`SUM
-                (${adPerformanceDaily.spend})`,
-            totalClicks: sql<number>`SUM
-                (${adPerformanceDaily.clicks})`,
-            totalImpressions: sql<number>`SUM
-                (${adPerformanceDaily.impressions})`,
-            totalConversions: sql<number>`SUM
-                (${adPerformanceDaily.conversions})`,
+        // Helper to safely parse Postgres numerics which return as strings
+        const pNum = (val: any) => Number(val || 0);
+        // Helper to avoid divide-by-zero
+        const safeDiv = (num: number, den: number) => den > 0 ? num / den : 0;
+
+        // 2. GET TOTALS
+        const [rawTotals] = await db.select({
+            spend: sql`SUM(${adPerformanceDaily.spend})`,
+            clicks: sql<number>`SUM(${adPerformanceDaily.clicks})`,
+            impressions: sql<number>`SUM(${adPerformanceDaily.impressions})`,
+            conversions: sql`SUM(${adPerformanceDaily.conversions})`,
         })
             .from(adPerformanceDaily)
             .where(and(
@@ -136,14 +134,29 @@ export async function getDashboardMetricsAction(adAccountId: number, googleAccou
                 lte(adPerformanceDaily.date, endDate)
             ));
 
-        const timeSeries = await db.select({
+        const tSpend = pNum(rawTotals?.spend);
+        const tClicks = pNum(rawTotals?.clicks);
+        const tImpr = pNum(rawTotals?.impressions);
+        const tConv = pNum(rawTotals?.conversions);
+
+        const totals = {
+            spend: tSpend,
+            clicks: tClicks,
+            impressions: tImpr,
+            conversions: tConv,
+            ctr: safeDiv(tClicks, tImpr) * 100,
+            cpc: safeDiv(tSpend, tClicks),
+            cpa: safeDiv(tSpend, tConv),
+            convRate: safeDiv(tConv, tClicks) * 100,
+        };
+
+        // 3. GET TIME SERIES
+        const rawTimeSeries = await db.select({
             date: adPerformanceDaily.date,
-            spend: sql<number>`SUM
-                (${adPerformanceDaily.spend})`,
-            conversions: sql<number>`SUM
-                (${adPerformanceDaily.conversions})`,
-            clicks: sql<number>`SUM
-                (${adPerformanceDaily.clicks})`,
+            spend: sql`SUM(${adPerformanceDaily.spend})`,
+            conversions: sql`SUM(${adPerformanceDaily.conversions})`,
+            clicks: sql<number>`SUM(${adPerformanceDaily.clicks})`,
+            impressions: sql<number>`SUM(${adPerformanceDaily.impressions})`,
         })
             .from(adPerformanceDaily)
             .where(and(
@@ -154,16 +167,62 @@ export async function getDashboardMetricsAction(adAccountId: number, googleAccou
             .groupBy(adPerformanceDaily.date)
             .orderBy(adPerformanceDaily.date);
 
+        // Parse numerics and calculate daily CPC/CPA
+        const timeSeries = rawTimeSeries.map(day => {
+            const dSpend = pNum(day.spend);
+            const dConv = pNum(day.conversions);
+            const dClicks = pNum(day.clicks);
+            return {
+                ...day,
+                spend: dSpend,
+                conversions: dConv,
+                cpa: safeDiv(dSpend, dConv),
+                cpc: safeDiv(dSpend, dClicks)
+            };
+        });
+
+        // 4. GET CAMPAIGN BREAKDOWN
+        const rawCampaigns = await db.select({
+            campaignName: adPerformanceDaily.campaignName,
+            spend: sql`SUM(${adPerformanceDaily.spend})`,
+            conversions: sql`SUM(${adPerformanceDaily.conversions})`,
+            clicks: sql<number>`SUM(${adPerformanceDaily.clicks})`,
+            impressions: sql<number>`SUM(${adPerformanceDaily.impressions})`,
+        })
+            .from(adPerformanceDaily)
+            .where(and(
+                eq(adPerformanceDaily.adAccountId, adAccountId),
+                gte(adPerformanceDaily.date, startDate),
+                lte(adPerformanceDaily.date, endDate)
+            ))
+            .groupBy(adPerformanceDaily.campaignName)
+            .orderBy(desc(sql`SUM(${adPerformanceDaily.spend})`));
+
+        const campaigns = rawCampaigns.map(c => {
+            const cSpend = pNum(c.spend);
+            const cClicks = pNum(c.clicks);
+            const cImpr = pNum(c.impressions);
+            const cConv = pNum(c.conversions);
+            return {
+                campaignName: c.campaignName,
+                spend: cSpend,
+                clicks: cClicks,
+                impressions: cImpr,
+                conversions: cConv,
+                ctr: safeDiv(cClicks, cImpr) * 100,
+                cpc: safeDiv(cSpend, cClicks),
+                cpa: safeDiv(cSpend, cConv),
+                convRate: safeDiv(cConv, cClicks) * 100,
+            };
+        });
+
         return {
             success: true,
-            data: {
-                totals: totals || {totalSpend: 0, totalClicks: 0, totalImpressions: 0, totalConversions: 0},
-                timeSeries
-            }
+            data: { totals, timeSeries, campaigns }
         };
 
     } catch (error: any) {
         console.error("Failed to load dashboard metrics:", error);
-        return {success: false, error: error.message};
+        return { success: false, error: error.message };
     }
 }
