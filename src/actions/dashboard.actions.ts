@@ -175,12 +175,15 @@ export async function getDashboardMetricsAction(adAccountId: number, googleAccou
             const dSpend = pNum(day.spend);
             const dConv = pNum(day.conversions);
             const dClicks = pNum(day.clicks);
+            const dImpr = pNum(day.impressions);
+
             return {
                 ...day,
                 spend: dSpend,
                 conversions: dConv,
-                cpa: safeDiv(dSpend, dConv),
-                cpc: safeDiv(dSpend, dClicks)
+                cpc: safeDiv(dSpend, dClicks),
+                ctr: safeDiv(dClicks, dImpr) * 100,
+                cpa: safeDiv(dSpend, dConv)
             };
         });
 
