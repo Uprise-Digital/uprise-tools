@@ -76,25 +76,18 @@ async function syncGoogleAdsDataToDb(adAccountId: number, googleAccountId: strin
     if (rawData.length === 0) return;
 
     // Prepare batch insert payload
-    const insertPayload = rawData.map((row: any) => {
-        // 1. Extract and normalize micros for THIS specific row
-        const micros = row.metrics.cost_micros ? Number(row.metrics.cost_micros) : 0;
-
-        // 2. Convert to string with 2 decimal places
-        const spendInDollars = (micros / 1_000_000).toFixed(2);
-
-        return {
-            adAccountId,
-            googleAccountId,
-            date: row.segments.date,
-            campaignId: row.campaign.id.toString(),
-            campaignName: row.campaign.name,
-            spend: spendInDollars,
-            impressions: parseInt(row.metrics.impressions || "0", 10),
-            clicks: parseInt(row.metrics.clicks || "0", 10),
-            conversions: parseFloat(row.metrics.conversions || "0").toFixed(2),
-        };
-    });
+    const insertPayload = rawData.map((row: any) => ({
+        adAccountId,
+        googleAccountId,
+        date: row.segments.date,
+        campaignId: row.campaign.id.toString(),
+        campaignName: row.campaign.name,
+        // Cast to string first, then ensure it's a valid number format
+        spend: (Number(row.metrics.costMicros || 0) / 1_000_000).toString(),
+        impressions: parseInt(row.metrics.impressions || "0", 10),
+        clicks: parseInt(row.metrics.clicks || "0", 10),
+        conversions: parseFloat(row.metrics.conversions || "0").toString(),
+    }));
 
     // Upsert into Neon DB (Insert, or update if date+campaign already exists)
     await db.insert(adPerformanceDaily)
