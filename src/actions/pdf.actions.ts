@@ -44,6 +44,8 @@ export async function generateClientReportAction(
             fetchAccountLastMonthSummary(googleAccountId, startDate, endDate) // You may need to adjust how "last month" logic works for custom ranges
         ]);
 
+        console.log("Data is", rawSummary, rawKeywords, lastMonth)
+
         // 3. Transform raw metrics
         const baseData = transformAdsData(clientName, rawSummary, rawKeywords, lastMonth);
 
