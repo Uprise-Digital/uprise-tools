@@ -131,3 +131,60 @@ export async function getOrGenerateAiInsightsAction(
         throw new Error("Failed to generate strategic insights.");
     }
 }
+
+/**
+ * PORTFOLIO GOD-VIEW ENGINE
+ * Analyzes the entire agency portfolio for macro trends and critical fires.
+ */
+export async function generateAgencyAiInsightsAction(portfolioData: any) {
+    const prompt = `
+    You are the Strategy Director for an elite Performance Marketing Agency. Analyze this agency-wide portfolio data.
+
+    PORTFOLIO DATA: ${JSON.stringify(portfolioData)}
+
+    Your primary job is to protect agency retention by identifying "Critical Fires"—accounts that are actively failing or at high risk of churning. 
+    
+    CRITERIA FOR A "CRITICAL FIRE":
+    1. The account has had ZERO activity (spend/impressions) recently, indicating a broken setup, paused billing, or churn.
+    2. Click-Through Rate (CTR) is abysmal (under 3%), indicating total ad blindness or terrible targeting.
+    3. The account is bleeding money (high spend) with zero or near-zero conversions.
+    4. Blended CPA is catastrophically higher than the agency average.
+
+    OUTPUT FORMAT (Strict JSON):
+    {
+      "macro_summary": "3-sentence high-level summary of the entire agency's performance.",
+      "blended_efficiency": "Analysis of the blended agency CPA and CTR. Are we generally profitable across the board?",
+      "critical_fires": [
+        {
+          "account_name": "Name of the failing account",
+          "severity": "High/Critical",
+          "the_problem": "Exactly what is going wrong (e.g., 'CTR has fallen to 1.2%' or 'Zero spend in the last week')",
+          "recommended_action": "What the account manager must do IMMEDIATELY to save the client relationship."
+        }
+      ],
+      "growth_opportunities": [
+        {
+          "account_name": "Name of an over-performing account",
+          "reasoning": "Why we should ask this client to scale their budget."
+        }
+      ]
+    }
+
+    CONSTRAINTS:
+    - If there are no critical fires matching the criteria, return an empty array []. Be strict; only flag genuine issues.
+    - Base all analysis strictly on the provided JSON figures.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
+        });
+
+        return JSON.parse(response.text as string);
+    } catch (error) {
+        console.error("Agency AI Insights Error:", error);
+        throw new Error("Failed to generate portfolio insights.");
+    }
+}

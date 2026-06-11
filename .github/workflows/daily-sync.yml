@@ -1,0 +1,24 @@
+name: Nightly Portfolio Sync
+
+on:
+  # Runs at 00:00 UTC every day
+  schedule:
+    - cron: '0 0 * * *'
+
+  # This allows you to click a "Run workflow" button manually from the GitHub UI for testing
+  workflow_dispatch:
+
+jobs:
+  sync-database:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Next.js Cron API Route
+        run: |
+          # We use curl to send a POST request to your API route
+          # The -f flag makes curl fail if the HTTP status code is 400 or above
+          # The -s flag makes it silent (less log clutter)
+          # The -S flag shows errors if it fails
+          curl -f -s -S -X POST "${{ secrets.PRODUCTION_APP_URL }}/api/cron/sync" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json"
