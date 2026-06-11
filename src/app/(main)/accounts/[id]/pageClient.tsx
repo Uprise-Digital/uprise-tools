@@ -41,20 +41,35 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
     const fPct = (v: number) => `${(isNaN(v) ? 0 : v).toFixed(2)}%`;
 
     return (
-        <div className="space-y-6 p-4 md:p-8 max-w-[1600px] mx-auto">
+        <div className="space-y-6 p-4 mt-0 pt-0 max-w-400 mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={() => router.push('/admin/accounts')}><ArrowLeft className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="icon" onClick={() => router.push('/accounts')}><ArrowLeft className="h-4 w-4" /></Button>
                     <div>
                         <h1 className="text-2xl font-bold">{account.name}</h1>
                         <p className="text-xs font-mono text-slate-500">ID: {account.googleAccountId}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 bg-white p-2 rounded-xl border shadow-sm">
-                    <Calendar className="h-4 w-4 text-slate-400" />
-                    <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border-0 h-8 w-[120px]" />
-                    <span>—</span>
-                    <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border-0 h-8 w-[120px]" />
+
+                {/* REFACTORED DATE CONTAINER */}
+                <div className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-1.5 gap-2 w-full md:w-auto">
+                    <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
+
+                    <Input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="border-none h-8 w-[110px] p-0 text-sm focus-visible:ring-0 shadow-none [color-scheme:light]"
+                    />
+
+                    <span className="text-slate-300 font-light">—</span>
+
+                    <Input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="border-none h-8 w-[110px] p-0 text-sm focus-visible:ring-0 shadow-none [color-scheme:light]"
+                    />
                 </div>
             </div>
 
@@ -70,7 +85,7 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
                     { label: "Conv. Rate", val: data?.totals.convRate, icon: LineChart, color: "text-teal-600", bg: "bg-teal-50", f: fPct },
                     { label: "Avg. CPC", val: data?.totals.cpc, icon: DollarSign, color: "text-slate-600", bg: "bg-slate-100", f: fCur },
                 ].map((kpi, i) => (
-                    <Card key={i} className="shadow-sm">
+                    <Card key={i} className="mt-0 pt-0 shadow-sm">
                         <CardContent className="p-4 flex items-center justify-between">
                             <div className="space-y-0.5">
                                 <p className="text-[10px] font-bold uppercase text-slate-500">{kpi.label}</p>
@@ -89,15 +104,37 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
                     { title: "CPC", dataKey: "cpc", color: "#8b5cf6", format: fCur },
                     { title: "CTR", dataKey: "ctr", color: "#10b981", format: fPct }
                 ].map((chart) => (
-                    <Card key={chart.title} className="shadow-sm">
+                    <Card key={chart.title} className="mt-0 pt-0 shadow-sm">
                         <CardHeader className="py-4"><CardTitle className="text-sm font-bold">{chart.title}</CardTitle></CardHeader>
-                        <CardContent className="h-[200px]">
+                        <CardContent className="h-50">
                             {isLoading ? <Skeleton className="h-full w-full" /> : (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={data?.timeSeries}>
+                                    <AreaChart margin={{ top: 10, right: 10, left: -40, bottom: 0 }} data={data?.timeSeries}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="date" />
-                                        <YAxis domain={['auto', 'auto']} />
+                                        <XAxis
+                                            dataKey="date"
+                                            stroke="#94a3b8"
+                                            fontSize={10}
+                                            tickLine={false}
+                                            padding={{ left: 0, right: 0 }}
+                                            axisLine={false}
+                                            dy={10} // Adds space between the axis and the text
+                                            minTickGap={20} // Prevents labels from overlapping
+                                            tickFormatter={(value) => {
+                                                const date = new Date(value);
+                                                return date.toLocaleDateString('en-US', {
+                                                    month: 'short',
+                                                    day: 'numeric'
+                                                });
+                                            }}
+                                        />
+                                        <YAxis
+                                            fontSize={10}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            dy={10} // Adds space between the axis and the text
+                                            minTickGap={20} // Prevents labels from overlapping
+                                            domain={['auto', 'auto']} />
                                         <RechartsTooltip formatter={(v: any) => [chart.format(Number(v)), chart.title]} />
                                         <Area type="monotone" dataKey={chart.dataKey} stroke={chart.color} fill={chart.color} fillOpacity={0.1} />
                                     </AreaChart>
@@ -109,7 +146,7 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
             </div>
 
             {/* FULL CAMPAIGN TABLE */}
-            <Card className="shadow-sm overflow-hidden">
+            <Card className="shadow-sm overflow-hidden mt-0 pt-0">
                 <Table>
                     <TableHeader className="bg-slate-50">
                         <TableRow>
