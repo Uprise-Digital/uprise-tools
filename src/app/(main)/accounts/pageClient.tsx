@@ -1,4 +1,4 @@
-// app/admin/accounts/pageClient.tsx
+// app/accounts/pageClient.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -28,7 +28,7 @@ export default function AccountsClientPage({ accounts }: AccountsClientPageProps
     const router = useRouter();
 
     const handleRowClick = (accountId: number) => {
-        router.push(`/admin/accounts/${accountId}`);
+        router.push(`/accounts/${accountId}`);
     };
 
     return (
