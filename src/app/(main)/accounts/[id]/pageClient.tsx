@@ -96,8 +96,8 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={data?.timeSeries}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="date" hide />
-                                        <YAxis domain={['auto', 'auto']} hide />
+                                        <XAxis dataKey="date" />
+                                        <YAxis domain={['auto', 'auto']} />
                                         <RechartsTooltip formatter={(v: any) => [chart.format(Number(v)), chart.title]} />
                                         <Area type="monotone" dataKey={chart.dataKey} stroke={chart.color} fill={chart.color} fillOpacity={0.1} />
                                     </AreaChart>
