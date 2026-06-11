@@ -25,16 +25,21 @@ export function ReportAutomationTrigger({
      * Handled here so the logic is shared between the "Quick Export"
      * in the sidebar and any other future entry points.
      */
-    const handleQuickDownload = async () => {
+    const handleQuickDownload = async (startDate?: string, endDate?: string) => {
         setIsDownloading(true);
 
-        // Let the user know Gemini is working
-        const toastId = toast.loading(`Generating AI insights for ${adAccount.name}...`);
+        const toastMessage = startDate && endDate
+            ? `Generating AI insights from ${startDate} to ${endDate}...`
+            : `Generating AI insights for ${adAccount.name}...`;
+
+        const toastId = toast.loading(toastMessage);
 
         try {
             const result = await generateClientReportAction(
                 adAccount.googleAccountId,
-                adAccount.name
+                adAccount.name,
+                startDate, // Pass to server action
+                endDate    // Pass to server action
             );
 
             if (result.success && result.pdfBase64) {

@@ -16,7 +16,12 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
     return Buffer.concat(chunks);
 }
 
-export async function generateClientReportAction(googleAccountId: string, clientName: string) {
+export async function generateClientReportAction(
+    googleAccountId: string,
+    clientName: string,
+    startDate?: string, // New parameter
+    endDate?: string    // New parameter
+) {
     // 1. Identify the user performing the action
     const session = await auth.api.getSession({
         headers: await headers()
@@ -29,13 +34,14 @@ export async function generateClientReportAction(googleAccountId: string, client
     const userId = session.user.id;
 
     try {
-        console.log(`[Manual Report Gen] Initiating for ${clientName} by ${session.user.email}`);
+        const dateContext = startDate && endDate ? `${startDate} to ${endDate}` : "standard timeframe";
+        console.log(`[Manual Report Gen] Initiating for ${clientName} (${dateContext}) by ${session.user.email}`);
 
-        // 2. Fetch raw data in parallel
+        // 2. Fetch raw data in parallel (pass the dates to your fetchers)
         const [rawSummary, rawKeywords, lastMonth] = await Promise.all([
-            fetchAccountMonthlySummary(googleAccountId),
-            fetchAccountKeywords(googleAccountId),
-            fetchAccountLastMonthSummary(googleAccountId)
+            fetchAccountMonthlySummary(googleAccountId, startDate, endDate),
+            fetchAccountKeywords(googleAccountId, startDate, endDate),
+            fetchAccountLastMonthSummary(googleAccountId, startDate, endDate) // You may need to adjust how "last month" logic works for custom ranges
         ]);
 
         // 3. Transform raw metrics

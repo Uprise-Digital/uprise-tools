@@ -5,6 +5,52 @@ import { eq } from "drizzle-orm";
 const DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
 const MANAGER_ID = process.env.GOOGLE_ADS_MANAGER_ID;
 
+// --- Date Helper Functions ---
+
+/**
+ * Returns the correct GAQL date segment for the current query.
+ */
+function getCurrentPeriodDateClause(startDate?: string, endDate?: string) {
+    if (startDate && endDate) {
+        return `segments.date BETWEEN '${startDate}' AND '${endDate}'`;
+    }
+    return "segments.date DURING THIS_MONTH";
+}
+
+/**
+ * Calculates the previous period of the exact same length to ensure accurate comparison metrics.
+ * Safely parses YYYY-MM-DD to avoid timezone offset bugs.
+ */
+function getPreviousPeriodDateClause(startDate?: string, endDate?: string) {
+    if (!startDate || !endDate) return "segments.date DURING LAST_MONTH";
+
+    const parseDate = (str: string) => {
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d));
+    };
+
+    const start = parseDate(startDate);
+    const end = parseDate(endDate);
+
+    // Calculate duration in days
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // Previous period end is 1 day before current start
+    const prevEnd = new Date(start.getTime());
+    prevEnd.setUTCDate(prevEnd.getUTCDate() - 1);
+
+    // Previous period start is X days before previous end
+    const prevStart = new Date(prevEnd.getTime());
+    prevStart.setUTCDate(prevStart.getUTCDate() - diffDays);
+
+    const formatYMD = (d: Date) => d.toISOString().split('T')[0];
+
+    return `segments.date BETWEEN '${formatYMD(prevStart)}' AND '${formatYMD(prevEnd)}'`;
+}
+
+// --- API Functions ---
+
 async function getManagementAccessToken() {
     const authData = await db.query.account.findFirst({
         where: eq(account.providerId, "google"),
@@ -56,9 +102,14 @@ export async function fetchMCCAccounts() {
     return response.json();
 }
 
-export async function fetchAccountMonthlySummary(googleAccountId: string) {
+export async function fetchAccountMonthlySummary(
+    googleAccountId: string,
+    startDate?: string,
+    endDate?: string
+) {
     const accessToken = await getManagementAccessToken();
     const sanitizedId = googleAccountId.replace(/-/g, "");
+    const dateClause = getCurrentPeriodDateClause(startDate, endDate);
 
     const query = `
         SELECT
@@ -71,7 +122,7 @@ export async function fetchAccountMonthlySummary(googleAccountId: string) {
             metrics.cost_per_conversion,
             campaign.name
         FROM campaign
-        WHERE segments.date DURING THIS_MONTH
+        WHERE ${dateClause}
           AND campaign.status = 'ENABLED'
     `;
 
@@ -93,9 +144,14 @@ export async function fetchAccountMonthlySummary(googleAccountId: string) {
     return data.results || [];
 }
 
-export async function fetchAccountKeywords(googleAccountId: string) {
+export async function fetchAccountKeywords(
+    googleAccountId: string,
+    startDate?: string,
+    endDate?: string
+) {
     const accessToken = await getManagementAccessToken();
     const sanitizedId = googleAccountId.replace(/-/g, "");
+    const dateClause = getCurrentPeriodDateClause(startDate, endDate);
 
     const query = `
         SELECT
@@ -109,7 +165,7 @@ export async function fetchAccountKeywords(googleAccountId: string) {
             metrics.conversions,
             metrics.cost_per_conversion
         FROM keyword_view
-        WHERE segments.date DURING THIS_MONTH
+        WHERE ${dateClause}
           AND ad_group_criterion.status = 'ENABLED'
         ORDER BY metrics.cost_micros DESC
             LIMIT 15
@@ -133,9 +189,14 @@ export async function fetchAccountKeywords(googleAccountId: string) {
     return data.results || [];
 }
 
-export async function fetchAccountLastMonthSummary(googleAccountId: string) {
+export async function fetchAccountLastMonthSummary(
+    googleAccountId: string,
+    startDate?: string,
+    endDate?: string
+) {
     const accessToken = await getManagementAccessToken();
     const sanitizedId = googleAccountId.replace(/-/g, "");
+    const dateClause = getPreviousPeriodDateClause(startDate, endDate);
 
     const query = `
         SELECT
@@ -144,7 +205,7 @@ export async function fetchAccountLastMonthSummary(googleAccountId: string) {
             metrics.impressions,
             metrics.conversions
         FROM customer
-        WHERE segments.date DURING LAST_MONTH
+        WHERE ${dateClause}
     `;
 
     const response = await fetch(

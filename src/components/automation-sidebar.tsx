@@ -53,7 +53,7 @@ interface SidebarProps {
         googleAccountId: string;
     };
     rules: AutomationRule[];
-    onQuickDownload: () => void;
+    onQuickDownload: (startDate?: string, endDate?: string) => void; // Updated signature
     isDownloading: boolean;
 }
 
@@ -75,6 +75,9 @@ export function AutomationSidebar({
     const [useAi, setUseAi] = useState(true);
     const [customMessage, setCustomMessage] = useState("");
     const [aiInstructions, setAiInstructions] = useState("");
+
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
     const resetForm = () => {
         setEditingRuleId(null);
@@ -222,14 +225,37 @@ export function AutomationSidebar({
                             <Download className="h-4 w-4 text-slate-900" />
                             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">Quick Actions</h3>
                         </div>
-                        <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
-                            <p className="text-sm text-slate-500 mb-4 leading-relaxed">
-                                Generate and download the performance report for the current month immediately.
+                        <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                            <p className="text-sm text-slate-500 leading-relaxed">
+                                Generate and download the performance report. Leave dates blank to use the standard monthly timeframe.
                             </p>
+
+                            {/* New Date Range Inputs */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold text-slate-700">START DATE</Label>
+                                    <Input
+                                        type="date"
+                                        className="h-10"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-bold text-slate-700">END DATE</Label>
+                                    <Input
+                                        type="date"
+                                        className="h-10"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
                             <Button
                                 className="w-full h-11 shadow-sm"
                                 variant="secondary"
-                                onClick={onQuickDownload}
+                                onClick={() => onQuickDownload(startDate, endDate)} // Pass dates up
                                 disabled={isDownloading}
                             >
                                 {isDownloading ? (
@@ -237,7 +263,7 @@ export function AutomationSidebar({
                                 ) : (
                                     <FileDown className="mr-2 h-4 w-4" />
                                 )}
-                                Download {new Date().toLocaleString('default', { month: 'long' })} Report
+                                Download {startDate && endDate ? 'Custom' : new Date().toLocaleString('default', { month: 'long' })} Report
                             </Button>
                         </div>
                     </section>
