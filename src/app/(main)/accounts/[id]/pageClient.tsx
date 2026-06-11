@@ -15,6 +15,7 @@ import {
 import {
     Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer
 } from "recharts";
+import {AiInsights} from "@/components/ai-insights";
 
 interface ClientDashboardProps {
     account: { id: number; googleAccountId: string; name: string; currencyCode: string | null; };
@@ -72,6 +73,14 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
                     />
                 </div>
             </div>
+
+            {/* NEW: Insert the AI Insight Engine here */}
+            <AiInsights
+                adAccountId={account.id}
+                googleAccountId={account.googleAccountId}
+                startDate={startDate}
+                endDate={endDate}
+            />
 
             {/* KPI GRID */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
