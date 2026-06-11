@@ -76,18 +76,25 @@ async function syncGoogleAdsDataToDb(adAccountId: number, googleAccountId: strin
     if (rawData.length === 0) return;
 
     // Prepare batch insert payload
-    const insertPayload = rawData.map((row: any) => ({
-        adAccountId,
-        googleAccountId,
-        date: row.segments.date,
-        campaignId: row.campaign.id.toString(),
-        campaignName: row.campaign.name,
-        // FIX: Safely fallback to 0 if cost_micros is missing
-        spend: ((row.metrics.cost_micros || 0) / 1_000_000).toFixed(2),
-        impressions: parseInt(row.metrics.impressions || "0", 10),
-        clicks: parseInt(row.metrics.clicks || "0", 10),
-        conversions: parseFloat(row.metrics.conversions || "0").toFixed(2),
-    }));
+    const insertPayload = rawData.map((row: any) => {
+        // 1. Extract and normalize micros for THIS specific row
+        const micros = row.metrics.cost_micros ? Number(row.metrics.cost_micros) : 0;
+
+        // 2. Convert to string with 2 decimal places
+        const spendInDollars = (micros / 1_000_000).toFixed(2);
+
+        return {
+            adAccountId,
+            googleAccountId,
+            date: row.segments.date,
+            campaignId: row.campaign.id.toString(),
+            campaignName: row.campaign.name,
+            spend: spendInDollars,
+            impressions: parseInt(row.metrics.impressions || "0", 10),
+            clicks: parseInt(row.metrics.clicks || "0", 10),
+            conversions: parseFloat(row.metrics.conversions || "0").toFixed(2),
+        };
+    });
 
     // Upsert into Neon DB (Insert, or update if date+campaign already exists)
     await db.insert(adPerformanceDaily)
@@ -123,18 +130,19 @@ export async function getDashboardMetricsAction(adAccountId: number, googleAccou
         const safeDiv = (num: number, den: number) => den > 0 ? num / den : 0;
 
         // 2. GET TOTALS
-        const [rawTotals] = await db.select({
-            spend: sql`SUM(${adPerformanceDaily.spend})`,
+        const rawTotals = await db.select({
+            spend: sql<number>`SUM(${adPerformanceDaily.spend})`,
             clicks: sql<number>`SUM(${adPerformanceDaily.clicks})`,
             impressions: sql<number>`SUM(${adPerformanceDaily.impressions})`,
-            conversions: sql`SUM(${adPerformanceDaily.conversions})`,
+            conversions: sql<number>`SUM(${adPerformanceDaily.conversions})`,
         })
             .from(adPerformanceDaily)
             .where(and(
                 eq(adPerformanceDaily.adAccountId, adAccountId),
                 gte(adPerformanceDaily.date, startDate),
                 lte(adPerformanceDaily.date, endDate)
-            ));
+            ))
+            .then(res => res[0] || { spend: 0, clicks: 0, impressions: 0, conversions: 0 });
 
         const tSpend = pNum(rawTotals?.spend);
         const tClicks = pNum(rawTotals?.clicks);
@@ -197,7 +205,7 @@ export async function getDashboardMetricsAction(adAccountId: number, googleAccou
                 gte(adPerformanceDaily.date, startDate),
                 lte(adPerformanceDaily.date, endDate)
             ))
-            .groupBy(adPerformanceDaily.campaignName)
+            .groupBy(adPerformanceDaily.campaignId, adPerformanceDaily.campaignName)
             .orderBy(desc(sql`SUM(${adPerformanceDaily.spend})`));
 
         const campaigns = rawCampaigns.map(c => {
