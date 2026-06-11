@@ -124,3 +124,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Remove spacing from all Card internal elements */
+  .card {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .card-header,
+  .card-content,
+  .card-footer {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
