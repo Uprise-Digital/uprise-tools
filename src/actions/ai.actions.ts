@@ -1,23 +1,47 @@
 "use server";
 
+import { db } from "@/db";
+import { aiInsightsCache } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import { GoogleGenAI } from '@google/genai';
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 
-// Initialize the AI client
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-/**
- * STRATEGIC INSIGHTS ENGINE
- * Analyzes dashboard data for 3-pillar actionable intelligence.
- */
-export async function generateAiInsightsAction(adAccountId: number, googleAccountId: string, startDate: string, endDate: string) {
-    // 1. Fetch the data
+export async function getOrGenerateAiInsightsAction(
+    adAccountId: number,
+    googleAccountId: string,
+    startDate: string,
+    endDate: string,
+    forceRefresh: boolean = false
+) {
+    // 1. Check Cache First (if not forcing a refresh)
+    if (!forceRefresh) {
+        const cached = await db.query.aiInsightsCache.findFirst({
+            where: and(
+                eq(aiInsightsCache.adAccountId, adAccountId),
+                eq(aiInsightsCache.startDate, startDate),
+                eq(aiInsightsCache.endDate, endDate)
+            )
+        });
+
+        if (cached) {
+            return {
+                success: true,
+                data: cached.insights,
+                generatedAt: cached.createdAt,
+                isCached: true
+            };
+        }
+    }
+
+    // 2. Fetch fresh data for the LLM
     const dataRes = await getDashboardMetricsAction(adAccountId, googleAccountId, startDate, endDate);
     if (!dataRes.success || !dataRes.data) {
         throw new Error("Data analysis unavailable: Unable to retrieve dashboard metrics.");
     }
 
-    // 2. Define the System Prompt & Logic
+    // 3. Define Prompt
     const prompt = `
     You are an elite Performance Marketing Strategist. Analyze the following Google Ads data and provide deep-dive intelligence across 3 pillars: Diagnostics, Predictive, and Prescriptive.
 
@@ -64,20 +88,44 @@ export async function generateAiInsightsAction(adAccountId: number, googleAccoun
     CONSTRAINTS:
     - Use concrete figures from the JSON.
     - Be authoritative, data-driven, and agency-grade.
-    - If spend is NaN or 0, focus analysis on traffic quality (Clicks/Impressions).
+    - If spend is NaN or 0, focus analysis on traffic quality.
     `;
 
-    // 3. Generate response using Gemini
+    // 4. Generate response using Gemini
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
-            config: {
-                responseMimeType: 'application/json'
-            }
+            config: { responseMimeType: 'application/json' }
         });
 
-        return JSON.parse(response.text as string);
+        const parsedInsights = JSON.parse(response.text as string);
+
+        // 5. Upsert into Cache
+        const [upserted] = await db.insert(aiInsightsCache)
+            .values({
+                adAccountId,
+                startDate,
+                endDate,
+                insights: parsedInsights,
+                createdAt: new Date(), // Reset timestamp
+            })
+            .onConflictDoUpdate({
+                target: [aiInsightsCache.adAccountId, aiInsightsCache.startDate, aiInsightsCache.endDate],
+                set: {
+                    insights: parsedInsights,
+                    createdAt: new Date(),
+                }
+            })
+            .returning({ createdAt: aiInsightsCache.createdAt });
+
+        return {
+            success: true,
+            data: parsedInsights,
+            generatedAt: upserted.createdAt,
+            isCached: false
+        };
+
     } catch (error) {
         console.error("AI Insights Error:", error);
         throw new Error("Failed to generate strategic insights.");

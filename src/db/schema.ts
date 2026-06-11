@@ -14,10 +14,9 @@ import {
 import {relations} from 'drizzle-orm';
 
 // --- 1. GOOGLE ADS CORE ---
-
 export const adAccounts = pgTable('ad_accounts', {
     id: serial('id').primaryKey(),
-    googleAccountId: text('google_account_id').notNull().unique(), // e.g., '123-456-7890'
+    googleAccountId: text('google_account_id').notNull().unique(),
     name: text('name').notNull(),
     currencyCode: text('currency_code').default('AUD'),
     timeZone: text('time_zone').default('Australia/Melbourne'),
@@ -26,11 +25,10 @@ export const adAccounts = pgTable('ad_accounts', {
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-// Cache performance data here so PDF generation and Dashboards are instant
 export const accountMetrics = pgTable('account_metrics', {
     id: serial('id').primaryKey(),
     adAccountId: integer('ad_account_id').references(() => adAccounts.id, {onDelete: 'cascade'}).notNull(),
-    date: timestamp('date').notNull(), // The day this metric represents
+    date: timestamp('date').notNull(),
     conversions: numeric('conversions').default('0'),
     cost: numeric('cost').default('0'),
     clicks: integer('clicks').default(0),
@@ -43,12 +41,11 @@ export const accountMetrics = pgTable('account_metrics', {
 }));
 
 // --- 2. ALERT ENGINE ---
-
 export const alertRules = pgTable('alert_rules', {
     id: serial('id').primaryKey(),
     adAccountId: integer('ad_account_id').references(() => adAccounts.id).notNull(),
     metric: text('metric').notNull(),
-    timeWindow: text('time_window').notNull(), // e.g., 'YESTERDAY', 'LAST_7_DAYS'
+    timeWindow: text('time_window').notNull(),
     operator: text('operator').notNull(),
     threshold: numeric('threshold').notNull(),
     frequency: text('frequency').notNull(),
@@ -59,7 +56,7 @@ export const alertRules = pgTable('alert_rules', {
 export const notificationRoutes = pgTable('notification_routes', {
     id: serial('id').primaryKey(),
     ruleId: integer('rule_id').references(() => alertRules.id, {onDelete: 'cascade'}).notNull(),
-    emailAddress: text('email_address').notNull(), // Who gets the alert
+    emailAddress: text('email_address').notNull(),
 });
 
 export const alertLogs = pgTable('alert_logs', {
@@ -70,7 +67,6 @@ export const alertLogs = pgTable('alert_logs', {
 });
 
 // --- 3. AUTHENTICATION & SESSIONS ---
-
 export const user = pgTable("user", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
@@ -118,7 +114,6 @@ export const verification = pgTable("verification", {
 });
 
 // --- 4. AUDIT & LOGGING ---
-
 export const auditLogs = pgTable("audit_logs", {
     id: serial("id").primaryKey(),
     actorId: text("actor_id").references(() => user.id).notNull(),
@@ -129,61 +124,20 @@ export const auditLogs = pgTable("audit_logs", {
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// --- 5. RELATIONS ---
-
-export const adAccountRelations = relations(adAccounts, ({many}) => ({
-    rules: many(alertRules),
-    metrics: many(accountMetrics),
-    reportSchedules: many(reportSchedules), // Add this line
-    dailyPerformance: many(adPerformanceDaily), // <-- Add this
-}));
-
-export const alertRuleRelations = relations(alertRules, ({one, many}) => ({
-    account: one(adAccounts, {
-        fields: [alertRules.adAccountId],
-        references: [adAccounts.id],
-    }),
-    notifications: many(notificationRoutes),
-    logs: many(alertLogs),
-}));
-
-export const auditLogRelations = relations(auditLogs, ({one}) => ({
-    actor: one(user, {
-        fields: [auditLogs.actorId],
-        references: [user.id],
-    }),
-}));
-
-export const accountMetricRelations = relations(accountMetrics, ({one}) => ({
-    account: one(adAccounts, {
-        fields: [accountMetrics.adAccountId],
-        references: [adAccounts.id],
-    }),
-}));
-
+// --- 5. AUTOMATION & REPORTS ---
 export const reportSchedules = pgTable('report_schedules', {
     id: serial('id').primaryKey(),
     adAccountId: integer('ad_account_id').references(() => adAccounts.id, {onDelete: 'cascade'}).notNull(),
-
-    // Schedule Logic
     frequency: text('frequency').notNull(),
     dayOfMonth: integer('day_of_month').default(1),
     dayOfWeek: integer('day_of_week'),
-
-    // Email Metadata
     recipientEmail: text('recipient_email').notNull(),
     ccEmails: text('cc_emails'),
     bccEmails: text('bcc_emails'),
-
-    // Content Logic
     emailSubject: text('email_subject').notNull(),
     useAiSummary: boolean('use_ai_summary').default(true).notNull(),
-
-    // NEW COLUMN HERE
     customAiInstructions: text('custom_ai_instructions'),
-
-    customMessage: text('custom_message'), // Keep this for static non-AI messages
-
+    customMessage: text('custom_message'),
     isActive: boolean('is_active').default(true).notNull(),
     lastRunAt: timestamp('last_run_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -193,33 +147,62 @@ export const adPerformanceDaily = pgTable('ad_performance_daily', {
     id: serial('id').primaryKey(),
     adAccountId: integer('ad_account_id').references(() => adAccounts.id, {onDelete: 'cascade'}).notNull(),
     googleAccountId: text('google_account_id').notNull(),
-    date: date('date').notNull(), // YYYY-MM-DD format from Google Ads
+    date: date('date').notNull(),
     campaignId: text('campaign_id').notNull(),
     campaignName: text('campaign_name').notNull(),
-
-    // Core Metrics
     spend: numeric('spend', {precision: 12, scale: 2}).default('0').notNull(),
     impressions: integer('impressions').default(0).notNull(),
     clicks: integer('clicks').default(0).notNull(),
     conversions: numeric('conversions', {precision: 10, scale: 2}).default('0').notNull(),
-
     createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
-    // This is CRITICAL. It ensures if the user reloads the dashboard 10 times today,
-    // it simply updates the existing row instead of creating 10 duplicate rows.
     uniqueDailyRecord: uniqueIndex('unique_daily_campaign_record').on(table.adAccountId, table.date, table.campaignId)
 }));
 
+// --- 6. AI CACHING (NEW) ---
+export const aiInsightsCache = pgTable('ai_insights_cache', {
+    id: serial('id').primaryKey(),
+    adAccountId: integer('ad_account_id').references(() => adAccounts.id, {onDelete: 'cascade'}).notNull(),
+    startDate: date('start_date').notNull(),
+    endDate: date('end_date').notNull(),
+    insights: jsonb('insights').notNull(), // Stores the full Gemini JSON response
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+    // Ensures only one cached report exists per account + date range
+    uniqueCacheRecord: uniqueIndex('unique_ai_cache_record').on(table.adAccountId, table.startDate, table.endDate)
+}));
+
+// --- 7. RELATIONS ---
+export const adAccountRelations = relations(adAccounts, ({many}) => ({
+    rules: many(alertRules),
+    metrics: many(accountMetrics),
+    reportSchedules: many(reportSchedules),
+    dailyPerformance: many(adPerformanceDaily),
+    aiInsights: many(aiInsightsCache),
+}));
+
+export const alertRuleRelations = relations(alertRules, ({one, many}) => ({
+    account: one(adAccounts, {fields: [alertRules.adAccountId], references: [adAccounts.id]}),
+    notifications: many(notificationRoutes),
+    logs: many(alertLogs),
+}));
+
+export const auditLogRelations = relations(auditLogs, ({one}) => ({
+    actor: one(user, {fields: [auditLogs.actorId], references: [user.id]}),
+}));
+
+export const accountMetricRelations = relations(accountMetrics, ({one}) => ({
+    account: one(adAccounts, {fields: [accountMetrics.adAccountId], references: [adAccounts.id]}),
+}));
+
 export const adPerformanceDailyRelations = relations(adPerformanceDaily, ({one}) => ({
-    account: one(adAccounts, {
-        fields: [adPerformanceDaily.adAccountId],
-        references: [adAccounts.id],
-    }),
+    account: one(adAccounts, {fields: [adPerformanceDaily.adAccountId], references: [adAccounts.id]}),
 }));
 
 export const reportScheduleRelations = relations(reportSchedules, ({one}) => ({
-    account: one(adAccounts, {
-        fields: [reportSchedules.adAccountId],
-        references: [adAccounts.id],
-    }),
+    account: one(adAccounts, {fields: [reportSchedules.adAccountId], references: [adAccounts.id]}),
+}));
+
+export const aiInsightsCacheRelations = relations(aiInsightsCache, ({one}) => ({
+    account: one(adAccounts, {fields: [aiInsightsCache.adAccountId], references: [adAccounts.id]}),
 }));
