@@ -82,7 +82,8 @@ async function syncGoogleAdsDataToDb(adAccountId: number, googleAccountId: strin
         date: row.segments.date,
         campaignId: row.campaign.id.toString(),
         campaignName: row.campaign.name,
-        spend: (row.metrics.cost_micros / 1_000_000).toFixed(2),
+        // FIX: Safely fallback to 0 if cost_micros is missing
+        spend: ((row.metrics.cost_micros || 0) / 1_000_000).toFixed(2),
         impressions: parseInt(row.metrics.impressions || "0", 10),
         clicks: parseInt(row.metrics.clicks || "0", 10),
         conversions: parseFloat(row.metrics.conversions || "0").toFixed(2),
@@ -112,12 +113,13 @@ async function syncGoogleAdsDataToDb(adAccountId: number, googleAccountId: strin
  */
 export async function getDashboardMetricsAction(adAccountId: number, googleAccountId: string, startDate: string, endDate: string) {
     try {
-        // 1. TEMPORARY SYNC (Keep this until cron is ready)
         await syncGoogleAdsDataToDb(adAccountId, googleAccountId, startDate, endDate);
 
-        // Helper to safely parse Postgres numerics which return as strings
-        const pNum = (val: any) => Number(val || 0);
-        // Helper to avoid divide-by-zero
+        // FIX: Bulletproof number parser that converts null/undefined/NaN into 0
+        const pNum = (val: any) => {
+            const num = Number(val);
+            return isNaN(num) ? 0 : num;
+        };
         const safeDiv = (num: number, den: number) => den > 0 ? num / den : 0;
 
         // 2. GET TOTALS

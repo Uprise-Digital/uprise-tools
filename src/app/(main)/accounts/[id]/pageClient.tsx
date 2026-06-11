@@ -57,9 +57,24 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
     }, [account.id, account.googleAccountId, startDate, endDate]);
 
     // Formatters
-    const fCur = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: account.currencyCode || 'AUD' }).format(val);
-    const fNum = (val: number) => new Intl.NumberFormat('en-US').format(val);
-    const fPct = (val: number) => `${val.toFixed(2)}%`;
+    const fCur = (val: number) => {
+        const safeVal = isNaN(val) || val === null ? 0 : Number(val);
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: account.currencyCode || 'AUD',
+            maximumFractionDigits: 2 // Added to make it look like Funnel
+        }).format(safeVal);
+    };
+
+    const fNum = (val: number) => {
+        const safeVal = isNaN(val) || val === null ? 0 : Number(val);
+        return new Intl.NumberFormat('en-US').format(safeVal);
+    };
+
+    const fPct = (val: number) => {
+        const safeVal = isNaN(val) || val === null ? 0 : Number(val);
+        return `${safeVal.toFixed(2)}%`;
+    };
 
     return (
         <div className="space-y-8 p-8 max-w-[1600px] mx-auto">
