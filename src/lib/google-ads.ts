@@ -12,7 +12,10 @@ const MANAGER_ID = process.env.GOOGLE_ADS_MANAGER_ID;
  */
 function getCurrentPeriodDateClause(startDate?: string, endDate?: string) {
     if (startDate && endDate) {
-        return `segments.date BETWEEN '${startDate}' AND '${endDate}'`;
+        // Ensure strictly YYYY-MM-DD format, stripping out time components
+        const cleanStart = startDate.split('T')[0].trim();
+        const cleanEnd = endDate.split('T')[0].trim();
+        return `segments.date BETWEEN '${cleanStart}' AND '${cleanEnd}'`;
     }
     return "segments.date DURING THIS_MONTH";
 }
@@ -24,13 +27,16 @@ function getCurrentPeriodDateClause(startDate?: string, endDate?: string) {
 function getPreviousPeriodDateClause(startDate?: string, endDate?: string) {
     if (!startDate || !endDate) return "segments.date DURING LAST_MONTH";
 
+    const cleanStart = startDate.split('T')[0].trim();
+    const cleanEnd = endDate.split('T')[0].trim();
+
     const parseDate = (str: string) => {
         const [y, m, d] = str.split('-').map(Number);
         return new Date(Date.UTC(y, m - 1, d));
     };
 
-    const start = parseDate(startDate);
-    const end = parseDate(endDate);
+    const start = parseDate(cleanStart);
+    const end = parseDate(cleanEnd);
 
     // Calculate duration in days
     const diffTime = end.getTime() - start.getTime();
@@ -79,11 +85,11 @@ export async function fetchMCCAccounts() {
 
     const query = `
         SELECT
-          customer_client.id,
-          customer_client.descriptive_name,
-          customer_client.currency_code,
-          customer_client.time_zone,
-          customer_client.status
+            customer_client.id,
+            customer_client.descriptive_name,
+            customer_client.currency_code,
+            customer_client.time_zone,
+            customer_client.status
         FROM customer_client
         WHERE customer_client.level <= 1
     `;
@@ -99,7 +105,10 @@ export async function fetchMCCAccounts() {
         body: JSON.stringify({ query }),
     });
 
-    return response.json();
+    const data = await response.json();
+    if (data.error) throw new Error(`Google Ads API Error: ${data.error.message}`);
+
+    return data;
 }
 
 export async function fetchAccountMonthlySummary(
@@ -141,6 +150,12 @@ export async function fetchAccountMonthlySummary(
     );
 
     const data = await response.json();
+
+    if (data.error) {
+        console.error("[GAQL Error - Summary]", JSON.stringify(data.error, null, 2));
+        throw new Error(`Summary Query Failed: ${data.error.message}`);
+    }
+
     return data.results || [];
 }
 
@@ -186,6 +201,12 @@ export async function fetchAccountKeywords(
     );
 
     const data = await response.json();
+
+    if (data.error) {
+        console.error("[GAQL Error - Keywords]", JSON.stringify(data.error, null, 2));
+        throw new Error(`Keywords Query Failed: ${data.error.message}`);
+    }
+
     return data.results || [];
 }
 
@@ -223,5 +244,11 @@ export async function fetchAccountLastMonthSummary(
     );
 
     const data = await response.json();
+
+    if (data.error) {
+        console.error("[GAQL Error - Previous Period]", JSON.stringify(data.error, null, 2));
+        throw new Error(`Previous Period Query Failed: ${data.error.message}`);
+    }
+
     return data.results?.[0]?.metrics || null;
 }
