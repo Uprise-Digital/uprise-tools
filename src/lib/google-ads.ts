@@ -1,7 +1,3 @@
-import { db } from "@/db";
-import { account } from "@/db/schema";
-import { eq } from "drizzle-orm";
-
 const DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
 const MANAGER_ID = process.env.GOOGLE_ADS_MANAGER_ID;
 
@@ -58,23 +54,31 @@ function getPreviousPeriodDateClause(startDate?: string, endDate?: string) {
 // --- API Functions ---
 
 async function getManagementAccessToken() {
-    const authData = await db.query.account.findFirst({
-        where: eq(account.providerId, "google"),
-    });
+    // Grab the permanent system token from your environment variables
+    const refreshToken = process.env.GOOGLE_ADS_REFRESH_TOKEN;
 
-    if (!authData?.refreshToken) throw new Error("No Google Refresh Token found.");
+    if (!refreshToken) {
+        throw new Error("CRITICAL: Missing GOOGLE_ADS_REFRESH_TOKEN in environment variables.");
+    }
 
+    // Exchange the refresh token for a fresh 60-minute access token
     const response = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
         body: new URLSearchParams({
             client_id: process.env.GOOGLE_CLIENT_ID!,
             client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-            refresh_token: authData.refreshToken,
+            refresh_token: refreshToken,
             grant_type: "refresh_token",
         }),
     });
 
     const data = await response.json();
+
+    if (data.error) {
+        console.error("[OAuth Refresh Error]", data);
+        throw new Error(`Failed to refresh system token: ${data.error_description || data.error}`);
+    }
+
     return data.access_token;
 }
 
@@ -235,9 +239,9 @@ export async function fetchAccountLastMonthSummary(
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+                "developer-token": DEVELOPER_TOKEN!,
                 "Authorization": `Bearer ${accessToken}`,
-                "login-customer-id": process.env.GOOGLE_ADS_MANAGER_ID!,
+                "login-customer-id": MANAGER_ID!,
             },
             body: JSON.stringify({ query }),
         }
