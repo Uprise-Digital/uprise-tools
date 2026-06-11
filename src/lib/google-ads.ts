@@ -256,3 +256,51 @@ export async function fetchAccountLastMonthSummary(
 
     return data.results?.[0]?.metrics || null;
 }
+
+export async function fetchDailyCampaignData(
+    googleAccountId: string,
+    startDate: string,
+    endDate: string
+) {
+    const accessToken = await getManagementAccessToken(); // Your existing function
+    const sanitizedId = googleAccountId.replace(/-/g, "");
+
+    const cleanStart = startDate.split('T')[0].trim();
+    const cleanEnd = endDate.split('T')[0].trim();
+
+    const query = `
+        SELECT
+            campaign.id,
+            campaign.name,
+            segments.date,
+            metrics.cost_micros,
+            metrics.impressions,
+            metrics.clicks,
+            metrics.conversions
+        FROM campaign
+        WHERE segments.date BETWEEN '${cleanStart}' AND '${cleanEnd}'
+    `;
+
+    const response = await fetch(
+        `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+                "Authorization": `Bearer ${accessToken}`,
+                "login-customer-id": process.env.GOOGLE_ADS_MANAGER_ID!,
+            },
+            body: JSON.stringify({ query }),
+        }
+    );
+
+    const data = await response.json();
+
+    if (data.error) {
+        console.error("[GAQL Error - Daily Data]", JSON.stringify(data.error, null, 2));
+        throw new Error(`Daily Query Failed: ${data.error.message}`);
+    }
+
+    return data.results || [];
+}
