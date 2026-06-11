@@ -66,8 +66,6 @@ export function SidebarNav() {
             {/* 2. TABLET (Icon Only) & DESKTOP (Full View) */}
             {/* Hidden on mobile, flex on desktop */}
             <nav className="hidden md:flex flex-col px-3 py-6 space-y-2 h-full bg-slate-950 w-20 lg:w-64 transition-all duration-300">
-                <div className="px-4 mb-6 font-bold text-blue-500 hidden lg:block">Uprise Tools</div>
-
                 {/* We adjust the Link styles inside the map specifically for the collapsed state:
                    The <span> gets hidden on medium screens, showing only icons.
                 */}
