@@ -10,7 +10,7 @@ interface PageProps {
 }
 
 export default async function AccountDetailPage({ params }: PageProps) {
-    const accountId = parseInt(params.id, 10);
+    const accountId = parseInt((await params).id, 10);
 
     if (isNaN(accountId)) {
         return notFound();
