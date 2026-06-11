@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BarChart3, BellRing, Users, ScrollText, Menu, X } from "lucide-react";
+import { LayoutDashboard, BarChart3, BellRing, Users, ScrollText, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -46,8 +46,8 @@ export function SidebarNav() {
 
     return (
         <>
-            {/* 1. MOBILE HAMBURGER (Visible only on < md) */}
-            <div className="md:hidden p-4 border-b border-slate-800">
+            {/* 1. MOBILE HAMBURGER */}
+            <div className="md:hidden p-4 border-b border-slate-800 bg-slate-950">
                 <Sheet>
                     <SheetTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-slate-300">
@@ -55,20 +55,18 @@ export function SidebarNav() {
                         </Button>
                     </SheetTrigger>
                     <SheetContent side="left" className="bg-slate-950 border-slate-800 text-white w-64">
-                        <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-                        <div className="mt-8">
-                            <NavContent />
-                        </div>
+                        <SheetTitle className="text-left text-blue-500 font-bold mb-4">Uprise Tools</SheetTitle>
+                        <NavContent />
                     </SheetContent>
                 </Sheet>
             </div>
 
-            {/* 2. TABLET (Icon Only) & DESKTOP (Full View) */}
-            {/* Hidden on mobile, flex on desktop */}
-            <nav className="hidden md:flex flex-col px-3 py-6 space-y-2 h-full bg-slate-950 w-20 lg:w-64 transition-all duration-300">
-                {/* We adjust the Link styles inside the map specifically for the collapsed state:
-                   The <span> gets hidden on medium screens, showing only icons.
-                */}
+            {/* 2. FIXED SIDEBAR (Tablet/Desktop) */}
+            {/* - h-screen: Ensures it fills the viewport height
+                - sticky top-0: Pins it to the top of the viewport
+                - shrink-0: Prevents flexbox from squishing it
+            */}
+            <nav className="hidden md:flex flex-col px-3 py-6 space-y-2 h-screen sticky top-0 bg-slate-950 w-20 lg:w-64 shrink-0 transition-all duration-300 overflow-y-auto">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
@@ -77,19 +75,17 @@ export function SidebarNav() {
                         <Link
                             key={item.href}
                             href={item.href}
-                            title={item.label} // Tooltip on hover for icon-only mode
+                            title={item.label}
                             className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-md transition-all font-medium",
                                 isActive
                                     ? "bg-blue-600 text-white"
                                     : "text-slate-400 hover:bg-slate-800 hover:text-white",
-                                // Center the icon when the label is hidden
                                 "lg:justify-start justify-center"
                             )}
                         >
                             <Icon className="h-5 w-5 shrink-0" />
-                            {/* Hide text on tablet (md), show on desktop (lg) */}
-                            <span className="hidden lg:block">{item.label}</span>
+                            <span className="hidden lg:block whitespace-nowrap">{item.label}</span>
                         </Link>
                     );
                 })}
