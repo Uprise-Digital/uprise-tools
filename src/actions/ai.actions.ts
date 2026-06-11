@@ -53,7 +53,7 @@ export async function getOrGenerateAiInsightsAction(
       "diagnostic_intelligence": {
         "cpa_dynamics": {
           "primary_driver": "Breakdown: Was CPA variance caused by CPC inflation, CTR decay, or CR volatility?",
-          "variance_pct": "Percentage variance compared to the average.",
+          "variance_pct": "Percentage variance compared to the average, as a numeric value.",
           "causal_analysis": "Detailed explanation of the relationship between spend levels and conversion efficiency."
         },
         "campaign_performance_vectors": [
