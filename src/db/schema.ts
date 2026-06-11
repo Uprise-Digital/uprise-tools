@@ -206,3 +206,15 @@ export const reportScheduleRelations = relations(reportSchedules, ({one}) => ({
 export const aiInsightsCacheRelations = relations(aiInsightsCache, ({one}) => ({
     account: one(adAccounts, {fields: [aiInsightsCache.adAccountId], references: [adAccounts.id]}),
 }));
+
+// Add this near your other AI caching table
+export const agencyAiInsightsCache = pgTable('agency_ai_insights_cache', {
+    id: serial('id').primaryKey(),
+    startDate: date('start_date').notNull(),
+    endDate: date('end_date').notNull(),
+    insights: jsonb('insights').notNull(), // Stores the full Gemini JSON response
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+    // Ensures only one cached report exists per date range
+    uniqueAgencyCacheRecord: uniqueIndex('unique_agency_ai_cache_record').on(table.startDate, table.endDate)
+}));

@@ -1,9 +1,122 @@
 "use server";
 
-import { db } from "@/db";
-import { adAccounts, adPerformanceDaily } from "@/db/schema";
-import { and, eq, gte, lte } from "drizzle-orm";
-import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
+import {db} from "@/db";
+import {adAccounts, adPerformanceDaily, agencyAiInsightsCache} from "@/db/schema";
+import {and, eq, gte, lte} from "drizzle-orm";
+import {GoogleGenAI} from '@google/genai';
+import {getDashboardMetricsAction} from "@/actions/dashboard.actions";
+
+const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY!});
+
+/**
+ * PORTFOLIO GOD-VIEW ENGINE (With Caching)
+ */
+export async function getOrGenerateAgencyAiInsightsAction(
+    startDate: string,
+    endDate: string,
+    portfolioData: any,
+    forceRefresh: boolean = false
+) {
+    // 1. Check Cache First
+    if (!forceRefresh) {
+        const cached = await db.query.agencyAiInsightsCache.findFirst({
+            where: and(
+                eq(agencyAiInsightsCache.startDate, startDate),
+                eq(agencyAiInsightsCache.endDate, endDate)
+            )
+        });
+
+        if (cached) {
+            return {
+                success: true,
+                data: cached.insights,
+                generatedAt: cached.createdAt,
+                isCached: true
+            };
+        }
+    }
+
+    // 2. If no cache (or forced), run the LLM
+    if (!portfolioData) {
+        throw new Error("Portfolio data is required to generate new insights.");
+    }
+
+    const prompt = `
+    You are the Strategy Director for an elite Performance Marketing Agency. Analyze this agency-wide portfolio data.
+
+    PORTFOLIO DATA: ${JSON.stringify(portfolioData)}
+
+    Your primary job is to protect agency retention by identifying "Critical Fires"—accounts that are actively failing or at high risk of churning. 
+    
+    CRITERIA FOR A "CRITICAL FIRE":
+    1. The account has had ZERO activity (spend/impressions) recently, indicating a broken setup, paused billing, or churn.
+    2. Click-Through Rate (CTR) is abysmal (under 3%), indicating total ad blindness or terrible targeting.
+    3. The account is bleeding money (high spend) with zero or near-zero conversions.
+    4. Blended CPA is catastrophically higher than the agency average.
+
+    OUTPUT FORMAT (Strict JSON):
+    {
+      "macro_summary": "3-sentence high-level summary of the entire agency's performance.",
+      "blended_efficiency": "Analysis of the blended agency CPA and CTR. Are we generally profitable across the board?",
+      "critical_fires": [
+        {
+          "account_name": "Name of the failing account",
+          "severity": "High/Critical",
+          "the_problem": "Exactly what is going wrong (e.g., 'CTR has fallen to 1.2%' or 'Zero spend in the last week')",
+          "recommended_action": "What the account manager must do IMMEDIATELY to save the client relationship."
+        }
+      ],
+      "growth_opportunities": [
+        {
+          "account_name": "Name of an over-performing account",
+          "reasoning": "Why we should ask this client to scale their budget."
+        }
+      ]
+    }
+
+    CONSTRAINTS:
+    - If there are no critical fires matching the criteria, return an empty array []. Be strict; only flag genuine issues.
+    - Base all analysis strictly on the provided JSON figures.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {responseMimeType: 'application/json'}
+        });
+
+        const parsedInsights = JSON.parse(response.text as string);
+
+        // 3. Save to Database
+        const [upserted] = await db.insert(agencyAiInsightsCache)
+            .values({
+                startDate,
+                endDate,
+                insights: parsedInsights,
+                createdAt: new Date(),
+            })
+            .onConflictDoUpdate({
+                target: [agencyAiInsightsCache.startDate, agencyAiInsightsCache.endDate],
+                set: {
+                    insights: parsedInsights,
+                    createdAt: new Date(),
+                }
+            })
+            .returning({createdAt: agencyAiInsightsCache.createdAt});
+
+        return {
+            success: true,
+            data: parsedInsights,
+            generatedAt: upserted.createdAt,
+            isCached: false
+        };
+
+    } catch (error) {
+        console.error("Agency AI Insights Error:", error);
+        throw new Error("Failed to generate portfolio insights.");
+    }
+}
 
 export async function getAgencyPortfolioMetricsAction(startDate: string, endDate: string) {
     try {
@@ -13,7 +126,7 @@ export async function getAgencyPortfolioMetricsAction(startDate: string, endDate
         });
 
         const accountIds = activeAccounts.map(a => a.id);
-        if (accountIds.length === 0) return { success: true, data: null };
+        if (accountIds.length === 0) return {success: true, data: null};
 
         // 2. Fetch all performance data for these accounts in the date range
         const allPerformance = await db.query.adPerformanceDaily.findMany({
@@ -88,7 +201,7 @@ export async function getAgencyPortfolioMetricsAction(startDate: string, endDate
 
     } catch (error: any) {
         console.error("Failed to fetch agency portfolio:", error);
-        return { success: false, error: error.message };
+        return {success: false, error: error.message};
     }
 }
 
@@ -99,7 +212,7 @@ export async function syncAgencyPortfolioAction(startDate: string, endDate: stri
             where: eq(adAccounts.isActive, true)
         });
 
-        if (activeAccounts.length === 0) return { success: true, syncedCount: 0 };
+        if (activeAccounts.length === 0) return {success: true, syncedCount: 0};
 
         // 2. Loop through and trigger the JIT sync for each account.
         // We use a `for...of` loop instead of `Promise.all` to avoid hitting
@@ -116,9 +229,9 @@ export async function syncAgencyPortfolioAction(startDate: string, endDate: stri
             }
         }
 
-        return { success: true, syncedCount };
+        return {success: true, syncedCount};
     } catch (error: any) {
         console.error("Failed to sync agency portfolio:", error);
-        return { success: false, error: error.message };
+        return {success: false, error: error.message};
     }
 }
