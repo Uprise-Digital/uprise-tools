@@ -46,37 +46,37 @@ export async function getOrGenerateAgencyAiInsightsAction(
 
     PORTFOLIO DATA: ${JSON.stringify(portfolioData)}
 
-    Your primary job is to protect agency retention by identifying "Critical Fires"—accounts that are actively failing or at high risk of churning. 
-    
-    CRITERIA FOR A "CRITICAL FIRE":
-    1. The account has had ZERO activity (spend/impressions) recently, indicating a broken setup, paused billing, or churn.
-    2. Click-Through Rate (CTR) is abysmal (under 3%), indicating total ad blindness or terrible targeting.
-    3. The account is bleeding money (high spend) with zero or near-zero conversions.
-    4. Blended CPA is catastrophically higher than the agency average.
+    Your primary job is to protect agency retention by identifying "Critical Fires"—accounts that are actively bleeding money and at high risk of churning. You must also identify true growth opportunities.
+
+    CRITICAL FIRE LOGIC & CONSTRAINTS (READ CAREFULLY):
+    1. IGNORE THE GRAVEYARD: Completely ignore accounts with $0 spend and 0 impressions. Do not list them. Assume they are paused or legacy accounts.
+    2. THE MONEY FURNACE: Flag accounts that have significant spend but zero conversions, or a CPA that is astronomically higher (e.g., 3x+) than the blended agency average.
+    3. PREVENT FALSE POSITIVES: DO NOT flag an account for a low CTR (e.g., < 3%) IF it is driving strong conversion volume at a healthy CPA. For example, if a top spender has a 2.9% CTR but drives 50%+ of agency conversions, THAT IS A SUCCESS, not a fire. CPA and Volume always trump CTR.
+    4. WHALE AWARENESS: Identify if the agency is overly reliant on 1 or 2 "Whale" accounts. If a Whale is failing, mark severity as "Critical". If a Whale is succeeding, protect it.
 
     OUTPUT FORMAT (Strict JSON):
     {
-      "macro_summary": "3-sentence high-level summary of the entire agency's performance.",
-      "blended_efficiency": "Analysis of the blended agency CPA and CTR. Are we generally profitable across the board?",
+      "macro_summary": "3-sentence high-level summary. Explicitly call out if the agency portfolio is dangerously top-heavy (reliant on a single whale account) and mention the total active (non-zero) accounts.",
+      "blended_efficiency": "Analysis of the blended agency CPA and CTR. Is the overall agency actually efficient, or is one massive account skewing the average hiding deeper inefficiencies?",
       "critical_fires": [
         {
           "account_name": "Name of the failing account",
           "severity": "High/Critical",
-          "the_problem": "Exactly what is going wrong (e.g., 'CTR has fallen to 1.2%' or 'Zero spend in the last week')",
-          "recommended_action": "What the account manager must do IMMEDIATELY to save the client relationship."
+          "the_problem": "Data-backed explanation of the exact failure (e.g., 'Spent $1,584 for a single lead, resulting in a CPA 12x the agency average.').",
+          "recommended_action": "What the account manager must do IMMEDIATELY to stop the cash bleed and save the relationship."
         }
       ],
       "growth_opportunities": [
         {
-          "account_name": "Name of an over-performing account",
-          "reasoning": "Why we should ask this client to scale their budget."
+          "account_name": "Name of an over-performing account (Strong conversions, excellent CPA)",
+          "reasoning": "Data-backed reason why this specific client is highly profitable and should be pitched for a budget increase."
         }
       ]
     }
 
     CONSTRAINTS:
-    - If there are no critical fires matching the criteria, return an empty array []. Be strict; only flag genuine issues.
     - Base all analysis strictly on the provided JSON figures.
+    - If there are no genuine critical fires matching the criteria above, return an empty array [].
     `;
 
     try {
