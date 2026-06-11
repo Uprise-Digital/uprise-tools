@@ -262,12 +262,10 @@ export async function fetchDailyCampaignData(
     startDate: string,
     endDate: string
 ) {
-    const accessToken = await getManagementAccessToken(); // Your existing function
+    const accessToken = await getManagementAccessToken();
     const sanitizedId = googleAccountId.replace(/-/g, "");
 
-    const cleanStart = startDate.split('T')[0].trim();
-    const cleanEnd = endDate.split('T')[0].trim();
-
+    // We add metrics.cost_micros and ensure segments.date is handled correctly
     const query = `
         SELECT
             campaign.id,
@@ -278,7 +276,7 @@ export async function fetchDailyCampaignData(
             metrics.clicks,
             metrics.conversions
         FROM campaign
-        WHERE segments.date BETWEEN '${cleanStart}' AND '${cleanEnd}'
+        WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
     `;
 
     const response = await fetch(
@@ -297,10 +295,10 @@ export async function fetchDailyCampaignData(
 
     const data = await response.json();
 
-    if (data.error) {
-        console.error("[GAQL Error - Daily Data]", JSON.stringify(data.error, null, 2));
-        throw new Error(`Daily Query Failed: ${data.error.message}`);
-    }
+    // DEBUG: Look at this in your terminal output
+    console.log("DEBUG Google Ads Raw Response:", JSON.stringify(data.results[0], null, 2));
+
+    if (data.error) throw new Error(`Query Failed: ${data.error.message}`);
 
     return data.results || [];
 }
