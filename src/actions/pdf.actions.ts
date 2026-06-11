@@ -55,10 +55,19 @@ export async function generateClientReportAction(
             customInstructions: ""
         });
 
+    // --- NEW: Format the date range for the PDF ---
+        let displayDate = "Current Month"; // Default text if no dates provided
+        if (startDate && endDate) {
+            // Converts "2026-05-11" to "May 11, 2026"
+            const formatStr = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            displayDate = `${formatStr(startDate)} — ${formatStr(endDate)}`;
+        }
+
         // 5. Combine data
         const finalData = {
             ...baseData,
-            ai: aiInsights
+            ai: aiInsights,
+            dateRange: displayDate // Pass the formatted date string to the PDF
         };
 
         // 6. Render PDF to Buffer

@@ -131,7 +131,10 @@ export const MyReportPDF = ({ data }: { data: any }) => (
 
                 <View style={{ marginTop: 120 }}>
                     <Text style={styles.labelSmall}>Reporting Period</Text>
-                    <Text style={{ fontSize: 12, marginTop: 6, fontWeight: 400, color: '#ffffff' }}>March 1, 2026 — March 31, 2026</Text>
+                    {/* 👇 Use the dynamic dateRange here */}
+                    <Text style={{ fontSize: 12, marginTop: 6, fontWeight: 400, color: '#ffffff' }}>
+                        {data.dateRange}
+                    </Text>
                 </View>
 
                 <View style={{ marginTop: 40 }}>
