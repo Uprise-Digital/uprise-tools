@@ -67,6 +67,8 @@ export function SidebarNav() {
                 - shrink-0: Prevents flexbox from squishing it
             */}
             <nav className="hidden md:flex flex-col px-3 py-6 space-y-2 h-screen sticky top-0 bg-slate-950 w-20 lg:w-64 shrink-0 transition-all duration-300 overflow-y-auto">
+                <div className="px-4 mb-6 font-bold text-blue-500 hidden lg:block text-lg">Uprise Tools</div>
+
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
