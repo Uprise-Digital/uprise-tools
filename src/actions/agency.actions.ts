@@ -8,8 +8,30 @@ import {getDashboardMetricsAction} from "@/actions/dashboard.actions";
 
 const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY!});
 
+// Bulletproof number parser
+function parseDataNumber(val: any): number {
+    if (val === undefined || val === null) return 0;
+    if (typeof val === 'number') return val;
+    const cleaned = String(val).replace(/[^0-9.-]+/g, "");
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+// Deeply searches any object to find the array of data
+function extractArrayDeep(obj: any): any[] {
+    if (!obj) return [];
+    if (Array.isArray(obj)) return obj;
+    if (typeof obj === 'object') {
+        for (const key in obj) {
+            const result = extractArrayDeep(obj[key]);
+            if (result.length > 0) return result;
+        }
+    }
+    return [];
+}
+
 /**
- * PORTFOLIO GOD-VIEW ENGINE (With Caching)
+ * PORTFOLIO GOD-VIEW ENGINE
  */
 export async function getOrGenerateAgencyAiInsightsAction(
     startDate: string,
@@ -36,15 +58,100 @@ export async function getOrGenerateAgencyAiInsightsAction(
         }
     }
 
-    // 2. If no cache (or forced), run the LLM
     if (!portfolioData) {
         throw new Error("Portfolio data is required to generate new insights.");
     }
 
+    // --- PRE-COMPUTATION ENGINE (Upgraded with Analyst Logic) ---
+    const accountsArray = extractArrayDeep(portfolioData);
+    let preCalculatedContext = "";
+
+    try {
+        const parsedAccounts = accountsArray.map(acc => {
+            if (typeof acc !== 'object' || !acc) return null;
+            const keys = Object.keys(acc);
+
+            const getVal = (terms: string[]) => {
+                const foundKey = keys.find(k => terms.some(t => k.toLowerCase().includes(t)));
+                return foundKey ? acc[foundKey] : undefined;
+            };
+
+            const name = getVal(['name', 'client', 'account']) || 'Unknown Account';
+            const spend = parseDataNumber(getVal(['spend', 'cost', 'amount']));
+            const conversions = parseDataNumber(getVal(['conv']));
+            const targetCpa = parseDataNumber(getVal(['target', 'goal', 'expected'])); // Added Target CPA lookup
+            const cpa = conversions > 0 ? spend / conversions : 0;
+
+            return { name, spend, conversions, cpa, targetCpa };
+        }).filter(Boolean) as any[];
+
+        const activeAccounts = parsedAccounts.filter(a => a.spend > 0);
+        const validAccountsCount = activeAccounts.length;
+
+        if (validAccountsCount > 0) {
+            let totalSpend = 0;
+            let totalConversions = 0;
+
+            activeAccounts.forEach(a => {
+                totalSpend += a.spend;
+                totalConversions += a.conversions;
+            });
+
+            const blendedCPA = totalConversions > 0 ? totalSpend / totalConversions : 0;
+
+            // Isolate Whales & Calculate True Long-Tail Average
+            const whales = activeAccounts.filter(a => a.spend > (totalSpend * 0.25));
+            const whaleSpend = whales.reduce((sum, w) => sum + w.spend, 0);
+            const whaleConversions = whales.reduce((sum, w) => sum + w.conversions, 0);
+
+            const nonWhaleSpend = totalSpend - whaleSpend;
+            const nonWhaleConversions = totalConversions - whaleConversions;
+            const nonWhaleCPA = nonWhaleConversions > 0 ? nonWhaleSpend / nonWhaleConversions : 0;
+
+            const formattedWhales = whales.map(w => ({
+                name: w.name,
+                spend_share: ((w.spend / totalSpend) * 100).toFixed(1) + "%"
+            }));
+
+            // Upgraded Bleed Index: Uses Target CPA if available, otherwise falls back to Non-Whale CPA
+            const criticalFires = activeAccounts
+                .filter(a => a.spend > 200 && (a.conversions === 0 || a.cpa > (a.targetCpa > 0 ? a.targetCpa * 1.5 : nonWhaleCPA * 1.5)))
+                .map(a => {
+                    const evaluationBaseline = a.targetCpa > 0 ? a.targetCpa : nonWhaleCPA;
+                    const relativeMultiplier = evaluationBaseline > 0 ? (a.cpa / evaluationBaseline) : 1;
+                    const bleedScore = a.conversions === 0 ? a.spend * 2 : a.spend * relativeMultiplier;
+
+                    return { ...a, bleedScore, evaluationBaseline };
+                })
+                .sort((a, b) => b.bleedScore - a.bleedScore)
+                .map(a => ({
+                    name: a.name,
+                    spend: a.spend,
+                    cpa: a.cpa,
+                    baseline_used: a.targetCpa > 0 ? `Target CPA: $${a.targetCpa}` : `Non-Whale Avg: $${nonWhaleCPA.toFixed(2)}`
+                }));
+
+            preCalculatedContext = `
+            --- PRE-CALCULATED GROUND TRUTH (USE THESE EXACT FIGURES) ---
+            - Total Active Accounts: ${validAccountsCount}
+            - Overall Portfolio Blended CPA: $${blendedCPA.toFixed(2)}
+            - NON-WHALE PORTFOLIO CPA (The true long-tail average): $${nonWhaleCPA.toFixed(2)}
+            - Whale Accounts Identified (>25% spend): ${whales.length > 0 ? JSON.stringify(formattedWhales) : "None"}
+            - Top Mathematical Cash Bleeders: ${JSON.stringify(criticalFires.slice(0, 5))}
+            -------------------------------------------------------------
+            `;
+        }
+    } catch (e) {
+        console.warn("Silent fallback: Using base prompt only.");
+    }
+    // --------------------------------
+
+    // 2. Exact Working Prompt Construction (With updated Blended Efficiency instructions)
     const prompt = `
     You are the Strategy Director for an elite Performance Marketing Agency. Analyze this agency-wide portfolio data.
 
     PORTFOLIO DATA: ${JSON.stringify(portfolioData)}
+    ${preCalculatedContext}
 
     Your primary job is to protect agency retention by identifying "Critical Fires"—accounts that are actively bleeding money and at high risk of churning. You must also identify true growth opportunities.
 
@@ -57,7 +164,7 @@ export async function getOrGenerateAgencyAiInsightsAction(
     OUTPUT FORMAT (Strict JSON):
     {
       "macro_summary": "3-sentence high-level summary. Explicitly call out if the agency portfolio is dangerously top-heavy (reliant on a single whale account) and mention the total active (non-zero) accounts.",
-      "blended_efficiency": "Analysis of the blended agency CPA and CTR. Is the overall agency actually efficient, or is one massive account skewing the average hiding deeper inefficiencies?",
+      "blended_efficiency": "Analysis of the blended agency CPA. You MUST contrast the 'Overall Portfolio Blended CPA' against the 'NON-WHALE PORTFOLIO CPA'. Explain how the whale is masking the true average of the long-tail accounts.",
       "critical_fires": [
         {
           "account_name": "Name of the failing account",
@@ -76,19 +183,35 @@ export async function getOrGenerateAgencyAiInsightsAction(
 
     CONSTRAINTS:
     - Base all analysis strictly on the provided JSON figures.
+    - Use the PRE-CALCULATED GROUND TRUTH explicitly if it is provided above.
     - If there are no genuine critical fires matching the criteria above, return an empty array [].
     `;
 
+    // 3. Resilient API Call
+    let response;
+    let retries = 3;
+
+    while (retries > 0) {
+        try {
+            response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {responseMimeType: 'application/json'}
+            });
+            break;
+        } catch (error: any) {
+            retries -= 1;
+            console.warn(`Gemini API connection failed. Retries left: ${retries}.`);
+            if (retries === 0) {
+                throw new Error("Failed to generate portfolio insights due to network timeout.");
+            }
+            await new Promise(res => setTimeout(res, 2000));
+        }
+    }
+
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {responseMimeType: 'application/json'}
-        });
+        const parsedInsights = JSON.parse(response!.text as string);
 
-        const parsedInsights = JSON.parse(response.text as string);
-
-        // 3. Save to Database
         const [upserted] = await db.insert(agencyAiInsightsCache)
             .values({
                 startDate,
@@ -113,8 +236,8 @@ export async function getOrGenerateAgencyAiInsightsAction(
         };
 
     } catch (error) {
-        console.error("Agency AI Insights Error:", error);
-        throw new Error("Failed to generate portfolio insights.");
+        console.error("Agency AI Insights Parsing/DB Error:", error);
+        throw new Error("Failed to process portfolio insights.");
     }
 }
 

@@ -302,3 +302,114 @@ export async function fetchDailyCampaignData(
 
     return data.results || [];
 }
+
+/**
+ * Fetches the specific landing page URL the client is currently spending the most money on.
+ */
+export async function fetchTopClientLandingPage(googleAccountId: string): Promise<string | null> {
+    const accessToken = await getManagementAccessToken();
+    const sanitizedId = googleAccountId.replace(/-/g, "");
+
+    const query = `
+        SELECT 
+            ad_group_ad.ad.final_urls, 
+            metrics.cost_micros 
+        FROM ad_group_ad 
+        WHERE segments.date DURING LAST_30_DAYS 
+        ORDER BY metrics.cost_micros DESC 
+        LIMIT 1
+    `;
+
+    try {
+        const response = await fetch(
+            `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+                    "Authorization": `Bearer ${accessToken}`,
+                    "login-customer-id": process.env.GOOGLE_ADS_MANAGER_ID!,
+                },
+                body: JSON.stringify({ query }),
+            }
+        );
+
+        const data = await response.json();
+
+        if (data.error) {
+            console.error("[GAQL Error - Landing Page]", JSON.stringify(data.error, null, 2));
+            return null;
+        }
+
+        if (data.results && data.results.length > 0) {
+            // Google returns final_urls as an array of strings. We grab the first one.
+            const urls = data.results[0].adGroupAd?.ad?.finalUrls;
+            if (urls && urls.length > 0) {
+                return urls[0];
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error(`Failed to fetch top landing page for ${googleAccountId}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Fetches the highest-spend search term, attempting to filter out branded terms.
+ */
+export async function fetchTopNonBrandedSearchTerm(googleAccountId: string, brandName: string): Promise<string | null> {
+    const accessToken = await getManagementAccessToken();
+    const sanitizedId = googleAccountId.replace(/-/g, "");
+
+    // We use search_term_view because it shows what humans actually typed
+    const query = `
+        SELECT 
+            search_term_view.search_term, 
+            metrics.cost_micros 
+        FROM search_term_view 
+        WHERE segments.date DURING LAST_30_DAYS 
+        ORDER BY metrics.cost_micros DESC 
+        LIMIT 10
+    `;
+
+    try {
+        const response = await fetch(
+            `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+                    "Authorization": `Bearer ${accessToken}`,
+                    "login-customer-id": process.env.GOOGLE_ADS_MANAGER_ID!,
+                },
+                body: JSON.stringify({ query }),
+            }
+        );
+
+        const data = await response.json();
+
+        if (data.results && data.results.length > 0) {
+            const brandNameLower = brandName.toLowerCase().split(' ')[0]; // Basic filter using first word of brand
+
+            // Find the first search term that doesn't contain the brand name
+            for (const row of data.results) {
+                const term = row.searchTermView?.searchTerm;
+                if (term && !term.toLowerCase().includes(brandNameLower)) {
+                    return term; // Found the top non-branded money bleeder!
+                }
+            }
+
+            // Fallback if everything looks branded
+            return data.results[0].searchTermView?.searchTerm;
+        }
+
+        return null;
+    } catch (error) {
+        console.error(`Failed to fetch top search term for ${googleAccountId}:`, error);
+        return null;
+    }
+}

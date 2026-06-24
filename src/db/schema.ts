@@ -18,6 +18,7 @@ export const adAccounts = pgTable('ad_accounts', {
     id: serial('id').primaryKey(),
     googleAccountId: text('google_account_id').notNull().unique(),
     name: text('name').notNull(),
+    websiteUrl: text('website_url'), // <-- NEW: Required for the Threat Matrix
     currencyCode: text('currency_code').default('AUD'),
     timeZone: text('time_zone').default('Australia/Melbourne'),
     isActive: boolean('is_active').default(true).notNull(),
@@ -179,7 +180,10 @@ export const adAccountRelations = relations(adAccounts, ({many}) => ({
     reportSchedules: many(reportSchedules),
     dailyPerformance: many(adPerformanceDaily),
     aiInsights: many(aiInsightsCache),
+    threatAudits: many(threatMatrixAudits), // <-- NEW
 }));
+
+
 
 export const alertRuleRelations = relations(alertRules, ({one, many}) => ({
     account: one(adAccounts, {fields: [alertRules.adAccountId], references: [adAccounts.id]}),
@@ -217,4 +221,19 @@ export const agencyAiInsightsCache = pgTable('agency_ai_insights_cache', {
 }, (table) => ({
     // Ensures only one cached report exists per date range
     uniqueAgencyCacheRecord: uniqueIndex('unique_agency_ai_cache_record').on(table.startDate, table.endDate)
+}));
+
+// --- 8. COMPETITOR INTELLIGENCE (NEW) ---
+export const threatMatrixAudits = pgTable('threat_matrix_audits', {
+    id: serial('id').primaryKey(),
+    adAccountId: integer('ad_account_id').references(() => adAccounts.id, { onDelete: 'cascade' }).notNull(),
+    searchTerm: text('search_term').notNull(), // e.g., "emergency plumber melbourne"
+    clientUrlScraped: text('client_url_scraped').notNull(),
+    competitorUrlsScraped: jsonb('competitor_urls_scraped').notNull(), // Array of URLs
+    aiAnalysis: jsonb('ai_analysis').notNull(), // Stores the full Gemini JSON response
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const threatMatrixAuditRelations = relations(threatMatrixAudits, ({one}) => ({
+    account: one(adAccounts, {fields: [threatMatrixAudits.adAccountId], references: [adAccounts.id]}),
 }));

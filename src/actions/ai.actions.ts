@@ -41,34 +41,85 @@ export async function getOrGenerateAiInsightsAction(
         throw new Error("Data analysis unavailable: Unable to retrieve dashboard metrics.");
     }
 
+    // --- NEW: Pre-compute the hard math to prevent LLM hallucinations ---
+    // Note: Adjust 'dataRes.data.campaigns' to match your actual data schema if needed.
+    const campaigns = dataRes.data.campaigns || [];
+
+    let totalSpend = 0;
+    let totalConversions = 0;
+    let totalClicks = 0;
+    let totalImpressions = 0;
+
+    campaigns.forEach((c: any) => {
+        totalSpend += (c.spend || 0);
+        totalConversions += (c.conversions || 0);
+        totalClicks += (c.clicks || 0);
+        totalImpressions += (c.impressions || 0);
+    });
+
+    const blendedCPA = totalConversions > 0 ? (totalSpend / totalConversions) : 0;
+    const blendedCTR = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100) : 0;
+    const blendedCR = totalClicks > 0 ? ((totalConversions / totalClicks) * 100) : 0;
+
+    // Find the actual best campaign by CPA (Requires at least 1 conversion)
+    const validCampaigns = campaigns.filter((c: any) => c.conversions > 0);
+    const topCampaign = validCampaigns.length > 0
+        ? validCampaigns.reduce((prev: any, curr: any) =>
+            (prev.spend / prev.conversions) < (curr.spend / curr.conversions) ? prev : curr
+        )
+        : null;
+
+    const calculatedMetrics = {
+        account_totals: {
+            total_spend: totalSpend.toFixed(2),
+            total_conversions: totalConversions,
+            blended_cpa: blendedCPA.toFixed(2),
+            blended_ctr: blendedCTR.toFixed(2) + "%",
+            blended_conversion_rate: blendedCR.toFixed(2) + "%"
+        },
+        top_performer: {
+            name: topCampaign?.campaignName || "None",
+            spend: topCampaign?.spend || 0,
+            conversions: topCampaign?.conversions || 0,
+            cpa: topCampaign ? (topCampaign.spend / topCampaign.conversions).toFixed(2) : 0
+        }
+    };
+    // -------------------------------------------------------------------
+
     // 3. Define Prompt
     const prompt = `
     You are an elite Performance Marketing Strategist. Analyze the following Google Ads data and provide deep-dive intelligence across 3 pillars: Diagnostics, Predictive, and Prescriptive.
 
-    DATA: ${JSON.stringify(dataRes.data)}
+    RAW DATA: ${JSON.stringify(dataRes.data)}
+    
+    PRE-CALCULATED FACTS (USE THESE EXACT FIGURES STRICTLY): 
+    ${JSON.stringify(calculatedMetrics)}
+
+    CRITICAL INSTRUCTION: 
+    Do NOT attempt to calculate overall CPA, CTR, or top campaigns yourself. You MUST use the figures provided in the "PRE-CALCULATED FACTS" section for your narrative and strategic recommendations. Ensure you highlight the exact "top_performer" identified above.
 
     OUTPUT FORMAT (Strict JSON):
     {
-      "executive_summary": "3-sentence summary for a client email, highlighting win/loss performance.",
+      "executive_summary": "3-sentence summary for a client email, highlighting win/loss performance based on the PRE-CALCULATED FACTS.",
       "diagnostic_intelligence": {
         "cpa_dynamics": {
           "primary_driver": "Breakdown: Was CPA variance caused by CPC inflation, CTR decay, or CR volatility?",
-          "variance_pct": "Percentage variance compared to the average, as a numeric value.",
+          "variance_pct": "Use the numbers provided to explain the variance.",
           "causal_analysis": "Detailed explanation of the relationship between spend levels and conversion efficiency."
         },
         "campaign_performance_vectors": [
           {
             "campaign_name": "Name",
-            "contribution_weight": "% of total spend",
+            "contribution_weight": "Estimated % of total spend",
             "efficiency_score": "Relative performance rating (Under/Over/Balanced)"
           }
         ]
       },
       "predictive_forecasting": {
         "pacing_metrics": {
-          "projected_spend": "Value",
-          "projected_conversions": "Value",
-          "pacing_delta": "The difference between projected spend and the monthly budget target."
+          "projected_spend": "Estimate based on daily averages",
+          "projected_conversions": "Estimate",
+          "pacing_delta": "The difference between projected spend and a typical budget."
         },
         "budget_health": "Status: Pacing Fast/Slow/On-Track with a brief technical justification."
       },
@@ -76,7 +127,7 @@ export async function getOrGenerateAiInsightsAction(
         "strategic_moves": [
           {
             "priority": "High/Medium/Low",
-            "action": "Specific bid, budget, or creative recommendation",
+            "action": "Specific bid, budget, or creative recommendation (Make sure to prioritize scaling the top_performer)",
             "expected_impact": "Quantifiable estimate (e.g., '10% reduction in CPA')"
           }
         ],
@@ -86,7 +137,7 @@ export async function getOrGenerateAiInsightsAction(
     }
 
     CONSTRAINTS:
-    - Use concrete figures from the JSON.
+    - Base all analysis strictly on the JSON figures.
     - Be authoritative, data-driven, and agency-grade.
     - If spend is NaN or 0, focus analysis on traffic quality.
     `;

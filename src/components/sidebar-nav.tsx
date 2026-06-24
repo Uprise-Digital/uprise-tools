@@ -8,10 +8,9 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-    { href: "/", label: "Overview", icon: LayoutDashboard },
+    { href: "/overview", label: "Overview", icon: LayoutDashboard },
     { href: "/accounts", label: "Ad Accounts", icon: BarChart3 },
-    { href: "/rules", label: "Alert Rules", icon: BellRing },
-    { href: "/reports", label: "Reports", icon: ScrollText },
+    { href: "/mcp", label: "MCP Settings", icon: BellRing },
     { href: "/team", label: "Team Management", icon: Users },
     { href: "/logs", label: "Logs", icon: ScrollText },
 ];

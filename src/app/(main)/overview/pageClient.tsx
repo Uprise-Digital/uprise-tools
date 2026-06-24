@@ -19,7 +19,10 @@ import {
     TrendingUp,
     Users,
     EyeOff,
-    Eye
+    Eye,
+    Scale,
+    Flame,
+    AlertTriangle
 } from "lucide-react";
 import {
     getAgencyPortfolioMetricsAction, getOrGenerateAgencyAiInsightsAction,
@@ -127,17 +130,14 @@ export default function AgencyReportsClient() {
     const getChurnRisk = (acc: any, blendedCpa: number) => {
         if (acc.spend === 0) return { label: "Inactive", classes: "bg-slate-100 text-slate-500 border-slate-200" };
 
-        // High Risk: Spending over $100 with zero conversions, OR CPA is astronomically high (>3x average)
         if ((acc.spend > 100 && acc.conversions === 0) || (acc.cpa > blendedCpa * 3)) {
             return { label: "High Risk", classes: "bg-red-50 text-red-700 border-red-200 font-bold" };
         }
 
-        // Medium Risk: CPA is somewhat high (>1.5x average), OR CTR is terrible but they still have a few conversions
         if (acc.cpa > blendedCpa * 1.5 || (acc.ctr < 3 && acc.conversions < 5)) {
             return { label: "Medium", classes: "bg-amber-50 text-amber-700 border-amber-200" };
         }
 
-        // Low Risk: Healthy account
         return { label: "Healthy", classes: "bg-emerald-50 text-emerald-700 border-emerald-200" };
     };
 
@@ -146,9 +146,21 @@ export default function AgencyReportsClient() {
     }
 
     // Filtered Accounts
-    const visibleAccounts = portfolio?.accountBreakdown.filter((acc: any) =>
+    const visibleAccounts = portfolio?.accountBreakdown?.filter((acc: any) =>
         hideInactive ? acc.spend > 0 : true
     ) || [];
+
+    // --- ON-THE-FLY ANALYST METRICS ---
+    const totalSpend = portfolio?.agencyTotals?.spend || 0;
+    const totalConv = portfolio?.agencyTotals?.conversions || 0;
+    const whales = visibleAccounts.filter((a: any) => a.spend > (totalSpend * 0.25));
+    const whaleSpend = whales.reduce((sum: number, w: any) => sum + w.spend, 0);
+    const whaleConv = whales.reduce((sum: number, w: any) => sum + w.conversions, 0);
+
+    const nonWhaleSpend = totalSpend - whaleSpend;
+    const nonWhaleConv = totalConv - whaleConv;
+    const nonWhaleCpa = nonWhaleConv > 0 ? (nonWhaleSpend / nonWhaleConv) : 0;
+    const whaleSpendShare = totalSpend > 0 ? (whaleSpend / totalSpend) * 100 : 0;
 
     return (
         <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
@@ -175,30 +187,75 @@ export default function AgencyReportsClient() {
                 </div>
             </div>
 
-            {/* ── PORTFOLIO KPIS ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                    { label: "Active Accounts", val: portfolio?.agencyTotals.activeAccountsCount, icon: Users, color: "text-indigo-600", bg: "bg-indigo-50" },
-                    { label: "Blended Spend", val: fCur(portfolio?.agencyTotals.spend), icon: DollarSign, color: "text-blue-600", bg: "bg-blue-50" },
-                    { label: "Total Conversions", val: fNum(portfolio?.agencyTotals.conversions), icon: Target, color: "text-emerald-600", bg: "bg-emerald-50" },
-                    { label: "Blended CPA", val: fCur(portfolio?.agencyTotals.cpa), icon: Activity, color: "text-rose-600", bg: "bg-rose-50" },
-                ].map((kpi, i) => (
-                    <Card key={i} className="shadow-sm border-slate-200">
-                        <CardContent className="p-5 flex items-center justify-between">
-                            <div className="space-y-1">
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{kpi.label}</p>
-                                <p className="text-2xl font-bold text-slate-900">{kpi.val}</p>
-                            </div>
-                            <div className={`p-3 rounded-xl ${kpi.bg}`}><kpi.icon className={`h-5 w-5 ${kpi.color}`}/></div>
-                        </CardContent>
-                    </Card>
-                ))}
+            {/* ── UPGRADED PORTFOLIO KPIS (6-Grid) ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <Card className="py-0 m-0 shadow-sm border-slate-200">
+                    <CardContent className="m-0 p-5 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">All Accounts</p>
+                            <p className="text-xl font-black text-slate-900">{portfolio?.agencyTotals?.activeAccountsCount || 0}</p>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-indigo-50"><Users className="h-4 w-4 text-indigo-600"/></div>
+                    </CardContent>
+                </Card>
+
+                <Card className="py-0 m-0 shadow-sm border-slate-200">
+                    <CardContent className="p-5 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Blended Spend</p>
+                            <p className="text-xl font-black text-slate-900">{fCur(totalSpend)}</p>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-blue-50"><DollarSign className="h-4 w-4 text-blue-600"/></div>
+                    </CardContent>
+                </Card>
+
+                <Card className="py-0 m-0 shadow-sm border-slate-200">
+                    <CardContent className="p-5 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Conv.</p>
+                            <p className="text-xl font-black text-slate-900">{fNum(totalConv)}</p>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-emerald-50"><Target className="h-4 w-4 text-emerald-600"/></div>
+                    </CardContent>
+                </Card>
+
+                <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-4 border-l-indigo-500">
+                    <CardContent className="p-5 flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Blended CPA</p>
+                            <p className="text-xl font-black text-slate-900">{fCur(portfolio?.agencyTotals?.cpa || 0)}</p>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-slate-100"><Activity className="h-4 w-4 text-slate-600"/></div>
+                    </CardContent>
+                </Card>
+
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
+                <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-4 border-l-emerald-500 bg-emerald-50/30 relative overflow-hidden">
+                    <CardContent className="p-5 relative z-10">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Non-Whale CPA</p>
+                            <p className="text-xl font-black text-emerald-800">{fCur(nonWhaleCpa)}</p>
+                        </div>
+                    </CardContent>
+                    <Scale className="absolute -bottom-3 -right-2 w-16 h-16 text-emerald-100 opacity-60 z-0" />
+                </Card>
+
+                <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-4 border-l-amber-500 bg-amber-50/30 relative overflow-hidden">
+                    <CardContent className="p-5 relative z-10">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Whale Spend</p>
+                            <p className="text-xl font-black text-amber-800">{fPct(whaleSpendShare)}</p>
+                        </div>
+                    </CardContent>
+                    <Activity className="absolute -bottom-3 -right-2 w-16 h-16 text-amber-100 opacity-60 z-0" />
+                </Card>
             </div>
 
-            {/* ── AI GOD MODE ENGINE ── */}
+            {/* ── UPGRADED AI GOD MODE ENGINE ── */}
             <Card className="border-slate-300 shadow-md bg-slate-950 text-slate-100 overflow-hidden relative">
                 <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"/>
-                {isAiRefreshing && <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[1px] z-10 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-500"/></div>}
+                {isAiRefreshing && <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] z-10 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-500"/></div>}
 
                 <CardHeader className="border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -215,7 +272,7 @@ export default function AgencyReportsClient() {
                             onClick={() => fetchGodModeAi(true)}
                             disabled={isAiLoading || isAiRefreshing || !portfolio}
                             size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white border-0"
+                            className="bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-lg shadow-blue-900/20"
                         >
                             {isAiRefreshing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin"/> Analyzing...</> : <><RefreshCw className="h-4 w-4 mr-2"/> Run Analysis</>}
                         </Button>
@@ -224,45 +281,76 @@ export default function AgencyReportsClient() {
 
                 <CardContent className="p-0">
                     {isAiLoading ? (
-                        <div className="p-12 flex flex-col items-center justify-center text-slate-400 gap-3">
-                            <Loader2 className="h-6 w-6 animate-spin text-blue-500"/>
-                            <p className="text-sm">Scanning entire portfolio for churn risks and performance fires...</p>
+                        <div className="p-16 flex flex-col items-center justify-center text-slate-400 gap-4">
+                            <Loader2 className="h-8 w-8 animate-spin text-blue-500"/>
+                            <p className="text-sm font-medium">Scanning portfolio for churn risks, anomalies, and scaling opportunities...</p>
                         </div>
                     ) : insights ? (
                         <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-800">
-                            {/* Macro & Growth */}
-                            <div className="p-6 lg:col-span-1 space-y-6">
+
+                            {/* LEFT COLUMN: Strategic Narratives */}
+                            <div className="p-6 lg:col-span-1 space-y-6 bg-slate-950">
                                 <div>
-                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Macro Summary</h4>
-                                    <p className="text-sm leading-relaxed text-slate-300">{insights.macro_summary}</p>
+                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <Target className="h-3 w-3 text-blue-400"/> Macro Summary
+                                    </h4>
+                                    <p className="text-sm leading-relaxed text-slate-300">{insights?.macro_summary || "No summary available."}</p>
                                 </div>
+                                <div className="h-px bg-slate-800 w-full" />
                                 <div>
-                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Blended Efficiency</h4>
-                                    <p className="text-sm leading-relaxed text-slate-300">{insights.blended_efficiency}</p>
+                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <Activity className="h-3 w-3 text-emerald-400"/> Blended Efficiency
+                                    </h4>
+                                    <p className="text-sm leading-relaxed text-slate-300">{insights?.blended_efficiency || "No efficiency data available."}</p>
                                 </div>
                             </div>
 
-                            {/* Critical Fires & Growth */}
-                            <div className="lg:col-span-2 bg-slate-900/50 flex flex-col">
-                                <div className="p-6">
-                                    <h4 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                        <ShieldAlert className="h-4 w-4"/> Critical Fires (Immediate Action Required)
-                                    </h4>
+                            {/* RIGHT COLUMN: Triage Queue & Growth */}
+                            <div className="lg:col-span-2 bg-slate-900/40 flex flex-col">
 
-                                    {!insights.critical_fires || insights.critical_fires.length === 0 ? (
-                                        <div className="bg-emerald-950/30 border border-emerald-900/50 rounded-lg p-4 text-emerald-400 text-sm flex items-center gap-2">
-                                            <TrendingUp className="h-4 w-4"/> All active accounts are operating within acceptable parameters. No critical churn risks detected.
+                                {/* Triage Queue (Critical Fires) */}
+                                <div className="p-6 flex-1">
+                                    <div className="flex items-center justify-between mb-5">
+                                        <h4 className="text-xs font-bold text-red-400 uppercase tracking-widest flex items-center gap-2">
+                                            <Flame className="h-4 w-4"/> Critical Fires Queue
+                                        </h4>
+                                        <span className="bg-red-950/50 border border-red-900/50 text-red-400 text-[10px] font-bold px-2.5 py-1 rounded-full">
+                                            {insights?.critical_fires?.length || 0} Alerts
+                                        </span>
+                                    </div>
+
+                                    {!insights?.critical_fires || insights.critical_fires.length === 0 ? (
+                                        <div className="text-center py-10 text-slate-500 border border-dashed border-slate-800 rounded-xl bg-slate-950/50">
+                                            <ShieldAlert className="w-8 h-8 mx-auto mb-2 text-emerald-500/50" />
+                                            <p className="text-sm font-medium">Portfolio is stable. No critical fires detected.</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-3">
+                                        <div className="space-y-4">
                                             {insights.critical_fires.map((fire: any, i: number) => (
-                                                <div key={i} className="bg-red-950/20 border border-red-900/50 rounded-lg p-4">
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <h5 className="font-bold text-red-400">{fire.account_name}</h5>
-                                                        <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded uppercase font-bold">{fire.severity}</span>
+                                                <div key={i} className="bg-slate-950 border border-slate-800 rounded-xl p-5 hover:border-red-900/50 transition-colors">
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <h5 className="font-bold text-base text-slate-100">{fire?.account_name}</h5>
+                                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                                                            fire?.severity === 'Critical' ? 'bg-red-500 text-white' : 'bg-orange-500/20 text-orange-400 border border-orange-500/20'
+                                                        }`}>
+                                                            {fire?.severity}
+                                                        </span>
                                                     </div>
-                                                    <p className="text-sm text-slate-300 mb-2"><strong className="text-slate-100">Issue:</strong> {fire.the_problem}</p>
-                                                    <p className="text-sm text-amber-200/80"><strong className="text-amber-400">Fix:</strong> {fire.recommended_action}</p>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                                        <div>
+                                                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
+                                                                <AlertTriangle className="w-3 h-3 text-red-400" /> The Bleed
+                                                            </div>
+                                                            <p className="text-sm text-slate-300 leading-relaxed">{fire?.the_problem}</p>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
+                                                                <ShieldAlert className="w-3 h-3 text-amber-400" /> Action Required
+                                                            </div>
+                                                            <p className="text-sm text-amber-100/70 leading-relaxed">{fire?.recommended_action}</p>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -270,19 +358,19 @@ export default function AgencyReportsClient() {
                                 </div>
 
                                 {/* Growth Opportunities */}
-                                <div className="p-6 border-t border-slate-800 flex-1">
+                                <div className="p-6 border-t border-slate-800 bg-slate-950/30">
                                     <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                        <TrendingUp className="h-4 w-4" /> Growth Opportunities (Scale Budget)
+                                        <TrendingUp className="h-4 w-4" /> Scale Opportunities
                                     </h4>
 
-                                    {!insights.growth_opportunities || insights.growth_opportunities.length === 0 ? (
-                                        <p className="text-sm text-slate-400">No clear scaling opportunities identified in the current data window.</p>
+                                    {!insights?.growth_opportunities || insights.growth_opportunities.length === 0 ? (
+                                        <p className="text-sm text-slate-500">No clear scaling opportunities identified in this window.</p>
                                     ) : (
-                                        <div className="space-y-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {insights.growth_opportunities.map((growth: any, i: number) => (
-                                                <div key={i} className="bg-emerald-950/20 border border-emerald-900/50 rounded-lg p-4">
-                                                    <h5 className="font-bold text-emerald-400 mb-2">{growth.account_name}</h5>
-                                                    <p className="text-sm text-slate-300"><strong className="text-slate-100">Why scale:</strong> {growth.reasoning}</p>
+                                                <div key={i} className="bg-emerald-950/10 border border-emerald-900/30 rounded-lg p-4">
+                                                    <h5 className="font-bold text-sm text-emerald-400 mb-1">{growth?.account_name}</h5>
+                                                    <p className="text-xs text-slate-400 leading-relaxed">{growth?.reasoning}</p>
                                                 </div>
                                             ))}
                                         </div>
@@ -291,7 +379,8 @@ export default function AgencyReportsClient() {
                             </div>
                         </div>
                     ) : (
-                        <div className="p-8 text-center text-slate-500 text-sm">
+                        <div className="p-12 text-center text-slate-500 text-sm">
+                            <Sparkles className="w-8 h-8 mx-auto mb-3 text-slate-700" />
                             Click 'Run Analysis' to process the portfolio and generate the intelligence report.
                         </div>
                     )}
@@ -326,7 +415,7 @@ export default function AgencyReportsClient() {
                         </TableHeader>
                         <TableBody>
                             {visibleAccounts.map((acc: any) => {
-                                const risk = getChurnRisk(acc, portfolio?.agencyTotals.cpa || 0);
+                                const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
 
                                 return (
                                     <TableRow key={acc.accountId} className="text-sm hover:bg-slate-50 cursor-pointer transition-colors">
@@ -342,7 +431,7 @@ export default function AgencyReportsClient() {
                                         <TableCell className="text-right font-mono">{fCur(acc.spend)}</TableCell>
                                         <TableCell className="text-right font-mono font-bold text-emerald-600">{fNum(acc.conversions)}</TableCell>
                                         <TableCell className="text-right font-mono">
-                                            <span className={acc.cpa > (portfolio.agencyTotals.cpa * 1.5) ? "text-red-600 font-bold bg-red-50 px-2 py-1 rounded" : ""}>
+                                            <span className={acc.cpa > (portfolio?.agencyTotals?.cpa * 1.5) ? "text-red-600 font-bold bg-red-50 px-2 py-1 rounded" : ""}>
                                                 {fCur(acc.cpa)}
                                             </span>
                                         </TableCell>
