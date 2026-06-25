@@ -1,7 +1,7 @@
 // app/api/mcp/[transport]/route.ts
 import { z } from "zod";
 import { createMcpHandler, experimental_withMcpAuth } from "mcp-handler";
-import { getOrGenerateAgencyAiInsightsAction } from "@/actions/agency.actions";
+import { getOrGenerateAgencyAiInsightsAction, getAgencyPortfolioMetricsAction } from "@/actions/agency.actions";
 import { db } from "@/db";
 import { mcpSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -19,7 +19,22 @@ const handler = createMcpHandler(
                 },
             },
             async ({ startDate, endDate }) => {
-                const result = await getOrGenerateAgencyAiInsightsAction(startDate, endDate, {});
+                // Step 1: Fetch real portfolio data
+                const portfolioRes = await getAgencyPortfolioMetricsAction(startDate, endDate);
+
+                if (!portfolioRes.success || !portfolioRes.data) {
+                    return {
+                        content: [{ type: "text", text: JSON.stringify({ error: "Failed to fetch portfolio data." }) }],
+                    };
+                }
+
+                // Step 2: Feed portfolio into the AI insights engine
+                const result = await getOrGenerateAgencyAiInsightsAction(
+                    startDate,
+                    endDate,
+                    portfolioRes.data
+                );
+
                 return {
                     content: [{ type: "text", text: JSON.stringify(result.data) }],
                 };
@@ -37,7 +52,6 @@ const handler = createMcpHandler(
 const authHandler = experimental_withMcpAuth(
     handler,
     async (req, bearerToken) => {
-        // Also check ?key= query param as fallback
         const url = new URL(req.url);
         const keyFromUrl = url.searchParams.get("key");
         const token = bearerToken || keyFromUrl;
