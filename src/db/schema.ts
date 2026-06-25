@@ -1,6 +1,7 @@
 import {
     boolean,
     date,
+    decimal,
     index,
     integer,
     jsonb,
@@ -25,6 +26,12 @@ export const adAccounts = pgTable('ad_accounts', {
     isActive: boolean('is_active').default(true).notNull(),
     lastSyncedAt: timestamp('last_synced_at').defaultNow(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+
+    targetCpa: decimal("target_cpa", {precision: 10, scale: 2}),
+    targetRoas: decimal("target_roas", {precision: 5, scale: 2}),
+    monthlyBudgetCap: decimal("monthly_budget_cap", {precision: 10, scale: 2}),
+    targetNotes: text("target_notes"),
+
 });
 
 export const accountMetrics = pgTable('account_metrics', {
@@ -185,7 +192,6 @@ export const adAccountRelations = relations(adAccounts, ({many}) => ({
 }));
 
 
-
 export const alertRuleRelations = relations(alertRules, ({one, many}) => ({
     account: one(adAccounts, {fields: [alertRules.adAccountId], references: [adAccounts.id]}),
     notifications: many(notificationRoutes),
@@ -227,7 +233,7 @@ export const agencyAiInsightsCache = pgTable('agency_ai_insights_cache', {
 // --- 8. COMPETITOR INTELLIGENCE (NEW) ---
 export const threatMatrixAudits = pgTable('threat_matrix_audits', {
     id: serial('id').primaryKey(),
-    adAccountId: integer('ad_account_id').references(() => adAccounts.id, { onDelete: 'cascade' }).notNull(),
+    adAccountId: integer('ad_account_id').references(() => adAccounts.id, {onDelete: 'cascade'}).notNull(),
     searchTerm: text('search_term').notNull(), // e.g., "emergency plumber melbourne"
     clientUrlScraped: text('client_url_scraped').notNull(),
     competitorUrlsScraped: jsonb('competitor_urls_scraped').notNull(), // Array of URLs
@@ -242,7 +248,7 @@ export const threatMatrixAuditRelations = relations(threatMatrixAudits, ({one}) 
 export const mcpSettings = pgTable("mcp_settings", {
     id: serial("id").primaryKey(),
     agencyId: integer("agency_id").notNull().unique(), // Link to your agency/tenant
-    apiKey: varchar("api_key", { length: 255 }).notNull().unique(),
+    apiKey: varchar("api_key", {length: 255}).notNull().unique(),
     toolsConfig: jsonb("tools_config").notNull().default({
         godView: true,
         campaignDiagnostics: false

@@ -15,6 +15,13 @@
       "when": 1782369520956,
       "tag": "0001_majestic_nomad",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782395914873,
+      "tag": "0002_odd_princess_powerful",
+      "breakpoints": true
     }
   ]
 }

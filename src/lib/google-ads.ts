@@ -6,7 +6,7 @@ const MANAGER_ID = process.env.GOOGLE_ADS_MANAGER_ID;
 /**
  * Returns the correct GAQL date segment for the current query.
  */
-function getCurrentPeriodDateClause(startDate?: string, endDate?: string) {
+export function getCurrentPeriodDateClause(startDate?: string, endDate?: string) {
     if (startDate && endDate) {
         // Ensure strictly YYYY-MM-DD format, stripping out time components
         const cleanStart = startDate.split('T')[0].trim();
@@ -20,7 +20,7 @@ function getCurrentPeriodDateClause(startDate?: string, endDate?: string) {
  * Calculates the previous period of the exact same length to ensure accurate comparison metrics.
  * Safely parses YYYY-MM-DD to avoid timezone offset bugs.
  */
-function getPreviousPeriodDateClause(startDate?: string, endDate?: string) {
+export function getPreviousPeriodDateClause(startDate?: string, endDate?: string) {
     if (!startDate || !endDate) return "segments.date DURING LAST_MONTH";
 
     const cleanStart = startDate.split('T')[0].trim();
@@ -53,7 +53,7 @@ function getPreviousPeriodDateClause(startDate?: string, endDate?: string) {
 
 // --- API Functions ---
 
-async function getManagementAccessToken() {
+export async function getManagementAccessToken() {
     // Grab the permanent system token from your environment variables
     const refreshToken = process.env.GOOGLE_ADS_REFRESH_TOKEN;
 
