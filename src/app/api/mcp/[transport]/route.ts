@@ -2,8 +2,9 @@
 import { z } from "zod";
 import { createMcpHandler, experimental_withMcpAuth } from "mcp-handler";
 import { getOrGenerateAgencyAiInsightsAction, getAgencyPortfolioMetricsAction } from "@/actions/agency.actions";
+import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { db } from "@/db";
-import { mcpSettings } from "@/db/schema";
+import { mcpSettings, adAccounts } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 const handler = createMcpHandler(
@@ -19,7 +20,6 @@ const handler = createMcpHandler(
                 },
             },
             async ({ startDate, endDate }) => {
-                // Step 1: Fetch real portfolio data
                 const portfolioRes = await getAgencyPortfolioMetricsAction(startDate, endDate);
 
                 if (!portfolioRes.success || !portfolioRes.data) {
@@ -28,7 +28,6 @@ const handler = createMcpHandler(
                     };
                 }
 
-                // Step 2: Feed portfolio into the AI insights engine
                 const result = await getOrGenerateAgencyAiInsightsAction(
                     startDate,
                     endDate,
@@ -37,6 +36,47 @@ const handler = createMcpHandler(
 
                 return {
                     content: [{ type: "text", text: JSON.stringify(result.data) }],
+                };
+            }
+        );
+
+        server.registerTool(
+            "get_account_metrics",
+            {
+                title: "Account Metrics",
+                description: "Fetches detailed dashboard metrics for a specific ad account by its internal ID.",
+                inputSchema: {
+                    accountId: z.number().describe("The internal database ID of the ad account"),
+                    startDate: z.string().describe("Start date in YYYY-MM-DD format"),
+                    endDate: z.string().describe("End date in YYYY-MM-DD format"),
+                },
+            },
+            async ({ accountId, startDate, endDate }) => {
+                const account = await db.query.adAccounts.findFirst({
+                    where: eq(adAccounts.id, accountId),
+                });
+
+                if (!account) {
+                    return {
+                        content: [{ type: "text", text: JSON.stringify({ error: `No account found with ID ${accountId}.` }) }],
+                    };
+                }
+
+                const result = await getDashboardMetricsAction(
+                    account.id,
+                    account.googleAccountId,
+                    startDate,
+                    endDate
+                );
+
+                if (!result.success || !result.data) {
+                    return {
+                        content: [{ type: "text", text: JSON.stringify({ error: "Failed to fetch account metrics." }) }],
+                    };
+                }
+
+                return {
+                    content: [{ type: "text", text: JSON.stringify({ account: { id: account.id, name: account.name, currencyCode: account.currencyCode }, metrics: result.data }) }],
                 };
             }
         );
