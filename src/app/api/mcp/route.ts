@@ -32,7 +32,7 @@ const authMiddleware = async (req: Request) => {
     const providedKey = tokenFromUrl || (authHeader ? authHeader.replace("Bearer ", "") : null);
 
     // Ensure this matches your Railway environment variable
-    if (providedKey !== process.env.MCP_API_KEY) {
+    if (providedKey !== process.env.NEXT_PUBLIC_MCP_API_KEY) {
         return new Response("Unauthorized MCP Access", { status: 401 });
     }
 
