@@ -24,10 +24,15 @@ const handler = createMcpHandler((server) => {
 
 // 3. Wrap the handler with your Bearer token authentication
 const authMiddleware = async (req: Request) => {
+    const url = new URL(req.url);
+    const tokenFromUrl = url.searchParams.get("key");
     const authHeader = req.headers.get("Authorization");
 
-    // Ensure this matches the generated key in your UI (and your Railway environment variables)
-    if (authHeader !== `Bearer ${process.env.MCP_API_KEY}`) {
+    // Check either the URL parameter ?key=... OR the standard Bearer header
+    const providedKey = tokenFromUrl || (authHeader ? authHeader.replace("Bearer ", "") : null);
+
+    // Ensure this matches your Railway environment variable
+    if (providedKey !== process.env.MCP_API_KEY) {
         return new Response("Unauthorized MCP Access", { status: 401 });
     }
 
