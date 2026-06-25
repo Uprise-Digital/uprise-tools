@@ -2,7 +2,7 @@
 
 import {db} from "@/db";
 import {adAccounts, adPerformanceDaily, agencyAiInsightsCache} from "@/db/schema";
-import {and, eq, gte, lte} from "drizzle-orm";
+import {and, eq, gte, ilike, lte} from "drizzle-orm";
 import {GoogleGenAI} from '@google/genai';
 import {getDashboardMetricsAction} from "@/actions/dashboard.actions";
 
@@ -356,5 +356,54 @@ export async function syncAgencyPortfolioAction(startDate: string, endDate: stri
     } catch (error: any) {
         console.error("Failed to sync agency portfolio:", error);
         return {success: false, error: error.message};
+    }
+}
+
+
+export async function getAccountByNameAction(name: string) {
+    try {
+        const results = await db.query.adAccounts.findMany({
+            where: ilike(adAccounts.name, `%${name}%`),
+            columns: {
+                id: true,
+                name: true,
+                googleAccountId: true,
+                currencyCode: true,
+                isActive: true,
+            },
+        });
+
+        if (results.length === 0) {
+            return { success: false, error: `No accounts found matching "${name}".` };
+        }
+
+        return { success: true, data: results };
+    } catch (error) {
+        console.error("getAccountByNameAction error:", error);
+        return { success: false, error: "Failed to look up account by name." };
+    }
+}
+
+export async function getAccountByIdAction(id: number) {
+    try {
+        const account = await db.query.adAccounts.findFirst({
+            where: eq(adAccounts.id, id),
+            columns: {
+                id: true,
+                name: true,
+                googleAccountId: true,
+                currencyCode: true,
+                isActive: true,
+            },
+        });
+
+        if (!account) {
+            return { success: false, error: `No account found with ID ${id}.` };
+        }
+
+        return { success: true, data: account };
+    } catch (error) {
+        console.error("getAccountByIdAction error:", error);
+        return { success: false, error: "Failed to look up account by ID." };
     }
 }

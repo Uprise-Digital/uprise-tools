@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createMcpHandler, experimental_withMcpAuth } from "mcp-handler";
 import { getOrGenerateAgencyAiInsightsAction, getAgencyPortfolioMetricsAction } from "@/actions/agency.actions";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
+import { getAccountByNameAction, getAccountByIdAction } from "@/actions/agency.actions";
 import { db } from "@/db";
 import { mcpSettings, adAccounts } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -77,6 +78,54 @@ const handler = createMcpHandler(
 
                 return {
                     content: [{ type: "text", text: JSON.stringify({ account: { id: account.id, name: account.name, currencyCode: account.currencyCode }, metrics: result.data }) }],
+                };
+            }
+        );
+
+        server.registerTool(
+            "lookup_account_by_name",
+            {
+                title: "Lookup Account by Name",
+                description: "Searches for ad accounts by name (partial match). Use this to find an account's internal ID before calling get_account_metrics.",
+                inputSchema: {
+                    name: z.string().describe("Full or partial account name to search for"),
+                },
+            },
+            async ({ name }) => {
+                const result = await getAccountByNameAction(name);
+
+                if (!result.success || !result.data) {
+                    return {
+                        content: [{ type: "text", text: JSON.stringify({ error: result.error }) }],
+                    };
+                }
+
+                return {
+                    content: [{ type: "text", text: JSON.stringify(result.data) }],
+                };
+            }
+        );
+
+        server.registerTool(
+            "lookup_account_by_id",
+            {
+                title: "Lookup Account by ID",
+                description: "Fetches account name and details for a given internal account ID.",
+                inputSchema: {
+                    accountId: z.number().describe("The internal database ID of the ad account"),
+                },
+            },
+            async ({ accountId }) => {
+                const result = await getAccountByIdAction(accountId);
+
+                if (!result.success || !result.data) {
+                    return {
+                        content: [{ type: "text", text: JSON.stringify({ error: result.error }) }],
+                    };
+                }
+
+                return {
+                    content: [{ type: "text", text: JSON.stringify(result.data) }],
                 };
             }
         );
