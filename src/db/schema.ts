@@ -9,7 +9,8 @@ import {
     serial,
     text,
     timestamp,
-    uniqueIndex
+    uniqueIndex,
+    varchar
 } from 'drizzle-orm/pg-core';
 import {relations} from 'drizzle-orm';
 
@@ -237,3 +238,15 @@ export const threatMatrixAudits = pgTable('threat_matrix_audits', {
 export const threatMatrixAuditRelations = relations(threatMatrixAudits, ({one}) => ({
     account: one(adAccounts, {fields: [threatMatrixAudits.adAccountId], references: [adAccounts.id]}),
 }));
+
+export const mcpSettings = pgTable("mcp_settings", {
+    id: serial("id").primaryKey(),
+    agencyId: integer("agency_id").notNull().unique(), // Link to your agency/tenant
+    apiKey: varchar("api_key", { length: 255 }).notNull().unique(),
+    toolsConfig: jsonb("tools_config").notNull().default({
+        godView: true,
+        campaignDiagnostics: false
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
