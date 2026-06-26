@@ -9,15 +9,5 @@ export default async function McpSettingsPage() {
     return <div>Error loading MCP configuration.</div>;
   }
 
-  return (
-    <McpSettingsClient
-      initialApiKey={res.data.apiKey}
-      initialTools={
-        res.data.toolsConfig as {
-          godView: boolean;
-          campaignDiagnostics: boolean;
-        }
-      }
-    />
-  );
+  return <McpSettingsClient initialApiKey={res.data.apiKey} />;
 }

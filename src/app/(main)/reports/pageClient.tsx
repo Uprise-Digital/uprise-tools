@@ -192,7 +192,7 @@ export default function ReportsClient({
   };
 
   return (
-    <div className="space-y-8 p-4 md:p-8 max-w-6xl mx-auto">
+    <div className="space-y-8 md:p-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
