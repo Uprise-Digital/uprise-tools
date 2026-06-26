@@ -10,6 +10,7 @@ import {
   Eye,
   LineChart,
   Loader2,
+  Mail,
   MousePointerClick,
   Percent,
   Save,
@@ -59,6 +60,7 @@ interface ClientDashboardProps {
     googleAccountId: string;
     name: string;
     currencyCode: string | null;
+    includeInBriefing: boolean;
   };
   orgDefaults: {
     criticalSpendThreshold: number;
@@ -128,11 +130,12 @@ export default function ClientDashboard({
       initialSettings?.anomalySpendChangeThreshold?.toString() ?? "",
     anomalyConversionsChangeThreshold:
       initialSettings?.anomalyConversionsChangeThreshold?.toString() ?? "",
+    includeInBriefing: account.includeInBriefing,
   });
 
   const resolvedDefaults = orgDefaults || DEFAULT_THRESHOLDS;
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: any) => {
     setFormState((prev) => ({
       ...prev,
       [field]: value,
@@ -148,6 +151,7 @@ export default function ClientDashboard({
       cpcHighThreshold: "",
       anomalySpendChangeThreshold: "",
       anomalyConversionsChangeThreshold: "",
+      includeInBriefing: true,
     });
   };
 
@@ -187,6 +191,7 @@ export default function ClientDashboard({
           formState.anomalyConversionsChangeThreshold === ""
             ? null
             : parseFloat(formState.anomalyConversionsChangeThreshold),
+        includeInBriefing: formState.includeInBriefing,
       });
 
       if (res.success) {
@@ -197,7 +202,10 @@ export default function ClientDashboard({
         throw new Error(res.error || "Failed to save overrides");
       }
     } catch (error) {
-      const errMsg = error instanceof Error ? error.message : "An error occurred while saving.";
+      const errMsg =
+        error instanceof Error
+          ? error.message
+          : "An error occurred while saving.";
       toast.error(errMsg, {
         id: toastId,
       });
@@ -266,6 +274,42 @@ export default function ClientDashboard({
                     </SheetDescription>
                   </SheetHeader>
                   <form onSubmit={handleSave} className="space-y-6">
+                    {/* NOTIFICATION PREFERENCES */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                        <Mail className="w-3.5 h-3.5 text-indigo-500" />
+                        Notification Preferences
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                          <div className="space-y-0.5">
+                            <Label
+                              htmlFor="includeInBriefing"
+                              className="text-xs font-bold text-slate-800"
+                            >
+                              Include in Morning Briefing
+                            </Label>
+                            <p className="text-[10px] text-slate-400 max-w-[320px]">
+                              When disabled, this client will be excluded from
+                              the daily automated email briefing.
+                            </p>
+                          </div>
+                          <input
+                            id="includeInBriefing"
+                            type="checkbox"
+                            checked={formState.includeInBriefing}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "includeInBriefing",
+                                e.target.checked,
+                              )
+                            }
+                            className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 shrink-0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     {/* CRITICAL ALERTS */}
                     <div className="space-y-4">
                       <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">

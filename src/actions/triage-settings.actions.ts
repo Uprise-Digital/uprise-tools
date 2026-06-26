@@ -4,7 +4,11 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { accountTriageSettings, orgTriageDefaults } from "@/db/schema";
+import {
+  accountTriageSettings,
+  adAccounts,
+  orgTriageDefaults,
+} from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 
@@ -64,8 +68,12 @@ export async function getOrgTriageDefaultsAction() {
         ctrHighThreshold: Number(defaults.ctrHighThreshold),
         ctrHighSpendThreshold: Number(defaults.ctrHighSpendThreshold),
         cpcHighThreshold: Number(defaults.cpcHighThreshold),
-        anomalySpendChangeThreshold: Number(defaults.anomalySpendChangeThreshold),
-        anomalyConversionsChangeThreshold: Number(defaults.anomalyConversionsChangeThreshold),
+        anomalySpendChangeThreshold: Number(
+          defaults.anomalySpendChangeThreshold,
+        ),
+        anomalyConversionsChangeThreshold: Number(
+          defaults.anomalyConversionsChangeThreshold,
+        ),
       },
     };
   } catch (error: any) {
@@ -154,17 +162,38 @@ export async function getAccountTriageSettingsAction(accountId: number) {
       data: {
         id: settings.id,
         adAccountId: settings.adAccountId,
-        criticalSpendThreshold: settings.criticalSpendThreshold !== null ? Number(settings.criticalSpendThreshold) : null,
+        criticalSpendThreshold:
+          settings.criticalSpendThreshold !== null
+            ? Number(settings.criticalSpendThreshold)
+            : null,
         criticalConversionsThreshold: settings.criticalConversionsThreshold,
-        ctrHighThreshold: settings.ctrHighThreshold !== null ? Number(settings.ctrHighThreshold) : null,
-        ctrHighSpendThreshold: settings.ctrHighSpendThreshold !== null ? Number(settings.ctrHighSpendThreshold) : null,
-        cpcHighThreshold: settings.cpcHighThreshold !== null ? Number(settings.cpcHighThreshold) : null,
-        anomalySpendChangeThreshold: settings.anomalySpendChangeThreshold !== null ? Number(settings.anomalySpendChangeThreshold) : null,
-        anomalyConversionsChangeThreshold: settings.anomalyConversionsChangeThreshold !== null ? Number(settings.anomalyConversionsChangeThreshold) : null,
+        ctrHighThreshold:
+          settings.ctrHighThreshold !== null
+            ? Number(settings.ctrHighThreshold)
+            : null,
+        ctrHighSpendThreshold:
+          settings.ctrHighSpendThreshold !== null
+            ? Number(settings.ctrHighSpendThreshold)
+            : null,
+        cpcHighThreshold:
+          settings.cpcHighThreshold !== null
+            ? Number(settings.cpcHighThreshold)
+            : null,
+        anomalySpendChangeThreshold:
+          settings.anomalySpendChangeThreshold !== null
+            ? Number(settings.anomalySpendChangeThreshold)
+            : null,
+        anomalyConversionsChangeThreshold:
+          settings.anomalyConversionsChangeThreshold !== null
+            ? Number(settings.anomalyConversionsChangeThreshold)
+            : null,
       },
     };
   } catch (error: any) {
-    console.error(`Failed to fetch account triage settings for account ${accountId}:`, error);
+    console.error(
+      `Failed to fetch account triage settings for account ${accountId}:`,
+      error,
+    );
     return { success: false, error: error.message };
   }
 }
@@ -183,12 +212,20 @@ export async function saveAccountTriageSettingsAction(
     cpcHighThreshold: number | null;
     anomalySpendChangeThreshold: number | null;
     anomalyConversionsChangeThreshold: number | null;
+    includeInBriefing?: boolean;
   },
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
 
   try {
+    if (data.includeInBriefing !== undefined) {
+      await db
+        .update(adAccounts)
+        .set({ includeInBriefing: data.includeInBriefing })
+        .where(eq(adAccounts.id, accountId));
+    }
+
     const payload = {
       adAccountId: accountId,
       criticalSpendThreshold: data.criticalSpendThreshold,
@@ -240,7 +277,10 @@ export async function saveAccountTriageSettingsAction(
     revalidatePath(`/accounts/${accountId}`);
     return { success: true };
   } catch (error: any) {
-    console.error(`Failed to save account triage settings for account ${accountId}:`, error);
+    console.error(
+      `Failed to save account triage settings for account ${accountId}:`,
+      error,
+    );
     return { success: false, error: error.message };
   }
 }

@@ -26,6 +26,9 @@ export const adAccounts = pgTable("ad_accounts", {
   timeZone: text("time_zone").default("Australia/Melbourne"),
   isActive: boolean("is_active").default(true).notNull(),
   lastSyncedAt: timestamp("last_synced_at").defaultNow(),
+  syncStatus: text("sync_status"),
+  syncError: text("sync_error"),
+  includeInBriefing: boolean("include_in_briefing").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 
   targetCpa: decimal("target_cpa", { precision: 10, scale: 2 }),
@@ -362,13 +365,29 @@ export const briefingSettings = pgTable("briefing_settings", {
 
 export const orgTriageDefaults = pgTable("org_triage_defaults", {
   id: serial("id").primaryKey(),
-  criticalSpendThreshold: doublePrecision("critical_spend_threshold").default(70.0).notNull(),
-  criticalConversionsThreshold: integer("critical_conversions_threshold").default(0).notNull(),
-  ctrHighThreshold: doublePrecision("ctr_high_threshold").default(7.0).notNull(),
-  ctrHighSpendThreshold: doublePrecision("ctr_high_spend_threshold").default(50.0).notNull(),
-  cpcHighThreshold: doublePrecision("cpc_high_threshold").default(30.0).notNull(),
-  anomalySpendChangeThreshold: doublePrecision("anomaly_spend_change_threshold").default(-30.0).notNull(),
-  anomalyConversionsChangeThreshold: doublePrecision("anomaly_conversions_change_threshold").default(-25.0).notNull(),
+  criticalSpendThreshold: doublePrecision("critical_spend_threshold")
+    .default(70.0)
+    .notNull(),
+  criticalConversionsThreshold: integer("critical_conversions_threshold")
+    .default(0)
+    .notNull(),
+  ctrHighThreshold: doublePrecision("ctr_high_threshold")
+    .default(7.0)
+    .notNull(),
+  ctrHighSpendThreshold: doublePrecision("ctr_high_spend_threshold")
+    .default(50.0)
+    .notNull(),
+  cpcHighThreshold: doublePrecision("cpc_high_threshold")
+    .default(30.0)
+    .notNull(),
+  anomalySpendChangeThreshold: doublePrecision("anomaly_spend_change_threshold")
+    .default(-30.0)
+    .notNull(),
+  anomalyConversionsChangeThreshold: doublePrecision(
+    "anomaly_conversions_change_threshold",
+  )
+    .default(-25.0)
+    .notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -383,14 +402,21 @@ export const accountTriageSettings = pgTable("account_triage_settings", {
   ctrHighThreshold: doublePrecision("ctr_high_threshold"),
   ctrHighSpendThreshold: doublePrecision("ctr_high_spend_threshold"),
   cpcHighThreshold: doublePrecision("cpc_high_threshold"),
-  anomalySpendChangeThreshold: doublePrecision("anomaly_spend_change_threshold"),
-  anomalyConversionsChangeThreshold: doublePrecision("anomaly_conversions_change_threshold"),
+  anomalySpendChangeThreshold: doublePrecision(
+    "anomaly_spend_change_threshold",
+  ),
+  anomalyConversionsChangeThreshold: doublePrecision(
+    "anomaly_conversions_change_threshold",
+  ),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const accountTriageSettingsRelations = relations(accountTriageSettings, ({ one }) => ({
-  adAccount: one(adAccounts, {
-    fields: [accountTriageSettings.adAccountId],
-    references: [adAccounts.id],
+export const accountTriageSettingsRelations = relations(
+  accountTriageSettings,
+  ({ one }) => ({
+    adAccount: one(adAccounts, {
+      fields: [accountTriageSettings.adAccountId],
+      references: [adAccounts.id],
+    }),
   }),
-}));
+);

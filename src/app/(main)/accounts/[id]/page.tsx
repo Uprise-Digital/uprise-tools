@@ -41,9 +41,17 @@ export default async function AccountDetailPage({ params }: PageProps) {
       ? accountSettingsRes.data
       : null;
 
+  const accountData = {
+    id: account.id,
+    googleAccountId: account.googleAccountId,
+    name: account.name,
+    currencyCode: account.currencyCode,
+    includeInBriefing: account.includeInBriefing,
+  };
+
   return (
     <ClientDashboard
-      account={account}
+      account={accountData}
       orgDefaults={orgDefaults}
       initialSettings={initialSettings}
     />

@@ -4,7 +4,7 @@ import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { adPerformanceDaily, user } from "@/db/schema";
+import { adAccounts, adPerformanceDaily, user } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import { fetchDailyCampaignData } from "@/lib/google-ads";
@@ -138,6 +138,16 @@ export async function getDashboardMetricsAction(
       endDate,
     );
 
+    // Save sync success status
+    await db
+      .update(adAccounts)
+      .set({
+        lastSyncedAt: new Date(),
+        syncStatus: "success",
+        syncError: null,
+      })
+      .where(eq(adAccounts.id, adAccountId));
+
     // FIX: Bulletproof number parser that converts null/undefined/NaN into 0
     const pNum = (val: any) => {
       const num = Number(val);
@@ -263,6 +273,20 @@ export async function getDashboardMetricsAction(
     };
   } catch (error: any) {
     console.error("Failed to load dashboard metrics:", error);
+
+    // Save sync failure status
+    try {
+      await db
+        .update(adAccounts)
+        .set({
+          syncStatus: "failed",
+          syncError: error.message || "Unknown error during sync",
+        })
+        .where(eq(adAccounts.id, adAccountId));
+    } catch (dbErr) {
+      console.error("Failed to write sync failure to database:", dbErr);
+    }
+
     return { success: false, error: error.message };
   }
 }

@@ -3,10 +3,14 @@
 import {
   Activity,
   AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Database,
   Loader2,
   Save,
   Settings as SettingsIcon,
   SlidersHorizontal,
+  XCircle,
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
@@ -35,12 +39,25 @@ interface TriageDefaultsData {
   anomalyConversionsChangeThreshold: number;
 }
 
+interface AccountSyncData {
+  id: number;
+  googleAccountId: string;
+  name: string;
+  isActive: boolean;
+  lastSyncedAt: string | null;
+  syncStatus: string | null;
+  syncError: string | null;
+  includeInBriefing: boolean;
+}
+
 interface SettingsClientProps {
   initialDefaults: TriageDefaultsData;
+  accounts: AccountSyncData[];
 }
 
 export default function SettingsClient({
   initialDefaults,
+  accounts,
 }: SettingsClientProps) {
   const [isSaving, setIsSaving] = useState(false);
 
@@ -391,6 +408,148 @@ export default function SettingsClient({
                 </div>
               </CardFooter>
             </form>
+          </Card>
+        </div>
+
+        {/* RIGHT COLUMN: SYSTEM STATUS */}
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border-slate-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                <Database className="w-4 h-4 text-indigo-500" />
+                Portfolio Sync Status
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Real-time connection and sync health of your portfolio.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-5 space-y-5">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                  <div className="text-xs text-slate-500 font-medium">
+                    Total
+                  </div>
+                  <div className="text-lg font-bold text-slate-800 mt-0.5">
+                    {accounts.length}
+                  </div>
+                </div>
+                <div className="p-2.5 bg-emerald-50/50 rounded-lg border border-emerald-100/50">
+                  <div className="text-xs text-emerald-600 font-medium font-sans">
+                    Healthy
+                  </div>
+                  <div className="text-lg font-bold text-emerald-700 mt-0.5">
+                    {accounts.filter((a) => a.syncStatus === "success").length}
+                  </div>
+                </div>
+                <div
+                  className={`p-2.5 rounded-lg border ${
+                    accounts.filter((a) => a.syncStatus === "failed").length > 0
+                      ? "bg-rose-50 border-rose-100"
+                      : "bg-slate-50 border-slate-100"
+                  }`}
+                >
+                  <div
+                    className={`text-xs font-medium ${
+                      accounts.filter((a) => a.syncStatus === "failed").length >
+                      0
+                        ? "text-rose-600"
+                        : "text-slate-500"
+                    }`}
+                  >
+                    Errors
+                  </div>
+                  <div
+                    className={`text-lg font-bold mt-0.5 ${
+                      accounts.filter((a) => a.syncStatus === "failed").length >
+                      0
+                        ? "text-rose-700"
+                        : "text-slate-800"
+                    }`}
+                  >
+                    {accounts.filter((a) => a.syncStatus === "failed").length}
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-slate-100 w-full" />
+
+              {/* Status List */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Accounts Sync Log
+                </h4>
+                <div className="space-y-2.5 max-h-[400px] overflow-y-auto pr-1">
+                  {accounts.length === 0 ? (
+                    <div className="text-xs text-slate-500 text-center py-4">
+                      No accounts linked to sync.
+                    </div>
+                  ) : (
+                    accounts.map((acc) => {
+                      const isFailed = acc.syncStatus === "failed";
+                      const isSuccess = acc.syncStatus === "success";
+
+                      return (
+                        <div
+                          key={acc.id}
+                          className="p-3 bg-white border border-slate-100 rounded-lg shadow-sm space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-xs font-bold text-slate-800 truncate max-w-[160px]">
+                              {acc.name}
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isSuccess && (
+                                <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
+                                  Synced
+                                </span>
+                              )}
+                              {isFailed && (
+                                <span className="text-[10px] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                  <XCircle className="w-2.5 h-2.5 text-rose-500" />
+                                  Error
+                                </span>
+                              )}
+                              {!isSuccess && !isFailed && (
+                                <span className="text-[10px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                  <Clock className="w-2.5 h-2.5 text-slate-400" />
+                                  Pending
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            <span>
+                              Attempted:{" "}
+                              {acc.lastSyncedAt
+                                ? new Date(acc.lastSyncedAt).toLocaleString(
+                                    "en-AU",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )
+                                : "Never"}
+                            </span>
+                          </div>
+
+                          {isFailed && acc.syncError && (
+                            <div className="text-[10px] font-mono text-rose-600 bg-rose-50/50 p-2 rounded border border-rose-100/50 break-words leading-relaxed">
+                              {acc.syncError}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </CardContent>
           </Card>
         </div>
       </div>
