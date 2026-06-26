@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+
 import {
   getAgencyPortfolioMetricsAction,
   getOrGenerateAgencyAiInsightsAction,
@@ -65,6 +67,8 @@ export default function AgencyReportsClient() {
   const [portfolio, setPortfolio] = useState<any>(null);
   const [insights, setInsights] = useState<any>(null);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
+
+  const router = useRouter();
 
   // 1. Fetch Base Data
   const fetchPortfolioData = async (isMounted = true) => {
@@ -243,6 +247,11 @@ export default function AgencyReportsClient() {
   const nonWhaleConv = totalConv - whaleConv;
   const nonWhaleCpa = nonWhaleConv > 0 ? nonWhaleSpend / nonWhaleConv : 0;
   const whaleSpendShare = totalSpend > 0 ? (whaleSpend / totalSpend) * 100 : 0;
+
+  const handleRowClick = (accountId: number) => {
+    router.push(`/accounts/${accountId}`);
+  };
+
 
   return (
     <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
@@ -599,7 +608,7 @@ export default function AgencyReportsClient() {
       </Card>
 
       {/* ── FULL PORTFOLIO LEDGER ── */}
-      <Card className="shadow-sm border-slate-200">
+      <Card className="pt-0 shadow-sm border-slate-200">
         <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex flex-row justify-between items-center py-4">
           <CardTitle className="text-base font-bold text-slate-800">
             Portfolio Ledger
@@ -647,6 +656,7 @@ export default function AgencyReportsClient() {
 
                 return (
                   <TableRow
+                      onClick={() => handleRowClick(acc.id)}
                     key={acc.accountId}
                     className="text-sm hover:bg-slate-50 cursor-pointer transition-colors"
                   >
