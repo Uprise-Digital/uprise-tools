@@ -17,8 +17,18 @@ import {
   listAccountsAction,
 } from "@/actions/agency.actions";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
+import {
+  getAccountTriageSettingsAction,
+  getOrgTriageDefaultsAction,
+} from "@/actions/triage-settings.actions";
 import { db } from "@/db";
-import { adAccounts, mcpSettings } from "@/db/schema";
+import {
+  accountTriageSettings,
+  adAccounts,
+  mcpSettings,
+  orgTriageDefaults,
+} from "@/db/schema";
+import { logAction } from "@/lib/audit";
 
 const handler = createMcpHandler(
   (server) => {
@@ -414,6 +424,362 @@ const handler = createMcpHandler(
         return {
           content: [{ type: "text", text: JSON.stringify(result.data) }],
         };
+      },
+    );
+
+    server.registerTool(
+      "get_org_triage_defaults",
+      {
+        title: "Get Organization Triage Defaults",
+        description:
+          "Fetches the organization-wide defaults for alert and anomaly triage thresholds.",
+        inputSchema: {},
+      },
+      async () => {
+        const result = await getOrgTriageDefaultsAction();
+
+        if (!result.success || !result.data) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  error:
+                    result.error ||
+                    "Failed to fetch organization triage defaults.",
+                }),
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data) }],
+        };
+      },
+    );
+
+    server.registerTool(
+      "get_account_triage_settings",
+      {
+        title: "Get Account Triage Settings",
+        description:
+          "Fetches the triage threshold override settings for a specific client account by its internal ID.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+        },
+      },
+      async ({ accountId }) => {
+        const result = await getAccountTriageSettingsAction(accountId);
+
+        if (!result.success) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  error:
+                    result.error ||
+                    `Failed to fetch triage settings for account ${accountId}.`,
+                }),
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data) }],
+        };
+      },
+    );
+
+    server.registerTool(
+      "set_org_triage_defaults",
+      {
+        title: "Set Organization Triage Defaults",
+        description:
+          "Sets/updates the organization-wide defaults for alert and anomaly triage thresholds. All parameters are required.",
+        inputSchema: {
+          criticalSpendThreshold: z
+            .number()
+            .positive()
+            .describe(
+              "Critical spend threshold above which alerts trigger if conversions are low (e.g. 70.0)",
+            ),
+          criticalConversionsThreshold: z
+            .number()
+            .int()
+            .nonnegative()
+            .describe(
+              "Upper limit of conversions to count as critical leak (e.g. 0)",
+            ),
+          ctrHighThreshold: z
+            .number()
+            .positive()
+            .describe("CTR threshold percentage (e.g. 7.0)"),
+          ctrHighSpendThreshold: z
+            .number()
+            .positive()
+            .describe("Minimum spend to trigger high CTR check (e.g. 50.0)"),
+          cpcHighThreshold: z
+            .number()
+            .positive()
+            .describe("High CPC limit (e.g. 30.0)"),
+          anomalySpendChangeThreshold: z
+            .number()
+            .max(0)
+            .describe(
+              "Percentage drop in spend for anomaly warning (must be <= 0, e.g. -30.0)",
+            ),
+          anomalyConversionsChangeThreshold: z
+            .number()
+            .max(0)
+            .describe(
+              "Percentage drop in conversions for anomaly warning (must be <= 0, e.g. -25.0)",
+            ),
+        },
+      },
+      async (data) => {
+        try {
+          const payload = {
+            criticalSpendThreshold: data.criticalSpendThreshold,
+            criticalConversionsThreshold: data.criticalConversionsThreshold,
+            ctrHighThreshold: data.ctrHighThreshold,
+            ctrHighSpendThreshold: data.ctrHighSpendThreshold,
+            cpcHighThreshold: data.cpcHighThreshold,
+            anomalySpendChangeThreshold: data.anomalySpendChangeThreshold,
+            anomalyConversionsChangeThreshold:
+              data.anomalyConversionsChangeThreshold,
+            updatedAt: new Date(),
+          };
+
+          const existing = await db.query.orgTriageDefaults.findFirst();
+          let savedId: number;
+
+          if (existing) {
+            await db
+              .update(orgTriageDefaults)
+              .set(payload)
+              .where(eq(orgTriageDefaults.id, existing.id));
+            savedId = existing.id;
+          } else {
+            const [newDefaults] = await db
+              .insert(orgTriageDefaults)
+              .values(payload)
+              .returning();
+            savedId = newDefaults.id;
+          }
+
+          await logAction(
+            "MCP_AGENT",
+            "SAVE_ORG_TRIAGE_DEFAULTS",
+            "org_triage_defaults",
+            savedId,
+            payload,
+          );
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  message:
+                    "Organization-wide triage defaults saved successfully.",
+                  data: { id: savedId, ...data },
+                }),
+              },
+            ],
+          };
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "An error occurred while saving organization defaults.";
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: errorMessage,
+                }),
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "set_account_triage_settings",
+      {
+        title: "Set Account Triage Settings",
+        description:
+          "Sets/updates the custom triage threshold override settings for a specific client account. Set fields to null to clear overrides.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .int()
+            .positive()
+            .describe("The internal database ID of the ad account"),
+          criticalSpendThreshold: z
+            .number()
+            .positive()
+            .nullable()
+            .optional()
+            .describe("Override for critical spend limit"),
+          criticalConversionsThreshold: z
+            .number()
+            .int()
+            .nonnegative()
+            .nullable()
+            .optional()
+            .describe("Override for max conversions target"),
+          ctrHighThreshold: z
+            .number()
+            .positive()
+            .nullable()
+            .optional()
+            .describe("Override for CTR anomaly limit (%)"),
+          ctrHighSpendThreshold: z
+            .number()
+            .positive()
+            .nullable()
+            .optional()
+            .describe("Override for min spend for CTR anomaly"),
+          cpcHighThreshold: z
+            .number()
+            .positive()
+            .nullable()
+            .optional()
+            .describe("Override for high CPC limit"),
+          anomalySpendChangeThreshold: z
+            .number()
+            .max(0)
+            .nullable()
+            .optional()
+            .describe("Override for spend drop threshold (%)"),
+          anomalyConversionsChangeThreshold: z
+            .number()
+            .max(0)
+            .nullable()
+            .optional()
+            .describe("Override for conversions drop threshold (%)"),
+        },
+      },
+      async ({ accountId, ...data }) => {
+        try {
+          // Safety Precaution: Verify that the account exists before modifying its configuration
+          const account = await db.query.adAccounts.findFirst({
+            where: eq(adAccounts.id, accountId),
+          });
+
+          if (!account) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `No ad account found with ID ${accountId}.`,
+                  }),
+                },
+              ],
+            };
+          }
+
+          const payload = {
+            adAccountId: accountId,
+            criticalSpendThreshold:
+              data.criticalSpendThreshold !== undefined
+                ? data.criticalSpendThreshold
+                : null,
+            criticalConversionsThreshold:
+              data.criticalConversionsThreshold !== undefined
+                ? data.criticalConversionsThreshold
+                : null,
+            ctrHighThreshold:
+              data.ctrHighThreshold !== undefined
+                ? data.ctrHighThreshold
+                : null,
+            ctrHighSpendThreshold:
+              data.ctrHighSpendThreshold !== undefined
+                ? data.ctrHighSpendThreshold
+                : null,
+            cpcHighThreshold:
+              data.cpcHighThreshold !== undefined
+                ? data.cpcHighThreshold
+                : null,
+            anomalySpendChangeThreshold:
+              data.anomalySpendChangeThreshold !== undefined
+                ? data.anomalySpendChangeThreshold
+                : null,
+            anomalyConversionsChangeThreshold:
+              data.anomalyConversionsChangeThreshold !== undefined
+                ? data.anomalyConversionsChangeThreshold
+                : null,
+            updatedAt: new Date(),
+          };
+
+          const existing = await db.query.accountTriageSettings.findFirst({
+            where: eq(accountTriageSettings.adAccountId, accountId),
+          });
+          let savedId: number;
+
+          if (existing) {
+            await db
+              .update(accountTriageSettings)
+              .set(payload)
+              .where(eq(accountTriageSettings.id, existing.id));
+            savedId = existing.id;
+          } else {
+            const [newSettings] = await db
+              .insert(accountTriageSettings)
+              .values(payload)
+              .returning();
+            savedId = newSettings.id;
+          }
+
+          await logAction(
+            "MCP_AGENT",
+            "SAVE_ACCOUNT_TRIAGE_SETTINGS",
+            "account_triage_settings",
+            savedId,
+            payload,
+          );
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  message: `Triage override settings for account ${account.name} (ID: ${accountId}) saved successfully.`,
+                  data: { id: savedId, ...data },
+                }),
+              },
+            ],
+          };
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : `An error occurred while saving triage overrides for account ${accountId}.`;
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: errorMessage,
+                }),
+              },
+            ],
+          };
+        }
       },
     );
   },

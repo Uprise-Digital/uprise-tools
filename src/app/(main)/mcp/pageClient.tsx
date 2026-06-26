@@ -89,6 +89,30 @@ const AVAILABLE_TOOLS = [
     description:
       "Returns agreed client targets, such as target CPA, target ROAS, and budget caps.",
   },
+  {
+    name: "get_org_triage_defaults",
+    title: "Get Organization Triage Defaults",
+    description:
+      "Fetches the organization-wide defaults for alert and anomaly triage thresholds.",
+  },
+  {
+    name: "get_account_triage_settings",
+    title: "Get Account Triage Settings",
+    description:
+      "Fetches the triage threshold override settings for a specific client account by its internal ID.",
+  },
+  {
+    name: "set_org_triage_defaults",
+    title: "Set Organization Triage Defaults",
+    description:
+      "Sets/updates the organization-wide defaults for alert and anomaly triage thresholds.",
+  },
+  {
+    name: "set_account_triage_settings",
+    title: "Set Account Triage Settings",
+    description:
+      "Sets/updates the custom triage threshold override settings for a specific client account. Set fields to null to clear overrides.",
+  },
 ];
 
 interface McpSettingsClientProps {
