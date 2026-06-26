@@ -113,6 +113,12 @@ const AVAILABLE_TOOLS = [
     description:
       "Sets/updates the custom triage threshold override settings for a specific client account. Set fields to null to clear overrides.",
   },
+  {
+    name: "set_account_targets",
+    title: "Set Account KPI Targets",
+    description:
+      "Sets or updates the agreed client KPI targets for an account — target CPA, target ROAS, monthly budget cap, and notes.",
+  }
 ];
 
 interface McpSettingsClientProps {
