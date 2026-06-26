@@ -413,7 +413,7 @@ export default function SettingsClient({
 
         {/* RIGHT COLUMN: SYSTEM STATUS */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-slate-200 shadow-sm overflow-hidden">
+          <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
               <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
                 <Database className="w-4 h-4 text-indigo-500" />
