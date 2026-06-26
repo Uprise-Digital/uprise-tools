@@ -3,6 +3,7 @@ import {
   boolean,
   date,
   decimal,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -226,13 +227,14 @@ export const aiInsightsCache = pgTable(
 );
 
 // --- 7. RELATIONS ---
-export const adAccountRelations = relations(adAccounts, ({ many }) => ({
+export const adAccountRelations = relations(adAccounts, ({ many, one }) => ({
   rules: many(alertRules),
   metrics: many(accountMetrics),
   reportSchedules: many(reportSchedules),
   dailyPerformance: many(adPerformanceDaily),
   aiInsights: many(aiInsightsCache),
   threatAudits: many(threatMatrixAudits), // <-- NEW
+  triageSettings: one(accountTriageSettings),
 }));
 
 export const alertRuleRelations = relations(alertRules, ({ one, many }) => ({
@@ -357,3 +359,38 @@ export const briefingSettings = pgTable("briefing_settings", {
   isActive: boolean("is_active").default(true).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const orgTriageDefaults = pgTable("org_triage_defaults", {
+  id: serial("id").primaryKey(),
+  criticalSpendThreshold: doublePrecision("critical_spend_threshold").default(70.0).notNull(),
+  criticalConversionsThreshold: integer("critical_conversions_threshold").default(0).notNull(),
+  ctrHighThreshold: doublePrecision("ctr_high_threshold").default(7.0).notNull(),
+  ctrHighSpendThreshold: doublePrecision("ctr_high_spend_threshold").default(50.0).notNull(),
+  cpcHighThreshold: doublePrecision("cpc_high_threshold").default(30.0).notNull(),
+  anomalySpendChangeThreshold: doublePrecision("anomaly_spend_change_threshold").default(-30.0).notNull(),
+  anomalyConversionsChangeThreshold: doublePrecision("anomaly_conversions_change_threshold").default(-25.0).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const accountTriageSettings = pgTable("account_triage_settings", {
+  id: serial("id").primaryKey(),
+  adAccountId: integer("ad_account_id")
+    .references(() => adAccounts.id, { onDelete: "cascade" })
+    .unique()
+    .notNull(),
+  criticalSpendThreshold: doublePrecision("critical_spend_threshold"),
+  criticalConversionsThreshold: integer("critical_conversions_threshold"),
+  ctrHighThreshold: doublePrecision("ctr_high_threshold"),
+  ctrHighSpendThreshold: doublePrecision("ctr_high_spend_threshold"),
+  cpcHighThreshold: doublePrecision("cpc_high_threshold"),
+  anomalySpendChangeThreshold: doublePrecision("anomaly_spend_change_threshold"),
+  anomalyConversionsChangeThreshold: doublePrecision("anomaly_conversions_change_threshold"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const accountTriageSettingsRelations = relations(accountTriageSettings, ({ one }) => ({
+  adAccount: one(adAccounts, {
+    fields: [accountTriageSettings.adAccountId],
+    references: [adAccounts.id],
+  }),
+}));

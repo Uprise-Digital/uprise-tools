@@ -9,6 +9,7 @@ import { adAccounts, adPerformanceDaily, user } from "@/db/schema";
 import { generateMorningBriefingText } from "@/lib/ai-service";
 import { logAction } from "@/lib/audit";
 import { getBriefingSettingsAction } from "./briefing-settings.actions";
+import { getOrgTriageDefaultsAction } from "./triage-settings.actions";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -98,6 +99,21 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
   if (activeAccountsList.length === 0) {
     return { success: false, error: "No active accounts found." };
   }
+
+  // Fetch triage defaults and overrides
+  const orgDefaultsRes = await getOrgTriageDefaultsAction();
+  const orgDefaults = orgDefaultsRes.success && orgDefaultsRes.data ? orgDefaultsRes.data : {
+    criticalSpendThreshold: 70.0,
+    criticalConversionsThreshold: 0,
+    ctrHighThreshold: 7.0,
+    ctrHighSpendThreshold: 50.0,
+    cpcHighThreshold: 30.0,
+    anomalySpendChangeThreshold: -30.0,
+    anomalyConversionsChangeThreshold: -25.0,
+  };
+
+  const overridesList = await db.query.accountTriageSettings.findMany();
+  const overridesMap = new Map(overridesList.map((o) => [o.adAccountId, o]));
 
   const accountMap = new Map(activeAccountsList.map((a) => [a.id, a]));
 
@@ -347,6 +363,37 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
       });
     }
 
+    // Resolve dynamic triage thresholds (override -> org default)
+    const override = overridesMap.get(acc.accountId);
+
+    const criticalSpend = override?.criticalSpendThreshold !== null && override?.criticalSpendThreshold !== undefined
+      ? Number(override.criticalSpendThreshold)
+      : Number(orgDefaults.criticalSpendThreshold);
+
+    const criticalConversions = override?.criticalConversionsThreshold !== null && override?.criticalConversionsThreshold !== undefined
+      ? override.criticalConversionsThreshold
+      : orgDefaults.criticalConversionsThreshold;
+
+    const ctrHigh = override?.ctrHighThreshold !== null && override?.ctrHighThreshold !== undefined
+      ? Number(override.ctrHighThreshold)
+      : Number(orgDefaults.ctrHighThreshold);
+
+    const ctrHighSpend = override?.ctrHighSpendThreshold !== null && override?.ctrHighSpendThreshold !== undefined
+      ? Number(override.ctrHighSpendThreshold)
+      : Number(orgDefaults.ctrHighSpendThreshold);
+
+    const cpcHigh = override?.cpcHighThreshold !== null && override?.cpcHighThreshold !== undefined
+      ? Number(override.cpcHighThreshold)
+      : Number(orgDefaults.cpcHighThreshold);
+
+    const anomalySpendChange = override?.anomalySpendChangeThreshold !== null && override?.anomalySpendChangeThreshold !== undefined
+      ? Number(override.anomalySpendChangeThreshold)
+      : Number(orgDefaults.anomalySpendChangeThreshold);
+
+    const anomalyConversionsChange = override?.anomalyConversionsChangeThreshold !== null && override?.anomalyConversionsChangeThreshold !== undefined
+      ? Number(override.anomalyConversionsChangeThreshold)
+      : Number(orgDefaults.anomalyConversionsChangeThreshold);
+
     // Anomaly / Fire Flags
     let isAnomaly = false;
     let changeSpendPct = 0;
@@ -368,18 +415,18 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
     // Spend is down significantly or conversions down significantly
     if (
       acc.spend > 50 &&
-      (changeSpendPct < -30 || changeConversionsPct < -25)
+      (changeSpendPct < anomalySpendChange || changeConversionsPct < anomalyConversionsChange)
     ) {
       isAnomaly = true;
     }
 
-    const cpcIsHigh = acc.clicks === 1 && acc.spend >= 30; // Sustainable CPC limit
+    const cpcIsHigh = acc.clicks === 1 && acc.spend >= cpcHigh;
     const ctrIsHighZeroConversions =
-      acc.conversions === 0 && acc.ctr > 7.0 && acc.spend > 50;
+      acc.conversions === 0 && acc.ctr > ctrHigh && acc.spend > ctrHighSpend;
 
     // If it's a severe issue
     const isFire =
-      (acc.spend > 70 && acc.conversions === 0) ||
+      (acc.spend > criticalSpend && acc.conversions <= criticalConversions) ||
       isAnomaly ||
       cpcIsHigh ||
       ctrIsHighZeroConversions;

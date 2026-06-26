@@ -2,13 +2,18 @@
 
 import {
   Activity,
+  AlertTriangle,
   ArrowLeft,
+  ArrowUpRight,
   Calendar,
   DollarSign,
   Eye,
   LineChart,
+  Loader2,
   MousePointerClick,
   Percent,
+  Save,
+  Settings as SettingsIcon,
   Target,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -22,11 +27,22 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { toast } from "sonner";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
+import { saveAccountTriageSettingsAction } from "@/actions/triage-settings.actions";
 import { AiInsights } from "@/components/ai-insights";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -44,9 +60,43 @@ interface ClientDashboardProps {
     name: string;
     currencyCode: string | null;
   };
+  orgDefaults: {
+    criticalSpendThreshold: number;
+    criticalConversionsThreshold: number;
+    ctrHighThreshold: number;
+    ctrHighSpendThreshold: number;
+    cpcHighThreshold: number;
+    anomalySpendChangeThreshold: number;
+    anomalyConversionsChangeThreshold: number;
+  } | null;
+  initialSettings: {
+    id?: number | null;
+    adAccountId?: number;
+    criticalSpendThreshold: number | null;
+    criticalConversionsThreshold: number | null;
+    ctrHighThreshold: number | null;
+    ctrHighSpendThreshold: number | null;
+    cpcHighThreshold: number | null;
+    anomalySpendChangeThreshold: number | null;
+    anomalyConversionsChangeThreshold: number | null;
+  } | null;
 }
 
-export default function ClientDashboard({ account }: ClientDashboardProps) {
+const DEFAULT_THRESHOLDS = {
+  criticalSpendThreshold: 70.0,
+  criticalConversionsThreshold: 0,
+  ctrHighThreshold: 7.0,
+  ctrHighSpendThreshold: 50.0,
+  cpcHighThreshold: 30.0,
+  anomalySpendChangeThreshold: -30.0,
+  anomalyConversionsChangeThreshold: -25.0,
+};
+
+export default function ClientDashboard({
+  account,
+  orgDefaults,
+  initialSettings,
+}: ClientDashboardProps) {
   const router = useRouter();
   const today = new Date();
   const [startDate, setStartDate] = useState(
@@ -61,6 +111,100 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+
+  // Configuration Sheet State
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formState, setFormState] = useState({
+    criticalSpendThreshold:
+      initialSettings?.criticalSpendThreshold?.toString() ?? "",
+    criticalConversionsThreshold:
+      initialSettings?.criticalConversionsThreshold?.toString() ?? "",
+    ctrHighThreshold: initialSettings?.ctrHighThreshold?.toString() ?? "",
+    ctrHighSpendThreshold:
+      initialSettings?.ctrHighSpendThreshold?.toString() ?? "",
+    cpcHighThreshold: initialSettings?.cpcHighThreshold?.toString() ?? "",
+    anomalySpendChangeThreshold:
+      initialSettings?.anomalySpendChangeThreshold?.toString() ?? "",
+    anomalyConversionsChangeThreshold:
+      initialSettings?.anomalyConversionsChangeThreshold?.toString() ?? "",
+  });
+
+  const resolvedDefaults = orgDefaults || DEFAULT_THRESHOLDS;
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleClearAll = () => {
+    setFormState({
+      criticalSpendThreshold: "",
+      criticalConversionsThreshold: "",
+      ctrHighThreshold: "",
+      ctrHighSpendThreshold: "",
+      cpcHighThreshold: "",
+      anomalySpendChangeThreshold: "",
+      anomalyConversionsChangeThreshold: "",
+    });
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const toastId = toast.loading("Saving client threshold overrides...");
+
+    try {
+      const res = await saveAccountTriageSettingsAction(account.id, {
+        id: initialSettings?.id ?? null,
+        criticalSpendThreshold:
+          formState.criticalSpendThreshold === ""
+            ? null
+            : parseFloat(formState.criticalSpendThreshold),
+        criticalConversionsThreshold:
+          formState.criticalConversionsThreshold === ""
+            ? null
+            : parseInt(formState.criticalConversionsThreshold, 10),
+        ctrHighThreshold:
+          formState.ctrHighThreshold === ""
+            ? null
+            : parseFloat(formState.ctrHighThreshold),
+        ctrHighSpendThreshold:
+          formState.ctrHighSpendThreshold === ""
+            ? null
+            : parseFloat(formState.ctrHighSpendThreshold),
+        cpcHighThreshold:
+          formState.cpcHighThreshold === ""
+            ? null
+            : parseFloat(formState.cpcHighThreshold),
+        anomalySpendChangeThreshold:
+          formState.anomalySpendChangeThreshold === ""
+            ? null
+            : parseFloat(formState.anomalySpendChangeThreshold),
+        anomalyConversionsChangeThreshold:
+          formState.anomalyConversionsChangeThreshold === ""
+            ? null
+            : parseFloat(formState.anomalyConversionsChangeThreshold),
+      });
+
+      if (res.success) {
+        toast.success("Client overrides saved successfully!", { id: toastId });
+        setIsConfigOpen(false);
+        router.refresh();
+      } else {
+        throw new Error(res.error || "Failed to save overrides");
+      }
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : "An error occurred while saving.";
+      toast.error(errMsg, {
+        id: toastId,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   useEffect(() => {
     setIsLoading(true);
@@ -81,10 +225,10 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
     new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: account.currencyCode || "AUD",
-    }).format(isNaN(v) ? 0 : v);
+    }).format(Number.isNaN(v) ? 0 : v);
   const fNum = (v: number) =>
-    new Intl.NumberFormat("en-US").format(isNaN(v) ? 0 : v);
-  const fPct = (v: number) => `${(isNaN(v) ? 0 : v).toFixed(2)}%`;
+    new Intl.NumberFormat("en-US").format(Number.isNaN(v) ? 0 : v);
+  const fPct = (v: number) => `${(Number.isNaN(v) ? 0 : v).toFixed(2)}%`;
 
   return (
     <div className="space-y-6 p-4 mt-0 pt-0 max-w-400 mx-auto">
@@ -98,7 +242,267 @@ export default function ClientDashboard({ account }: ClientDashboardProps) {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{account.name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">{account.name}</h1>
+              <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 rounded-full border-slate-200"
+                  >
+                    <SettingsIcon className="h-4 w-4 text-slate-500 hover:text-indigo-600" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="p-4 w-[500px] sm:max-w-[1000px] md:max-w-[1000px] overflow-y-auto bg-white">
+                  <SheetHeader className="mb-6">
+                    <SheetTitle className="flex items-center gap-2 text-slate-800">
+                      <SettingsIcon className="w-5 h-5 text-indigo-500" />
+                      Configure Rules: {account.name}
+                    </SheetTitle>
+                    <SheetDescription className="text-xs">
+                      Set custom thresholds for this client. Leave fields blank
+                      to use organization-wide defaults.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <form onSubmit={handleSave} className="space-y-6">
+                    {/* CRITICAL ALERTS */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                        Critical Fire Triggers
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="criticalSpend" className="text-xs">
+                            Critical Spend Limit (AUD $)
+                          </Label>
+                          <Input
+                            id="criticalSpend"
+                            type="number"
+                            step="0.01"
+                            placeholder={`${resolvedDefaults.criticalSpendThreshold.toFixed(2)} (Global Default)`}
+                            value={formState.criticalSpendThreshold}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "criticalSpendThreshold",
+                                e.target.value,
+                              )
+                            }
+                            className="text-xs"
+                          />
+                          <p className="text-[10px] text-slate-400">
+                            Trigger alert if an account spends more than this
+                            with low conversions.
+                          </p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="criticalConversions"
+                            className="text-xs"
+                          >
+                            Maximum Conversions Target
+                          </Label>
+                          <Input
+                            id="criticalConversions"
+                            type="number"
+                            step="1"
+                            placeholder={`${resolvedDefaults.criticalConversionsThreshold} (Global Default)`}
+                            value={formState.criticalConversionsThreshold}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "criticalConversionsThreshold",
+                                e.target.value,
+                              )
+                            }
+                            className="text-xs"
+                          />
+                          <p className="text-[10px] text-slate-400">
+                            The upper limit of conversions to classify as a
+                            critical conversion leak.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* INDIVIDUAL PERFORMANCE ANOMALIES */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                        <Activity className="w-3.5 h-3.5 text-amber-500" />
+                        Performance Anomalies
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="ctrHigh" className="text-xs">
+                            CTR Anomaly Limit (%)
+                          </Label>
+                          <Input
+                            id="ctrHigh"
+                            type="number"
+                            step="0.1"
+                            placeholder={`${resolvedDefaults.ctrHighThreshold}% (Global Default)`}
+                            value={formState.ctrHighThreshold}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "ctrHighThreshold",
+                                e.target.value,
+                              )
+                            }
+                            className="text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="ctrHighSpend" className="text-xs">
+                            Min Spend for CTR Anomaly (AUD $)
+                          </Label>
+                          <Input
+                            id="ctrHighSpend"
+                            type="number"
+                            step="0.01"
+                            placeholder={`${resolvedDefaults.ctrHighSpendThreshold.toFixed(2)} (Global Default)`}
+                            value={formState.ctrHighSpendThreshold}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "ctrHighSpendThreshold",
+                                e.target.value,
+                              )
+                            }
+                            className="text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="cpcHigh" className="text-xs">
+                            Single Click High CPC (AUD $)
+                          </Label>
+                          <Input
+                            id="cpcHigh"
+                            type="number"
+                            step="0.01"
+                            placeholder={`${resolvedDefaults.cpcHighThreshold.toFixed(2)} (Global Default)`}
+                            value={formState.cpcHighThreshold}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "cpcHighThreshold",
+                                e.target.value,
+                              )
+                            }
+                            className="text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* HISTORICAL BASELINE DEVIATION */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                        Baseline Variance Deviation (%)
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="anomalySpend" className="text-xs">
+                            Spend Drop Threshold (%)
+                          </Label>
+                          <Input
+                            id="anomalySpend"
+                            type="number"
+                            step="0.1"
+                            placeholder={`${resolvedDefaults.anomalySpendChangeThreshold}% (Global Default)`}
+                            value={formState.anomalySpendChangeThreshold}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "anomalySpendChangeThreshold",
+                                e.target.value,
+                              )
+                            }
+                            className="text-xs"
+                          />
+                          <p className="text-[10px] text-slate-400">
+                            Trigger warning if spend drops by more than this
+                            percent (e.g. -30.0).
+                          </p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="anomalyConversions"
+                            className="text-xs"
+                          >
+                            Conversions Drop Threshold (%)
+                          </Label>
+                          <Input
+                            id="anomalyConversions"
+                            type="number"
+                            step="0.1"
+                            placeholder={`${resolvedDefaults.anomalyConversionsChangeThreshold}% (Global Default)`}
+                            value={formState.anomalyConversionsChangeThreshold}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "anomalyConversionsChangeThreshold",
+                                e.target.value,
+                              )
+                            }
+                            className="text-xs"
+                          />
+                          <p className="text-[10px] text-slate-400">
+                            Trigger warning if conversions drop by more than
+                            this percent (e.g. -25.0).
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between pt-4 border-t gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={handleClearAll}
+                        size="sm"
+                        className="text-xs text-slate-500 hover:text-slate-800"
+                      >
+                        Clear Overrides
+                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsConfigOpen(false)}
+                          disabled={isSaving}
+                          className="text-xs"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={isSaving}
+                          className="text-xs flex items-center gap-1.5"
+                        >
+                          {isSaving ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Save className="w-3.5 h-3.5" />
+                          )}
+                          Save Rules
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="text-slate-500">
+                        Need to modify organization-wide defaults?
+                      </span>
+                      <a
+                        href="/settings"
+                        className="text-indigo-600 font-medium hover:underline flex items-center gap-1"
+                      >
+                        Configure Org Defaults
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </form>
+                </SheetContent>
+              </Sheet>
+            </div>
             <p className="text-xs font-mono text-slate-500">
               ID: {account.googleAccountId}
             </p>

@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Menu,
   ScrollText,
+  Settings,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/mcp", label: "MCP Settings", icon: BellRing },
   { href: "/team", label: "Team Management", icon: Users },
   { href: "/logs", label: "Logs", icon: ScrollText },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function SidebarNav() {

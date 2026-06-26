@@ -2,6 +2,10 @@
 
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import {
+  getAccountTriageSettingsAction,
+  getOrgTriageDefaultsAction,
+} from "@/actions/triage-settings.actions";
 import { db } from "@/db";
 import { adAccounts } from "@/db/schema";
 import ClientDashboard from "./pageClient";
@@ -13,7 +17,7 @@ interface PageProps {
 export default async function AccountDetailPage({ params }: PageProps) {
   const accountId = parseInt((await params).id, 10);
 
-  if (isNaN(accountId)) {
+  if (Number.isNaN(accountId)) {
     return notFound();
   }
 
@@ -25,5 +29,23 @@ export default async function AccountDetailPage({ params }: PageProps) {
     return notFound();
   }
 
-  return <ClientDashboard account={account} />;
+  const [orgDefaultsRes, accountSettingsRes] = await Promise.all([
+    getOrgTriageDefaultsAction(),
+    getAccountTriageSettingsAction(accountId),
+  ]);
+
+  const orgDefaults =
+    orgDefaultsRes.success && orgDefaultsRes.data ? orgDefaultsRes.data : null;
+  const initialSettings =
+    accountSettingsRes.success && accountSettingsRes.data
+      ? accountSettingsRes.data
+      : null;
+
+  return (
+    <ClientDashboard
+      account={account}
+      orgDefaults={orgDefaults}
+      initialSettings={initialSettings}
+    />
+  );
 }
