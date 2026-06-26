@@ -1,15 +1,15 @@
+import type { Metadata } from "next";
 import AgencyReportsClient from "./pageClient";
-import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Agency God View | Uprise Tools",
-    description: "Macro portfolio performance and critical alerts.",
+  title: "Agency God View | Uprise Tools",
+  description: "Macro portfolio performance and critical alerts.",
 };
 
 export default async function AgencyReportsPage() {
-    // You can add server-side auth checks here if needed:
-    // const session = await auth();
-    // if (!session) redirect('/login');
+  // You can add server-side auth checks here if needed:
+  // const session = await auth();
+  // if (!session) redirect('/login');
 
-    return <AgencyReportsClient />;
+  return <AgencyReportsClient />;
 }

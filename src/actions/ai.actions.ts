@@ -1,93 +1,107 @@
 "use server";
 
+import { GoogleGenAI } from "@google/genai";
+import { and, eq } from "drizzle-orm";
+import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { db } from "@/db";
 import { aiInsightsCache } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
-import { GoogleGenAI } from '@google/genai';
-import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 export async function getOrGenerateAiInsightsAction(
-    adAccountId: number,
-    googleAccountId: string,
-    startDate: string,
-    endDate: string,
-    forceRefresh: boolean = false
+  adAccountId: number,
+  googleAccountId: string,
+  startDate: string,
+  endDate: string,
+  forceRefresh: boolean = false,
 ) {
-    // 1. Check Cache First (if not forcing a refresh)
-    if (!forceRefresh) {
-        const cached = await db.query.aiInsightsCache.findFirst({
-            where: and(
-                eq(aiInsightsCache.adAccountId, adAccountId),
-                eq(aiInsightsCache.startDate, startDate),
-                eq(aiInsightsCache.endDate, endDate)
-            )
-        });
-
-        if (cached) {
-            return {
-                success: true,
-                data: cached.insights,
-                generatedAt: cached.createdAt,
-                isCached: true
-            };
-        }
-    }
-
-    // 2. Fetch fresh data for the LLM
-    const dataRes = await getDashboardMetricsAction(adAccountId, googleAccountId, startDate, endDate);
-    if (!dataRes.success || !dataRes.data) {
-        throw new Error("Data analysis unavailable: Unable to retrieve dashboard metrics.");
-    }
-
-    // --- NEW: Pre-compute the hard math to prevent LLM hallucinations ---
-    // Note: Adjust 'dataRes.data.campaigns' to match your actual data schema if needed.
-    const campaigns = dataRes.data.campaigns || [];
-
-    let totalSpend = 0;
-    let totalConversions = 0;
-    let totalClicks = 0;
-    let totalImpressions = 0;
-
-    campaigns.forEach((c: any) => {
-        totalSpend += (c.spend || 0);
-        totalConversions += (c.conversions || 0);
-        totalClicks += (c.clicks || 0);
-        totalImpressions += (c.impressions || 0);
+  // 1. Check Cache First (if not forcing a refresh)
+  if (!forceRefresh) {
+    const cached = await db.query.aiInsightsCache.findFirst({
+      where: and(
+        eq(aiInsightsCache.adAccountId, adAccountId),
+        eq(aiInsightsCache.startDate, startDate),
+        eq(aiInsightsCache.endDate, endDate),
+      ),
     });
 
-    const blendedCPA = totalConversions > 0 ? (totalSpend / totalConversions) : 0;
-    const blendedCTR = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100) : 0;
-    const blendedCR = totalClicks > 0 ? ((totalConversions / totalClicks) * 100) : 0;
+    if (cached) {
+      return {
+        success: true,
+        data: cached.insights,
+        generatedAt: cached.createdAt,
+        isCached: true,
+      };
+    }
+  }
 
-    // Find the actual best campaign by CPA (Requires at least 1 conversion)
-    const validCampaigns = campaigns.filter((c: any) => c.conversions > 0);
-    const topCampaign = validCampaigns.length > 0
-        ? validCampaigns.reduce((prev: any, curr: any) =>
-            (prev.spend / prev.conversions) < (curr.spend / curr.conversions) ? prev : curr
+  // 2. Fetch fresh data for the LLM
+  const dataRes = await getDashboardMetricsAction(
+    adAccountId,
+    googleAccountId,
+    startDate,
+    endDate,
+  );
+  if (!dataRes.success || !dataRes.data) {
+    throw new Error(
+      "Data analysis unavailable: Unable to retrieve dashboard metrics.",
+    );
+  }
+
+  // --- NEW: Pre-compute the hard math to prevent LLM hallucinations ---
+  // Note: Adjust 'dataRes.data.campaigns' to match your actual data schema if needed.
+  const campaigns = dataRes.data.campaigns || [];
+
+  let totalSpend = 0;
+  let totalConversions = 0;
+  let totalClicks = 0;
+  let totalImpressions = 0;
+
+  campaigns.forEach((c: any) => {
+    totalSpend += c.spend || 0;
+    totalConversions += c.conversions || 0;
+    totalClicks += c.clicks || 0;
+    totalImpressions += c.impressions || 0;
+  });
+
+  const blendedCPA = totalConversions > 0 ? totalSpend / totalConversions : 0;
+  const blendedCTR =
+    totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+  const blendedCR =
+    totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
+
+  // Find the actual best campaign by CPA (Requires at least 1 conversion)
+  const validCampaigns = campaigns.filter((c: any) => c.conversions > 0);
+  const topCampaign =
+    validCampaigns.length > 0
+      ? validCampaigns.reduce((prev: any, curr: any) =>
+          prev.spend / prev.conversions < curr.spend / curr.conversions
+            ? prev
+            : curr,
         )
-        : null;
+      : null;
 
-    const calculatedMetrics = {
-        account_totals: {
-            total_spend: totalSpend.toFixed(2),
-            total_conversions: totalConversions,
-            blended_cpa: blendedCPA.toFixed(2),
-            blended_ctr: blendedCTR.toFixed(2) + "%",
-            blended_conversion_rate: blendedCR.toFixed(2) + "%"
-        },
-        top_performer: {
-            name: topCampaign?.campaignName || "None",
-            spend: topCampaign?.spend || 0,
-            conversions: topCampaign?.conversions || 0,
-            cpa: topCampaign ? (topCampaign.spend / topCampaign.conversions).toFixed(2) : 0
-        }
-    };
-    // -------------------------------------------------------------------
+  const calculatedMetrics = {
+    account_totals: {
+      total_spend: totalSpend.toFixed(2),
+      total_conversions: totalConversions,
+      blended_cpa: blendedCPA.toFixed(2),
+      blended_ctr: blendedCTR.toFixed(2) + "%",
+      blended_conversion_rate: blendedCR.toFixed(2) + "%",
+    },
+    top_performer: {
+      name: topCampaign?.campaignName || "None",
+      spend: topCampaign?.spend || 0,
+      conversions: topCampaign?.conversions || 0,
+      cpa: topCampaign
+        ? (topCampaign.spend / topCampaign.conversions).toFixed(2)
+        : 0,
+    },
+  };
+  // -------------------------------------------------------------------
 
-    // 3. Define Prompt
-    const prompt = `
+  // 3. Define Prompt
+  const prompt = `
     You are an elite Performance Marketing Strategist. Analyze the following Google Ads data and provide deep-dive intelligence across 3 pillars: Diagnostics, Predictive, and Prescriptive.
 
     RAW DATA: ${JSON.stringify(dataRes.data)}
@@ -142,45 +156,49 @@ export async function getOrGenerateAiInsightsAction(
     - If spend is NaN or 0, focus analysis on traffic quality.
     `;
 
-    // 4. Generate response using Gemini
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { responseMimeType: 'application/json' }
-        });
+  // 4. Generate response using Gemini
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: { responseMimeType: "application/json" },
+    });
 
-        const parsedInsights = JSON.parse(response.text as string);
+    const parsedInsights = JSON.parse(response.text as string);
 
-        // 5. Upsert into Cache
-        const [upserted] = await db.insert(aiInsightsCache)
-            .values({
-                adAccountId,
-                startDate,
-                endDate,
-                insights: parsedInsights,
-                createdAt: new Date(), // Reset timestamp
-            })
-            .onConflictDoUpdate({
-                target: [aiInsightsCache.adAccountId, aiInsightsCache.startDate, aiInsightsCache.endDate],
-                set: {
-                    insights: parsedInsights,
-                    createdAt: new Date(),
-                }
-            })
-            .returning({ createdAt: aiInsightsCache.createdAt });
+    // 5. Upsert into Cache
+    const [upserted] = await db
+      .insert(aiInsightsCache)
+      .values({
+        adAccountId,
+        startDate,
+        endDate,
+        insights: parsedInsights,
+        createdAt: new Date(), // Reset timestamp
+      })
+      .onConflictDoUpdate({
+        target: [
+          aiInsightsCache.adAccountId,
+          aiInsightsCache.startDate,
+          aiInsightsCache.endDate,
+        ],
+        set: {
+          insights: parsedInsights,
+          createdAt: new Date(),
+        },
+      })
+      .returning({ createdAt: aiInsightsCache.createdAt });
 
-        return {
-            success: true,
-            data: parsedInsights,
-            generatedAt: upserted.createdAt,
-            isCached: false
-        };
-
-    } catch (error) {
-        console.error("AI Insights Error:", error);
-        throw new Error("Failed to generate strategic insights.");
-    }
+    return {
+      success: true,
+      data: parsedInsights,
+      generatedAt: upserted.createdAt,
+      isCached: false,
+    };
+  } catch (error) {
+    console.error("AI Insights Error:", error);
+    throw new Error("Failed to generate strategic insights.");
+  }
 }
 
 /**
@@ -188,7 +206,7 @@ export async function getOrGenerateAiInsightsAction(
  * Analyzes the entire agency portfolio for macro trends and critical fires.
  */
 export async function generateAgencyAiInsightsAction(portfolioData: any) {
-    const prompt = `
+  const prompt = `
     You are the Strategy Director for an elite Performance Marketing Agency. Analyze this agency-wide portfolio data.
 
     PORTFOLIO DATA: ${JSON.stringify(portfolioData)}
@@ -226,16 +244,16 @@ export async function generateAgencyAiInsightsAction(portfolioData: any) {
     - Base all analysis strictly on the provided JSON figures.
     `;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { responseMimeType: 'application/json' }
-        });
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: { responseMimeType: "application/json" },
+    });
 
-        return JSON.parse(response.text as string);
-    } catch (error) {
-        console.error("Agency AI Insights Error:", error);
-        throw new Error("Failed to generate portfolio insights.");
-    }
+    return JSON.parse(response.text as string);
+  } catch (error) {
+    console.error("Agency AI Insights Error:", error);
+    throw new Error("Failed to generate portfolio insights.");
+  }
 }

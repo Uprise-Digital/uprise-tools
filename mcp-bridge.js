@@ -1,5 +1,7 @@
 // mcp-bridge.js
-const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
+const {
+  StdioServerTransport,
+} = require("@modelcontextprotocol/sdk/server/stdio.js");
 const { Client } = require("@modelcontextprotocol/sdk/client/index.js");
 
 // This script sits on your laptop, runs locally,
