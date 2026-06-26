@@ -656,7 +656,7 @@ export default function AgencyReportsClient() {
 
                 return (
                   <TableRow
-                      onClick={() => handleRowClick(acc.id)}
+                      onClick={() => handleRowClick(acc.accountId)}
                     key={acc.accountId}
                     className="text-sm hover:bg-slate-50 cursor-pointer transition-colors"
                   >
