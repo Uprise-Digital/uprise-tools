@@ -7,7 +7,7 @@ import { Resend } from "resend";
 import { db } from "@/db";
 import { adAccounts, adPerformanceDaily, user } from "@/db/schema";
 import { generateMorningBriefingText } from "@/lib/ai-service";
-import { logAction } from "@/lib/audit";
+import { logAction, logEmail } from "@/lib/audit";
 import { getBriefingSettingsAction } from "./briefing-settings.actions";
 import { getOrgTriageDefaultsAction } from "./triage-settings.actions";
 
@@ -540,6 +540,8 @@ export async function generateBriefingAction() {
 }
 
 export async function sendMorningBriefingAction() {
+  let emails: string[] = [];
+  let subject = "☀️ Morning Briefing";
   try {
     // 1. Fetch settings & briefing data
     const settingsRes = await getBriefingSettingsAction();
@@ -557,12 +559,11 @@ export async function sendMorningBriefingAction() {
     }
 
     const briefing = genRes.briefing;
-    const subject =
+    subject =
       briefing.subject ||
       `☀️ Morning Briefing — ${dataRes.data.todayDayOfWeek} ${dataRes.data.todayDateStr}`;
 
     // 2. Fetch recipients (fallback to all team members if empty)
-    let emails: string[] = [];
     if (settings && settings.recipients && settings.recipients.length > 0) {
       emails = settings.recipients;
     } else {
@@ -594,8 +595,23 @@ export async function sendMorningBriefingAction() {
     });
 
     if (emailResult.error) {
+      await logEmail({
+        recipient: emails.join(", "),
+        subject: subject,
+        emailType: "morning_briefing",
+        status: "failed",
+        error: emailResult.error.message,
+      });
       throw new Error(`Resend Error: ${emailResult.error.message}`);
     }
+
+    await logEmail({
+      recipient: emails.join(", "),
+      subject: subject,
+      emailType: "morning_briefing",
+      status: "success",
+      resendId: emailResult.data?.id,
+    });
 
     // 5. Log the audit action
     await logAction(SYSTEM_ACTOR, "DAILY_BRIEFING_SENT", "user", SYSTEM_ACTOR, {
@@ -610,6 +626,25 @@ export async function sendMorningBriefingAction() {
     };
   } catch (error: any) {
     console.error("Failed to send morning briefing:", error);
+
+    try {
+      const recipientList = (typeof emails !== "undefined" && emails && emails.length > 0) 
+        ? emails.join(", ") 
+        : "reports@uprisedigital.com.au (fallback)";
+      const subjectText = (typeof subject !== "undefined" && subject) 
+        ? subject 
+        : "☀️ Morning Briefing";
+        
+      await logEmail({
+        recipient: recipientList,
+        subject: subjectText,
+        emailType: "morning_briefing",
+        status: "failed",
+        error: error.message || "Unknown error during morning briefing dispatch",
+      });
+    } catch (logErr) {
+      console.error("Failed to write briefing failure to emailLogs:", logErr);
+    }
 
     await logAction(
       SYSTEM_ACTOR,

@@ -16,6 +16,10 @@ import {
   Save,
   Settings as SettingsIcon,
   Target,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Search,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -132,6 +136,63 @@ export default function ClientDashboard({
       initialSettings?.anomalyConversionsChangeThreshold?.toString() ?? "",
     includeInBriefing: account.includeInBriefing,
   });
+
+  const [campaignSearch, setCampaignSearch] = useState("");
+  const [campaignPage, setCampaignPage] = useState(1);
+  const [campaignLimit, setCampaignLimit] = useState(10);
+
+  // Filtered Campaigns
+  const filteredCampaigns = (data?.campaigns || []).filter((c: any) => {
+    return c.campaignName.toLowerCase().includes(campaignSearch.toLowerCase());
+  });
+
+  const totalCampaignPages = Math.ceil(filteredCampaigns.length / campaignLimit);
+  const paginatedCampaigns = filteredCampaigns.slice(
+    (campaignPage - 1) * campaignLimit,
+    campaignPage * campaignLimit,
+  );
+
+  useEffect(() => {
+    setCampaignPage(1);
+  }, [campaignSearch]);
+
+  const exportCampaignsToCsv = () => {
+    const headers = ["Campaign Name", "Cost", "Clicks", "Impressions", "CTR", "CPC", "Conversions", "CPA", "Conv. Rate"];
+    const rows = filteredCampaigns.map((c: any) => [
+      c.campaignName,
+      c.spend,
+      c.clicks,
+      c.impressions,
+      c.ctr,
+      c.cpc,
+      c.conversions,
+      c.cpa,
+      c.convRate,
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      [
+        headers.join(","),
+        ...rows.map((e: any[]) =>
+          e
+            .map((val: any) => {
+              const textStr = String(val === null || val === undefined ? "" : val);
+              return `"${textStr.replace(/"/g, '""')}"`;
+            })
+            .join(","),
+        ),
+      ].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${account.name.replace(/\s+/g, "_")}_campaigns_export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Campaign metrics exported successfully.");
+  };
 
   const resolvedDefaults = orgDefaults || DEFAULT_THRESHOLDS;
 
@@ -746,8 +807,37 @@ export default function ClientDashboard({
 
       {/* FULL CAMPAIGN TABLE */}
       <Card className="shadow-sm overflow-hidden mt-0 pt-0">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center py-4 gap-3">
+          <div>
+            <CardTitle className="text-base font-bold text-slate-800">
+              Campaign Breakdown
+            </CardTitle>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-64">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                placeholder="Search campaigns..."
+                value={campaignSearch}
+                onChange={(e) => setCampaignSearch(e.target.value)}
+                className="pl-8 text-xs h-8 bg-white"
+                disabled={isLoading}
+              />
+            </div>
+            <Button
+              onClick={exportCampaignsToCsv}
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 flex items-center gap-1.5 border-slate-200"
+              disabled={isLoading || filteredCampaigns.length === 0}
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export
+            </Button>
+          </div>
+        </CardHeader>
         <Table>
-          <TableHeader className="bg-slate-50">
+          <TableHeader className="bg-slate-50/50">
             <TableRow>
               <TableHead>Campaign</TableHead>
               <TableHead className="text-right">Cost</TableHead>
@@ -761,7 +851,20 @@ export default function ClientDashboard({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data?.campaigns.map((c: any, i: number) => (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={9} className="h-24 text-center text-xs text-slate-500 font-sans">
+                  Loading campaigns...
+                </TableCell>
+              </TableRow>
+            ) : paginatedCampaigns.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="h-24 text-center text-xs text-slate-500 font-sans">
+                  No matching campaigns found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedCampaigns.map((c: any, i: number) => (
               <TableRow key={i} className="text-xs">
                 <TableCell className="font-medium max-w-[200px] truncate">
                   {c.campaignName}
@@ -791,9 +894,73 @@ export default function ClientDashboard({
                   {fPct(c.convRate)}
                 </TableCell>
               </TableRow>
-            ))}
+              ))
+            )}
           </TableBody>
         </Table>
+
+        {/* PAGINATION CONTROLS */}
+        {!isLoading && filteredCampaigns.length > 0 && (
+          <div className="border-t border-slate-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <div>
+              Showing <strong className="text-slate-800">{(campaignPage - 1) * campaignLimit + 1}</strong> to{" "}
+              <strong className="text-slate-800">{Math.min(campaignPage * campaignLimit, filteredCampaigns.length)}</strong> of{" "}
+              <strong className="text-slate-800">{filteredCampaigns.length}</strong> campaigns
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-white">
+                <span className="text-[10px] text-slate-400">Rows:</span>
+                <select
+                  value={campaignLimit}
+                  onChange={(e) => setCampaignLimit(parseInt(e.target.value, 10))}
+                  className="bg-transparent border-none focus:outline-none text-[10px] font-semibold cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+              
+              {totalCampaignPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={campaignPage <= 1}
+                    onClick={() => setCampaignPage(campaignPage - 1)}
+                    className="h-7 w-7 border-slate-200"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </Button>
+                  {Array.from({ length: totalCampaignPages }).map((_, index) => {
+                    const pNum = index + 1;
+                    return (
+                      <Button
+                        key={pNum}
+                        variant={campaignPage === pNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCampaignPage(pNum)}
+                        className="h-7 w-7 text-[10px] border-slate-200"
+                      >
+                        {pNum}
+                      </Button>
+                    );
+                  })}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={campaignPage >= totalCampaignPages}
+                    onClick={() => setCampaignPage(campaignPage + 1)}
+                    className="h-7 w-7 border-slate-200"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

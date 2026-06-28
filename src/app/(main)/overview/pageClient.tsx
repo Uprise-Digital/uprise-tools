@@ -18,6 +18,10 @@ import {
   Target,
   TrendingUp,
   Users,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Search,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -68,7 +72,15 @@ export default function AgencyReportsClient() {
   const [insights, setInsights] = useState<any>(null);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
 
+  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerLimit, setLedgerLimit] = useState(10);
+
   const router = useRouter();
+
+  useEffect(() => {
+    setLedgerPage(1);
+  }, [ledgerSearch, hideInactive]);
 
   // 1. Fetch Base Data
   const fetchPortfolioData = async (isMounted = true) => {
@@ -225,11 +237,66 @@ export default function AgencyReportsClient() {
     );
   }
 
+
+
   // Filtered Accounts
   const visibleAccounts =
     portfolio?.accountBreakdown?.filter((acc: any) =>
       hideInactive ? acc.spend > 0 : true,
     ) || [];
+
+  const searchedAccounts = visibleAccounts.filter((acc: any) => {
+    return (
+      acc.name.toLowerCase().includes(ledgerSearch.toLowerCase()) ||
+      acc.googleAccountId.includes(ledgerSearch)
+    );
+  });
+
+  const totalPages = Math.ceil(searchedAccounts.length / ledgerLimit);
+  const paginatedAccounts = searchedAccounts.slice(
+    (ledgerPage - 1) * ledgerLimit,
+    ledgerPage * ledgerLimit,
+  );
+
+  const exportLedgerToCsv = () => {
+    const headers = ["Account Name", "Google ID", "Churn Risk", "Spend", "Conversions", "CPA", "CTR", "CPC"];
+    const rows = searchedAccounts.map((acc: any) => {
+      const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
+      return [
+        acc.name,
+        acc.googleAccountId,
+        risk.label,
+        acc.spend,
+        acc.conversions,
+        acc.cpa,
+        acc.ctr,
+        acc.cpc,
+      ];
+    });
+
+    const csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      [
+        headers.join(","),
+        ...rows.map((e: any[]) =>
+          e
+            .map((val: any) => {
+              const textStr = String(val === null || val === undefined ? "" : val);
+              return `"${textStr.replace(/"/g, '""')}"`;
+            })
+            .join(","),
+        ),
+      ].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `portfolio_ledger_export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Portfolio ledger exported successfully.");
+  };
 
   // --- ON-THE-FLY ANALYST METRICS ---
   const totalSpend = portfolio?.agencyTotals?.spend || 0;
@@ -609,26 +676,51 @@ export default function AgencyReportsClient() {
 
       {/* ── FULL PORTFOLIO LEDGER ── */}
       <Card className="pt-0 shadow-sm border-slate-200">
-        <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex flex-row justify-between items-center py-4">
-          <CardTitle className="text-base font-bold text-slate-800">
-            Portfolio Ledger
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setHideInactive(!hideInactive)}
-            className="text-xs text-slate-500 hover:text-slate-900"
-          >
-            {hideInactive ? (
-              <>
-                <Eye className="h-3 w-3 mr-1" /> Show All
-              </>
-            ) : (
-              <>
-                <EyeOff className="h-3 w-3 mr-1" /> Hide Inactive ($0)
-              </>
-            )}
-          </Button>
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center py-4 gap-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-bold text-slate-800">
+              Portfolio Ledger
+            </CardTitle>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-64">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                placeholder="Search account or Google ID..."
+                value={ledgerSearch}
+                onChange={(e) => setLedgerSearch(e.target.value)}
+                className="pl-8 text-xs h-8 bg-white"
+              />
+            </div>
+            
+            <Button
+              onClick={exportLedgerToCsv}
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 flex items-center gap-1.5 border-slate-200"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setHideInactive(!hideInactive)}
+              className="text-xs text-slate-500 hover:text-slate-900 h-8"
+            >
+              {hideInactive ? (
+                <>
+                  <Eye className="h-3 w-3 mr-1" /> Show All
+                </>
+              ) : (
+                <>
+                  <EyeOff className="h-3 w-3 mr-1" /> Hide Inactive ($0)
+                </>
+              )}
+            </Button>
+          </div>
         </CardHeader>
         <div className="overflow-x-auto">
           <Table>
@@ -648,7 +740,7 @@ export default function AgencyReportsClient() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleAccounts.map((acc: any) => {
+              {paginatedAccounts.map((acc: any) => {
                 const risk = getChurnRisk(
                   acc,
                   portfolio?.agencyTotals?.cpa || 0,
@@ -711,6 +803,67 @@ export default function AgencyReportsClient() {
               })}
             </TableBody>
           </Table>
+        </div>
+
+        {/* PAGINATION CONTROLS */}
+        <div className="border-t border-slate-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          <div>
+            Showing <strong className="text-slate-800">{searchedAccounts.length > 0 ? (ledgerPage - 1) * ledgerLimit + 1 : 0}</strong> to{" "}
+            <strong className="text-slate-800">{Math.min(ledgerPage * ledgerLimit, searchedAccounts.length)}</strong> of{" "}
+            <strong className="text-slate-800">{searchedAccounts.length}</strong> accounts
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-white">
+              <span className="text-[10px] text-slate-400">Rows:</span>
+              <select
+                value={ledgerLimit}
+                onChange={(e) => setLedgerLimit(parseInt(e.target.value, 10))}
+                className="bg-transparent border-none focus:outline-none text-[10px] font-semibold cursor-pointer"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={ledgerPage <= 1}
+                  onClick={() => setLedgerPage(ledgerPage - 1)}
+                  className="h-7 w-7 border-slate-200"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </Button>
+                {Array.from({ length: totalPages }).map((_, index) => {
+                  const pNum = index + 1;
+                  return (
+                    <Button
+                      key={pNum}
+                      variant={ledgerPage === pNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setLedgerPage(pNum)}
+                      className="h-7 w-7 text-[10px] border-slate-200"
+                    >
+                      {pNum}
+                    </Button>
+                  );
+                })}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={ledgerPage >= totalPages}
+                  onClick={() => setLedgerPage(ledgerPage + 1)}
+                  className="h-7 w-7 border-slate-200"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </Card>
     </div>

@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
   const { data: session, isPending } = authClient.useSession();
@@ -32,21 +33,27 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    const toastId = toast.loading("Updating profile information...");
     const { error } = await authClient.updateUser({ name });
-    if (error) alert(error.message);
-    else alert("Profile updated!"); // Swap with shadcn toast later
+    if (error) {
+      toast.error(error.message || "Failed to update profile", { id: toastId });
+    } else {
+      toast.success("Profile display name updated successfully!", { id: toastId });
+    }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    const toastId = toast.loading("Updating account password...");
     const { error } = await authClient.changePassword({
       newPassword,
       currentPassword,
       revokeOtherSessions: true,
     });
-    if (error) alert(error.message);
-    else {
-      alert("Password changed!");
+    if (error) {
+      toast.error(error.message || "Failed to update password", { id: toastId });
+    } else {
+      toast.success("Password changed successfully! Revoked other active sessions.", { id: toastId });
       setCurrentPassword("");
       setNewPassword("");
     }

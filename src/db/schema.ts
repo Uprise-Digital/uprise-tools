@@ -147,14 +147,24 @@ export const verification = pgTable("verification", {
 // --- 4. AUDIT & LOGGING ---
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
-  actorId: text("actor_id")
-    .references(() => user.id)
-    .notNull(),
+  actorId: text("actor_id"),
   action: text("action").notNull(),
   targetTable: text("target_table").notNull(),
   targetId: text("target_id").notNull(),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const emailLogs = pgTable("email_logs", {
+  id: serial("id").primaryKey(),
+  adAccountId: integer("ad_account_id").references(() => adAccounts.id, { onDelete: "set null" }),
+  recipient: text("recipient").notNull(),
+  subject: text("subject").notNull(),
+  emailType: text("email_type").notNull(), // 'morning_briefing', 'scheduled_report', 'on_demand_report'
+  status: text("status").notNull(), // 'success', 'failed'
+  error: text("error"),
+  resendId: text("resend_id"),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
 });
 
 // --- 5. AUTOMATION & REPORTS ---
@@ -251,6 +261,13 @@ export const alertRuleRelations = relations(alertRules, ({ one, many }) => ({
 
 export const auditLogRelations = relations(auditLogs, ({ one }) => ({
   actor: one(user, { fields: [auditLogs.actorId], references: [user.id] }),
+}));
+
+export const emailLogRelations = relations(emailLogs, ({ one }) => ({
+  account: one(adAccounts, {
+    fields: [emailLogs.adAccountId],
+    references: [adAccounts.id],
+  }),
 }));
 
 export const accountMetricRelations = relations(accountMetrics, ({ one }) => ({

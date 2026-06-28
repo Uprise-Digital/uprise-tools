@@ -3,8 +3,11 @@
 
 import { randomBytes } from "crypto";
 import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
 import { db } from "@/db"; // Adjust path to your db instance
 import { mcpSettings } from "@/db/schema";
+import { logAction } from "@/lib/audit";
+import { auth } from "@/lib/auth";
 
 // Mock auth fetcher - replace with your actual session/auth logic
 const getAgencyId = async () => 1;
@@ -44,6 +47,9 @@ export async function getMcpSettingsAction() {
  * Generate and save a new API Key, revoking the old one
  */
 export async function rollMcpApiKeyAction() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) throw new Error("Unauthorized");
+
   try {
     const agencyId = await getAgencyId();
     const newKey = generateApiKey();
@@ -53,6 +59,15 @@ export async function rollMcpApiKeyAction() {
       .set({ apiKey: newKey, updatedAt: new Date() })
       .where(eq(mcpSettings.agencyId, agencyId))
       .returning();
+
+    // Log the roll key security event
+    await logAction(
+      session.user.id,
+      "ROLL_MCP_API_KEY",
+      "mcp_settings",
+      agencyId,
+      { agencyId, action: "rolled_apiKey" },
+    );
 
     return { success: true, apiKey: updated.apiKey };
   } catch (error) {
@@ -67,6 +82,9 @@ export async function rollMcpApiKeyAction() {
 export async function updateMcpToolsAction(
   toolsConfig: Record<string, boolean>,
 ) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) throw new Error("Unauthorized");
+
   try {
     const agencyId = await getAgencyId();
 
@@ -74,6 +92,15 @@ export async function updateMcpToolsAction(
       .update(mcpSettings)
       .set({ toolsConfig, updatedAt: new Date() })
       .where(eq(mcpSettings.agencyId, agencyId));
+
+    // Log the tool updates event
+    await logAction(
+      session.user.id,
+      "UPDATE_MCP_TOOLS",
+      "mcp_settings",
+      agencyId,
+      toolsConfig,
+    );
 
     return { success: true };
   } catch (error) {

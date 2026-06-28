@@ -6,7 +6,7 @@ import { Resend } from "resend";
 import { db } from "@/db";
 import { reportSchedules } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
-import { logAction } from "@/lib/audit";
+import { logAction, logEmail } from "@/lib/audit";
 import { cleanCcEmails } from "@/lib/cleaners";
 import {
   fetchAccountKeywords,
@@ -43,9 +43,10 @@ export const POST = handleCallback(async (payload: any) => {
     `[Queue] Processing report for: ${clientName} (ID: ${scheduleId})`,
   );
 
+  let schedule: any = null;
   try {
     // 1. Fetch the schedule configuration
-    const schedule = await db.query.reportSchedules.findFirst({
+    schedule = await db.query.reportSchedules.findFirst({
       where: eq(reportSchedules.id, scheduleId),
     });
     if (!schedule) throw new Error(`Schedule ${scheduleId} not found`);
@@ -84,13 +85,15 @@ export const POST = handleCallback(async (payload: any) => {
     const stream = await renderToStream(pdfElement as any);
     const pdfBuffer = await streamToBuffer(stream);
 
+    const emailSubjectText = schedule.emailSubject || `Performance Report: ${clientName}`;
+
     // 6. Send the email via Resend
     // cleanCcEmails converts "test@test.com, dev@test.com" into ["test@test.com", "dev@test.com"]
     const emailResult = await resend.emails.send({
       from: "Uprise Digital <reports@uprisedigital.com.au>",
       to: schedule.recipientEmail,
       cc: cleanCcEmails(schedule.ccEmails),
-      subject: schedule.emailSubject || `Performance Report: ${clientName}`,
+      subject: emailSubjectText,
       text: emailAi.emailBody,
       attachments: [
         {
@@ -101,8 +104,25 @@ export const POST = handleCallback(async (payload: any) => {
     });
 
     if (emailResult.error) {
+      await logEmail({
+        adAccountId: schedule.adAccountId,
+        recipient: schedule.recipientEmail,
+        subject: emailSubjectText,
+        emailType: "scheduled_report",
+        status: "failed",
+        error: emailResult.error.message,
+      });
       throw new Error(`Resend API Error: ${emailResult.error.message}`);
     }
+
+    await logEmail({
+      adAccountId: schedule.adAccountId,
+      recipient: schedule.recipientEmail,
+      subject: emailSubjectText,
+      emailType: "scheduled_report",
+      status: "success",
+      resendId: emailResult.data?.id,
+    });
 
     // 7. Success: Update the schedule's last run timestamp
     await db
@@ -126,6 +146,25 @@ export const POST = handleCallback(async (payload: any) => {
     console.log(`[Queue] Successfully delivered report for ${clientName}`);
   } catch (error: any) {
     // 9. Failure: Log the error and re-throw to allow Vercel Queue to retry
+    try {
+      const adAccId = (typeof schedule !== "undefined" && schedule) ? schedule.adAccountId : null;
+      const rec = (typeof schedule !== "undefined" && schedule) ? schedule.recipientEmail : "unknown@uprisedigital.com.au";
+      const sub = (typeof schedule !== "undefined" && schedule) 
+        ? (schedule.emailSubject || `Performance Report: ${clientName}`)
+        : `Performance Report: ${clientName || "Unknown Client"}`;
+
+      await logEmail({
+        adAccountId: adAccId,
+        recipient: rec,
+        subject: sub,
+        emailType: "scheduled_report",
+        status: "failed",
+        error: error.message || "Unknown worker error",
+      });
+    } catch (logErr) {
+      console.error("[Queue] Failed to write failure emailLog:", logErr);
+    }
+
     try {
       await logAction(
         ACTOR,

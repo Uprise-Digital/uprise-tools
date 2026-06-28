@@ -15,9 +15,11 @@
 
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { db } from "@/db";
 import { adAccounts, agencyAiInsightsCache } from "@/db/schema";
 import { logAction } from "@/lib/audit";
+import { auth } from "@/lib/auth";
 
 export interface AccountTargetsPayload {
     targetCpa: number | null;
@@ -31,6 +33,9 @@ export async function saveAccountTargetsAction(
     payload: AccountTargetsPayload,
 ) {
     try {
+        const session = await auth.api.getSession({ headers: await headers() });
+        if (!session) throw new Error("Unauthorized");
+
         const account = await db.query.adAccounts.findFirst({
             where: eq(adAccounts.id, accountId),
         });
@@ -54,7 +59,7 @@ export async function saveAccountTargetsAction(
         await db.delete(agencyAiInsightsCache);
 
         await logAction(
-            "UI_USER",
+            session.user.id,
             "SAVE_ACCOUNT_TARGETS",
             "ad_accounts",
             accountId,

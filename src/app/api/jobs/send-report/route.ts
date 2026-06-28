@@ -6,7 +6,7 @@ import { Resend } from "resend";
 import { db } from "@/db";
 import { reportSchedules } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
-import { logAction } from "@/lib/audit";
+import { logAction, logEmail } from "@/lib/audit";
 import { cleanCcEmails } from "@/lib/cleaners";
 import {
   fetchAccountKeywords,
@@ -34,13 +34,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let scheduleId: any = null;
+  let googleAccountId: any = null;
+  let clientName = "Unknown Client";
+  let schedule: any = null;
+
   try {
     const payload = await request.json();
-    const { scheduleId, googleAccountId, clientName } = payload;
+    scheduleId = payload.scheduleId;
+    googleAccountId = payload.googleAccountId;
+    clientName = payload.clientName || "Unknown Client";
     const SYSTEM_ACTOR = "SYSTEM_AUTOMATION";
 
     // Fetch the schedule
-    const schedule = await db.query.reportSchedules.findFirst({
+    schedule = await db.query.reportSchedules.findFirst({
       where: eq(reportSchedules.id, scheduleId),
     });
 
@@ -84,12 +91,14 @@ export async function POST(request: Request) {
     const stream = await renderToStream(pdfElement as any);
     const pdfBuffer = await streamToBuffer(stream);
 
+    const emailSubjectText = schedule.emailSubject || `Performance Report: ${clientName}`;
+
     // Email Dispatch
     const emailResult = await resend.emails.send({
       from: "Uprise Digital <reports@uprisedigital.com.au>",
       to: schedule.recipientEmail,
       cc: cleanCcEmails(schedule.ccEmails),
-      subject: schedule.emailSubject || `Performance Report: ${clientName}`,
+      subject: emailSubjectText,
       text: emailAi.emailBody,
       attachments: [
         {
@@ -99,8 +108,26 @@ export async function POST(request: Request) {
       ],
     });
 
-    if (emailResult.error)
+    if (emailResult.error) {
+      await logEmail({
+        adAccountId: schedule.adAccountId,
+        recipient: schedule.recipientEmail,
+        subject: emailSubjectText,
+        emailType: "on_demand_report",
+        status: "failed",
+        error: emailResult.error.message,
+      });
       throw new Error(`Resend Error: ${emailResult.error.message}`);
+    }
+
+    await logEmail({
+      adAccountId: schedule.adAccountId,
+      recipient: schedule.recipientEmail,
+      subject: emailSubjectText,
+      emailType: "on_demand_report",
+      status: "success",
+      resendId: emailResult.data?.id,
+    });
 
     // Update DB and Log
     await db
@@ -123,6 +150,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error(`[Vercel API] Critical failure:`, error);
+    
+    try {
+      const adAccId = (typeof schedule !== "undefined" && schedule) ? schedule.adAccountId : null;
+      const rec = (typeof schedule !== "undefined" && schedule) ? schedule.recipientEmail : "unknown@uprisedigital.com.au";
+      const sub = (typeof schedule !== "undefined" && schedule) 
+        ? (schedule.emailSubject || `Performance Report: ${clientName}`)
+        : `Performance Report: ${clientName || "Unknown Client"}`;
+
+      await logEmail({
+        adAccountId: adAccId,
+        recipient: rec,
+        subject: sub,
+        emailType: "on_demand_report",
+        status: "failed",
+        error: error.message || "Unknown on-demand job error",
+      });
+    } catch (logErr) {
+      console.error("[Vercel API] Failed to write failure emailLog:", logErr);
+    }
+    
     // Returning a 500 status code triggers the Cloudflare Worker's 'catch' block
     // which initiates the queue retry mechanism.
     return NextResponse.json({ error: error.message }, { status: 500 });
