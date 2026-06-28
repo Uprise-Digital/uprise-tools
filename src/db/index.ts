@@ -1,9 +1,10 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema";
 
-// This pulls your Neon connection string from your .env file
-const sql = neon(process.env.DATABASE_URL!);
+// 1. Create the postgres-js client using your Railway DATABASE_URL
+// Disable prefetch as cloud connection proxies can break under serverless setups
+const queryClient = postgres(process.env.DATABASE_URL!, { prepare: false });
 
-// Export the db instance with our schema attached for type-safe queries
-export const db = drizzle(sql, { schema });
+// 2. Export the db instance with your schema attached for type-safe queries
+export const db = drizzle(queryClient, { schema });
