@@ -59,7 +59,7 @@ export async function generateNegativeKeywordSuggestions({
   // Construct prompt
   const prompt = `
     You are an elite Google Ads Performance Director at Uprise Digital.
-    Your task is to review a search terms report for a client and identify wasteful, irrelevant, or non-converting search queries that should be added as campaign-level negative keywords.
+    Your task is to review a search terms report for a client and identify wasteful, irrelevant, or non-converting search queries that should be added as campaign-level or account-wide negative keywords.
     
     CLIENT INFORMATION:
     - Name: ${clientName}
@@ -71,30 +71,39 @@ export async function generateNegativeKeywordSuggestions({
     Client Brand Name: "${clientName}"
     
     EXISTING NEGATIVE KEYWORDS (Already excluded, do not suggest these):
-    ${existingNegatives.slice(0, 100).join(", ") || "None"}
+    ${existingNegatives.slice(0, 150).join(", ") || "None"}
     
     SEARCH TERMS DATA TO EVALUATE:
     ${JSON.stringify(filteredSearchTerms, null, 2)}
     
-    GUIDELINES FOR NEGATIVE KEYWORD MATCH TYPES:
-    - Use "exact" match if a specific search query is highly specific and wastes money, but other variants might be useful.
-    - Use "phrase" match (highly recommended) to block bad concepts or modifiers (e.g. if the query is "free plumbing help", block the phrase "free" or "help").
-    - Use "broad" match sparingly, only for words that are 100% irrelevant to the client's business (e.g., job/career-seeking terms like "jobs", "hiring", "resume" for a service provider).
-    - Suggest the most specific, high-leverage keyword to block. For instance, if the search term is "plumbing jobs in melbourne", suggest adding "jobs" as a phrase/broad match rather than the entire search query, unless you only want to block that exact term.
+    EVALUATION INSTRUCTIONS (BE EXTRA THOROUGH):
+    You must evaluate EVERY SINGLE query in the list, not just the top spenders. Run an exhaustive pass over all terms.
+    Identify and flag the following waste categories:
+    1. Competitor Brands: Any query referencing other local/national companies, contractors, or specific brand names (e.g. "napoli", "walsh", "cj duncan", "delic construction", "burgess earthmoving", "atv civil", "terra civil", "aademex", "trazlbat", "amj demolition", "star demolition", "max demolition", etc.).
+    2. Geographic Waste: Any query targeting a region outside the client's service area (e.g. if the client operates on the East Coast of Australia, queries containing "perth", "western australia", "adelaide", "wa" are waste).
+    3. Research/Informational Intent: Queries searching for "average costs", "prices", "website", "website builders", "meaning", "wikipedia", "definition", "how to", "courses", or "diy".
+    4. Out-of-Scope Services: Queries seeking services the client does NOT provide (e.g. if the client does commercial/structural demolition contracting, queries for "pool removal", "fibreglass pool removal", "diy rental", "equipment hire", "excavator hire" are out-of-scope).
+    5. Employment/Job-Seekers: Queries containing "jobs", "careers", "resume", "hiring", "salary".
+
+    MATCH TYPE STRATEGY:
+    You must choose the recommended negative match type based on these strict guidelines:
+    - BROAD Match: Use ONLY for single, universally wasteful terms that indicate 100% wrong intent across the board (e.g. "jobs", "hire", "rental", "diy", "courses", "classes", "resume").
+    - PHRASE Match: Use for competitor names (e.g. "walsh", "napoli") and specific geographic cities/states outside the service area (e.g. "perth", "gold coast", "canberra"). This prevents queries like "perth demolition contractors" from triggering ads.
+    - EXACT Match: Use for queries that are close to the target service but are wasteful in this exact context (e.g., "[trench excavation meaning]" or "[fibreglass pool removal]"). This blocks the specific wasted search while protecting broad terms.
     
-    TASK:
-    Analyze the search terms. Identify search queries that:
-    1. Are completely irrelevant to what the client sells/services.
-    2. Have high click volume and high spend but ZERO or extremely low conversions.
-    3. Represent low-intent actions (e.g., "free", "diy", "jobs", "careers", "course", "meaning of", "wiki").
-    
+    CAMPAIGN SCOPE (CROSS-CAMPAIGN REASONING):
+    For each wasteful term, you must determine if the exclusion should be scoped locally or globally:
+    - GLOBAL / ACCOUNT-WIDE: If the keyword is a competitor, a wrong geographic region, an out-of-scope service, or a low-intent word (like "jobs"), it should be blocked across ALL campaigns in the account.
+      For global suggestions, set "campaignId" to "ALL" and "campaignName" to "All Campaigns".
+    - LOCAL / CAMPAIGN-SPECIFIC: If the term is only wasteful for the specific campaign it appeared in, keep the original "campaignId" and "campaignName" from the search term report.
+
     Response MUST be a JSON object containing a "suggestions" key with an array of suggestions matching this exact TypeScript structure:
     interface SuggestionsResponse {
         suggestions: Array<{
             keyword: string;                               // The suggested negative keyword itself (do not include quotes or brackets, just the raw text)
             matchType: 'broad' | 'phrase' | 'exact';       // The recommended match type for the negative keyword
-            campaignId: string;                            // The campaign ID associated with the search term
-            campaignName: string;                          // The campaign name associated with the search term
+            campaignId: string;                            // The campaign ID associated with the search term, or "ALL" for global/account-wide exclusions
+            campaignName: string;                          // The campaign name associated with the search term, or "All Campaigns" for global/account-wide exclusions
             rationale: string;                             // A concise, professional marketing rationale for why this is waste
             searchQuery: string;                           // The original search query that triggered this recommendation
             clicks: number;                                // Original clicks

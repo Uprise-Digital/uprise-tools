@@ -605,3 +605,48 @@ export async function addCampaignNegativeKeyword(
 
   return data;
 }
+
+/**
+ * Fetches all active/enabled campaigns in the specified account.
+ */
+export async function fetchAccountCampaigns(googleAccountId: string) {
+  const accessToken = await getManagementAccessToken();
+  const sanitizedId = googleAccountId.replace(/-/g, "");
+
+  const query = `
+        SELECT
+            campaign.id,
+            campaign.name
+        FROM campaign
+        WHERE campaign.status = 'ENABLED'
+    `;
+
+  const response = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({ query }),
+    },
+  );
+
+  const data = await response.json();
+
+  if (data.error) {
+    console.error(
+      "[GAQL Error - Account Campaigns]",
+      JSON.stringify(data.error, null, 2),
+    );
+    throw new Error(`Account Campaigns Query Failed: ${data.error.message}`);
+  }
+
+  return (data.results || []).map((row: any) => ({
+    id: row.campaign?.id || "",
+    name: row.campaign?.name || "",
+  }));
+}

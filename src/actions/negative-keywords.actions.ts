@@ -9,6 +9,7 @@ import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import {
   addCampaignNegativeKeyword,
+  fetchAccountCampaigns,
   fetchActiveNegativeKeywords,
   fetchSearchTermsReport,
 } from "@/lib/google-ads";
@@ -170,16 +171,39 @@ export async function generateSuggestionsInternal(
   let pushedCount = 0;
   let savedCount = 0;
 
+  // Cache active campaigns list in case we have "ALL" (global/account-wide) exclusions
+  let accountCampaigns: Array<{ id: string; name: string }> | null = null;
+  const getCachedCampaigns = async (): Promise<
+    Array<{ id: string; name: string }>
+  > => {
+    if (!accountCampaigns) {
+      accountCampaigns = await fetchAccountCampaigns(account.googleAccountId);
+    }
+    return accountCampaigns || [];
+  };
+
   for (const s of newSuggestions) {
     if (account.negativeKeywordTurboMode) {
       // TURBO MODE IS ON: Push directly to Google Ads
       try {
-        await addCampaignNegativeKeyword(
-          account.googleAccountId,
-          s.campaignId,
-          s.keyword,
-          s.matchType,
-        );
+        if (s.campaignId === "ALL") {
+          const campaigns = await getCachedCampaigns();
+          for (const c of campaigns) {
+            await addCampaignNegativeKeyword(
+              account.googleAccountId,
+              c.id,
+              s.keyword,
+              s.matchType,
+            );
+          }
+        } else {
+          await addCampaignNegativeKeyword(
+            account.googleAccountId,
+            s.campaignId,
+            s.keyword,
+            s.matchType,
+          );
+        }
 
         await db.insert(negativeKeywordSuggestions).values({
           adAccountId,
@@ -333,12 +357,26 @@ export async function updateSuggestionStatusAction(
         `[Actions] User ${session.user.email} approved keyword "${suggestion.keyword}" (Match: ${finalMatchType}) for campaign ID ${suggestion.campaignId}`,
       );
 
-      await addCampaignNegativeKeyword(
-        suggestion.account.googleAccountId,
-        suggestion.campaignId,
-        suggestion.keyword,
-        finalMatchType,
-      );
+      if (suggestion.campaignId === "ALL") {
+        const campaigns = await fetchAccountCampaigns(
+          suggestion.account.googleAccountId,
+        );
+        for (const c of campaigns) {
+          await addCampaignNegativeKeyword(
+            suggestion.account.googleAccountId,
+            c.id,
+            suggestion.keyword,
+            finalMatchType,
+          );
+        }
+      } else {
+        await addCampaignNegativeKeyword(
+          suggestion.account.googleAccountId,
+          suggestion.campaignId,
+          suggestion.keyword,
+          finalMatchType,
+        );
+      }
 
       // Update in DB as approved
       await db
