@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { adAccounts, negativeKeywordSuggestions } from "@/db/schema";
+import {accountTriageSettings, adAccounts, negativeKeywordSuggestions} from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import {
@@ -136,6 +136,27 @@ export async function generateSuggestionsInternal(
       };
     })
     .filter((st: any) => st.query);
+
+  // --- 4. Fetch Triage Thresholds to isolate Wasted vs Converting Terms ---
+  const [triageSettings, orgDefaults] = await Promise.all([
+    db.query.accountTriageSettings.findFirst({
+      where: eq(accountTriageSettings.adAccountId, adAccountId),
+    }),
+    db.query.orgTriageDefaults.findFirst(),
+  ]);
+
+  // Fallback chain: Account level setting -> Organization level default -> fallback threshold ($25)
+  const criticalSpendThreshold = Number(
+      triageSettings?.criticalSpendThreshold ??
+      orgDefaults?.criticalSpendThreshold ??
+      25.0
+  );
+
+  // Separate terms based on performance metrics
+  const convertingTerms = formattedSearchTerms.filter((st: any) => st.conversions > 0);
+  const wastedTerms = formattedSearchTerms.filter(
+      (st: any) => st.conversions === 0 && st.spend >= criticalSpendThreshold
+  );
 
 
 
