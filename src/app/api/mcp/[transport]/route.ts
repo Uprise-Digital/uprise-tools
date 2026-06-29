@@ -3,6 +3,7 @@
 import { eq } from "drizzle-orm";
 import { createMcpHandler, experimental_withMcpAuth } from "mcp-handler";
 import { z } from "zod";
+import { setAccountTargetsMcpAction } from "@/actions/account-targets.actions";
 import {
   getAccountAnomaliesAction,
   getAccountByIdAction,
@@ -17,6 +18,7 @@ import {
   listAccountsAction,
 } from "@/actions/agency.actions";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
+import { generateSuggestionsInternal } from "@/actions/negative-keywords.actions";
 import {
   getAccountTriageSettingsAction,
   getOrgTriageDefaultsAction,
@@ -26,10 +28,14 @@ import {
   accountTriageSettings,
   adAccounts,
   mcpSettings,
+  negativeKeywordSuggestions,
   orgTriageDefaults,
 } from "@/db/schema";
 import { logAction } from "@/lib/audit";
-import { setAccountTargetsMcpAction } from "@/actions/account-targets.actions";
+import {
+  addCampaignNegativeKeyword,
+  fetchActiveNegativeKeywords,
+} from "@/lib/google-ads";
 
 const handler = createMcpHandler(
   (server) => {
@@ -865,6 +871,270 @@ const handler = createMcpHandler(
             },
           ],
         };
+      },
+    );
+
+    server.registerTool(
+      "get_negative_keyword_suggestions",
+      {
+        title: "Get Negative Keyword Suggestions",
+        description:
+          "Fetches all negative keyword suggestions (pending, approved, denied, archived) for an account.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+        },
+      },
+      async ({ accountId }) => {
+        try {
+          const suggestions =
+            await db.query.negativeKeywordSuggestions.findMany({
+              where: eq(negativeKeywordSuggestions.adAccountId, accountId),
+              orderBy: (table, { desc }) => [desc(table.suggestedAt)],
+            });
+          return {
+            content: [{ type: "text", text: JSON.stringify(suggestions) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: error.message || "Failed to fetch suggestions",
+                }),
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "generate_negative_keyword_suggestions",
+      {
+        title: "Generate Negative Keyword Suggestions",
+        description:
+          "Pulls search terms and active keywords from Google Ads, runs AI analysis via Gemini to find waste, and saves pending recommendations to the database.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+          startDate: z
+            .string()
+            .optional()
+            .describe("Start date in YYYY-MM-DD format (optional)"),
+          endDate: z
+            .string()
+            .optional()
+            .describe("End date in YYYY-MM-DD format (optional)"),
+        },
+      },
+      async ({ accountId, startDate, endDate }) => {
+        try {
+          const res = await generateSuggestionsInternal(
+            accountId,
+            startDate,
+            endDate,
+            "MCP_TOOL_AUTOMATION",
+          );
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ success: true, ...res }) },
+            ],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: error.message || "Failed to generate suggestions",
+                }),
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "add_negative_keyword",
+      {
+        title: "Add Negative Keyword",
+        description:
+          "Applies/pushes a campaign-level negative keyword directly to Google Ads and marks it as approved in the database.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+          campaignId: z
+            .string()
+            .describe(
+              "The Google Ads Campaign ID to add the negative keyword to",
+            ),
+          keyword: z.string().describe("The negative keyword text to add"),
+          matchType: z
+            .enum(["broad", "phrase", "exact"])
+            .describe("The match type: 'broad', 'phrase', or 'exact'"),
+          suggestionId: z
+            .number()
+            .optional()
+            .describe(
+              "Optional database suggestion ID if resolving an existing pending card",
+            ),
+        },
+      },
+      async ({ accountId, campaignId, keyword, matchType, suggestionId }) => {
+        try {
+          const account = await db.query.adAccounts.findFirst({
+            where: eq(adAccounts.id, accountId),
+          });
+
+          if (!account) {
+            throw new Error(`Ad account with ID ${accountId} not found.`);
+          }
+
+          // Push to Google Ads campaign
+          await addCampaignNegativeKeyword(
+            account.googleAccountId,
+            campaignId,
+            keyword,
+            matchType,
+          );
+
+          if (suggestionId) {
+            // Update suggestion status to approved
+            await db
+              .update(negativeKeywordSuggestions)
+              .set({
+                status: "approved",
+                matchType: matchType,
+                processedAt: new Date(),
+                error: null,
+              })
+              .where(eq(negativeKeywordSuggestions.id, suggestionId));
+          } else {
+            // Insert a direct approved record in DB
+            await db.insert(negativeKeywordSuggestions).values({
+              adAccountId: accountId,
+              keyword,
+              matchType,
+              campaignId,
+              campaignName: "Added via MCP Tool",
+              rationale: "Directly added via AI chat",
+              status: "approved",
+              searchQuery: "Manual addition",
+              processedAt: new Date(),
+            });
+          }
+
+          await logAction(
+            "mcp-user",
+            "ADD_NEGATIVE_KEYWORD",
+            "negative_keyword_suggestions",
+            accountId,
+            { keyword, campaignId, matchType },
+          );
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  message: `Successfully added negative keyword "${keyword}" to campaign ${campaignId}.`,
+                }),
+              },
+            ],
+          };
+        } catch (error: any) {
+          if (suggestionId) {
+            try {
+              await db
+                .update(negativeKeywordSuggestions)
+                .set({
+                  error: error.message || "Failed to push via MCP tool.",
+                })
+                .where(eq(negativeKeywordSuggestions.id, suggestionId));
+            } catch (dbErr) {
+              console.error("Failed to log error on suggestion:", dbErr);
+            }
+          }
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: error.message || "Failed to add negative keyword",
+                }),
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "get_active_negative_keywords",
+      {
+        title: "Get Active Negative Keywords",
+        description:
+          "Fetches campaign-level negative keywords that are currently active in Google Ads for a specific account.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+        },
+      },
+      async ({ accountId }) => {
+        try {
+          const account = await db.query.adAccounts.findFirst({
+            where: eq(adAccounts.id, accountId),
+          });
+
+          if (!account) {
+            throw new Error(`Ad account with ID ${accountId} not found.`);
+          }
+
+          const activeGoogleNegatives = await fetchActiveNegativeKeywords(
+            account.googleAccountId,
+          );
+
+          const formatted = activeGoogleNegatives.map((row: any) => {
+            const crit = row.campaignCriterion || {};
+            const kw = crit.keyword || {};
+            const campaign = row.campaign || {};
+            return {
+              criterionId: crit.criterionId || "",
+              keyword: kw.text || "",
+              matchType: kw.matchType || "PHRASE",
+              campaignId: campaign.id || "",
+              campaignName: campaign.name || "",
+            };
+          });
+
+          return {
+            content: [{ type: "text", text: JSON.stringify(formatted) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error:
+                    error.message || "Failed to fetch active negative keywords",
+                }),
+              },
+            ],
+          };
+        }
       },
     );
   },

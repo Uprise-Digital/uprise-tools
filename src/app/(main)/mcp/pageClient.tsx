@@ -119,6 +119,30 @@ const AVAILABLE_TOOLS = [
     description:
       "Sets or updates the agreed client KPI targets for an account — target CPA, target ROAS, monthly budget cap, and notes.",
   },
+  {
+    name: "get_negative_keyword_suggestions",
+    title: "Get Negative Keyword Suggestions",
+    description:
+      "Fetches all negative keyword suggestions (pending, approved, denied, archived) for a specific account.",
+  },
+  {
+    name: "generate_negative_keyword_suggestions",
+    title: "Generate Negative Keyword Suggestions",
+    description:
+      "Pulls search terms and active keywords from Google Ads, runs AI analysis via Gemini to discover waste, and saves pending recommendations.",
+  },
+  {
+    name: "add_negative_keyword",
+    title: "Add Negative Keyword",
+    description:
+      "Pushes a campaign-level negative keyword directly to Google Ads and marks it as approved in the database.",
+  },
+  {
+    name: "get_active_negative_keywords",
+    title: "Get Active Negative Keywords",
+    description:
+      "Fetches all campaign-level active negative keywords currently running in Google Ads for a specific account.",
+  },
 ];
 
 interface McpSettingsClientProps {
