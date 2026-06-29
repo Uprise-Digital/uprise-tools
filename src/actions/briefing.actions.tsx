@@ -628,19 +628,22 @@ export async function sendMorningBriefingAction() {
     console.error("Failed to send morning briefing:", error);
 
     try {
-      const recipientList = (typeof emails !== "undefined" && emails && emails.length > 0) 
-        ? emails.join(", ") 
-        : "reports@uprisedigital.com.au (fallback)";
-      const subjectText = (typeof subject !== "undefined" && subject) 
-        ? subject 
-        : "☀️ Morning Briefing";
-        
+      const recipientList =
+        typeof emails !== "undefined" && emails && emails.length > 0
+          ? emails.join(", ")
+          : "reports@uprisedigital.com.au (fallback)";
+      const subjectText =
+        typeof subject !== "undefined" && subject
+          ? subject
+          : "☀️ Morning Briefing";
+
       await logEmail({
         recipient: recipientList,
         subject: subjectText,
         emailType: "morning_briefing",
         status: "failed",
-        error: error.message || "Unknown error during morning briefing dispatch",
+        error:
+          error.message || "Unknown error during morning briefing dispatch",
       });
     } catch (logErr) {
       console.error("Failed to write briefing failure to emailLogs:", logErr);

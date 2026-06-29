@@ -228,7 +228,7 @@ export default function ReportsClient({
 
       {/* Quick Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-sm border-slate-200 overflow-hidden relative">
+        <Card className="py-6 shadow-sm border-slate-200 overflow-hidden relative">
           <div
             className={`absolute top-0 left-0 w-full h-1.5 ${settings.isActive ? "bg-emerald-500" : "bg-slate-400"}`}
           ></div>
@@ -259,7 +259,7 @@ export default function ReportsClient({
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200 overflow-hidden relative">
+        <Card className="py-6 shadow-sm border-slate-200 overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-indigo-500"></div>
           <CardHeader className="pb-2">
             <CardDescription className="text-xs uppercase font-bold tracking-wider text-slate-400">
@@ -277,7 +277,7 @@ export default function ReportsClient({
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-slate-200 overflow-hidden relative">
+        <Card className="py-6 shadow-sm border-slate-200 overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-500"></div>
           <CardHeader className="pb-2">
             <CardDescription className="text-xs uppercase font-bold tracking-wider text-slate-400">
@@ -305,7 +305,7 @@ export default function ReportsClient({
         {/* Left/Middle Column (Recipients & Schedule) */}
         <div className="lg:col-span-2 space-y-8">
           {/* Schedule Card */}
-          <Card className="shadow-sm border-slate-200">
+          <Card className="py-6 shadow-sm border-slate-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-800 text-lg font-bold">
                 <Clock className="h-5 w-5 text-indigo-500" /> Schedule settings
@@ -368,7 +368,7 @@ export default function ReportsClient({
           </Card>
 
           {/* Recipients Card */}
-          <Card className="shadow-sm border-slate-200">
+          <Card className="py-6 shadow-sm border-slate-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-slate-800 text-lg font-bold">
                 <Mail className="h-5 w-5 text-indigo-500" /> Briefing Recipients
@@ -488,7 +488,7 @@ export default function ReportsClient({
 
         {/* Right Column (Data Points Config) */}
         <div className="space-y-8">
-          <Card className="shadow-sm border-slate-200 h-full">
+          <Card className="py-6 shadow-sm border-slate-200 h-full">
             <CardHeader>
               <CardTitle className="text-slate-800 text-lg font-bold">
                 Metrics & Data Points

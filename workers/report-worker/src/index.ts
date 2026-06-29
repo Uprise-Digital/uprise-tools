@@ -41,7 +41,7 @@ export default {
       const pendingSchedules = result.rows;
 
       console.log(
-          `[Cron] Found ${pendingSchedules.length} schedules to process today.`,
+        `[Cron] Found ${pendingSchedules.length} schedules to process today.`,
       );
 
       // Push each one to the Cloudflare Queue
@@ -68,8 +68,8 @@ export default {
         message.ack();
       } catch (error) {
         console.error(
-            `[Queue] Failed to process message ${message.id}:`,
-            error,
+          `[Queue] Failed to process message ${message.id}:`,
+          error,
         );
         message.retry();
       }
@@ -91,9 +91,9 @@ export default {
       const payload = await request.json();
 
       if (
-          !payload.scheduleId ||
-          !payload.googleAccountId ||
-          !payload.clientName
+        !payload.scheduleId ||
+        !payload.googleAccountId ||
+        !payload.clientName
       ) {
         return new Response("Missing required fields", { status: 400 });
       }
@@ -101,11 +101,11 @@ export default {
       await env.REPORT_QUEUE.send(payload);
 
       return new Response(
-          JSON.stringify({ success: true, message: "Enqueued" }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
+        JSON.stringify({ success: true, message: "Enqueued" }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
       );
     } catch (error: any) {
       return new Response(`Bad Request: ${error.message}`, { status: 400 });

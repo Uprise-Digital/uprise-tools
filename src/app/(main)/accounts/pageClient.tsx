@@ -83,7 +83,9 @@ export default function AccountsClientPage({
         ...rows.map((e) =>
           e
             .map((val) => {
-              const textStr = String(val === null || val === undefined ? "" : val);
+              const textStr = String(
+                val === null || val === undefined ? "" : val,
+              );
               return `"${textStr.replace(/"/g, '""')}"`;
             })
             .join(","),
@@ -93,7 +95,10 @@ export default function AccountsClientPage({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `connected_clients_export_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute(
+      "download",
+      `connected_clients_export_${new Date().toISOString().split("T")[0]}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -130,7 +135,9 @@ export default function AccountsClientPage({
       <Card className="border-slate-200 shadow-sm overflow-hidden">
         <CardHeader className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center border-b border-slate-100 bg-slate-50/50 py-4 gap-3">
           <div>
-            <CardTitle className="text-base font-bold text-slate-800">Connected Clients</CardTitle>
+            <CardTitle className="text-base font-bold text-slate-800">
+              Connected Clients
+            </CardTitle>
             <CardDescription className="text-xs">
               Accounts currently being monitored for alerts and reports.
             </CardDescription>
@@ -153,7 +160,9 @@ export default function AccountsClientPage({
                 <TableHead className="font-bold">Google ID</TableHead>
                 <TableHead className="font-bold">Currency</TableHead>
                 <TableHead className="font-bold">Status</TableHead>
-                <TableHead className="text-right font-bold pr-6">Actions</TableHead>
+                <TableHead className="text-right font-bold pr-6">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -207,7 +216,10 @@ export default function AccountsClientPage({
               ))}
               {paginatedAccounts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-xs text-slate-500 font-sans">
+                  <TableCell
+                    colSpan={5}
+                    className="h-24 text-center text-xs text-slate-500 font-sans"
+                  >
                     No matching accounts found.
                   </TableCell>
                 </TableRow>
@@ -219,11 +231,21 @@ export default function AccountsClientPage({
         {/* PAGINATION CONTROLS */}
         <div className="border-t border-slate-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div>
-            Showing <strong className="text-slate-800">{filteredAccounts.length > 0 ? (page - 1) * limit + 1 : 0}</strong> to{" "}
-            <strong className="text-slate-800">{Math.min(page * limit, filteredAccounts.length)}</strong> of{" "}
-            <strong className="text-slate-800">{filteredAccounts.length}</strong> accounts
+            Showing{" "}
+            <strong className="text-slate-800">
+              {filteredAccounts.length > 0 ? (page - 1) * limit + 1 : 0}
+            </strong>{" "}
+            to{" "}
+            <strong className="text-slate-800">
+              {Math.min(page * limit, filteredAccounts.length)}
+            </strong>{" "}
+            of{" "}
+            <strong className="text-slate-800">
+              {filteredAccounts.length}
+            </strong>{" "}
+            accounts
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-white">
               <span className="text-[10px] text-slate-400">Rows:</span>
@@ -237,7 +259,7 @@ export default function AccountsClientPage({
                 <option value={50}>50</option>
               </select>
             </div>
-            
+
             {totalPages > 1 && (
               <div className="flex items-center gap-1">
                 <Button

@@ -41,8 +41,8 @@ export default async function LogsPage({ searchParams }: PageProps) {
           ilike(auditLogs.targetTable, `%${search}%`),
           ilike(auditLogs.targetId, `%${search}%`),
           ilike(user.name, `%${search}%`),
-          ilike(user.email, `%${search}%`)
-        )
+          ilike(user.email, `%${search}%`),
+        ),
       );
     }
 
@@ -51,8 +51,8 @@ export default async function LogsPage({ searchParams }: PageProps) {
         whereClauses.push(
           or(
             like(auditLogs.action, "%TRIAGE%"),
-            like(auditLogs.action, "%TARGETS%")
-          )
+            like(auditLogs.action, "%TARGETS%"),
+          ),
         );
       } else if (action === "rules") {
         whereClauses.push(like(auditLogs.action, "%RULE%"));
@@ -62,15 +62,16 @@ export default async function LogsPage({ searchParams }: PageProps) {
         whereClauses.push(
           or(
             like(auditLogs.action, "%MCP_TOOLS%"),
-            like(auditLogs.action, "%ROLL_MCP%")
-          )
+            like(auditLogs.action, "%ROLL_MCP%"),
+          ),
         );
       } else if (action === "system") {
         whereClauses.push(like(auditLogs.action, "%DAILY_BRIEFING%"));
       }
     }
 
-    const whereCondition = whereClauses.length > 0 ? and(...whereClauses) : undefined;
+    const whereCondition =
+      whereClauses.length > 0 ? and(...whereClauses) : undefined;
 
     // 2. Fetch Audit Logs Count & Paginated Records
     const [countResult] = await db
@@ -78,7 +79,7 @@ export default async function LogsPage({ searchParams }: PageProps) {
       .from(auditLogs)
       .leftJoin(user, eq(auditLogs.actorId, user.id))
       .where(whereCondition);
-    
+
     totalCount = Number(countResult?.count || 0);
 
     const records = await db
@@ -127,8 +128,8 @@ export default async function LogsPage({ searchParams }: PageProps) {
           ilike(emailLogs.recipient, `%${search}%`),
           ilike(emailLogs.subject, `%${search}%`),
           ilike(emailLogs.emailType, `%${search}%`),
-          ilike(adAccounts.name, `%${search}%`)
-        )
+          ilike(adAccounts.name, `%${search}%`),
+        ),
       );
     }
 
@@ -140,7 +141,8 @@ export default async function LogsPage({ searchParams }: PageProps) {
       emailWhereClauses.push(eq(emailLogs.emailType, emailType));
     }
 
-    const emailWhereCondition = emailWhereClauses.length > 0 ? and(...emailWhereClauses) : undefined;
+    const emailWhereCondition =
+      emailWhereClauses.length > 0 ? and(...emailWhereClauses) : undefined;
 
     // 2. Fetch Email Logs Count & Paginated Records
     const [emailCountResult] = await db

@@ -450,3 +450,158 @@ export async function fetchTopNonBrandedSearchTerm(
     return null;
   }
 }
+
+/**
+ * Fetches all campaign-level active negative keywords.
+ */
+export async function fetchActiveNegativeKeywords(googleAccountId: string) {
+  const accessToken = await getManagementAccessToken();
+  const sanitizedId = googleAccountId.replace(/-/g, "");
+
+  const query = `
+        SELECT
+            campaign.id,
+            campaign.name,
+            campaign_criterion.criterion_id,
+            campaign_criterion.keyword.text,
+            campaign_criterion.keyword.match_type
+        FROM campaign_criterion
+        WHERE campaign_criterion.negative = TRUE
+          AND campaign_criterion.type = 'KEYWORD'
+    `;
+
+  const response = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({ query }),
+    },
+  );
+
+  const data = await response.json();
+
+  if (data.error) {
+    console.error(
+      "[GAQL Error - Active Negatives]",
+      JSON.stringify(data.error, null, 2),
+    );
+    throw new Error(`Active Negatives Query Failed: ${data.error.message}`);
+  }
+
+  return data.results || [];
+}
+
+/**
+ * Fetches all search terms that received clicks in the specified time period.
+ */
+export async function fetchSearchTermsReport(
+  googleAccountId: string,
+  startDate?: string,
+  endDate?: string,
+) {
+  const accessToken = await getManagementAccessToken();
+  const sanitizedId = googleAccountId.replace(/-/g, "");
+  const dateClause = getCurrentPeriodDateClause(startDate, endDate);
+
+  const query = `
+        SELECT
+            search_term_view.search_term,
+            campaign.id,
+            campaign.name,
+            metrics.impressions,
+            metrics.clicks,
+            metrics.cost_micros,
+            metrics.conversions
+        FROM search_term_view
+        WHERE ${dateClause}
+          AND metrics.clicks > 0
+        ORDER BY metrics.cost_micros DESC
+    `;
+
+  const response = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({ query }),
+    },
+  );
+
+  const data = await response.json();
+
+  if (data.error) {
+    console.error(
+      "[GAQL Error - Search Terms]",
+      JSON.stringify(data.error, null, 2),
+    );
+    throw new Error(`Search Terms Query Failed: ${data.error.message}`);
+  }
+
+  return data.results || [];
+}
+
+/**
+ * Mutates campaign criteria to add a negative keyword to a specific campaign.
+ */
+export async function addCampaignNegativeKeyword(
+  googleAccountId: string,
+  campaignId: string,
+  keywordText: string,
+  matchType: string,
+) {
+  const accessToken = await getManagementAccessToken();
+  const sanitizedId = googleAccountId.replace(/-/g, "");
+  const formattedMatchType = matchType.toUpperCase();
+
+  const url = `https://googleads.googleapis.com/v23/customers/${sanitizedId}/campaignCriteria:mutate`;
+
+  const body = {
+    operations: [
+      {
+        create: {
+          campaign: `customers/${sanitizedId}/campaigns/${campaignId}`,
+          type: "KEYWORD",
+          negative: true,
+          keyword: {
+            text: keywordText,
+            matchType: formattedMatchType,
+          },
+        },
+      },
+    ],
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "developer-token": DEVELOPER_TOKEN!,
+      Authorization: `Bearer ${accessToken}`,
+      "login-customer-id": MANAGER_ID!,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+
+  if (data.error) {
+    console.error(
+      "[Google Ads Mutate Error]",
+      JSON.stringify(data.error, null, 2),
+    );
+    throw new Error(`Failed to add negative keyword: ${data.error.message}`);
+  }
+
+  return data;
+}

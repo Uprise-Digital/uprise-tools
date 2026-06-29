@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Download,
   Search,
+  Ban,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -146,7 +147,9 @@ export default function ClientDashboard({
     return c.campaignName.toLowerCase().includes(campaignSearch.toLowerCase());
   });
 
-  const totalCampaignPages = Math.ceil(filteredCampaigns.length / campaignLimit);
+  const totalCampaignPages = Math.ceil(
+    filteredCampaigns.length / campaignLimit,
+  );
   const paginatedCampaigns = filteredCampaigns.slice(
     (campaignPage - 1) * campaignLimit,
     campaignPage * campaignLimit,
@@ -157,7 +160,17 @@ export default function ClientDashboard({
   }, [campaignSearch]);
 
   const exportCampaignsToCsv = () => {
-    const headers = ["Campaign Name", "Cost", "Clicks", "Impressions", "CTR", "CPC", "Conversions", "CPA", "Conv. Rate"];
+    const headers = [
+      "Campaign Name",
+      "Cost",
+      "Clicks",
+      "Impressions",
+      "CTR",
+      "CPC",
+      "Conversions",
+      "CPA",
+      "Conv. Rate",
+    ];
     const rows = filteredCampaigns.map((c: any) => [
       c.campaignName,
       c.spend,
@@ -177,7 +190,9 @@ export default function ClientDashboard({
         ...rows.map((e: any[]) =>
           e
             .map((val: any) => {
-              const textStr = String(val === null || val === undefined ? "" : val);
+              const textStr = String(
+                val === null || val === undefined ? "" : val,
+              );
               return `"${textStr.replace(/"/g, '""')}"`;
             })
             .join(","),
@@ -187,7 +202,10 @@ export default function ClientDashboard({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${account.name.replace(/\s+/g, "_")}_campaigns_export_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute(
+      "download",
+      `${account.name.replace(/\s+/g, "_")}_campaigns_export_${new Date().toISOString().split("T")[0]}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -313,6 +331,15 @@ export default function ClientDashboard({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold">{account.name}</h1>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:text-blue-600 hover:border-blue-200 flex items-center gap-1.5"
+                onClick={() => router.push(`/accounts/${account.id}/negatives`)}
+              >
+                <Ban className="h-3.5 w-3.5 text-slate-500" />
+                Negative Keywords
+              </Button>
               <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
                 <SheetTrigger asChild>
                   <Button
@@ -853,47 +880,53 @@ export default function ClientDashboard({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center text-xs text-slate-500 font-sans">
+                <TableCell
+                  colSpan={9}
+                  className="h-24 text-center text-xs text-slate-500 font-sans"
+                >
                   Loading campaigns...
                 </TableCell>
               </TableRow>
             ) : paginatedCampaigns.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center text-xs text-slate-500 font-sans">
+                <TableCell
+                  colSpan={9}
+                  className="h-24 text-center text-xs text-slate-500 font-sans"
+                >
                   No matching campaigns found.
                 </TableCell>
               </TableRow>
             ) : (
               paginatedCampaigns.map((c: any, i: number) => (
-              <TableRow key={i} className="text-xs">
-                <TableCell className="font-medium max-w-[200px] truncate">
-                  {c.campaignName}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {fCur(c.spend)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {fNum(c.clicks)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {fNum(c.impressions)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {fPct(c.ctr)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {fCur(c.cpc)}
-                </TableCell>
-                <TableCell className="text-right font-mono font-bold">
-                  {fNum(c.conversions)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {fCur(c.cpa)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {fPct(c.convRate)}
-                </TableCell>
-              </TableRow>
+                <TableRow key={i} className="text-xs">
+                  <TableCell className="font-medium max-w-[200px] truncate">
+                    {c.campaignName}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {fCur(c.spend)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {fNum(c.clicks)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {fNum(c.impressions)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {fPct(c.ctr)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {fCur(c.cpc)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono font-bold">
+                    {fNum(c.conversions)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {fCur(c.cpa)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {fPct(c.convRate)}
+                  </TableCell>
+                </TableRow>
               ))
             )}
           </TableBody>
@@ -903,17 +936,32 @@ export default function ClientDashboard({
         {!isLoading && filteredCampaigns.length > 0 && (
           <div className="border-t border-slate-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
             <div>
-              Showing <strong className="text-slate-800">{(campaignPage - 1) * campaignLimit + 1}</strong> to{" "}
-              <strong className="text-slate-800">{Math.min(campaignPage * campaignLimit, filteredCampaigns.length)}</strong> of{" "}
-              <strong className="text-slate-800">{filteredCampaigns.length}</strong> campaigns
+              Showing{" "}
+              <strong className="text-slate-800">
+                {(campaignPage - 1) * campaignLimit + 1}
+              </strong>{" "}
+              to{" "}
+              <strong className="text-slate-800">
+                {Math.min(
+                  campaignPage * campaignLimit,
+                  filteredCampaigns.length,
+                )}
+              </strong>{" "}
+              of{" "}
+              <strong className="text-slate-800">
+                {filteredCampaigns.length}
+              </strong>{" "}
+              campaigns
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-white">
                 <span className="text-[10px] text-slate-400">Rows:</span>
                 <select
                   value={campaignLimit}
-                  onChange={(e) => setCampaignLimit(parseInt(e.target.value, 10))}
+                  onChange={(e) =>
+                    setCampaignLimit(parseInt(e.target.value, 10))
+                  }
                   className="bg-transparent border-none focus:outline-none text-[10px] font-semibold cursor-pointer"
                 >
                   <option value={10}>10</option>
@@ -921,7 +969,7 @@ export default function ClientDashboard({
                   <option value={50}>50</option>
                 </select>
               </div>
-              
+
               {totalCampaignPages > 1 && (
                 <div className="flex items-center gap-1">
                   <Button
@@ -933,20 +981,24 @@ export default function ClientDashboard({
                   >
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </Button>
-                  {Array.from({ length: totalCampaignPages }).map((_, index) => {
-                    const pNum = index + 1;
-                    return (
-                      <Button
-                        key={pNum}
-                        variant={campaignPage === pNum ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCampaignPage(pNum)}
-                        className="h-7 w-7 text-[10px] border-slate-200"
-                      >
-                        {pNum}
-                      </Button>
-                    );
-                  })}
+                  {Array.from({ length: totalCampaignPages }).map(
+                    (_, index) => {
+                      const pNum = index + 1;
+                      return (
+                        <Button
+                          key={pNum}
+                          variant={
+                            campaignPage === pNum ? "default" : "outline"
+                          }
+                          size="sm"
+                          onClick={() => setCampaignPage(pNum)}
+                          className="h-7 w-7 text-[10px] border-slate-200"
+                        >
+                          {pNum}
+                        </Button>
+                      );
+                    },
+                  )}
                   <Button
                     variant="outline"
                     size="icon"

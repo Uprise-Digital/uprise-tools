@@ -118,7 +118,7 @@ const AVAILABLE_TOOLS = [
     title: "Set Account KPI Targets",
     description:
       "Sets or updates the agreed client KPI targets for an account — target CPA, target ROAS, monthly budget cap, and notes.",
-  }
+  },
 ];
 
 interface McpSettingsClientProps {

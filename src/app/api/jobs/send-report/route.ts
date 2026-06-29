@@ -91,7 +91,8 @@ export async function POST(request: Request) {
     const stream = await renderToStream(pdfElement as any);
     const pdfBuffer = await streamToBuffer(stream);
 
-    const emailSubjectText = schedule.emailSubject || `Performance Report: ${clientName}`;
+    const emailSubjectText =
+      schedule.emailSubject || `Performance Report: ${clientName}`;
 
     // Email Dispatch
     const emailResult = await resend.emails.send({
@@ -150,13 +151,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error(`[Vercel API] Critical failure:`, error);
-    
+
     try {
-      const adAccId = (typeof schedule !== "undefined" && schedule) ? schedule.adAccountId : null;
-      const rec = (typeof schedule !== "undefined" && schedule) ? schedule.recipientEmail : "unknown@uprisedigital.com.au";
-      const sub = (typeof schedule !== "undefined" && schedule) 
-        ? (schedule.emailSubject || `Performance Report: ${clientName}`)
-        : `Performance Report: ${clientName || "Unknown Client"}`;
+      const adAccId =
+        typeof schedule !== "undefined" && schedule
+          ? schedule.adAccountId
+          : null;
+      const rec =
+        typeof schedule !== "undefined" && schedule
+          ? schedule.recipientEmail
+          : "unknown@uprisedigital.com.au";
+      const sub =
+        typeof schedule !== "undefined" && schedule
+          ? schedule.emailSubject || `Performance Report: ${clientName}`
+          : `Performance Report: ${clientName || "Unknown Client"}`;
 
       await logEmail({
         adAccountId: adAccId,
@@ -169,7 +177,7 @@ export async function POST(request: Request) {
     } catch (logErr) {
       console.error("[Vercel API] Failed to write failure emailLog:", logErr);
     }
-    
+
     // Returning a 500 status code triggers the Cloudflare Worker's 'catch' block
     // which initiates the queue retry mechanism.
     return NextResponse.json({ error: error.message }, { status: 500 });

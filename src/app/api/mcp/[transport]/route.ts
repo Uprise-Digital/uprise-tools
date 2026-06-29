@@ -29,7 +29,7 @@ import {
   orgTriageDefaults,
 } from "@/db/schema";
 import { logAction } from "@/lib/audit";
-import {setAccountTargetsMcpAction} from "@/actions/account-targets.actions";
+import { setAccountTargetsMcpAction } from "@/actions/account-targets.actions";
 
 const handler = createMcpHandler(
   (server) => {
@@ -783,86 +783,90 @@ const handler = createMcpHandler(
         }
       },
     );
-    
-      server.registerTool(
-          "set_account_targets",
-          {
-              title: "Set Account KPI Targets",
-              description:
-                  "Sets or updates the agreed client KPI targets for an account — target CPA, target ROAS, monthly budget cap, and notes. These are stored internally and represent what was agreed with the client (not pulled from Google Ads). Setting these unlocks target-relative fire detection in the god view, replacing portfolio-average benchmarking with actual client-agreed KPIs. Also invalidates the agency god view cache so the next call reflects the new targets immediately.",
-              inputSchema: {
-                  accountId: z
-                      .number()
-                      .int()
-                      .positive()
-                      .describe("The internal database ID of the ad account"),
-                  targetCpa: z
-                      .number()
-                      .positive()
-                      .nullable()
-                      .optional()
-                      .describe(
-                          "Agreed target cost-per-acquisition in the account's currency. Set to null to clear.",
-                      ),
-                  targetRoas: z
-                      .number()
-                      .positive()
-                      .nullable()
-                      .optional()
-                      .describe(
-                          "Agreed target return-on-ad-spend as a multiplier (e.g. 4.0 = 400% ROAS). Set to null to clear.",
-                      ),
-                  monthlyBudgetCap: z
-                      .number()
-                      .positive()
-                      .nullable()
-                      .optional()
-                      .describe(
-                          "Agreed monthly budget cap in the account's currency. Set to null to clear.",
-                      ),
-                  targetNotes: z
-                      .string()
-                      .nullable()
-                      .optional()
-                      .describe(
-                          "Free-text notes about client targets or agreements (e.g. 'Client happy with $150 CPA, reviewing Q3'). Set to null to clear.",
-                      ),
+
+    server.registerTool(
+      "set_account_targets",
+      {
+        title: "Set Account KPI Targets",
+        description:
+          "Sets or updates the agreed client KPI targets for an account — target CPA, target ROAS, monthly budget cap, and notes. These are stored internally and represent what was agreed with the client (not pulled from Google Ads). Setting these unlocks target-relative fire detection in the god view, replacing portfolio-average benchmarking with actual client-agreed KPIs. Also invalidates the agency god view cache so the next call reflects the new targets immediately.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .int()
+            .positive()
+            .describe("The internal database ID of the ad account"),
+          targetCpa: z
+            .number()
+            .positive()
+            .nullable()
+            .optional()
+            .describe(
+              "Agreed target cost-per-acquisition in the account's currency. Set to null to clear.",
+            ),
+          targetRoas: z
+            .number()
+            .positive()
+            .nullable()
+            .optional()
+            .describe(
+              "Agreed target return-on-ad-spend as a multiplier (e.g. 4.0 = 400% ROAS). Set to null to clear.",
+            ),
+          monthlyBudgetCap: z
+            .number()
+            .positive()
+            .nullable()
+            .optional()
+            .describe(
+              "Agreed monthly budget cap in the account's currency. Set to null to clear.",
+            ),
+          targetNotes: z
+            .string()
+            .nullable()
+            .optional()
+            .describe(
+              "Free-text notes about client targets or agreements (e.g. 'Client happy with $150 CPA, reviewing Q3'). Set to null to clear.",
+            ),
+        },
+      },
+      async ({
+        accountId,
+        targetCpa,
+        targetRoas,
+        monthlyBudgetCap,
+        targetNotes,
+      }) => {
+        const result = await setAccountTargetsMcpAction(accountId, {
+          targetCpa: targetCpa ?? null,
+          targetRoas: targetRoas ?? null,
+          monthlyBudgetCap: monthlyBudgetCap ?? null,
+          targetNotes: targetNotes ?? null,
+        });
+
+        if (!result.success) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: result.error,
+                }),
               },
-          },
-          async ({ accountId, targetCpa, targetRoas, monthlyBudgetCap, targetNotes }) => {
-              const result = await setAccountTargetsMcpAction(accountId, {
-                  targetCpa: targetCpa ?? null,
-                  targetRoas: targetRoas ?? null,
-                  monthlyBudgetCap: monthlyBudgetCap ?? null,
-                  targetNotes: targetNotes ?? null,
-              });
+            ],
+          };
+        }
 
-              if (!result.success) {
-                  return {
-                      content: [
-                          {
-                              type: "text",
-                              text: JSON.stringify({
-                                  success: false,
-                                  error: result.error,
-                              }),
-                          },
-                      ],
-                  };
-              }
-
-              return {
-                  content: [
-                      {
-                          type: "text",
-                          text: JSON.stringify(result),
-                      },
-                  ],
-              };
-          },
-      );
-
-
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result),
+            },
+          ],
+        };
+      },
+    );
   },
   {},
   {

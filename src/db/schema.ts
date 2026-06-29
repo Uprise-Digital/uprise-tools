@@ -29,6 +29,9 @@ export const adAccounts = pgTable("ad_accounts", {
   syncStatus: text("sync_status"),
   syncError: text("sync_error"),
   includeInBriefing: boolean("include_in_briefing").default(true).notNull(),
+  negativeKeywordTurboMode: boolean("negative_keyword_turbo_mode")
+    .default(false)
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 
   targetCpa: decimal("target_cpa", { precision: 10, scale: 2 }),
@@ -157,7 +160,9 @@ export const auditLogs = pgTable("audit_logs", {
 
 export const emailLogs = pgTable("email_logs", {
   id: serial("id").primaryKey(),
-  adAccountId: integer("ad_account_id").references(() => adAccounts.id, { onDelete: "set null" }),
+  adAccountId: integer("ad_account_id").references(() => adAccounts.id, {
+    onDelete: "set null",
+  }),
   recipient: text("recipient").notNull(),
   subject: text("subject").notNull(),
   emailType: text("email_type").notNull(), // 'morning_briefing', 'scheduled_report', 'on_demand_report'
@@ -248,6 +253,7 @@ export const adAccountRelations = relations(adAccounts, ({ many, one }) => ({
   aiInsights: many(aiInsightsCache),
   threatAudits: many(threatMatrixAudits), // <-- NEW
   triageSettings: one(accountTriageSettings),
+  negativeKeywordSuggestions: many(negativeKeywordSuggestions),
 }));
 
 export const alertRuleRelations = relations(alertRules, ({ one, many }) => ({
@@ -433,6 +439,42 @@ export const accountTriageSettingsRelations = relations(
   ({ one }) => ({
     adAccount: one(adAccounts, {
       fields: [accountTriageSettings.adAccountId],
+      references: [adAccounts.id],
+    }),
+  }),
+);
+
+export const negativeKeywordSuggestions = pgTable(
+  "negative_keyword_suggestions",
+  {
+    id: serial("id").primaryKey(),
+    adAccountId: integer("ad_account_id")
+      .references(() => adAccounts.id, { onDelete: "cascade" })
+      .notNull(),
+    keyword: text("keyword").notNull(),
+    matchType: text("match_type").notNull().default("phrase"), // 'broad', 'phrase', 'exact'
+    campaignId: text("campaign_id").notNull(),
+    campaignName: text("campaign_name").notNull(),
+    rationale: text("rationale").notNull(),
+    status: text("status").notNull().default("pending"), // 'pending', 'approved', 'denied', 'archived'
+    searchQuery: text("search_query"),
+    clicks: integer("clicks").default(0),
+    impressions: integer("impressions").default(0),
+    spend: numeric("spend", { precision: 12, scale: 2 }).default("0").notNull(),
+    conversions: numeric("conversions", { precision: 10, scale: 2 })
+      .default("0")
+      .notNull(),
+    suggestedAt: timestamp("suggested_at").defaultNow().notNull(),
+    processedAt: timestamp(),
+    error: text("error"),
+  },
+);
+
+export const negativeKeywordSuggestionsRelations = relations(
+  negativeKeywordSuggestions,
+  ({ one }) => ({
+    account: one(adAccounts, {
+      fields: [negativeKeywordSuggestions.adAccountId],
       references: [adAccounts.id],
     }),
   }),

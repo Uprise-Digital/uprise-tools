@@ -1,0 +1,21 @@
+name: Nightly Negative Keywords Automation
+
+on:
+  # Runs daily at 18:00 UTC (which corresponds to 4:00 AM AEST / 5:00 AM AEDT Melbourne time)
+  # This runs before the morning briefing, ensuring any auto-pushed negatives are recorded
+  schedule:
+    - cron: '0 18 * * *'
+
+  # Allow manual trigger from the GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Negative Keywords Cron API Route
+        run: |
+          curl -f -s -S -X POST "${{ secrets.PRODUCTION_APP_URL }}/api/cron/negative-keywords" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json"

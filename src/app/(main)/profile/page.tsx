@@ -38,7 +38,9 @@ export default function ProfilePage() {
     if (error) {
       toast.error(error.message || "Failed to update profile", { id: toastId });
     } else {
-      toast.success("Profile display name updated successfully!", { id: toastId });
+      toast.success("Profile display name updated successfully!", {
+        id: toastId,
+      });
     }
   };
 
@@ -51,9 +53,14 @@ export default function ProfilePage() {
       revokeOtherSessions: true,
     });
     if (error) {
-      toast.error(error.message || "Failed to update password", { id: toastId });
+      toast.error(error.message || "Failed to update password", {
+        id: toastId,
+      });
     } else {
-      toast.success("Password changed successfully! Revoked other active sessions.", { id: toastId });
+      toast.success(
+        "Password changed successfully! Revoked other active sessions.",
+        { id: toastId },
+      );
       setCurrentPassword("");
       setNewPassword("");
     }

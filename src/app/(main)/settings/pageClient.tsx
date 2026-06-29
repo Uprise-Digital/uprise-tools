@@ -118,7 +118,9 @@ export default function SettingsClient({
   auditLogs,
   emailLogs,
 }: SettingsClientProps) {
-  const [activeTab, setActiveTab] = useState<"general" | "audit" | "emails">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "audit" | "emails">(
+    "general",
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   // General Settings Form State
@@ -143,8 +145,12 @@ export default function SettingsClient({
   const [emailTypeFilter, setEmailTypeFilter] = useState("all");
 
   // Details Inspector Modal State
-  const [selectedAuditLog, setSelectedAuditLog] = useState<AuditLogData | null>(null);
-  const [selectedEmailLog, setSelectedEmailLog] = useState<EmailLogData | null>(null);
+  const [selectedAuditLog, setSelectedAuditLog] = useState<AuditLogData | null>(
+    null,
+  );
+  const [selectedEmailLog, setSelectedEmailLog] = useState<EmailLogData | null>(
+    null,
+  );
   const [copiedText, setCopiedText] = useState("");
 
   const handleInputChange = (field: string, value: string) => {
@@ -248,10 +254,7 @@ export default function SettingsClient({
     if (!matchesSearch) return false;
 
     if (auditFilter === "triage") {
-      return (
-        log.action.includes("TRIAGE") ||
-        log.action.includes("TARGETS")
-      );
+      return log.action.includes("TRIAGE") || log.action.includes("TARGETS");
     }
     if (auditFilter === "user") {
       return log.action.includes("USER");
@@ -261,8 +264,7 @@ export default function SettingsClient({
     }
     if (auditFilter === "security") {
       return (
-        log.action.includes("MCP_TOOLS") ||
-        log.action.includes("ROLL_MCP")
+        log.action.includes("MCP_TOOLS") || log.action.includes("ROLL_MCP")
       );
     }
     if (auditFilter === "system") {
@@ -298,7 +300,11 @@ export default function SettingsClient({
     if (action.includes("FAILED") || action.includes("DELETE")) {
       return "destructive";
     }
-    if (action.includes("CREATE") || action.includes("ROLL") || action.includes("SENT")) {
+    if (
+      action.includes("CREATE") ||
+      action.includes("ROLL") ||
+      action.includes("SENT")
+    ) {
       return "default";
     }
     if (action.includes("SAVE") || action.includes("UPDATE")) {
@@ -324,7 +330,8 @@ export default function SettingsClient({
             Agency Settings
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Configure default thresholds, check live sync health, and review audit/delivery logs.
+            Configure default thresholds, check live sync health, and review
+            audit/delivery logs.
           </p>
         </div>
       </div>
@@ -377,7 +384,9 @@ export default function SettingsClient({
                   Triage and Anomaly Defaults
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Manage global alert logic thresholds. These values serve as agency-wide defaults unless overridden at the individual client account level.
+                  Manage global alert logic thresholds. These values serve as
+                  agency-wide defaults unless overridden at the individual
+                  client account level.
                 </CardDescription>
               </CardHeader>
               <form onSubmit={handleSave}>
@@ -408,11 +417,15 @@ export default function SettingsClient({
                           required
                         />
                         <p className="text-[10px] text-slate-400">
-                          Trigger alert if an account spends more than this with low conversions.
+                          Trigger alert if an account spends more than this with
+                          low conversions.
                         </p>
                       </div>
                       <div className="space-y-1.5">
-                        <Label htmlFor="criticalConversions" className="text-xs">
+                        <Label
+                          htmlFor="criticalConversions"
+                          className="text-xs"
+                        >
                           Maximum Conversions Target
                         </Label>
                         <Input
@@ -430,7 +443,8 @@ export default function SettingsClient({
                           required
                         />
                         <p className="text-[10px] text-slate-400">
-                          The upper limit of conversions to classify as a critical conversion leak.
+                          The upper limit of conversions to classify as a
+                          critical conversion leak.
                         </p>
                       </div>
                     </div>
@@ -453,13 +467,17 @@ export default function SettingsClient({
                           step="0.1"
                           value={formState.ctrHighThreshold}
                           onChange={(e) =>
-                            handleInputChange("ctrHighThreshold", e.target.value)
+                            handleInputChange(
+                              "ctrHighThreshold",
+                              e.target.value,
+                            )
                           }
                           className="text-xs bg-white"
                           required
                         />
                         <p className="text-[10px] text-slate-400">
-                          Flags campaigns exceeding this CTR with zero conversions.
+                          Flags campaigns exceeding this CTR with zero
+                          conversions.
                         </p>
                       </div>
                       <div className="space-y-1.5">
@@ -481,7 +499,8 @@ export default function SettingsClient({
                           required
                         />
                         <p className="text-[10px] text-slate-400">
-                          Minimum spend required to trigger the CTR anomaly check.
+                          Minimum spend required to trigger the CTR anomaly
+                          check.
                         </p>
                       </div>
                       <div className="space-y-1.5">
@@ -494,13 +513,17 @@ export default function SettingsClient({
                           step="0.01"
                           value={formState.cpcHighThreshold}
                           onChange={(e) =>
-                            handleInputChange("cpcHighThreshold", e.target.value)
+                            handleInputChange(
+                              "cpcHighThreshold",
+                              e.target.value,
+                            )
                           }
                           className="text-xs bg-white"
                           required
                         />
                         <p className="text-[10px] text-slate-400">
-                          Flags single clicks exceeding this CPC as a budget leak.
+                          Flags single clicks exceeding this CPC as a budget
+                          leak.
                         </p>
                       </div>
                     </div>
@@ -531,7 +554,8 @@ export default function SettingsClient({
                           required
                         />
                         <p className="text-[10px] text-slate-400">
-                          Trigger warning if spend drops by more than this percent (e.g. -30.0).
+                          Trigger warning if spend drops by more than this
+                          percent (e.g. -30.0).
                         </p>
                       </div>
                       <div className="space-y-1.5">
@@ -553,7 +577,8 @@ export default function SettingsClient({
                           required
                         />
                         <p className="text-[10px] text-slate-400">
-                          Trigger warning if conversions drop by more than this percent (e.g. -25.0).
+                          Trigger warning if conversions drop by more than this
+                          percent (e.g. -25.0).
                         </p>
                       </div>
                     </div>
@@ -615,25 +640,36 @@ export default function SettingsClient({
               <CardContent className="p-5 space-y-5">
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-                    <div className="text-xs text-slate-500 font-medium">Total</div>
-                    <div className="text-lg font-bold text-slate-800 mt-0.5">{accounts.length}</div>
+                    <div className="text-xs text-slate-500 font-medium">
+                      Total
+                    </div>
+                    <div className="text-lg font-bold text-slate-800 mt-0.5">
+                      {accounts.length}
+                    </div>
                   </div>
                   <div className="p-2.5 bg-emerald-50/50 rounded-lg border border-emerald-100/50">
-                    <div className="text-xs text-emerald-600 font-medium">Healthy</div>
+                    <div className="text-xs text-emerald-600 font-medium">
+                      Healthy
+                    </div>
                     <div className="text-lg font-bold text-emerald-700 mt-0.5">
-                      {accounts.filter((a) => a.syncStatus === "success").length}
+                      {
+                        accounts.filter((a) => a.syncStatus === "success")
+                          .length
+                      }
                     </div>
                   </div>
                   <div
                     className={`p-2.5 rounded-lg border ${
-                      accounts.filter((a) => a.syncStatus === "failed").length > 0
+                      accounts.filter((a) => a.syncStatus === "failed").length >
+                      0
                         ? "bg-rose-50 border-rose-100"
                         : "bg-slate-50 border-slate-100"
                     }`}
                   >
                     <div
                       className={`text-xs font-medium ${
-                        accounts.filter((a) => a.syncStatus === "failed").length > 0
+                        accounts.filter((a) => a.syncStatus === "failed")
+                          .length > 0
                           ? "text-rose-600"
                           : "text-slate-500"
                       }`}
@@ -642,7 +678,8 @@ export default function SettingsClient({
                     </div>
                     <div
                       className={`text-lg font-bold mt-0.5 ${
-                        accounts.filter((a) => a.syncStatus === "failed").length > 0
+                        accounts.filter((a) => a.syncStatus === "failed")
+                          .length > 0
                           ? "text-rose-700"
                           : "text-slate-800"
                       }`}
@@ -743,7 +780,8 @@ export default function SettingsClient({
                 Administrative Audit Logs
               </CardTitle>
               <CardDescription className="text-xs">
-                History of configurations changed by digital strategists or external Claude MCP actions.
+                History of configurations changed by digital strategists or
+                external Claude MCP actions.
               </CardDescription>
             </div>
             {/* SEARCH AND FILTERS */}
@@ -778,17 +816,30 @@ export default function SettingsClient({
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow>
-                  <TableHead className="w-[160px] pl-6 text-xs font-bold text-slate-600">Timestamp</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-600">Actor</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-600">Action</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-600">Target</TableHead>
-                  <TableHead className="text-right pr-6 text-xs font-bold text-slate-600">Inspection</TableHead>
+                  <TableHead className="w-[160px] pl-6 text-xs font-bold text-slate-600">
+                    Timestamp
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">
+                    Actor
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">
+                    Action
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">
+                    Target
+                  </TableHead>
+                  <TableHead className="text-right pr-6 text-xs font-bold text-slate-600">
+                    Inspection
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAuditLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-xs text-slate-500 font-sans">
+                    <TableCell
+                      colSpan={5}
+                      className="h-24 text-center text-xs text-slate-500 font-sans"
+                    >
                       No audit logs match criteria.
                     </TableCell>
                   </TableRow>
@@ -796,11 +847,26 @@ export default function SettingsClient({
                   filteredAuditLogs.map((log) => {
                     const isSystem = log.actorId === "SYSTEM_AUTOMATION";
                     const isMcp = log.actorId === "MCP_AGENT";
-                    const actorName = log.actor?.name || (isMcp ? "Claude MCP Agent" : isSystem ? "System Automation" : "System");
-                    const actorEmail = log.actor?.email || (isMcp ? "mcp-agent@uprisedigital.com" : isSystem ? "system@uprisedigital.com" : "");
+                    const actorName =
+                      log.actor?.name ||
+                      (isMcp
+                        ? "Claude MCP Agent"
+                        : isSystem
+                          ? "System Automation"
+                          : "System");
+                    const actorEmail =
+                      log.actor?.email ||
+                      (isMcp
+                        ? "mcp-agent@uprisedigital.com"
+                        : isSystem
+                          ? "system@uprisedigital.com"
+                          : "");
 
                     return (
-                      <TableRow key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                      <TableRow
+                        key={log.id}
+                        className="hover:bg-slate-50/50 transition-colors"
+                      >
                         <TableCell className="font-mono text-[10px] text-slate-500 pl-6">
                           {new Date(log.createdAt).toLocaleString("en-AU", {
                             month: "short",
@@ -815,24 +881,43 @@ export default function SettingsClient({
                             <Avatar className="w-6 h-6 border">
                               <AvatarImage src={log.actor?.image || ""} />
                               <AvatarFallback className="bg-slate-100 text-[10px]">
-                                {isMcp ? "AI" : isSystem ? "SYS" : <UserIcon className="w-3 h-3 text-slate-500" />}
+                                {isMcp ? (
+                                  "AI"
+                                ) : isSystem ? (
+                                  "SYS"
+                                ) : (
+                                  <UserIcon className="w-3 h-3 text-slate-500" />
+                                )}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex flex-col">
-                              <span className="text-xs font-semibold text-slate-800">{actorName}</span>
-                              {actorEmail && <span className="text-[10px] text-slate-400 font-mono">{actorEmail}</span>}
+                              <span className="text-xs font-semibold text-slate-800">
+                                {actorName}
+                              </span>
+                              {actorEmail && (
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {actorEmail}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={getActionBadgeVariant(log.action) as any} className="text-[10px] py-0">
+                          <Badge
+                            variant={getActionBadgeVariant(log.action) as any}
+                            className="text-[10px] py-0"
+                          >
                             {log.action}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="text-xs font-medium text-slate-700 font-mono">{log.targetTable}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">ID: {log.targetId}</span>
+                            <span className="text-xs font-medium text-slate-700 font-mono">
+                              {log.targetTable}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              ID: {log.targetId}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="text-right pr-6">
@@ -864,7 +949,8 @@ export default function SettingsClient({
                 Email Delivery Statuses
               </CardTitle>
               <CardDescription className="text-xs">
-                Log of outgoing Resend email dispatches for briefings, automated schedules, and on-demand campaigns.
+                Log of outgoing Resend email dispatches for briefings, automated
+                schedules, and on-demand campaigns.
               </CardDescription>
             </div>
             {/* SEARCH AND FILTERS */}
@@ -909,18 +995,33 @@ export default function SettingsClient({
             <Table>
               <TableHeader className="bg-slate-50/50">
                 <TableRow>
-                  <TableHead className="w-[160px] pl-6 text-xs font-bold text-slate-600">Sent At</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-600">Type</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-600">Recipient</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-600">Subject / Client</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-600">Status</TableHead>
-                  <TableHead className="text-right pr-6 text-xs font-bold text-slate-600">Inspection</TableHead>
+                  <TableHead className="w-[160px] pl-6 text-xs font-bold text-slate-600">
+                    Sent At
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">
+                    Type
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">
+                    Recipient
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">
+                    Subject / Client
+                  </TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-right pr-6 text-xs font-bold text-slate-600">
+                    Inspection
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredEmailLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-xs text-slate-500 font-sans">
+                    <TableCell
+                      colSpan={6}
+                      className="h-24 text-center text-xs text-slate-500 font-sans"
+                    >
                       No email delivery logs match criteria.
                     </TableCell>
                   </TableRow>
@@ -929,7 +1030,10 @@ export default function SettingsClient({
                     const isSuccess = email.status === "success";
 
                     return (
-                      <TableRow key={email.id} className="hover:bg-slate-50/50 transition-colors">
+                      <TableRow
+                        key={email.id}
+                        className="hover:bg-slate-50/50 transition-colors"
+                      >
                         <TableCell className="font-mono text-[10px] text-slate-500 pl-6">
                           {new Date(email.sentAt).toLocaleString("en-AU", {
                             month: "short",
@@ -940,7 +1044,10 @@ export default function SettingsClient({
                           })}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-[10px] font-medium text-slate-700 bg-slate-50">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] font-medium text-slate-700 bg-slate-50"
+                          >
                             {formatEmailType(email.emailType)}
                           </Badge>
                         </TableCell>
@@ -949,9 +1056,13 @@ export default function SettingsClient({
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="text-xs font-semibold text-slate-700 truncate max-w-[240px]">{email.subject}</span>
+                            <span className="text-xs font-semibold text-slate-700 truncate max-w-[240px]">
+                              {email.subject}
+                            </span>
                             {email.accountName && (
-                              <span className="text-[10px] text-slate-400 font-medium">Account: {email.accountName}</span>
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                Account: {email.accountName}
+                              </span>
                             )}
                           </div>
                         </TableCell>
@@ -989,7 +1100,10 @@ export default function SettingsClient({
       )}
 
       {/* AUDIT LOG INSPECTOR DIALOG */}
-      <Dialog open={selectedAuditLog !== null} onOpenChange={(open) => !open && setSelectedAuditLog(null)}>
+      <Dialog
+        open={selectedAuditLog !== null}
+        onOpenChange={(open) => !open && setSelectedAuditLog(null)}
+      >
         <DialogContent className="max-w-xl bg-white border border-slate-200">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -1004,32 +1118,52 @@ export default function SettingsClient({
             <div className="space-y-4 pt-2 font-sans text-xs">
               <div className="grid grid-cols-2 gap-4 border-b pb-4">
                 <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Timestamp</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Timestamp
+                  </span>
                   <span className="font-semibold text-slate-800">
-                    {new Date(selectedAuditLog.createdAt).toLocaleString("en-AU", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                    })}
+                    {new Date(selectedAuditLog.createdAt).toLocaleString(
+                      "en-AU",
+                      {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      },
+                    )}
                   </span>
                 </div>
                 <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Action Badge</span>
-                  <Badge variant={getActionBadgeVariant(selectedAuditLog.action) as any} className="text-[10px]">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Action Badge
+                  </span>
+                  <Badge
+                    variant={
+                      getActionBadgeVariant(selectedAuditLog.action) as any
+                    }
+                    className="text-[10px]"
+                  >
                     {selectedAuditLog.action}
                   </Badge>
                 </div>
                 <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target Table</span>
-                  <span className="font-mono text-slate-700 font-semibold">{selectedAuditLog.targetTable}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Target Table
+                  </span>
+                  <span className="font-mono text-slate-700 font-semibold">
+                    {selectedAuditLog.targetTable}
+                  </span>
                 </div>
                 <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target Item ID</span>
-                  <span className="font-mono text-slate-700 font-semibold">{selectedAuditLog.targetId}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Target Item ID
+                  </span>
+                  <span className="font-mono text-slate-700 font-semibold">
+                    {selectedAuditLog.targetId}
+                  </span>
                 </div>
               </div>
 
@@ -1038,13 +1172,21 @@ export default function SettingsClient({
                 <Avatar className="w-8 h-8 border">
                   <AvatarImage src={selectedAuditLog.actor?.image || ""} />
                   <AvatarFallback className="bg-slate-100 text-xs">
-                    {selectedAuditLog.actorId === "MCP_AGENT" ? "AI" : selectedAuditLog.actorId === "SYSTEM_AUTOMATION" ? "SYS" : "U"}
+                    {selectedAuditLog.actorId === "MCP_AGENT"
+                      ? "AI"
+                      : selectedAuditLog.actorId === "SYSTEM_AUTOMATION"
+                        ? "SYS"
+                        : "U"}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <div className="font-bold text-slate-800">
-                    {selectedAuditLog.actor?.name || 
-                      (selectedAuditLog.actorId === "MCP_AGENT" ? "Claude MCP Agent" : selectedAuditLog.actorId === "SYSTEM_AUTOMATION" ? "System Automation" : "System Agent")}
+                    {selectedAuditLog.actor?.name ||
+                      (selectedAuditLog.actorId === "MCP_AGENT"
+                        ? "Claude MCP Agent"
+                        : selectedAuditLog.actorId === "SYSTEM_AUTOMATION"
+                          ? "System Automation"
+                          : "System Agent")}
                   </div>
                   <div className="text-[10px] text-slate-500 font-mono">
                     Actor ID: {selectedAuditLog.actorId || "unknown_system_id"}
@@ -1054,13 +1196,19 @@ export default function SettingsClient({
 
               {/* STRUCTURED METADATA INSPECTION */}
               <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Change Details</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Change Details
+                </span>
                 {selectedAuditLog.metadata ? (
                   <div className="bg-slate-900 border text-slate-200 rounded-lg p-4 font-mono text-[10px] max-h-60 overflow-y-auto leading-relaxed shadow-inner">
-                    <pre className="whitespace-pre-wrap">{JSON.stringify(selectedAuditLog.metadata, null, 2)}</pre>
+                    <pre className="whitespace-pre-wrap">
+                      {JSON.stringify(selectedAuditLog.metadata, null, 2)}
+                    </pre>
                   </div>
                 ) : (
-                  <span className="text-slate-400 text-xs italic">No additional metadata registered for this action.</span>
+                  <span className="text-slate-400 text-xs italic">
+                    No additional metadata registered for this action.
+                  </span>
                 )}
               </div>
             </div>
@@ -1069,7 +1217,10 @@ export default function SettingsClient({
       </Dialog>
 
       {/* EMAIL LOG INSPECTOR DIALOG */}
-      <Dialog open={selectedEmailLog !== null} onOpenChange={(open) => !open && setSelectedEmailLog(null)}>
+      <Dialog
+        open={selectedEmailLog !== null}
+        onOpenChange={(open) => !open && setSelectedEmailLog(null)}
+      >
         <DialogContent className="max-w-xl bg-white border border-slate-200">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -1084,7 +1235,9 @@ export default function SettingsClient({
             <div className="space-y-4 pt-2 font-sans text-xs">
               <div className="grid grid-cols-2 gap-4 border-b pb-4">
                 <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Sent Timestamp</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Sent Timestamp
+                  </span>
                   <span className="font-semibold text-slate-800">
                     {new Date(selectedEmailLog.sentAt).toLocaleString("en-AU", {
                       weekday: "long",
@@ -1098,19 +1251,28 @@ export default function SettingsClient({
                   </span>
                 </div>
                 <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Email Type</span>
-                  <Badge variant="outline" className="text-[10px] text-slate-700 bg-slate-50 py-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Email Type
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] text-slate-700 bg-slate-50 py-0"
+                  >
                     {formatEmailType(selectedEmailLog.emailType)}
                   </Badge>
                 </div>
                 <div className="space-y-0.5 col-span-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Recipients</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Recipients
+                  </span>
                   <span className="font-semibold text-slate-800 select-all font-mono break-all leading-normal">
                     {selectedEmailLog.recipient}
                   </span>
                 </div>
                 <div className="space-y-0.5 col-span-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Subject Line</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Subject Line
+                  </span>
                   <span className="font-bold text-slate-800 text-sm leading-normal">
                     {selectedEmailLog.subject}
                   </span>
@@ -1121,7 +1283,9 @@ export default function SettingsClient({
               {selectedEmailLog.resendId && (
                 <div className="p-3 bg-slate-50 border rounded-lg flex items-center justify-between gap-3">
                   <div className="space-y-0.5 min-w-0">
-                    <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-wider block">Resend Message ID</span>
+                    <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-wider block">
+                      Resend Message ID
+                    </span>
                     <span className="font-mono text-[10px] text-slate-700 truncate block font-bold">
                       {selectedEmailLog.resendId}
                     </span>
@@ -1150,10 +1314,14 @@ export default function SettingsClient({
               {/* TROUBLESHOOTING ERROR PANEL */}
               {selectedEmailLog.error && (
                 <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider block">Error / Failure Log</span>
+                  <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider block">
+                    Error / Failure Log
+                  </span>
                   <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-lg p-4 font-mono text-[10px] leading-relaxed shadow-sm flex gap-2 items-start">
                     <XCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                    <pre className="whitespace-pre-wrap font-mono leading-relaxed">{selectedEmailLog.error}</pre>
+                    <pre className="whitespace-pre-wrap font-mono leading-relaxed">
+                      {selectedEmailLog.error}
+                    </pre>
                   </div>
                 </div>
               )}
@@ -1161,7 +1329,10 @@ export default function SettingsClient({
               {/* CLIENT ACCOUNT LINK */}
               {selectedEmailLog.accountName && (
                 <div className="p-3 border rounded-lg bg-slate-50/50 flex items-center justify-between text-xs text-slate-600">
-                  <span>Linked Client Account: <strong>{selectedEmailLog.accountName}</strong></span>
+                  <span>
+                    Linked Client Account:{" "}
+                    <strong>{selectedEmailLog.accountName}</strong>
+                  </span>
                   {selectedEmailLog.adAccountId && (
                     <a
                       href={`/accounts/${selectedEmailLog.adAccountId}`}

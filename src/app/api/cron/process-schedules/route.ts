@@ -85,7 +85,8 @@ export const POST = handleCallback(async (payload: any) => {
     const stream = await renderToStream(pdfElement as any);
     const pdfBuffer = await streamToBuffer(stream);
 
-    const emailSubjectText = schedule.emailSubject || `Performance Report: ${clientName}`;
+    const emailSubjectText =
+      schedule.emailSubject || `Performance Report: ${clientName}`;
 
     // 6. Send the email via Resend
     // cleanCcEmails converts "test@test.com, dev@test.com" into ["test@test.com", "dev@test.com"]
@@ -147,11 +148,18 @@ export const POST = handleCallback(async (payload: any) => {
   } catch (error: any) {
     // 9. Failure: Log the error and re-throw to allow Vercel Queue to retry
     try {
-      const adAccId = (typeof schedule !== "undefined" && schedule) ? schedule.adAccountId : null;
-      const rec = (typeof schedule !== "undefined" && schedule) ? schedule.recipientEmail : "unknown@uprisedigital.com.au";
-      const sub = (typeof schedule !== "undefined" && schedule) 
-        ? (schedule.emailSubject || `Performance Report: ${clientName}`)
-        : `Performance Report: ${clientName || "Unknown Client"}`;
+      const adAccId =
+        typeof schedule !== "undefined" && schedule
+          ? schedule.adAccountId
+          : null;
+      const rec =
+        typeof schedule !== "undefined" && schedule
+          ? schedule.recipientEmail
+          : "unknown@uprisedigital.com.au";
+      const sub =
+        typeof schedule !== "undefined" && schedule
+          ? schedule.emailSubject || `Performance Report: ${clientName}`
+          : `Performance Report: ${clientName || "Unknown Client"}`;
 
       await logEmail({
         adAccountId: adAccId,

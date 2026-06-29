@@ -237,8 +237,6 @@ export default function AgencyReportsClient() {
     );
   }
 
-
-
   // Filtered Accounts
   const visibleAccounts =
     portfolio?.accountBreakdown?.filter((acc: any) =>
@@ -259,7 +257,16 @@ export default function AgencyReportsClient() {
   );
 
   const exportLedgerToCsv = () => {
-    const headers = ["Account Name", "Google ID", "Churn Risk", "Spend", "Conversions", "CPA", "CTR", "CPC"];
+    const headers = [
+      "Account Name",
+      "Google ID",
+      "Churn Risk",
+      "Spend",
+      "Conversions",
+      "CPA",
+      "CTR",
+      "CPC",
+    ];
     const rows = searchedAccounts.map((acc: any) => {
       const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
       return [
@@ -281,7 +288,9 @@ export default function AgencyReportsClient() {
         ...rows.map((e: any[]) =>
           e
             .map((val: any) => {
-              const textStr = String(val === null || val === undefined ? "" : val);
+              const textStr = String(
+                val === null || val === undefined ? "" : val,
+              );
               return `"${textStr.replace(/"/g, '""')}"`;
             })
             .join(","),
@@ -291,7 +300,10 @@ export default function AgencyReportsClient() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `portfolio_ledger_export_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute(
+      "download",
+      `portfolio_ledger_export_${new Date().toISOString().split("T")[0]}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -318,7 +330,6 @@ export default function AgencyReportsClient() {
   const handleRowClick = (accountId: number) => {
     router.push(`/accounts/${accountId}`);
   };
-
 
   return (
     <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
@@ -682,7 +693,7 @@ export default function AgencyReportsClient() {
               Portfolio Ledger
             </CardTitle>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
@@ -693,7 +704,7 @@ export default function AgencyReportsClient() {
                 className="pl-8 text-xs h-8 bg-white"
               />
             </div>
-            
+
             <Button
               onClick={exportLedgerToCsv}
               variant="outline"
@@ -703,7 +714,7 @@ export default function AgencyReportsClient() {
               <Download className="w-3.5 h-3.5" />
               Export
             </Button>
-            
+
             <Button
               variant="ghost"
               size="sm"
@@ -748,7 +759,7 @@ export default function AgencyReportsClient() {
 
                 return (
                   <TableRow
-                      onClick={() => handleRowClick(acc.accountId)}
+                    onClick={() => handleRowClick(acc.accountId)}
                     key={acc.accountId}
                     className="text-sm hover:bg-slate-50 cursor-pointer transition-colors"
                   >
@@ -808,11 +819,23 @@ export default function AgencyReportsClient() {
         {/* PAGINATION CONTROLS */}
         <div className="border-t border-slate-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div>
-            Showing <strong className="text-slate-800">{searchedAccounts.length > 0 ? (ledgerPage - 1) * ledgerLimit + 1 : 0}</strong> to{" "}
-            <strong className="text-slate-800">{Math.min(ledgerPage * ledgerLimit, searchedAccounts.length)}</strong> of{" "}
-            <strong className="text-slate-800">{searchedAccounts.length}</strong> accounts
+            Showing{" "}
+            <strong className="text-slate-800">
+              {searchedAccounts.length > 0
+                ? (ledgerPage - 1) * ledgerLimit + 1
+                : 0}
+            </strong>{" "}
+            to{" "}
+            <strong className="text-slate-800">
+              {Math.min(ledgerPage * ledgerLimit, searchedAccounts.length)}
+            </strong>{" "}
+            of{" "}
+            <strong className="text-slate-800">
+              {searchedAccounts.length}
+            </strong>{" "}
+            accounts
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-white">
               <span className="text-[10px] text-slate-400">Rows:</span>
@@ -826,7 +849,7 @@ export default function AgencyReportsClient() {
                 <option value={50}>50</option>
               </select>
             </div>
-            
+
             {totalPages > 1 && (
               <div className="flex items-center gap-1">
                 <Button

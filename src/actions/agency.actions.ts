@@ -93,7 +93,7 @@ export async function getOrGenerateAgencyAiInsightsAction(
         const name = getVal(["name", "client", "account"]) || "Unknown Account";
         const spend = parseDataNumber(getVal(["spend", "cost", "amount"]));
         const conversions = parseDataNumber(getVal(["conv"]));
-        const targetCpa = parseDataNumber(acc.targetCpa ?? 0);  // Direct key — no fuzzy search needed
+        const targetCpa = parseDataNumber(acc.targetCpa ?? 0); // Direct key — no fuzzy search needed
         const cpa = conversions > 0 ? spend / conversions : 0;
 
         return { name, spend, conversions, cpa, targetCpa };
@@ -312,14 +312,13 @@ export async function getAgencyPortfolioMetricsAction(
         accountId: acc.id,
         name: acc.name,
         googleAccountId: acc.googleAccountId,
-        targetCpa: acc.targetCpa ? parseFloat(acc.targetCpa) : 0,  // ← ADD THIS LINE
+        targetCpa: acc.targetCpa ? parseFloat(acc.targetCpa) : 0, // ← ADD THIS LINE
         spend: 0,
         clicks: 0,
         impressions: 0,
         conversions: 0,
       };
     });
-
 
     allPerformance.forEach((row) => {
       const spend = Number(row.spend || 0);

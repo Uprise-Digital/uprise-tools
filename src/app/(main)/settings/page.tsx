@@ -5,26 +5,27 @@ import { adAccounts, auditLogs, emailLogs } from "@/db/schema";
 import SettingsClient from "./pageClient";
 
 export default async function SettingsPage() {
-  const [defaultsRes, accounts, auditLogsData, emailLogsData] = await Promise.all([
-    getOrgTriageDefaultsAction(),
-    db.query.adAccounts.findMany({
-      where: eq(adAccounts.isActive, true),
-    }),
-    db.query.auditLogs.findMany({
-      with: {
-        actor: true,
-      },
-      orderBy: (logs, { desc }) => [desc(logs.createdAt)],
-      limit: 100,
-    }),
-    db.query.emailLogs.findMany({
-      with: {
-        account: true,
-      },
-      orderBy: (emails, { desc }) => [desc(emails.sentAt)],
-      limit: 100,
-    }),
-  ]);
+  const [defaultsRes, accounts, auditLogsData, emailLogsData] =
+    await Promise.all([
+      getOrgTriageDefaultsAction(),
+      db.query.adAccounts.findMany({
+        where: eq(adAccounts.isActive, true),
+      }),
+      db.query.auditLogs.findMany({
+        with: {
+          actor: true,
+        },
+        orderBy: (logs, { desc }) => [desc(logs.createdAt)],
+        limit: 100,
+      }),
+      db.query.emailLogs.findMany({
+        with: {
+          account: true,
+        },
+        orderBy: (emails, { desc }) => [desc(emails.sentAt)],
+        limit: 100,
+      }),
+    ]);
 
   if (!defaultsRes.success || !defaultsRes.data) {
     return (
