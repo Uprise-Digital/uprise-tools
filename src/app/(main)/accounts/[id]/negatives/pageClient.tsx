@@ -27,6 +27,7 @@ import {
   getSuggestionsAction,
   toggleTurboModeAction,
   updateSuggestionStatusAction,
+  saveAccountPersonaAction,
 } from "@/actions/negative-keywords.actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +47,7 @@ interface NegativesClientWorkspaceProps {
     googleAccountId: string;
     name: string;
     negativeKeywordTurboMode: boolean;
+    targetNotes?: string | null;
   };
 }
 
@@ -63,9 +65,48 @@ export default function NegativesClientWorkspace({
   const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
 
   // UI States
-  const [activeTab, setActiveTab] = useState<"pending" | "active" | "history">(
+  const [activeTab, setActiveTab] = useState<"pending" | "active" | "history" | "persona">(
     "pending",
   );
+
+  // Buyer Persona State (parsed from JSON or fallback to raw notes)
+  const initialPersona = (() => {
+    if (account.targetNotes) {
+      try {
+        const parsed = JSON.parse(account.targetNotes);
+        if (typeof parsed === "object" && parsed !== null) {
+          return {
+            targetBuyer: parsed.targetBuyer || "",
+            notTargetBuyer: parsed.notTargetBuyer || "",
+            serviceScope: Array.isArray(parsed.serviceScope) ? parsed.serviceScope.join("\n") : (parsed.serviceScope || ""),
+            outOfScope: Array.isArray(parsed.outOfScope) ? parsed.outOfScope.join("\n") : (parsed.outOfScope || ""),
+            convertingIntentSignals: Array.isArray(parsed.convertingIntentSignals) ? parsed.convertingIntentSignals.join("\n") : (parsed.convertingIntentSignals || ""),
+            researchIntentSignals: Array.isArray(parsed.researchIntentSignals) ? parsed.researchIntentSignals.join("\n") : (parsed.researchIntentSignals || ""),
+          };
+        }
+      } catch {
+        return {
+          targetBuyer: account.targetNotes || "",
+          notTargetBuyer: "",
+          serviceScope: "",
+          outOfScope: "",
+          convertingIntentSignals: "",
+          researchIntentSignals: "",
+        };
+      }
+    }
+    return {
+      targetBuyer: "",
+      notTargetBuyer: "",
+      serviceScope: "",
+      outOfScope: "",
+      convertingIntentSignals: "",
+      researchIntentSignals: "",
+    };
+  })();
+
+  const [persona, setPersona] = useState(initialPersona);
+  const [isSavingPersona, setIsSavingPersona] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDeduplicating, setIsDeduplicating] = useState(false);
   const [isLoadingLiveNegs, setIsLoadingLiveNegs] = useState(true);
@@ -473,6 +514,17 @@ export default function NegativesClientWorkspace({
         >
           Review History
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("persona")}
+          className={`pb-3 text-xs font-bold transition-all relative ${
+            activeTab === "persona"
+              ? "text-indigo-600 border-b-2 border-indigo-600"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          Targeting Persona & Scope
+        </button>
       </div>
 
       {/* 3. WORKSPACE CONTENT */}
@@ -871,6 +923,146 @@ export default function NegativesClientWorkspace({
                   </TableBody>
                 </Table>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* TAB 4: TARGETING PERSONA & SCOPE */}
+        {activeTab === "persona" && (
+          <Card className="bg-white border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+            <CardHeader className="p-6 border-b border-slate-100 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-800">Targeting Persona & Business Scope</CardTitle>
+                <p className="text-xs text-slate-500 mt-1">
+                  Define the ideal buyer persona, service boundaries, and intent signals. Gemini uses this to reason about negative keyword suggestions.
+                </p>
+              </div>
+              <Button
+                type="button"
+                disabled={isSavingPersona}
+                onClick={async () => {
+                  setIsSavingPersona(true);
+                  try {
+                    const payload = {
+                      targetBuyer: persona.targetBuyer,
+                      notTargetBuyer: persona.notTargetBuyer,
+                      serviceScope: persona.serviceScope.split("\n").map((s:any) => s.trim()).filter(Boolean),
+                      outOfScope: persona.outOfScope.split("\n").map((s:any) => s.trim()).filter(Boolean),
+                      convertingIntentSignals: persona.convertingIntentSignals.split("\n").map((s:any) => s.trim()).filter(Boolean),
+                      researchIntentSignals: persona.researchIntentSignals.split("\n").map((s:any) => s.trim()).filter(Boolean),
+                    };
+                    const res = await saveAccountPersonaAction(account.id, JSON.stringify(payload));
+                    if (res.success) {
+                      toast.success("Targeting persona saved successfully. Gemini will use these parameters for the next generation run.");
+                    } else {
+                      toast.error(res.error || "Failed to save persona.");
+                    }
+                  } catch (error: any) {
+                    toast.error(error.message || "Failed to save persona.");
+                  } finally {
+                    setIsSavingPersona(false);
+                  }
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl h-10 px-4 shadow-sm flex items-center gap-1.5"
+              >
+                {isSavingPersona ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    Save Configuration
+                  </>
+                )}
+              </Button>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column: Buyer profiles */}
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Target Buyer Profile
+                    </label>
+                    <textarea
+                      value={persona.targetBuyer}
+                      onChange={(e) => setPersona({ ...persona, targetBuyer: e.target.value })}
+                      placeholder="e.g. IT managers, CISOs, compliance officers at Australian businesses needing ASD Essential Eight compliance."
+                      rows={4}
+                      className="w-full rounded-xl border border-slate-200 text-xs p-3 focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      NOT the Target Buyer
+                    </label>
+                    <textarea
+                      value={persona.notTargetBuyer}
+                      onChange={(e) => setPersona({ ...persona, notTargetBuyer: e.target.value })}
+                      placeholder="e.g. Students, researchers, seekers of free templates or self-service checklists, government portal seekers."
+                      rows={4}
+                      className="w-full rounded-xl border border-slate-200 text-xs p-3 focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Right Column: Signals */}
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Services in Scope (one per line)
+                    </label>
+                    <textarea
+                      value={persona.serviceScope}
+                      onChange={(e) => setPersona({ ...persona, serviceScope: e.target.value })}
+                      placeholder="e.g.\nEssential Eight assessment\ncompliance implementation\nconsultancy"
+                      rows={4}
+                      className="w-full rounded-xl border border-slate-200 text-xs p-3 font-mono focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Out-of-Scope Services / Excluded (one per line)
+                    </label>
+                    <textarea
+                      value={persona.outOfScope}
+                      onChange={(e) => setPersona({ ...persona, outOfScope: e.target.value })}
+                      placeholder="e.g.\ntraining courses\ncertifications\nfree resources"
+                      rows={4}
+                      className="w-full rounded-xl border border-slate-200 text-xs p-3 font-mono focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-100 pt-6">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Converting Intent Signals (one per line)
+                  </label>
+                  <textarea
+                    value={persona.convertingIntentSignals}
+                    onChange={(e) => setPersona({ ...persona, convertingIntentSignals: e.target.value })}
+                    placeholder="e.g.\nprovider\nconsultant\nservices\nagency\nhelp"
+                    rows={4}
+                    className="w-full rounded-xl border border-slate-200 text-xs p-3 font-mono focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Research / Informational Signals (one per line)
+                  </label>
+                  <textarea
+                    value={persona.researchIntentSignals}
+                    onChange={(e) => setPersona({ ...persona, researchIntentSignals: e.target.value })}
+                    placeholder="e.g.\nwhat is\nexplained\nmaturity model\nchecklist\nrequirements"
+                    rows={4}
+                    className="w-full rounded-xl border border-slate-200 text-xs p-3 font-mono focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}

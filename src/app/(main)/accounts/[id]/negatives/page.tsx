@@ -29,6 +29,7 @@ export default async function NegativeKeywordsPage({ params }: PageProps) {
     googleAccountId: account.googleAccountId,
     name: account.name,
     negativeKeywordTurboMode: account.negativeKeywordTurboMode,
+    targetNotes: account.targetNotes,
   };
 
   return <NegativesClientWorkspace account={accountData} />;

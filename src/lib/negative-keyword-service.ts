@@ -12,12 +12,20 @@ interface SearchTermInput {
   conversions: number;
 }
 
+interface HistoricalDecisionInput {
+  keyword: string;
+  status: string;
+  rationale: string;
+}
+
 interface GenerateSuggestionsInput {
   clientName: string;
   websiteUrl?: string | null;
   targetNotes?: string | null;
-  searchTerms: SearchTermInput[];
+  convertingTerms: SearchTermInput[];
+  wastedTerms: SearchTermInput[];
   existingNegatives: string[];
+  historicalDecisions: HistoricalDecisionInput[];
 }
 
 export interface NegativeKeywordSuggestionOutput {
@@ -37,26 +45,56 @@ export async function generateNegativeKeywordSuggestions({
   clientName,
   websiteUrl,
   targetNotes,
-  searchTerms,
+  convertingTerms,
+  wastedTerms,
   existingNegatives,
+  historicalDecisions,
 }: GenerateSuggestionsInput): Promise<NegativeKeywordSuggestionOutput[]> {
-  if (searchTerms.length === 0) {
+  if (wastedTerms.length === 0) {
     return [];
   }
 
-  // Filter out any search terms that exactly match existing negative keywords
+  // Filter out any wasted terms that exactly match existing negative keywords
   const activeNegativesSet = new Set(
     existingNegatives.map((kw) => kw.toLowerCase().trim()),
   );
-  const filteredSearchTerms = searchTerms.filter(
+  const filteredWastedTerms = wastedTerms.filter(
     (term) => !activeNegativesSet.has(term.query.toLowerCase().trim()),
   );
 
-  if (filteredSearchTerms.length === 0) {
+  if (filteredWastedTerms.length === 0) {
     return [];
   }
 
-  // Construct prompt
+  // Parse structured notes if targetNotes is valid JSON (Account-Level Persona Store)
+  let structuredNotesSection = "";
+  if (targetNotes) {
+    try {
+      const parsed = JSON.parse(targetNotes);
+      if (typeof parsed === "object" && parsed !== null) {
+        structuredNotesSection = `
+    TARGET BUYER PERSONA & BUSINESS SCOPE:
+    - Target Buyer Profile: ${parsed.targetBuyer || "N/A"}
+    - NOT Target Buyer: ${parsed.notTargetBuyer || "N/A"}
+    - Services in Scope: ${Array.isArray(parsed.serviceScope) ? parsed.serviceScope.join(", ") : parsed.serviceScope || "N/A"}
+    - Out-of-Scope Services: ${Array.isArray(parsed.outOfScope) ? parsed.outOfScope.join(", ") : parsed.outOfScope || "N/A"}
+    - Converting Intent Signals: ${Array.isArray(parsed.convertingIntentSignals) ? parsed.convertingIntentSignals.join(", ") : parsed.convertingIntentSignals || "N/A"}
+    - Research/Informational Signals: ${Array.isArray(parsed.researchIntentSignals) ? parsed.researchIntentSignals.join(", ") : parsed.researchIntentSignals || "N/A"}
+        `;
+      }
+    } catch {
+      // Free text target notes fallback
+      structuredNotesSection = `
+    TARGETING & BUSINESS NOTES:
+    ${targetNotes}
+      `;
+    }
+  }
+
+  // Format historical decisions for presentation
+  const previouslyDenied = historicalDecisions.filter((d) => d.status === "denied");
+  const previouslyApproved = historicalDecisions.filter((d) => d.status === "approved");
+
   const prompt = `
     You are an elite Google Ads Performance Director at Uprise Digital.
     Your task is to review a search terms report for a client and identify wasteful, irrelevant, or non-converting search queries that should be added as campaign-level or account-wide negative keywords.
@@ -64,25 +102,38 @@ export async function generateNegativeKeywordSuggestions({
     CLIENT INFORMATION:
     - Name: ${clientName}
     ${websiteUrl ? `- Website: ${websiteUrl}` : ""}
-    ${targetNotes ? `- Targeting/Business Notes: ${targetNotes}` : ""}
+    ${structuredNotesSection}
     
     CRITICAL RULE (BRAND SAFETY):
     Do NOT suggest adding the client's own brand name or any close variants of it as a negative keyword.
     Client Brand Name: "${clientName}"
-    
+
     EXISTING NEGATIVE KEYWORDS (Already excluded, do not suggest these):
     ${existingNegatives.slice(0, 150).join(", ") || "None"}
     
-    SEARCH TERMS DATA TO EVALUATE:
-    ${JSON.stringify(filteredSearchTerms, null, 2)}
+    CONVERTING SEARCH TERMS (DO NOT suggest negative keywords that would block these or close variants):
+    ${convertingTerms.length > 0 ? JSON.stringify(convertingTerms, null, 2) : "None recorded this period."}
+    
+    PREVIOUSLY DENIED SUGGESTIONS (Avoid re-suggesting these or terms that would block them):
+    ${previouslyDenied.length > 0
+      ? previouslyDenied.map((d) => `- "${d.keyword}": Denied because [${d.rationale}]`).join("\n")
+      : "None recorded."}
+      
+    PREVIOUSLY APPROVED EXCLUSIONS (Use as templates for what this client considers waste):
+    ${previouslyApproved.length > 0
+      ? previouslyApproved.map((d) => `- "${d.keyword}": Approved because [${d.rationale}]`).join("\n")
+      : "None recorded."}
+
+    WASTED SEARCH TERMS TO EVALUATE:
+    ${JSON.stringify(filteredWastedTerms, null, 2)}
     
     EVALUATION INSTRUCTIONS (BE EXTRA THOROUGH):
-    You must evaluate EVERY SINGLE query in the list, not just the top spenders. Run an exhaustive pass over all terms.
-    Identify and flag the following waste categories:
-    1. Competitor Brands: Any query referencing other local/national companies, contractors, or specific brand names (e.g. "napoli", "walsh", "cj duncan", "delic construction", "burgess earthmoving", "atv civil", "terra civil", "aademex", "trazlbat", "amj demolition", "star demolition", "max demolition", etc.).
+    You must evaluate EVERY SINGLE query in the wasted search terms list. Run an exhaustive pass over all terms.
+    Identify and suggest negative keywords based on the targeting persona details and historical decisions:
+    1. Competitor Brands: Any query referencing other local/national companies, contractors, or specific brand names.
     2. Geographic Waste: Any query targeting a region outside the client's service area (e.g. if the client operates on the East Coast of Australia, queries containing "perth", "western australia", "adelaide", "wa" are waste).
-    3. Research/Informational Intent: Queries searching for "average costs", "prices", "website", "website builders", "meaning", "wikipedia", "definition", "how to", "courses", or "diy".
-    4. Out-of-Scope Services: Queries seeking services the client does NOT provide (e.g. if the client does commercial/structural demolition contracting, queries for "pool removal", "fibreglass pool removal", "diy rental", "equipment hire", "excavator hire" are out-of-scope).
+    3. Research/Informational Intent: Queries searching for definitions, formulas, checklists, general templates, or free resources when the target buyer persona seeks active consulting/assessments.
+    4. Out-of-Scope Services: Queries seeking services the client does NOT provide (check services in scope vs out-of-scope).
     5. Employment/Job-Seekers: Queries containing "jobs", "careers", "resume", "hiring", "salary".
 
     MATCH TYPE STRATEGY:
@@ -94,7 +145,6 @@ export async function generateNegativeKeywordSuggestions({
     CAMPAIGN SCOPE (CROSS-CAMPAIGN REASONING):
     For each wasteful term, you must determine if the exclusion should be scoped locally or globally:
     - GLOBAL / ACCOUNT-WIDE: If the keyword is a competitor, a wrong geographic region, an out-of-scope service, or a low-intent word (like "jobs"), it should be blocked across ALL campaigns in the account.
-      For global suggestions, set "campaignId" to "ALL" and "campaignName" to "All Campaigns".
     - LOCAL / CAMPAIGN-SPECIFIC: If the term is only wasteful for the specific campaign it appeared in, keep the original "campaignId" and "campaignName" from the search term report.
 
     Response MUST be a JSON object containing a "suggestions" key with an array of suggestions matching this exact TypeScript structure:

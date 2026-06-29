@@ -1170,6 +1170,148 @@ const handler = createMcpHandler(
         }
       },
     );
+
+    server.registerTool(
+      "get_account_persona",
+      {
+        title: "Get Account Persona & Business Scope",
+        description:
+          "Fetches the structured buyer persona, targeting intent, and scope defaults for a given ad account.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+        },
+      },
+      async ({ accountId }) => {
+        try {
+          const account = await db.query.adAccounts.findFirst({
+            where: eq(adAccounts.id, accountId),
+          });
+
+          if (!account) {
+            throw new Error(`Ad account with ID ${accountId} not found.`);
+          }
+
+          let persona = null;
+          if (account.targetNotes) {
+            try {
+              persona = JSON.parse(account.targetNotes);
+            } catch {
+              persona = { rawNotes: account.targetNotes };
+            }
+          }
+
+          return {
+            content: [{ type: "text", text: JSON.stringify(persona || { message: "No persona configured yet." }) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: error.message || "Failed to fetch account persona",
+                }),
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "set_account_persona",
+      {
+        title: "Set Account Persona & Business Scope",
+        description:
+          "Sets or updates the structured buyer persona and targeting intent notes for a given ad account in the database.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+          targetBuyer: z
+            .string()
+            .describe("Description of the ideal target buyer (e.g. IT managers, CISOs at Australian businesses)"),
+          notTargetBuyer: z
+            .string()
+            .describe("Description of who is NOT a target buyer (e.g. students, researchers, seekers of free templates)"),
+          serviceScope: z
+            .array(z.string())
+            .describe("List of services in scope"),
+          outOfScope: z
+            .array(z.string())
+            .describe("List of out-of-scope services or concepts to block"),
+          convertingIntentSignals: z
+            .array(z.string())
+            .describe("List of terms indicating commercial/converting intent"),
+          researchIntentSignals: z
+            .array(z.string())
+            .describe("List of terms indicating pure informational or research intent"),
+        },
+      },
+      async ({
+        accountId,
+        targetBuyer,
+        notTargetBuyer,
+        serviceScope,
+        outOfScope,
+        convertingIntentSignals,
+        researchIntentSignals,
+      }) => {
+        try {
+          const account = await db.query.adAccounts.findFirst({
+            where: eq(adAccounts.id, accountId),
+          });
+
+          if (!account) {
+            throw new Error(`Ad account with ID ${accountId} not found.`);
+          }
+
+          const personaData = {
+            targetBuyer,
+            notTargetBuyer,
+            serviceScope,
+            outOfScope,
+            convertingIntentSignals,
+            researchIntentSignals,
+          };
+
+          const personaString = JSON.stringify(personaData);
+
+          await db
+            .update(adAccounts)
+            .set({ targetNotes: personaString })
+            .where(eq(adAccounts.id, accountId));
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  message: "Account buyer persona updated successfully.",
+                  persona: personaData,
+                }),
+              },
+            ],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: error.message || "Failed to update account persona",
+                }),
+              },
+            ],
+          };
+        }
+      },
+    );
   },
   {},
   {

@@ -137,13 +137,30 @@ export async function generateSuggestionsInternal(
     })
     .filter((st: any) => st.query);
 
-  // 4. Send to Gemini for negative keywords suggestions
+
+
+  // 4.5 Fetch historical decisions for feedback loop
+  const historicalDBSuggestions = await db.query.negativeKeywordSuggestions.findMany({
+    where: eq(negativeKeywordSuggestions.adAccountId, adAccountId),
+  });
+
+  const historicalDecisions = historicalDBSuggestions
+    .filter((s) => s.status === 'approved' || s.status === 'denied')
+    .map((s) => ({
+      keyword: s.keyword,
+      status: s.status,
+      rationale: s.rationale,
+    }));
+
+  // 4.6 Send to Gemini for negative keywords suggestions
   const suggestions = await generateNegativeKeywordSuggestions({
     clientName: account.name,
     websiteUrl: account.websiteUrl,
     targetNotes: account.targetNotes,
-    searchTerms: formattedSearchTerms,
+    convertingTerms,
+    wastedTerms,
     existingNegatives: activeNegTextList,
+    historicalDecisions,
   });
 
   // 5. Deduplicate suggestions from Gemini response first
@@ -727,5 +744,35 @@ export async function getAccountCampaignsAction(adAccountId: number) {
       success: false,
       error: error.message || "Failed to retrieve campaign list",
     };
+  }
+}
+
+/**
+ * Server action to save account persona details (target notes).
+ */
+export async function saveAccountPersonaAction(accountId: number, targetNotes: string) {
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session) throw new Error("Unauthorized");
+
+    await db
+      .update(adAccounts)
+      .set({ targetNotes })
+      .where(eq(adAccounts.id, accountId));
+
+    await logAction(
+      session.user.id,
+      "SAVE_ACCOUNT_PERSONA",
+      "ad_accounts",
+      accountId,
+      { targetNotes },
+    );
+
+    revalidatePath(`/accounts/${accountId}/negatives`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("saveAccountPersonaAction error:", error);
+    return { success: false, error: error.message };
   }
 }
