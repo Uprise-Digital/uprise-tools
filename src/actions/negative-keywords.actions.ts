@@ -146,27 +146,65 @@ export async function generateSuggestionsInternal(
     existingNegatives: activeNegTextList,
   });
 
-  // 5. Fetch existing suggestions in DB to prevent duplicates
+  // 5. Deduplicate suggestions from Gemini response first
+  const deduplicatedSuggestions: typeof suggestions = [];
+  const sortedIncoming = [...suggestions].sort((a, b) => {
+    // Prefer global "ALL" exclusions over campaign-specific ones
+    if (a.campaignId === "ALL" && b.campaignId !== "ALL") return -1;
+    if (a.campaignId !== "ALL" && b.campaignId === "ALL") return 1;
+    return 0;
+  });
+
+  for (const s of sortedIncoming) {
+    const kwNormalized = s.keyword.toLowerCase().trim();
+    if (s.campaignId === "ALL") {
+      const alreadySawKeyword = deduplicatedSuggestions.some(
+        (d) => d.keyword.toLowerCase().trim() === kwNormalized,
+      );
+      if (!alreadySawKeyword) {
+        deduplicatedSuggestions.push(s);
+      }
+    } else {
+      const alreadySawLocal = deduplicatedSuggestions.some(
+        (d) =>
+          d.keyword.toLowerCase().trim() === kwNormalized &&
+          (d.campaignId === s.campaignId || d.campaignId === "ALL"),
+      );
+      if (!alreadySawLocal) {
+        deduplicatedSuggestions.push(s);
+      }
+    }
+  }
+
+  // Fetch existing suggestions in DB to prevent duplicates
   const existingDBSuggestions =
     await db.query.negativeKeywordSuggestions.findMany({
       where: eq(negativeKeywordSuggestions.adAccountId, adAccountId),
     });
 
-  // Create a unique compound key for lookups: "keyword|campaignId|matchType"
+  // Create a unique compound key for lookups: "keyword|campaignId"
   const existingDBKeySet = new Set(
     existingDBSuggestions.map(
-      (s) =>
-        `${s.keyword.toLowerCase().trim()}|${s.campaignId}|${s.matchType.toLowerCase()}`,
+      (s) => `${s.keyword.toLowerCase().trim()}|${s.campaignId}`,
     ),
   );
 
-  // Filter out any suggestion that is already in our DB
-  const newSuggestions = suggestions.filter(
-    (s) =>
-      !existingDBKeySet.has(
-        `${s.keyword.toLowerCase().trim()}|${s.campaignId}|${s.matchType.toLowerCase()}`,
-      ),
+  // Also check if there is an "ALL" exclusion in database
+  const globalExclusionsInDB = new Set(
+    existingDBSuggestions
+      .filter((s) => s.campaignId === "ALL")
+      .map((s) => s.keyword.toLowerCase().trim()),
   );
+
+  // Filter out any suggestion that is already in our DB (either locally or globally)
+  const newSuggestions = deduplicatedSuggestions.filter((s) => {
+    const kwNormalized = s.keyword.toLowerCase().trim();
+    const key = `${kwNormalized}|${s.campaignId}`;
+    if (globalExclusionsInDB.has(kwNormalized)) return false;
+    if (s.campaignId !== "ALL" && existingDBKeySet.has(`${kwNormalized}|ALL`))
+      return false;
+    return !existingDBKeySet.has(key);
+  });
 
   let pushedCount = 0;
   let savedCount = 0;
@@ -479,6 +517,215 @@ export async function fetchActiveNegativeKeywordsAction(adAccountId: number) {
     return {
       success: false,
       error: error.message || "Failed to fetch active negative keywords",
+    };
+  }
+}
+
+/**
+ * Server action to clean up duplicate pending suggestions in the database.
+ * If a suggestion is already approved/denied/archived, or if a more global ('ALL')
+ * suggestion exists, this action deletes the redundant pending cards.
+ */
+export async function deduplicateSuggestionsAction(adAccountId: number) {
+  const session = await getSession();
+  if (!session) throw new Error("Unauthorized");
+
+  try {
+    const allSuggestions = await db.query.negativeKeywordSuggestions.findMany({
+      where: eq(negativeKeywordSuggestions.adAccountId, adAccountId),
+    });
+
+    const pending = allSuggestions.filter((s) => s.status === "pending");
+    const nonPending = allSuggestions.filter((s) => s.status !== "pending");
+
+    // Group non-pending keywords for quick lookup
+    const activeExclusions = new Set(
+      nonPending.map((s) => `${s.keyword.toLowerCase().trim()}|${s.campaignId}`),
+    );
+    const globalActiveExclusions = new Set(
+      nonPending
+        .filter((s) => s.campaignId === "ALL")
+        .map((s) => s.keyword.toLowerCase().trim()),
+    );
+
+    const toDeleteIds: number[] = [];
+    const seenPending = new Set<string>();
+
+    for (const s of pending) {
+      const kwNormalized = s.keyword.toLowerCase().trim();
+      const key = `${kwNormalized}|${s.campaignId}`;
+
+      // 1. If keyword is already approved/denied/archived locally or globally, remove pending
+      if (
+        activeExclusions.has(key) ||
+        globalActiveExclusions.has(kwNormalized)
+      ) {
+        toDeleteIds.push(s.id);
+        continue;
+      }
+
+      // 2. If it's a campaign-specific pending card, but there is a pending global ('ALL') exclusion
+      if (s.campaignId !== "ALL" && seenPending.has(`${kwNormalized}|ALL`)) {
+        toDeleteIds.push(s.id);
+        continue;
+      }
+
+      // 3. If it's a global ('ALL') pending card, and we already saw a local campaign pending card
+      if (s.campaignId === "ALL") {
+        for (const seenKey of seenPending) {
+          if (
+            seenKey.startsWith(`${kwNormalized}|`) &&
+            !seenKey.endsWith("|ALL")
+          ) {
+            const matched = pending.find(
+              (p) =>
+                p.keyword.toLowerCase().trim() === kwNormalized &&
+                p.campaignId !== "ALL",
+            );
+            if (matched && !toDeleteIds.includes(matched.id)) {
+              toDeleteIds.push(matched.id);
+            }
+          }
+        }
+      }
+
+      // 4. Standard duplicate checking
+      if (seenPending.has(key)) {
+        toDeleteIds.push(s.id);
+      } else {
+        seenPending.add(key);
+      }
+    }
+
+    if (toDeleteIds.length > 0) {
+      for (const id of toDeleteIds) {
+        await db
+          .delete(negativeKeywordSuggestions)
+          .where(eq(negativeKeywordSuggestions.id, id));
+      }
+    }
+
+    revalidatePath(`/accounts/${adAccountId}/negatives`);
+    return { success: true, removedCount: toDeleteIds.length };
+  } catch (error: any) {
+    console.error("Deduplication error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Server action to manually add a negative keyword to campaign(s) in Google Ads.
+ */
+export async function addManualNegativeKeywordAction(
+  adAccountId: number,
+  campaignId: string, // campaign ID or "ALL"
+  keyword: string,
+  matchType: "broad" | "phrase" | "exact",
+) {
+  const session = await getSession();
+  if (!session) throw new Error("Unauthorized");
+
+  const keywordClean = keyword.trim();
+  if (!keywordClean) throw new Error("Keyword cannot be empty");
+
+  try {
+    const account = await db.query.adAccounts.findFirst({
+      where: eq(adAccounts.id, adAccountId),
+    });
+
+    if (!account) {
+      throw new Error("Ad account not found");
+    }
+
+    if (campaignId === "ALL") {
+      const campaigns = await fetchAccountCampaigns(account.googleAccountId);
+      for (const c of campaigns) {
+        await addCampaignNegativeKeyword(
+          account.googleAccountId,
+          c.id,
+          keywordClean,
+          matchType,
+        );
+      }
+    } else {
+      await addCampaignNegativeKeyword(
+        account.googleAccountId,
+        campaignId,
+        keywordClean,
+        matchType,
+      );
+    }
+
+    let campaignName = "All Campaigns";
+    if (campaignId !== "ALL") {
+      const campaigns = await fetchAccountCampaigns(account.googleAccountId);
+      const matched = campaigns.find((c: any) => c.id === campaignId);
+      campaignName = matched ? matched.name : "Manual Campaign Exclusion";
+    }
+
+    // Insert approved suggestion record in DB
+    const [inserted] = await db
+      .insert(negativeKeywordSuggestions)
+      .values({
+        adAccountId,
+        keyword: keywordClean,
+        matchType,
+        campaignId,
+        campaignName,
+        rationale: "Manually added by user",
+        status: "approved",
+        searchQuery: "Manual addition",
+        clicks: 0,
+        impressions: 0,
+        spend: "0",
+        conversions: "0",
+        processedAt: new Date(),
+      })
+      .returning();
+
+    // Audit log
+    await logAction(
+      session.user.id,
+      "ADD_MANUAL_NEGATIVE_KEYWORD",
+      "negative_keyword_suggestions",
+      inserted.id,
+      { keyword: keywordClean, campaignId, matchType },
+    );
+
+    revalidatePath(`/accounts/${adAccountId}/negatives`);
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to manually add negative keyword:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to add negative keyword",
+    };
+  }
+}
+
+/**
+ * Server action to get all active campaigns for a client account.
+ */
+export async function getAccountCampaignsAction(adAccountId: number) {
+  const session = await getSession();
+  if (!session) throw new Error("Unauthorized");
+
+  try {
+    const account = await db.query.adAccounts.findFirst({
+      where: eq(adAccounts.id, adAccountId),
+    });
+
+    if (!account) {
+      throw new Error("Ad account not found");
+    }
+
+    const campaigns = await fetchAccountCampaigns(account.googleAccountId);
+    return { success: true, data: campaigns };
+  } catch (error: any) {
+    console.error("Failed to fetch campaigns list:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to retrieve campaign list",
     };
   }
 }

@@ -34,6 +34,7 @@ import {
 import { logAction } from "@/lib/audit";
 import {
   addCampaignNegativeKeyword,
+  fetchAccountCampaigns,
   fetchActiveNegativeKeywords,
 } from "@/lib/google-ads";
 
@@ -999,12 +1000,44 @@ const handler = createMcpHandler(
           }
 
           // Push to Google Ads campaign
-          await addCampaignNegativeKeyword(
-            account.googleAccountId,
-            campaignId,
-            keyword,
-            matchType,
-          );
+          if (campaignId === "ALL") {
+            const campaigns = await fetchAccountCampaigns(
+              account.googleAccountId,
+            );
+            for (const c of campaigns) {
+              await addCampaignNegativeKeyword(
+                account.googleAccountId,
+                c.id,
+                keyword,
+                matchType,
+              );
+            }
+          } else {
+            await addCampaignNegativeKeyword(
+              account.googleAccountId,
+              campaignId,
+              keyword,
+              matchType,
+            );
+          }
+
+          let campaignName = "Manual Campaign Exclusion";
+          if (campaignId === "ALL") {
+            campaignName = "All Campaigns";
+          } else {
+            try {
+              const campaigns = await fetchAccountCampaigns(
+                account.googleAccountId,
+              );
+              const matched = campaigns.find((c: any) => c.id === campaignId);
+              if (matched) campaignName = matched.name;
+            } catch (err) {
+              console.error(
+                "Failed to fetch campaign name for audit log:",
+                err,
+              );
+            }
+          }
 
           if (suggestionId) {
             // Update suggestion status to approved
@@ -1024,7 +1057,7 @@ const handler = createMcpHandler(
               keyword,
               matchType,
               campaignId,
-              campaignName: "Added via MCP Tool",
+              campaignName,
               rationale: "Directly added via AI chat",
               status: "approved",
               searchQuery: "Manual addition",

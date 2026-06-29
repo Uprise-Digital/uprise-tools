@@ -220,7 +220,7 @@ export async function getOrGenerateAgencyAiInsightsAction(
     `;
 
   // 3. Resilient API Call
-  let response;
+  let response: any;
   let retries = 3;
 
   while (retries > 0) {
@@ -736,7 +736,6 @@ export async function getCampaignDetailsAction(accountId: number) {
                 campaign.target_roas.target_roas,
                 campaign.maximize_conversions.target_cpa_micros,
                 campaign_budget.amount_micros,
-                campaign_budget.delivery_method,
                 campaign.start_date,
                 campaign.end_date
             FROM campaign
@@ -790,7 +789,7 @@ export async function getCampaignDetailsAction(accountId: number) {
         channel_type: row.campaign?.advertisingChannelType,
         bidding_strategy: row.campaign?.biddingStrategyType,
         daily_budget: parseFloat((budgetMicros / 1_000_000).toFixed(2)),
-        budget_delivery: row.campaignBudget?.deliveryMethod,
+        budget_delivery: "STANDARD",
         target_cpa:
           targetCpaMicros > 0
             ? parseFloat((targetCpaMicros / 1_000_000).toFixed(2))

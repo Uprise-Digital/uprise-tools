@@ -5,11 +5,11 @@ import {
   Archive,
   ArrowLeft,
   Ban,
-  Calendar,
   Check,
   Flame,
   Info,
   Loader2,
+  Plus,
   RefreshCw,
   Search,
   Sparkles,
@@ -19,8 +19,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
+  addManualNegativeKeywordAction,
+  deduplicateSuggestionsAction,
   fetchActiveNegativeKeywordsAction,
   generateNegativeSuggestionsAction,
+  getAccountCampaignsAction,
   getSuggestionsAction,
   toggleTurboModeAction,
   updateSuggestionStatusAction,
@@ -64,6 +67,7 @@ export default function NegativesClientWorkspace({
     "pending",
   );
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isDeduplicating, setIsDeduplicating] = useState(false);
   const [isLoadingLiveNegs, setIsLoadingLiveNegs] = useState(true);
   const [isLoadingDB, setIsLoadingDB] = useState(true);
 
@@ -76,6 +80,19 @@ export default function NegativesClientWorkspace({
   const [turboMode, setTurboMode] = useState(account.negativeKeywordTurboMode);
   const [showTurboModal, setShowTurboModal] = useState(false);
   const [isUpdatingTurbo, setIsUpdatingTurbo] = useState(false);
+
+  // Manual Add Modal States
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [manualKeyword, setManualKeyword] = useState("");
+  const [manualMatchType, setManualMatchType] = useState<
+    "broad" | "phrase" | "exact"
+  >("phrase");
+  const [manualCampaignId, setManualCampaignId] = useState("ALL");
+  const [isAddingManual, setIsAddingManual] = useState(false);
+  const [campaignList, setCampaignList] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
 
   // Status Action Loader mapping (stores suggestionId -> true/false)
   const [statusLoaders, setStatusLoaders] = useState<Record<number, boolean>>(
@@ -180,6 +197,69 @@ export default function NegativesClientWorkspace({
     setIsGenerating(false);
   };
 
+  // Trigger deduplication on-demand
+  const handleDeduplicate = async () => {
+    setIsDeduplicating(true);
+    toast.info("Cleaning up duplicate suggestions in database...");
+    const res = await deduplicateSuggestionsAction(account.id);
+    if (res.success) {
+      toast.success(
+        `Successfully deduplicated suggestions! Removed ${res.removedCount} redundant entries.`,
+      );
+      await loadDBSuggestions();
+    } else {
+      toast.error(res.error || "Failed to run deduplication.");
+    }
+    setIsDeduplicating(false);
+  };
+
+  // Load campaigns list asynchronously
+  const loadCampaigns = async () => {
+    setIsLoadingCampaigns(true);
+    const res = await getAccountCampaignsAction(account.id);
+    if (res.success && res.data) {
+      setCampaignList(res.data);
+    } else {
+      toast.error(res.error || "Failed to load campaigns list.");
+    }
+    setIsLoadingCampaigns(false);
+  };
+
+  // Open the Manual Add Modal and load campaign drop-down list
+  const handleOpenAddModal = async () => {
+    setShowAddModal(true);
+    if (campaignList.length === 0) {
+      await loadCampaigns();
+    }
+  };
+
+  // Submit manual negative keyword addition
+  const handleAddManual = async () => {
+    if (!manualKeyword.trim()) {
+      toast.error("Please enter a keyword.");
+      return;
+    }
+    setIsAddingManual(true);
+    const res = await addManualNegativeKeywordAction(
+      account.id,
+      manualCampaignId,
+      manualKeyword,
+      manualMatchType,
+    );
+    if (res.success) {
+      toast.success(`Successfully added negative keyword "${manualKeyword}"!`);
+      setShowAddModal(false);
+      setManualKeyword("");
+      setManualMatchType("phrase");
+      setManualCampaignId("ALL");
+      // Reload the data tables
+      await Promise.all([loadDBSuggestions(), loadLiveActiveNegatives()]);
+    } else {
+      toast.error(res.error || "Failed to add negative keyword.");
+    }
+    setIsAddingManual(false);
+  };
+
   // Perform decision updates (Approve, Deny, Archive)
   const handleUpdateStatus = async (
     suggestionId: number,
@@ -258,16 +338,14 @@ export default function NegativesClientWorkspace({
         </div>
 
         {/* Turbo Mode & Date picker controls */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap md:flex-nowrap items-center gap-2 shrink-0">
           {/* Turbo Mode Toggle */}
-          <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 h-10 shadow-sm shrink-0">
+            <div className="flex items-center gap-1">
               <Flame
                 className={`h-4 w-4 ${turboMode ? "text-amber-500 fill-amber-400" : "text-slate-400"}`}
               />
-              <span className="text-xs font-bold text-slate-700">
-                Turbo Mode
-              </span>
+              <span className="text-xs font-bold text-slate-700">Turbo</span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -282,37 +360,68 @@ export default function NegativesClientWorkspace({
           </div>
 
           {/* Date Picker Container */}
-          <div className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm px-3 py-1.5 gap-2">
-            <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
+          <div className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm px-2.5 h-10 gap-1 shrink-0">
             <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="border-none h-8 w-[110px] p-0 text-xs focus-visible:ring-0 shadow-none [color-scheme:light]"
+              className="border-none h-8 w-[95px] p-0 text-xs focus-visible:ring-0 shadow-none [color-scheme:light]"
             />
             <span className="text-slate-300 font-light">—</span>
             <Input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="border-none h-8 w-[110px] p-0 text-xs focus-visible:ring-0 shadow-none [color-scheme:light]"
+              className="border-none h-8 w-[95px] p-0 text-xs focus-visible:ring-0 shadow-none [color-scheme:light]"
             />
           </div>
 
           <Button
+            type="button"
+            onClick={handleOpenAddModal}
+            disabled={isGenerating || isDeduplicating}
+            variant="outline"
+            className="rounded-xl shadow-sm text-xs px-3 h-10 flex items-center gap-1 font-bold transition-all border-slate-200 hover:bg-slate-50 text-slate-700 bg-white shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5 text-slate-500" />
+            Manual
+          </Button>
+
+          <Button
+            type="button"
+            onClick={handleDeduplicate}
+            disabled={isDeduplicating || isGenerating}
+            variant="outline"
+            className="rounded-xl shadow-sm text-xs px-3 h-10 flex items-center gap-1 font-bold transition-all border-slate-200 hover:bg-slate-50 text-slate-700 bg-white shrink-0"
+          >
+            {isDeduplicating ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Cleaning...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-3.5 w-3.5" />
+                Deduplicate
+              </>
+            )}
+          </Button>
+
+          <Button
+            type="button"
             onClick={handleGenerateSuggestions}
-            disabled={isGenerating}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm text-xs px-4 h-10 flex items-center gap-1.5 font-bold transition-all"
+            disabled={isGenerating || isDeduplicating}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm text-xs px-3 h-10 flex items-center gap-1 font-bold transition-all shrink-0"
           >
             {isGenerating ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Analyzing Search terms...
+                Analyzing...
               </>
             ) : (
               <>
                 <Sparkles className="h-3.5 w-3.5" />
-                Generate Exclusions
+                Generate
               </>
             )}
           </Button>
@@ -813,6 +922,7 @@ export default function NegativesClientWorkspace({
 
             <div className="border-t border-slate-100 p-4 bg-slate-50 flex gap-3 justify-end">
               <Button
+                type="button"
                 variant="outline"
                 disabled={isUpdatingTurbo}
                 onClick={() => {
@@ -824,6 +934,7 @@ export default function NegativesClientWorkspace({
                 Cancel
               </Button>
               <Button
+                type="button"
                 disabled={isUpdatingTurbo}
                 onClick={confirmEnableTurbo}
                 className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl h-10 px-4 shadow-sm flex items-center gap-1.5"
@@ -834,6 +945,121 @@ export default function NegativesClientWorkspace({
                   <Flame className="h-3.5 w-3.5" />
                 )}
                 Activate Auto-Push
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* 5. MANUAL ADD EXCLUSION MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <Card className="bg-white border-slate-200 shadow-2xl rounded-2xl w-full max-w-md overflow-hidden gap-0">
+            <div className="border-b border-slate-100 p-5 bg-slate-50 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Plus className="h-4 w-4 text-indigo-600 animate-pulse" />
+                Add Negative Keyword
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="manual-keyword-input"
+                  className="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                >
+                  Negative Keyword Text
+                </label>
+                <Input
+                  id="manual-keyword-input"
+                  type="text"
+                  placeholder="e.g. cheap, free, helper"
+                  value={manualKeyword}
+                  onChange={(e) => setManualKeyword(e.target.value)}
+                  className="rounded-xl border-slate-200 text-xs h-10 shadow-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="manual-match-type-select"
+                    className="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                  >
+                    Match Type
+                  </label>
+                  <select
+                    id="manual-match-type-select"
+                    value={manualMatchType}
+                    onChange={(e) => setManualMatchType(e.target.value as any)}
+                    className="w-full rounded-xl border border-slate-200 bg-white text-xs h-10 px-3 shadow-none focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="phrase">Phrase Match</option>
+                    <option value="exact">Exact Match</option>
+                    <option value="broad">Broad Match</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="manual-campaign-select"
+                    className="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                  >
+                    Scope Campaign
+                  </label>
+                  <select
+                    id="manual-campaign-select"
+                    disabled={isLoadingCampaigns}
+                    value={manualCampaignId}
+                    onChange={(e) => setManualCampaignId(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white text-xs h-10 px-3 shadow-none focus:outline-none focus:border-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+                  >
+                    {isLoadingCampaigns ? (
+                      <option>Loading campaigns...</option>
+                    ) : (
+                      <>
+                        <option value="ALL">All Campaigns (Global)</option>
+                        {campaignList.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+              </div>
+            </CardContent>
+
+            <div className="border-t border-slate-100 p-4 bg-slate-50 flex gap-3 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isAddingManual}
+                onClick={() => setShowAddModal(false)}
+                className="text-xs rounded-xl h-10 px-4 border-slate-200 font-bold text-slate-600 hover:text-slate-800"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={isAddingManual || isLoadingCampaigns}
+                onClick={handleAddManual}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl h-10 px-4 shadow-sm flex items-center gap-1.5"
+              >
+                {isAddingManual ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Check className="h-3.5 w-3.5" />
+                )}
+                Add Keyword
               </Button>
             </div>
           </Card>
