@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { syncAgencyPortfolioAction } from "@/actions/agency.actions";
+import { getMelbourneTodayStr, parseUTCDate, formatUTCDate } from "@/lib/date-utils";
 
 // Next.js config to allow this route to run for a longer time if needed (max duration depends on your host)
 export const maxDuration = 300; // 5 minutes
@@ -14,13 +15,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. Calculate the Date Range (e.g., rolling last 30 days)
-    const today = new Date();
-    const endDate = today.toISOString().split("T")[0];
+    // 2. Calculate the Date Range (e.g., rolling last 30 days) in Melbourne/AEDT timezone
+    const endDate = getMelbourneTodayStr();
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    const startDate = thirtyDaysAgo.toISOString().split("T")[0];
+    const endDateObj = parseUTCDate(endDate);
+    const startDateObj = new Date(endDateObj);
+    startDateObj.setUTCDate(endDateObj.getUTCDate() - 30);
+    const startDate = formatUTCDate(startDateObj);
 
     // 3. Run the Sync Action
     const result = await syncAgencyPortfolioAction(startDate, endDate);

@@ -16,74 +16,7 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 const SYSTEM_ACTOR = "SYSTEM_AUTOMATION";
 
 // Date utility to get YYYY-MM-DD in Australia/Melbourne timezone
-function getMelbourneDateStrings(targetDate?: Date) {
-  const today = targetDate || new Date();
-
-  const formatYMD = (d: Date) => {
-    const formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Australia/Melbourne",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-    return formatter.format(d).trim();
-  };
-
-  const getDayName = (d: Date) => {
-    return d.toLocaleString("en-US", {
-      timeZone: "Australia/Melbourne",
-      weekday: "long",
-    });
-  };
-
-  const getFullDateName = (d: Date) => {
-    const day = d.toLocaleString("en-US", {
-      timeZone: "Australia/Melbourne",
-      day: "numeric",
-    });
-    const month = d.toLocaleString("en-US", {
-      timeZone: "Australia/Melbourne",
-      month: "long",
-    });
-    const year = d.toLocaleString("en-US", {
-      timeZone: "Australia/Melbourne",
-      year: "numeric",
-    });
-    const weekday = d.toLocaleString("en-US", {
-      timeZone: "Australia/Melbourne",
-      weekday: "long",
-    });
-    return `${weekday} ${day} ${month} ${year}`; // e.g., "Thursday 26 June 2026"
-  };
-
-  const getMonthDayName = (d: Date) => {
-    const day = d.toLocaleString("en-US", {
-      timeZone: "Australia/Melbourne",
-      day: "numeric",
-    });
-    const month = d.toLocaleString("en-US", {
-      timeZone: "Australia/Melbourne",
-      month: "short",
-    });
-    const weekday = d.toLocaleString("en-US", {
-      timeZone: "Australia/Melbourne",
-      weekday: "short",
-    });
-    return `${weekday} ${day} ${month}`; // e.g., "Wed 25 Jun"
-  };
-
-  // Calculate yesterday
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-
-  return {
-    yesterdayStr: formatYMD(yesterday),
-    todayStr: formatYMD(today),
-    yesterdayFormatted: getMonthDayName(yesterday),
-    todayFormatted: getFullDateName(today),
-    yesterdayDate: yesterday,
-  };
-}
+import { getMelbourneDateStrings, parseUTCDate, formatUTCDate } from "@/lib/date-utils";
 
 export async function getBriefingDataAction(yesterdayStrOverride?: string) {
   // 1. Get correct date strings
@@ -130,20 +63,16 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
 
   // 4. Fetch 30-day baseline performance
   const refDate = yesterdayStrOverride
-    ? new Date(yesterdayStrOverride)
+    ? parseUTCDate(yesterdayStrOverride)
     : yesterdayDate;
   const baselineStart = new Date(refDate);
-  baselineStart.setDate(refDate.getDate() - 30);
+  baselineStart.setUTCDate(refDate.getUTCDate() - 30);
 
   const baselineEnd = new Date(refDate);
-  baselineEnd.setDate(refDate.getDate() - 1);
+  baselineEnd.setUTCDate(refDate.getUTCDate() - 1);
 
-  const formatYMD = (d: Date) => {
-    return d.toISOString().split("T")[0];
-  };
-
-  const baselineStartStr = formatYMD(baselineStart);
-  const baselineEndStr = formatYMD(baselineEnd);
+  const baselineStartStr = formatUTCDate(baselineStart);
+  const baselineEndStr = formatUTCDate(baselineEnd);
 
   const baselineRows = await db.query.adPerformanceDaily.findMany({
     where: and(
@@ -352,23 +281,6 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
     const isWhale = hasWhale && acc.name === whaleName;
     const targetCpaVal = acc.targetCpa;
 
-    // Success Check
-    const isSuccess =
-      acc.conversions > 0 &&
-      ((targetCpaVal && acc.cpa <= targetCpaVal) ||
-        (!targetCpaVal && acc.cpa < 150) || // reasonable agency baseline
-        isWhale);
-
-    if (isSuccess) {
-      successes.push({
-        accountName: acc.name,
-        cpa: acc.cpa,
-        notes: isWhale
-          ? "Still the portfolio anchor. Healthy CPA, strong volume. No action needed."
-          : undefined,
-      });
-    }
-
     // Resolve dynamic triage thresholds (override -> org default)
     const override = overridesMap.get(acc.accountId);
 
@@ -471,13 +383,30 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
         cpcIsHigh,
         ctrIsHighZeroConversions,
       });
-    } else if (acc.conversions === 0 && acc.spend > 0) {
-      zeroConversionNoAlerts.push({
-        accountName: acc.name,
-        spend: acc.spend,
-        clicks: acc.clicks,
-        cpc: acc.cpc,
-      });
+    } else {
+      // Success Check (only if not flagged warning/critical elsewhere)
+      const isSuccess =
+        acc.conversions > 0 &&
+        ((targetCpaVal && acc.cpa <= targetCpaVal) ||
+          (!targetCpaVal && acc.cpa < 150) || // reasonable agency baseline
+          isWhale);
+
+      if (isSuccess) {
+        successes.push({
+          accountName: acc.name,
+          cpa: acc.cpa,
+          notes: isWhale
+            ? "Still the portfolio anchor. Healthy CPA, strong volume. No action needed."
+            : undefined,
+        });
+      } else if (acc.conversions === 0 && acc.spend > 0) {
+        zeroConversionNoAlerts.push({
+          accountName: acc.name,
+          spend: acc.spend,
+          clicks: acc.clicks,
+          cpc: acc.cpc,
+        });
+      }
     }
   }
 

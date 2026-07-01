@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { and, eq, gte, ilike, lte } from "drizzle-orm";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { db } from "@/db";
+import { getMelbourneTodayStr, parseUTCDate, formatUTCDate } from "@/lib/date-utils";
 import {
   adAccounts,
   adPerformanceDaily,
@@ -837,22 +838,22 @@ export async function getAccountAnomaliesAction(
       };
     }
 
-    const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
+    const todayStr = getMelbourneTodayStr();
+    const todayObj = parseUTCDate(todayStr);
 
     // Recent window: last 7 days
-    const recentStart = new Date(today);
-    recentStart.setUTCDate(recentStart.getUTCDate() - 7);
-    const recentStartStr = recentStart.toISOString().split("T")[0];
+    const recentStart = new Date(todayObj);
+    recentStart.setUTCDate(todayObj.getUTCDate() - 7);
+    const recentStartStr = formatUTCDate(recentStart);
 
     // Baseline window: lookbackDays prior to the recent window
     const baselineEnd = new Date(recentStart);
-    baselineEnd.setUTCDate(baselineEnd.getUTCDate() - 1);
-    const baselineStart = new Date(baselineEnd);
-    baselineStart.setUTCDate(baselineStart.getUTCDate() - lookbackDays);
+    baselineEnd.setUTCDate(recentStart.getUTCDate() - 1);
+    const baselineEndStr = formatUTCDate(baselineEnd);
 
-    const baselineStartStr = baselineStart.toISOString().split("T")[0];
-    const baselineEndStr = baselineEnd.toISOString().split("T")[0];
+    const baselineStart = new Date(baselineEnd);
+    baselineStart.setUTCDate(baselineEnd.getUTCDate() - lookbackDays);
+    const baselineStartStr = formatUTCDate(baselineStart);
 
     // Pull both windows from our local DB — no Google Ads API call needed
     const [recentRows, baselineRows] = await Promise.all([
