@@ -3,7 +3,7 @@ name: Nightly Portfolio Sync
 on:
   # Runs at 00:00 UTC every day
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 19 * * *'
 
   # This allows you to click a "Run workflow" button manually from the GitHub UI for testing
   workflow_dispatch:
