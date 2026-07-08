@@ -6,11 +6,13 @@ import {
   CheckCircle2,
   Copy,
   Database,
+  Globe,
   Loader2,
   ShieldCheck,
   Terminal,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { rollMcpApiKeyAction } from "@/actions/mcp.actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -240,7 +242,7 @@ export default function McpSettingsClient({
                 Generate a secure token to authenticate Claude requests.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-5 space-y-4">
+            <CardContent className="p-5 pt-3 space-y-4">
               <div className="space-y-2">
                 <label
                   htmlFor="mcp-api-key"
@@ -322,6 +324,112 @@ export default function McpSettingsClient({
   }
 }`}
               </pre>
+            </CardContent>
+          </Card>
+
+          <Card className="py-0 border-slate-200 shadow-sm overflow-hidden gap-0">
+            <CardHeader className="bg-slate-900 border-b border-slate-800 p-5">
+              <CardTitle className="text-sm text-slate-100 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-indigo-400" />
+                Claude Web (Claude.ai) Configuration
+              </CardTitle>
+              <CardDescription className="text-slate-400 text-xs">
+                Configure connection settings in your Claude.ai account
+                settings.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-5 bg-white space-y-4 text-slate-600">
+              <div className="space-y-3.5">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Step 1: SSE Connection URL
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      readOnly
+                      value="https://uprise-tools-production.up.railway.app/api/mcp/sse"
+                      className="font-mono text-xs bg-slate-50 border-slate-200 text-slate-600 h-8"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-8 w-20"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          "https://uprise-tools-production.up.railway.app/api/mcp/sse",
+                        );
+                        toast.success("SSE URL copied!");
+                      }}
+                    >
+                      Copy URL
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Step 2: Authorization Header
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      readOnly
+                      value={`Bearer ${apiKey}`}
+                      className="font-mono text-xs bg-slate-50 border-slate-200 text-slate-600 h-8"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-8 w-20"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`Bearer ${apiKey}`);
+                        toast.success("Auth header copied!");
+                      }}
+                    >
+                      Copy Auth
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-[11px] leading-relaxed text-slate-500">
+                  <span className="font-bold text-slate-700 block mb-1">
+                    Detailed Steps:
+                  </span>
+                  1. Log into{" "}
+                  <span className="font-semibold text-slate-700">
+                    Claude.ai
+                  </span>{" "}
+                  and navigate to your profile menu at the bottom left.
+                  <br />
+                  2. Select{" "}
+                  <span className="font-semibold text-slate-700">Settings</span>
+                  , then click on the{" "}
+                  <span className="font-semibold text-slate-700">
+                    MCP Servers
+                  </span>{" "}
+                  tab.
+                  <br />
+                  3. Click{" "}
+                  <span className="font-semibold text-slate-700">
+                    Add Server
+                  </span>
+                  , select the{" "}
+                  <span className="font-semibold text-slate-700">SSE</span>{" "}
+                  option, and name it{" "}
+                  <code className="bg-slate-150 px-1 rounded font-bold text-slate-800">
+                    agency-os
+                  </code>
+                  .<br />
+                  4. Paste the copied{" "}
+                  <span className="font-bold">SSE Connection URL</span> above.
+                  <br />
+                  5. Add a Header key named{" "}
+                  <code className="bg-slate-150 px-1 rounded font-bold text-slate-800">
+                    Authorization
+                  </code>{" "}
+                  and paste the copied{" "}
+                  <span className="font-bold">Authorization Header</span> value.
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
