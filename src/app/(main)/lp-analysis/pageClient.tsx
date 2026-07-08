@@ -15,7 +15,7 @@ import {
   Search,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   getCampaignLandingPagesAction,
@@ -101,8 +101,7 @@ export default function LpAnalysisClientPage({
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditStep, setAuditStep] = useState(1);
 
-  // Fetch campaigns for selected account
-  const fetchCampaigns = async (accountId: number) => {
+  const fetchCampaigns = useCallback(async (accountId: number) => {
     if (!accountId) return;
     setLoadingCampaigns(true);
     try {
@@ -117,7 +116,7 @@ export default function LpAnalysisClientPage({
     } finally {
       setLoadingCampaigns(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (selectedAccountId) {
