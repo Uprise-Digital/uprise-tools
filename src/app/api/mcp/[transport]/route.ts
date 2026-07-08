@@ -5,6 +5,12 @@ import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { setAccountTargetsMcpAction } from "@/actions/account-targets.actions";
 import {
+  getAdCopyAuditDetailsInternal,
+  getAssetPerformanceReportInternal,
+  listAdGroupAdsInternal,
+  runAdCopyAuditInternal,
+} from "@/actions/ad-audit.actions";
+import {
   auditConversionTrackingInternal,
   getAccountAnomaliesAction,
   getAccountByIdAction,
@@ -405,6 +411,154 @@ const handler = createMcpHandler(
           const data = await getAuditDetailInternal(auditId);
           return {
             content: [{ type: "text", text: JSON.stringify(data) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ error: error.message }) },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "list_ad_group_ads",
+      {
+        title: "List Ad Group Ads",
+        description:
+          "Retrieves a list of active ad group ads with latest audit status and parameters.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+        },
+      },
+      async ({ accountId }) => {
+        try {
+          const result = await listAdGroupAdsInternal(accountId);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ error: error.message }) },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "get_asset_performance_report",
+      {
+        title: "Get Asset Performance Report",
+        description:
+          "Fetches performance labels and pinning info for RSA assets across campaigns (no Gemini calls).",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+          campaignId: z
+            .string()
+            .optional()
+            .describe("Google Ads Campaign ID filter (optional)"),
+        },
+      },
+      async ({ accountId, campaignId }) => {
+        try {
+          const result = await getAssetPerformanceReportInternal(
+            accountId,
+            campaignId,
+          );
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ error: error.message }) },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "run_ad_copy_audit",
+      {
+        title: "Run Ad Copy Audit",
+        description:
+          "Runs a Google RSA ad copy audit, comparing asset performance, pinning config, and message-match using Gemini.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+          campaignId: z.string().describe("The Google Ads Campaign ID"),
+          campaignName: z.string().describe("The Google Ads Campaign Name"),
+          adGroupId: z.string().describe("The Google Ads Ad Group ID"),
+          adGroupName: z.string().describe("The Google Ads Ad Group Name"),
+          adId: z.string().describe("The Google Ads Ad ID"),
+          searchTerm: z
+            .string()
+            .describe("The focus search term bidding in the auction"),
+          focusUrl: z
+            .string()
+            .optional()
+            .describe(
+              "The linked landing page URL for message match (optional)",
+            ),
+        },
+      },
+      async ({
+        accountId,
+        campaignId,
+        campaignName,
+        adGroupId,
+        adGroupName,
+        adId,
+        searchTerm,
+        focusUrl,
+      }) => {
+        try {
+          const result = await runAdCopyAuditInternal(
+            accountId,
+            campaignId,
+            campaignName,
+            adGroupId,
+            adGroupName,
+            adId,
+            searchTerm,
+            focusUrl,
+          );
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ error: error.message }) },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "get_ad_copy_audit_details",
+      {
+        title: "Get Ad Copy Audit Details",
+        description: "Retrieves detailed ad copy audit results by audit ID.",
+        inputSchema: {
+          auditId: z.number().describe("The database ID of the ad copy audit"),
+        },
+      },
+      async ({ auditId }) => {
+        try {
+          const result = await getAdCopyAuditDetailsInternal(auditId);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
           };
         } catch (error: any) {
           return {

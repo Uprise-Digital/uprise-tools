@@ -153,6 +153,83 @@ const mockDbQuery = {
       },
     ]),
   },
+  adGroupAdAudits: {
+    findMany: vi.fn().mockResolvedValue([
+      {
+        id: 1,
+        adAccountId: 1,
+        campaignId: "camp-1",
+        campaignName: "Plumbing Campaign",
+        adGroupId: "adgroup-1",
+        adGroupName: "AdGroup 1",
+        adId: "ad-1",
+        searchTerm: "emergency plumber",
+        score: 85,
+        adStrength: "GOOD",
+        messageMatchScore: 90,
+        aiAnalysis: {
+          overall_score: 85,
+          message_match_score: 90,
+          ad_strength_analysis: "Critique",
+          copy_relevance_breakdown: {
+            headlines: { pro: ["Good"], con: ["Weak"], fix: "Add more" },
+            descriptions: { pro: ["Good"], con: ["Weak"], fix: "Add more" },
+          },
+          pinning_analysis: { issues: [], recommendations: [] },
+          missing_signals: {
+            price_hooks: [],
+            speed_urgency: [],
+            trust_guarantees: [],
+          },
+          competitors: [],
+          roadmap: {
+            headlines_to_add: [],
+            descriptions_to_add: [],
+            pins_to_adjust: [],
+          },
+          client_action_script: "Mock script",
+        },
+        createdAt: new Date(),
+      },
+    ]),
+    findFirst: vi.fn().mockResolvedValue({
+      id: 1,
+      adAccountId: 1,
+      campaignId: "camp-1",
+      campaignName: "Plumbing Campaign",
+      adGroupId: "adgroup-1",
+      adGroupName: "AdGroup 1",
+      adId: "ad-1",
+      searchTerm: "emergency plumber",
+      score: 85,
+      adStrength: "GOOD",
+      messageMatchScore: 90,
+      aiAnalysis: {
+        overall_score: 85,
+        message_match_score: 90,
+        ad_strength_analysis: "Critique",
+        copy_relevance_breakdown: {
+          headlines: { pro: ["Good"], con: ["Weak"], fix: "Add more" },
+          descriptions: { pro: ["Good"], con: ["Weak"], fix: "Add more" },
+        },
+        pinning_analysis: { issues: [], recommendations: [] },
+        missing_signals: {
+          price_hooks: [],
+          speed_urgency: [],
+          trust_guarantees: [],
+        },
+        competitors: [],
+        roadmap: {
+          headlines_to_add: [],
+          descriptions_to_add: [],
+          pins_to_adjust: [],
+        },
+        client_action_script: "Mock script",
+      },
+      createdAt: new Date(),
+      account: { name: "Test Trade Account" },
+    }),
+  },
 };
 
 vi.mock("@/db", () => ({
@@ -188,70 +265,115 @@ vi.mock("@google/genai", () => {
     GoogleGenAI: vi.fn().mockImplementation(function () {
       return {
         models: {
-          generateContent: vi.fn().mockResolvedValue({
-            text: JSON.stringify({
-              // Landing Page Audit fields
-              overall_score: 85,
-              scores: {
-                hero: 8,
-                cta: 9,
-                trust: 8,
-                mobile: 8,
-                copy: 8,
-                seo: 9,
-                design: 8,
-                flow: 8,
-                market_fit: 8,
-                tech: 8,
-              },
-              breakdown: {
-                hero: {
-                  working: ["Clear hook"],
-                  missing: ["Generic sub"],
-                  fix: "Update sub headline",
+          generateContent: vi.fn().mockImplementation(async (args?: any) => {
+            const prompt = args?.contents || "";
+            if (prompt.includes("AD HEADLINES AUDITED")) {
+              return {
+                text: JSON.stringify({
+                  overall_score: 85,
+                  message_match_score: 90,
+                  ad_strength_analysis: "Critique",
+                  copy_relevance_breakdown: {
+                    headlines: {
+                      pro: ["Good"],
+                      con: ["Weak"],
+                      fix: "Add more",
+                    },
+                    descriptions: {
+                      pro: ["Good"],
+                      con: ["Weak"],
+                      fix: "Add more",
+                    },
+                  },
+                  pinning_analysis: { issues: [], recommendations: [] },
+                  missing_signals: {
+                    price_hooks: [],
+                    speed_urgency: [],
+                    trust_guarantees: [],
+                  },
+                  competitors: [],
+                  roadmap: {
+                    headlines_to_add: [],
+                    descriptions_to_add: [],
+                    pins_to_adjust: [],
+                  },
+                  client_action_script: "Mock script",
+                }),
+              };
+            }
+            if (
+              prompt.includes("Morning Briefing") ||
+              prompt.includes("morning briefing")
+            ) {
+              return {
+                text: JSON.stringify({
+                  subject: "☀️ Morning Briefing — Thursday 26 June 2026",
+                  macroSummary:
+                    "Yesterday spend was highly efficient with solid conversions.",
+                  whaleAnalysisCommentary:
+                    "Test Trade Account accounted for 100% of all spend yesterday.",
+                  alerts: [],
+                  zeroConversionFootnote: "None.",
+                  successes: [
+                    {
+                      accountName: "Test Trade Account",
+                      statsText: "CPA of AUD $10.00",
+                      details: "Excellent CPA yesterday.",
+                    },
+                  ],
+                  priorityList: ["Review campaign status."],
+                }),
+              };
+            }
+            return {
+              text: JSON.stringify({
+                // Landing Page Audit fields
+                overall_score: 85,
+                scores: {
+                  hero: 8,
+                  cta: 9,
+                  trust: 8,
+                  mobile: 8,
+                  copy: 8,
+                  seo: 9,
+                  design: 8,
+                  flow: 8,
+                  market_fit: 8,
+                  tech: 8,
                 },
-              },
-              client_action_script:
-                "Please change the hero above the fold copy.",
-              competitors: [
-                {
-                  name: "Best Competitor",
-                  url: "https://best-competitor.com.au",
-                  score: 9,
-                  pros: [],
-                  cons: [],
-                  takeaway: "Match offer",
+                breakdown: {
+                  hero: {
+                    working: ["Clear hook"],
+                    missing: ["Generic sub"],
+                    fix: "Update sub headline",
+                  },
                 },
-              ],
-              top_ideas: [
-                {
-                  idea: "Add reviews",
-                  why: "Improves trust",
-                  effort: "Easy",
-                  impact: "High",
+                client_action_script:
+                  "Please change the hero above the fold copy.",
+                competitors: [
+                  {
+                    name: "Best Competitor",
+                    url: "https://best-competitor.com.au",
+                    score: 9,
+                    pros: [],
+                    cons: [],
+                    takeaway: "Match offer",
+                  },
+                ],
+                top_ideas: [
+                  {
+                    idea: "Add reviews",
+                    why: "Improves trust",
+                    effort: "Easy",
+                    impact: "High",
+                  },
+                ],
+                quick_wins: ["Add trust badge"],
+                roadmap: {
+                  week1: ["Fix phone number"],
                 },
-              ],
-              quick_wins: ["Add trust badge"],
-              roadmap: {
-                week1: ["Fix phone number"],
-              },
-              // Morning Briefing fields
-              subject: "☀️ Morning Briefing — Thursday 26 June 2026",
-              macroSummary:
-                "Yesterday spend was highly efficient with solid conversions.",
-              whaleAnalysisCommentary:
-                "Test Trade Account accounted for 100% of all spend yesterday.",
-              alerts: [],
-              zeroConversionFootnote: "None.",
-              successes: [
-                {
-                  accountName: "Test Trade Account",
-                  statsText: "CPA of AUD $10.00",
-                  details: "Excellent CPA yesterday.",
-                },
-              ],
-              priorityList: ["Review campaign status."],
-            }),
+              }),
+            };
           }),
         },
       };
@@ -362,6 +484,52 @@ vi.mock("@/lib/google-ads", () => ({
       },
     ],
   }),
+  fetchAdGroupAds: vi.fn().mockResolvedValue([
+    {
+      campaignId: "camp-1",
+      campaignName: "Plumbing Campaign",
+      adGroupId: "adgroup-1",
+      adGroupName: "AdGroup 1",
+      adId: "ad-1",
+      adStrength: "GOOD",
+      approvalStatus: "APPROVED",
+      finalUrl: "https://test-client.com.au/plumbing",
+      headlines: [
+        { text: "Headline 1", pinnedField: "HEADLINE_1" },
+        { text: "Headline 2", pinnedField: "HEADLINE_2" },
+      ],
+      descriptions: [{ text: "Description 1", pinnedField: "UNSPECIFIED" }],
+    },
+  ]),
+  fetchAdGroupAdAssetPerformance: vi.fn().mockResolvedValue([
+    {
+      adGroupAd: "customers/1/adGroupAds/adgroup-1~ad-1",
+      adId: "ad-1",
+      fieldType: "HEADLINE",
+      performanceLabel: "BEST",
+      pinnedField: "HEADLINE_1",
+      assetId: "asset-1",
+      text: "Headline 1",
+    },
+    {
+      adGroupAd: "customers/1/adGroupAds/adgroup-1~ad-1",
+      adId: "ad-1",
+      fieldType: "HEADLINE",
+      performanceLabel: "LOW",
+      pinnedField: "HEADLINE_2",
+      assetId: "asset-2",
+      text: "Headline 2",
+    },
+    {
+      adGroupAd: "customers/1/adGroupAds/adgroup-1~ad-1",
+      adId: "ad-1",
+      fieldType: "DESCRIPTION",
+      performanceLabel: "GOOD",
+      pinnedField: "UNSPECIFIED",
+      assetId: "asset-3",
+      text: "Description 1",
+    },
+  ]),
 }));
 
 vi.mock("@/lib/audit", () => ({

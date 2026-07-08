@@ -19,7 +19,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 // ============================================================================
 // 1. HELPER: SCRAPE & COMPRESS PIPELINE (Bypasses bot checks using scrape.do)
 // ============================================================================
-async function scrapeAndCompressLandingPage(
+export async function scrapeAndCompressLandingPage(
   targetUrl: string,
 ): Promise<string> {
   try {
@@ -67,7 +67,7 @@ async function scrapeAndCompressLandingPage(
 // ============================================================================
 // 2. HELPER: ROBUST COMPETITOR DISCOVERY (Bypasses bot limitations)
 // ============================================================================
-async function getLiveCompetitorsRobust(
+export async function getLiveCompetitorsRobust(
   searchTerm: string,
   clientDomain: string,
 ): Promise<string[]> {

@@ -547,3 +547,31 @@ export const landingPageAuditsRelations = relations(
     }),
   }),
 );
+
+export const adGroupAdAudits = pgTable("ad_group_ad_audits", {
+  id: serial("id").primaryKey(),
+  adAccountId: integer("ad_account_id")
+    .references(() => adAccounts.id, { onDelete: "cascade" })
+    .notNull(),
+  campaignId: text("campaign_id").notNull(),
+  campaignName: text("campaign_name").notNull(),
+  adGroupId: text("ad_group_id").notNull(),
+  adGroupName: text("ad_group_name").notNull(),
+  adId: text("ad_id").notNull(),
+  searchTerm: text("search_term").notNull(),
+  score: integer("score").notNull(),
+  adStrength: text("ad_strength").notNull(),
+  messageMatchScore: integer("message_match_score").default(0).notNull(),
+  aiAnalysis: jsonb("ai_analysis").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const adGroupAdAuditsRelations = relations(
+  adGroupAdAudits,
+  ({ one }) => ({
+    account: one(adAccounts, {
+      fields: [adGroupAdAudits.adAccountId],
+      references: [adAccounts.id],
+    }),
+  }),
+);

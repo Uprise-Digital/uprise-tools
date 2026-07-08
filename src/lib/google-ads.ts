@@ -1003,3 +1003,150 @@ export async function fetchConversionTrackingAudit(googleAccountId: string) {
     actions,
   };
 }
+
+/**
+ * Fetches all enabled Responsive Search Ads in campaigns/ad groups.
+ */
+export async function fetchAdGroupAds(
+  googleAccountId: string,
+  campaignId?: string,
+  adGroupId?: string,
+) {
+  const accessToken = await getManagementAccessToken();
+  const sanitizedId = googleAccountId.replace(/-/g, "");
+
+  let query = `
+        SELECT
+            campaign.id,
+            campaign.name,
+            ad_group.id,
+            ad_group.name,
+            ad_group_ad.ad.id,
+            ad_group_ad.ad.responsive_search_ad.headlines,
+            ad_group_ad.ad.responsive_search_ad.descriptions,
+            ad_group_ad.ad_strength,
+            ad_group_ad.policy_summary.approval_status,
+            ad_group_ad.ad.final_urls
+        FROM ad_group_ad
+        WHERE campaign.status = 'ENABLED'
+          AND ad_group_ad.status = 'ENABLED'
+    `;
+
+  if (campaignId) {
+    query += ` AND campaign.id = ${campaignId}`;
+  }
+  if (adGroupId) {
+    query += ` AND ad_group.id = ${adGroupId}`;
+  }
+
+  const response = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({ query }),
+    },
+  );
+
+  const data = await response.json();
+  if (data.error) {
+    console.error(
+      "[GAQL Error - Ad Group Ads]",
+      JSON.stringify(data.error, null, 2),
+    );
+    throw new Error(`Ad Group Ads Query Failed: ${data.error.message}`);
+  }
+
+  return (data.results || []).map((row: any) => ({
+    campaignId: String(row.campaign?.id || ""),
+    campaignName: row.campaign?.name || "",
+    adGroupId: String(row.adGroup?.id || ""),
+    adGroupName: row.adGroup?.name || "",
+    adId: String(row.adGroupAd?.ad?.id || ""),
+    adStrength: row.adGroupAd?.adStrength || "UNKNOWN",
+    approvalStatus: row.adGroupAd?.policySummary?.approvalStatus || "APPROVED",
+    finalUrl: row.adGroupAd?.ad?.finalUrls?.[0] || "",
+    headlines: (row.adGroupAd?.ad?.responsiveSearchAd?.headlines || []).map(
+      (h: any) => ({
+        text: h.text || "",
+        pinnedField: h.pinnedField || "UNSPECIFIED",
+      }),
+    ),
+    descriptions: (
+      row.adGroupAd?.ad?.responsiveSearchAd?.descriptions || []
+    ).map((d: any) => ({
+      text: d.text || "",
+      pinnedField: d.pinnedField || "UNSPECIFIED",
+    })),
+  }));
+}
+
+/**
+ * Fetches performance labels and pinning info for RSA assets.
+ */
+export async function fetchAdGroupAdAssetPerformance(
+  googleAccountId: string,
+  campaignId?: string,
+) {
+  const accessToken = await getManagementAccessToken();
+  const sanitizedId = googleAccountId.replace(/-/g, "");
+
+  let query = `
+        SELECT
+            ad_group_ad_asset_view.ad_group_ad,
+            ad_group_ad_asset_view.field_type,
+            ad_group_ad_asset_view.performance_label,
+            ad_group_ad_asset_view.pinned_field,
+            asset.id,
+            asset.text_asset.text
+        FROM ad_group_ad_asset_view
+        WHERE campaign.status = 'ENABLED'
+    `;
+
+  if (campaignId) {
+    query += ` AND campaign.id = ${campaignId}`;
+  }
+
+  const response = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({ query }),
+    },
+  );
+
+  const data = await response.json();
+  if (data.error) {
+    console.error(
+      "[GAQL Error - Asset Performance]",
+      JSON.stringify(data.error, null, 2),
+    );
+    throw new Error(`Asset Performance Query Failed: ${data.error.message}`);
+  }
+
+  return (data.results || []).map((row: any) => {
+    const adGroupAdUri = row.adGroupAdAssetView?.adGroupAd || "";
+    const adId = adGroupAdUri.split("~").pop() || "";
+    return {
+      adGroupAd: adGroupAdUri,
+      adId,
+      fieldType: row.adGroupAdAssetView?.fieldType || "UNSPECIFIED",
+      performanceLabel:
+        row.adGroupAdAssetView?.performanceLabel || "UNSPECIFIED",
+      pinnedField: row.adGroupAdAssetView?.pinnedField || "UNSPECIFIED",
+      assetId: String(row.asset?.id || ""),
+      text: row.asset?.textAsset?.text || "",
+    };
+  });
+}
