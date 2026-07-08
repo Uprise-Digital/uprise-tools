@@ -47,6 +47,19 @@ export async function saveAccountTargetsAction(
       };
     }
 
+    let finalNotes = payload.targetNotes;
+    if (account.targetNotes) {
+      try {
+        const parsed = JSON.parse(account.targetNotes);
+        if (typeof parsed === "object" && parsed !== null) {
+          parsed.notes = payload.targetNotes;
+          finalNotes = JSON.stringify(parsed);
+        }
+      } catch {
+        // Not JSON, overwrite normally
+      }
+    }
+
     await db
       .update(adAccounts)
       .set({
@@ -58,7 +71,7 @@ export async function saveAccountTargetsAction(
           payload.monthlyBudgetCap !== null
             ? String(payload.monthlyBudgetCap)
             : null,
-        targetNotes: payload.targetNotes,
+        targetNotes: finalNotes,
       })
       .where(eq(adAccounts.id, accountId));
 
@@ -76,10 +89,10 @@ export async function saveAccountTargetsAction(
 
     revalidatePath(`/accounts/${accountId}`);
 
-    return { success: true };
+    return { success: true as const };
   } catch (error: any) {
     console.error("saveAccountTargetsAction error:", error);
-    return { success: false, error: error.message };
+    return { success: false as const, error: error.message };
   }
 }
 
@@ -101,6 +114,19 @@ export async function setAccountTargetsMcpAction(
       };
     }
 
+    let finalNotes = payload.targetNotes;
+    if (account.targetNotes) {
+      try {
+        const parsed = JSON.parse(account.targetNotes);
+        if (typeof parsed === "object" && parsed !== null) {
+          parsed.notes = payload.targetNotes;
+          finalNotes = JSON.stringify(parsed);
+        }
+      } catch {
+        // Not JSON, overwrite normally
+      }
+    }
+
     await db
       .update(adAccounts)
       .set({
@@ -112,7 +138,7 @@ export async function setAccountTargetsMcpAction(
           payload.monthlyBudgetCap !== null
             ? String(payload.monthlyBudgetCap)
             : null,
-        targetNotes: payload.targetNotes,
+        targetNotes: finalNotes,
       })
       .where(eq(adAccounts.id, accountId));
 
@@ -128,12 +154,12 @@ export async function setAccountTargetsMcpAction(
     );
 
     return {
-      success: true,
+      success: true as const,
       message: `Targets for ${account.name} (ID: ${accountId}) saved successfully. Agency god view cache invalidated.`,
       data: { accountId, accountName: account.name, ...payload },
     };
   } catch (error: any) {
     console.error("setAccountTargetsMcpAction error:", error);
-    return { success: false, error: error.message };
+    return { success: false as const, error: error.message };
   }
 }

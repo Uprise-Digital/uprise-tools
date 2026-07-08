@@ -1414,7 +1414,21 @@ const handler = createMcpHandler(
             throw new Error(`Ad account with ID ${accountId} not found.`);
           }
 
+          let existingNotes: string | null = null;
+          if (account.targetNotes) {
+            try {
+              const parsed = JSON.parse(account.targetNotes);
+              if (typeof parsed === "object" && parsed !== null) {
+                existingNotes = parsed.notes || null;
+              }
+            } catch {
+              // Existing targetNotes was raw text
+              existingNotes = account.targetNotes;
+            }
+          }
+
           const personaData = {
+            notes: existingNotes,
             targetBuyer,
             notTargetBuyer,
             serviceScope,

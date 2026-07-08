@@ -79,7 +79,7 @@ export async function generateNegativeKeywordSuggestions({
     - Services in Scope: ${Array.isArray(parsed.serviceScope) ? parsed.serviceScope.join(", ") : parsed.serviceScope || "N/A"}
     - Out-of-Scope Services: ${Array.isArray(parsed.outOfScope) ? parsed.outOfScope.join(", ") : parsed.outOfScope || "N/A"}
     - Converting Intent Signals: ${Array.isArray(parsed.convertingIntentSignals) ? parsed.convertingIntentSignals.join(", ") : parsed.convertingIntentSignals || "N/A"}
-    - Research/Informational Signals: ${Array.isArray(parsed.researchIntentSignals) ? parsed.researchIntentSignals.join(", ") : parsed.researchIntentSignals || "N/A"}
+    - Research/Informational Signals: ${Array.isArray(parsed.researchIntentSignals) ? parsed.researchIntentSignals.join(", ") : parsed.researchIntentSignals || "N/A"}${parsed.notes ? `\n    - Targeting & Business Notes: ${parsed.notes}` : ""}
         `;
       }
     } catch {

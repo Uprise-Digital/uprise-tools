@@ -1121,12 +1121,27 @@ export async function getAccountTargetsAction(accountId: number) {
       };
     }
 
-    // These fields need to exist on your adAccounts schema — see migration note below.
+    let notes = (account as any).targetNotes ?? null;
+    if (notes) {
+      try {
+        const parsed = JSON.parse(notes);
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          "notes" in parsed
+        ) {
+          notes = parsed.notes;
+        }
+      } catch {
+        // Not JSON
+      }
+    }
+
     const targets = {
       target_cpa: (account as any).targetCpa ?? null,
       target_roas: (account as any).targetRoas ?? null,
       monthly_budget_cap: (account as any).monthlyBudgetCap ?? null,
-      notes: (account as any).targetNotes ?? null,
+      notes,
     };
 
     const hasTargets = Object.values(targets).some((v) => v !== null);
