@@ -332,7 +332,7 @@ vi.mock("@/lib/google-ads", () => ({
         searchTopImpressionShare: 0,
         searchAbsoluteTopImpressionShare: 0,
       },
-      flag: "healthy",
+      flag: "notAvailable",
     },
   ]),
   fetchConversionTrackingAudit: vi.fn().mockResolvedValue({

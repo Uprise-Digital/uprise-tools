@@ -814,7 +814,11 @@ export async function fetchImpressionShareReport(
     const topVal = parsePercent(rawTopIS);
     const absTopVal = parsePercent(rawAbsTopIS);
 
-    let flag: "budget-constrained" | "rank-constrained" | "healthy" = "healthy";
+    let flag:
+      | "budget-constrained"
+      | "rank-constrained"
+      | "healthy"
+      | "notAvailable" = "healthy";
     if (!isPMax && isVal < 70) {
       if (blVal > 10 && blVal > rlVal) {
         flag = "budget-constrained";
@@ -840,7 +844,7 @@ export async function fetchImpressionShareReport(
         searchTopImpressionShare: isPMax ? 0 : topVal,
         searchAbsoluteTopImpressionShare: isPMax ? 0 : absTopVal,
       },
-      flag: isPMax ? ("healthy" as const) : flag,
+      flag: isPMax ? ("notAvailable" as const) : flag,
     };
   });
 }
