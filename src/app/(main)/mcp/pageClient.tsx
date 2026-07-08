@@ -342,12 +342,12 @@ export default function McpSettingsClient({
               <div className="space-y-3.5">
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    SSE Connection URL (Pre-authenticated)
+                    Connection URL (Pre-authenticated)
                   </span>
                   <div className="flex items-center gap-2">
                     <Input
                       readOnly
-                      value={`https://uprise-tools-production.up.railway.app/api/mcp/sse?key=${apiKey}`}
+                      value={`https://uprise-tools-production.up.railway.app/api/mcp/mcp?key=${apiKey}`}
                       className="font-mono text-xs bg-slate-50 border-slate-200 text-slate-600 h-8"
                     />
                     <Button
@@ -356,9 +356,9 @@ export default function McpSettingsClient({
                       className="text-xs h-8 w-20"
                       onClick={() => {
                         navigator.clipboard.writeText(
-                          `https://uprise-tools-production.up.railway.app/api/mcp/sse?key=${apiKey}`,
+                          `https://uprise-tools-production.up.railway.app/api/mcp/mcp?key=${apiKey}`,
                         );
-                        toast.success("SSE URL copied!");
+                        toast.success("Connection URL copied!");
                       }}
                     >
                       Copy URL
@@ -388,14 +388,12 @@ export default function McpSettingsClient({
                   <span className="font-semibold text-slate-700">
                     Add Server
                   </span>
-                  , select the{" "}
-                  <span className="font-semibold text-slate-700">SSE</span>{" "}
-                  option, name it{" "}
+                  , name it{" "}
                   <code className="bg-slate-150 px-1 rounded font-bold text-slate-800">
                     Uprise Digital MCP
                   </code>
                   , and paste the copied pre-authenticated{" "}
-                  <span className="font-bold">SSE Connection URL</span>.
+                  <span className="font-bold">Connection URL</span>.
                   <br />
                   4. Click <span className="font-bold">Connect</span>.
                 </div>
