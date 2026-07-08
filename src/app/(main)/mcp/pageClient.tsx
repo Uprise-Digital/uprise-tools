@@ -342,12 +342,12 @@ export default function McpSettingsClient({
               <div className="space-y-3.5">
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Step 1: SSE Connection URL
+                    SSE Connection URL (Pre-authenticated)
                   </span>
                   <div className="flex items-center gap-2">
                     <Input
                       readOnly
-                      value="https://uprise-tools-production.up.railway.app/api/mcp/sse"
+                      value={`https://uprise-tools-production.up.railway.app/api/mcp/sse?key=${apiKey}`}
                       className="font-mono text-xs bg-slate-50 border-slate-200 text-slate-600 h-8"
                     />
                     <Button
@@ -356,36 +356,12 @@ export default function McpSettingsClient({
                       className="text-xs h-8 w-20"
                       onClick={() => {
                         navigator.clipboard.writeText(
-                          "https://uprise-tools-production.up.railway.app/api/mcp/sse",
+                          `https://uprise-tools-production.up.railway.app/api/mcp/sse?key=${apiKey}`,
                         );
                         toast.success("SSE URL copied!");
                       }}
                     >
                       Copy URL
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Step 2: Authorization Header
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      readOnly
-                      value={`Bearer ${apiKey}`}
-                      className="font-mono text-xs bg-slate-50 border-slate-200 text-slate-600 h-8"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-8 w-20"
-                      onClick={() => {
-                        navigator.clipboard.writeText(`Bearer ${apiKey}`);
-                        toast.success("Auth header copied!");
-                      }}
-                    >
-                      Copy Auth
                     </Button>
                   </div>
                 </div>
@@ -419,15 +395,13 @@ export default function McpSettingsClient({
                     agency-os
                   </code>
                   .<br />
-                  4. Paste the copied{" "}
-                  <span className="font-bold">SSE Connection URL</span> above.
+                  4. Paste the copied pre-authenticated{" "}
+                  <span className="font-bold">SSE Connection URL</span> above
+                  (which securely contains your API key as a URL query
+                  parameter).
                   <br />
-                  5. Add a Header key named{" "}
-                  <code className="bg-slate-150 px-1 rounded font-bold text-slate-800">
-                    Authorization
-                  </code>{" "}
-                  and paste the copied{" "}
-                  <span className="font-bold">Authorization Header</span> value.
+                  5. Leave the Headers section empty and click{" "}
+                  <span className="font-bold">Connect</span>.
                 </div>
               </div>
             </CardContent>
