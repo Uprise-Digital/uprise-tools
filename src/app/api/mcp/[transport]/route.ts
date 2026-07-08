@@ -19,11 +19,11 @@ import {
 } from "@/actions/agency.actions";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import {
-  getAuditDetailAction,
-  getCampaignLandingPagesAction,
-  runLandingPageAuditAction,
-  saveCampaignLandingPageAction,
-  syncCampaignLandingPagesAction,
+  getAuditDetailInternal,
+  getCampaignLandingPagesInternal,
+  runLandingPageAuditInternal,
+  saveCampaignLandingPageInternal,
+  syncCampaignLandingPagesInternal,
 } from "@/actions/lp-analysis.actions";
 import { generateSuggestionsInternal } from "@/actions/negative-keywords.actions";
 import {
@@ -255,17 +255,18 @@ const handler = createMcpHandler(
         },
       },
       async ({ accountId }) => {
-        const result = await getCampaignLandingPagesAction(accountId);
-        if (!result.success || !result.data) {
+        try {
+          const data = await getCampaignLandingPagesInternal(accountId);
+          return {
+            content: [{ type: "text", text: JSON.stringify(data) }],
+          };
+        } catch (error: any) {
           return {
             content: [
-              { type: "text", text: JSON.stringify({ error: result.error }) },
+              { type: "text", text: JSON.stringify({ error: error.message }) },
             ],
           };
         }
-        return {
-          content: [{ type: "text", text: JSON.stringify(result.data) }],
-        };
       },
     );
 
@@ -282,17 +283,18 @@ const handler = createMcpHandler(
         },
       },
       async ({ accountId }) => {
-        const result = await syncCampaignLandingPagesAction(accountId);
-        if (!result.success) {
+        try {
+          const result = await syncCampaignLandingPagesInternal(accountId);
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+          };
+        } catch (error: any) {
           return {
             content: [
-              { type: "text", text: JSON.stringify({ error: result.error }) },
+              { type: "text", text: JSON.stringify({ error: error.message }) },
             ],
           };
         }
-        return {
-          content: [{ type: "text", text: JSON.stringify(result) }],
-        };
       },
     );
 
@@ -316,22 +318,23 @@ const handler = createMcpHandler(
         },
       },
       async ({ accountId, campaignId, campaignName, url }) => {
-        const result = await saveCampaignLandingPageAction(
-          accountId,
-          campaignId,
-          campaignName,
-          url,
-        );
-        if (!result.success || !result.data) {
+        try {
+          const data = await saveCampaignLandingPageInternal(
+            accountId,
+            campaignId,
+            campaignName,
+            url,
+          );
+          return {
+            content: [{ type: "text", text: JSON.stringify(data) }],
+          };
+        } catch (error: any) {
           return {
             content: [
-              { type: "text", text: JSON.stringify({ error: result.error }) },
+              { type: "text", text: JSON.stringify({ error: error.message }) },
             ],
           };
         }
-        return {
-          content: [{ type: "text", text: JSON.stringify(result.data) }],
-        };
       },
     );
 
@@ -362,23 +365,24 @@ const handler = createMcpHandler(
         },
       },
       async ({ accountId, campaignId, campaignName, url, searchTerm }) => {
-        const result = await runLandingPageAuditAction(
-          accountId,
-          campaignId,
-          campaignName,
-          url,
-          searchTerm,
-        );
-        if (!result.success || !result.data) {
+        try {
+          const result = await runLandingPageAuditInternal(
+            accountId,
+            campaignId,
+            campaignName,
+            url,
+            searchTerm,
+          );
+          return {
+            content: [{ type: "text", text: JSON.stringify(result) }],
+          };
+        } catch (error: any) {
           return {
             content: [
-              { type: "text", text: JSON.stringify({ error: result.error }) },
+              { type: "text", text: JSON.stringify({ error: error.message }) },
             ],
           };
         }
-        return {
-          content: [{ type: "text", text: JSON.stringify(result.data) }],
-        };
       },
     );
 
@@ -395,17 +399,18 @@ const handler = createMcpHandler(
         },
       },
       async ({ auditId }) => {
-        const result = await getAuditDetailAction(auditId);
-        if (!result.success || !result.data) {
+        try {
+          const data = await getAuditDetailInternal(auditId);
+          return {
+            content: [{ type: "text", text: JSON.stringify(data) }],
+          };
+        } catch (error: any) {
           return {
             content: [
-              { type: "text", text: JSON.stringify({ error: result.error }) },
+              { type: "text", text: JSON.stringify({ error: error.message }) },
             ],
           };
         }
-        return {
-          content: [{ type: "text", text: JSON.stringify(result.data) }],
-        };
       },
     );
 

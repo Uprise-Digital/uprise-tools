@@ -741,8 +741,8 @@ export async function getCampaignDetailsAction(accountId: number) {
                 campaign.target_roas.target_roas,
                 campaign.maximize_conversions.target_cpa_micros,
                 campaign_budget.amount_micros,
-                campaign.start_date,
-                campaign.end_date
+                campaign.start_date_time,
+                campaign.end_date_time
             FROM campaign
             WHERE campaign.status != 'REMOVED'
             ORDER BY campaign.name
@@ -800,8 +800,8 @@ export async function getCampaignDetailsAction(accountId: number) {
             ? parseFloat((targetCpaMicros / 1_000_000).toFixed(2))
             : null,
         target_roas: row.campaign?.targetRoas?.targetRoas || null,
-        start_date: row.campaign?.startDate || null,
-        end_date: row.campaign?.endDate || null,
+        start_date: row.campaign?.startDateTime || null,
+        end_date: row.campaign?.endDateTime || null,
         geo_targets: geoMap[row.campaign?.id] || [],
       };
     });

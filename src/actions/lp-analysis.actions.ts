@@ -223,148 +223,187 @@ async function getLiveCompetitorsRobust(
 // ============================================================================
 // 3. MASTER ACTION: RETRIEVE CAMPAIGNS & THEIR LANDING PAGES
 // ============================================================================
+export async function getCampaignLandingPagesInternal(adAccountId: number) {
+  const account = await db.query.adAccounts.findFirst({
+    where: eq(adAccounts.id, adAccountId),
+  });
+  if (!account) throw new Error("Ad Account not found");
+
+  // Fetch mappings saved in DB
+  let mappings = await db.query.campaignLandingPages.findMany({
+    where: eq(campaignLandingPages.adAccountId, adAccountId),
+    orderBy: [desc(campaignLandingPages.createdAt)],
+  });
+
+  // Auto Pre-populate if empty!
+  if (mappings.length === 0) {
+    console.log(
+      `[Sync] No landing page mappings found in DB. Auto pre-populating...`,
+    );
+    try {
+      const synced = await fetchCampaignLandingPages(account.googleAccountId);
+      if (synced && synced.length > 0) {
+        const insertData = synced.map((s) => ({
+          adAccountId: adAccountId,
+          campaignId: s.campaignId,
+          campaignName: s.campaignName,
+          url: s.url || "",
+        }));
+
+        await db
+          .insert(campaignLandingPages)
+          .values(insertData)
+          .onConflictDoNothing();
+
+        // Re-fetch mappings after insertion
+        mappings = await db.query.campaignLandingPages.findMany({
+          where: eq(campaignLandingPages.adAccountId, adAccountId),
+          orderBy: [desc(campaignLandingPages.createdAt)],
+        });
+      }
+    } catch (syncErr) {
+      console.error("[Sync Error] Auto pre-populate failed:", syncErr);
+      // Do not block the request. We will return empty list so UI can prompt manual attachment.
+    }
+  }
+
+  // Fetch audits history
+  const audits = await db.query.landingPageAudits.findMany({
+    where: eq(landingPageAudits.adAccountId, adAccountId),
+    orderBy: [desc(landingPageAudits.createdAt)],
+  });
+
+  // Group latest audits by campaignId
+  const latestAuditsMap = new Map<string, any>();
+  for (const audit of audits) {
+    if (audit.campaignId && !latestAuditsMap.has(audit.campaignId)) {
+      latestAuditsMap.set(audit.campaignId, {
+        id: audit.id,
+        score: audit.score,
+        createdAt: audit.createdAt,
+      });
+    }
+  }
+
+  // Map audits back to the campaign list
+  return mappings.map((m) => {
+    const latestAudit = latestAuditsMap.get(m.campaignId) || null;
+    return {
+      id: m.id,
+      campaignId: m.campaignId,
+      campaignName: m.campaignName,
+      url: m.url,
+      updatedAt: m.updatedAt,
+      latestAudit,
+    };
+  });
+}
+
 export async function getCampaignLandingPagesAction(adAccountId: number) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
 
   try {
-    const account = await db.query.adAccounts.findFirst({
-      where: eq(adAccounts.id, adAccountId),
-    });
-    if (!account) throw new Error("Ad Account not found");
-
-    // Fetch mappings saved in DB
-    let mappings = await db.query.campaignLandingPages.findMany({
-      where: eq(campaignLandingPages.adAccountId, adAccountId),
-      orderBy: [desc(campaignLandingPages.createdAt)],
-    });
-
-    // Auto Pre-populate if empty!
-    if (mappings.length === 0) {
-      console.log(
-        `[Sync] No landing page mappings found in DB. Auto pre-populating...`,
-      );
-      try {
-        const synced = await fetchCampaignLandingPages(account.googleAccountId);
-        if (synced && synced.length > 0) {
-          const insertData = synced.map((s) => ({
-            adAccountId: adAccountId,
-            campaignId: s.campaignId,
-            campaignName: s.campaignName,
-            url: s.url || "",
-          }));
-
-          await db
-            .insert(campaignLandingPages)
-            .values(insertData)
-            .onConflictDoNothing();
-
-          // Re-fetch mappings after insertion
-          mappings = await db.query.campaignLandingPages.findMany({
-            where: eq(campaignLandingPages.adAccountId, adAccountId),
-            orderBy: [desc(campaignLandingPages.createdAt)],
-          });
-        }
-      } catch (syncErr) {
-        console.error("[Sync Error] Auto pre-populate failed:", syncErr);
-        // Do not block the request. We will return empty list so UI can prompt manual attachment.
-      }
-    }
-
-    // Fetch audits history
-    const audits = await db.query.landingPageAudits.findMany({
-      where: eq(landingPageAudits.adAccountId, adAccountId),
-      orderBy: [desc(landingPageAudits.createdAt)],
-    });
-
-    // Group latest audits by campaignId
-    const latestAuditsMap = new Map<string, any>();
-    for (const audit of audits) {
-      if (audit.campaignId && !latestAuditsMap.has(audit.campaignId)) {
-        latestAuditsMap.set(audit.campaignId, {
-          id: audit.id,
-          score: audit.score,
-          createdAt: audit.createdAt,
-        });
-      }
-    }
-
-    // Map audits back to the campaign list
-    const result = mappings.map((m) => {
-      const latestAudit = latestAuditsMap.get(m.campaignId) || null;
-      return {
-        id: m.id,
-        campaignId: m.campaignId,
-        campaignName: m.campaignName,
-        url: m.url,
-        updatedAt: m.updatedAt,
-        latestAudit,
-      };
-    });
-
-    return { success: true, data: result };
+    const result = await getCampaignLandingPagesInternal(adAccountId);
+    return { success: true as const, data: result };
   } catch (error: any) {
     console.error("[getCampaignLandingPagesAction Error]:", error);
-    return { success: false, error: error.message };
+    return { success: false as const, error: error.message };
   }
 }
 
 // ============================================================================
 // 4. ACTION: SYNC / PULL LP URLS FROM GOOGLE ADS API
 // ============================================================================
+export async function syncCampaignLandingPagesInternal(adAccountId: number) {
+  const account = await db.query.adAccounts.findFirst({
+    where: eq(adAccounts.id, adAccountId),
+  });
+  if (!account) throw new Error("Ad Account not found");
+
+  console.log(
+    `[Sync] Fetching campaign landing pages from Google Ads for ${account.name}...`,
+  );
+  const synced = await fetchCampaignLandingPages(account.googleAccountId);
+
+  if (synced && synced.length > 0) {
+    // Loop and upsert individually
+    for (const item of synced) {
+      await db
+        .insert(campaignLandingPages)
+        .values({
+          adAccountId: adAccountId,
+          campaignId: item.campaignId,
+          campaignName: item.campaignName,
+          url: item.url || "",
+        })
+        .onConflictDoUpdate({
+          target: [
+            campaignLandingPages.adAccountId,
+            campaignLandingPages.campaignId,
+          ],
+          set: {
+            url: item.url || "",
+            updatedAt: new Date(),
+          },
+        });
+    }
+  } else {
+    throw new Error(
+      "No campaigns or landing page URLs returned from Google Ads API.",
+    );
+  }
+
+  return { success: true as const, count: synced.length };
+}
+
 export async function syncCampaignLandingPagesAction(adAccountId: number) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
 
   try {
-    const account = await db.query.adAccounts.findFirst({
-      where: eq(adAccounts.id, adAccountId),
-    });
-    if (!account) throw new Error("Ad Account not found");
-
-    console.log(
-      `[Sync] Fetching campaign landing pages from Google Ads for ${account.name}...`,
-    );
-    const synced = await fetchCampaignLandingPages(account.googleAccountId);
-
-    if (synced && synced.length > 0) {
-      // Loop and upsert individually
-      for (const item of synced) {
-        await db
-          .insert(campaignLandingPages)
-          .values({
-            adAccountId: adAccountId,
-            campaignId: item.campaignId,
-            campaignName: item.campaignName,
-            url: item.url || "",
-          })
-          .onConflictDoUpdate({
-            target: [
-              campaignLandingPages.adAccountId,
-              campaignLandingPages.campaignId,
-            ],
-            set: {
-              url: item.url || "",
-              updatedAt: new Date(),
-            },
-          });
-      }
-    } else {
-      throw new Error(
-        "No campaigns or landing page URLs returned from Google Ads API.",
-      );
-    }
-
-    return { success: true, count: synced.length };
+    return await syncCampaignLandingPagesInternal(adAccountId);
   } catch (error: any) {
     console.error("[syncCampaignLandingPagesAction Error]:", error);
-    return { success: false, error: error.message };
+    return { success: false as const, error: error.message };
   }
 }
 
-// ============================================================================
-// 5. ACTION: MANUALLY EDIT / CONNECT A LP URL TO A CAMPAIGN
-// ============================================================================
+export async function saveCampaignLandingPageInternal(
+  adAccountId: number,
+  campaignId: string,
+  campaignName: string,
+  url: string,
+) {
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    throw new Error("URL must begin with http:// or https://");
+  }
+
+  const [upserted] = await db
+    .insert(campaignLandingPages)
+    .values({
+      adAccountId,
+      campaignId,
+      campaignName,
+      url,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [
+        campaignLandingPages.adAccountId,
+        campaignLandingPages.campaignId,
+      ],
+      set: {
+        url,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+
+  return upserted;
+}
+
 export async function saveCampaignLandingPageAction(
   adAccountId: number,
   campaignId: string,
@@ -375,42 +414,183 @@ export async function saveCampaignLandingPageAction(
   if (!session) throw new Error("Unauthorized");
 
   try {
-    if (!url.startsWith("http://") && !url.startsWith("https://")) {
-      throw new Error("URL must begin with http:// or https://");
-    }
-
-    const [upserted] = await db
-      .insert(campaignLandingPages)
-      .values({
-        adAccountId,
-        campaignId,
-        campaignName,
-        url,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [
-          campaignLandingPages.adAccountId,
-          campaignLandingPages.campaignId,
-        ],
-        set: {
-          url,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-
-    return { success: true, data: upserted };
+    const data = await saveCampaignLandingPageInternal(
+      adAccountId,
+      campaignId,
+      campaignName,
+      url,
+    );
+    return { success: true as const, data };
   } catch (error: any) {
     console.error("[saveCampaignLandingPageAction Error]:", error);
-    return { success: false, error: error.message };
+    return { success: false as const, error: error.message };
   }
 }
 
-// ============================================================================
-// 6. ACTION: RUN LANDING PAGE AUDIT
-// ============================================================================
+export async function runLandingPageAuditInternal(
+  adAccountId: number,
+  campaignId: string | null,
+  campaignName: string | null,
+  url: string,
+  searchTerm: string,
+) {
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    throw new Error("Invalid URL. It must begin with http:// or https://");
+  }
+
+  // Resolve client domain to avoid self-scraping
+  const clientDomain = new URL(url).hostname.replace("www.", "");
+
+  // STEP 1: Discover competitor landing pages
+  console.log(
+    `[Audit] Scanning competitor pages for keyword "${searchTerm}"...`,
+  );
+  const competitorUrls = await getLiveCompetitorsRobust(
+    searchTerm,
+    clientDomain,
+  );
+
+  // STEP 2: Scrape client and competitors in parallel
+  console.log(
+    `[Audit] Scraping target page and ${competitorUrls.length} competitors...`,
+  );
+  const [clientMarkdown, ...competitorMarkdowns] = await Promise.all([
+    scrapeAndCompressLandingPage(url),
+    ...competitorUrls.map((compUrl) => scrapeAndCompressLandingPage(compUrl)),
+  ]);
+
+  // STEP 3: Construct AI prompt for 10-dimension evaluation (gemini-3.5-flash)
+  console.log(`[Audit] Querying gemini-3.5-flash for scoring...`);
+  const prompt = `
+      You are an elite Conversion Rate Optimisation (CRO) specialist, UX analyst, and digital marketing strategist.
+      Conduct a rigorous audit of our Client's landing page copy and compare it with the competitor pages who compete in the same Google Ads auction for the search term "${searchTerm}".
+      
+      Evaluate the Client page across 10 categories, giving each category a score out of 10.
+      
+      1. Hero Section & First Impression (Hero headline, above-the-fold CTA, 5-second test)
+      2. Call-to-Action (CTA) Quality (Urgency, prominence, low friction, click-to-call mobile buttons)
+      3. Trust & Social Proof (Reviews, real photos, before/afters, badges, HIA/Master Builders / licenses like QBCC / Fair Trading)
+      4. Mobile Experience (Tap-to-call, readable fonts, thumb-friendly elements)
+      5. Copy & Content Quality (Clear benefits, pain points addressed, local Aussie tone, layout hierarchy)
+      6. Local SEO & Geo-Relevance (Mentioning suburbs, region, local trust hooks)
+      7. Design & Visual Hierarchy (Consistent branding, visual flow to CTAs, modern UI)
+      8. Conversion Flow & Page Structure (Problem -> Solution -> Proof -> CTA, simple forms with 3-5 fields)
+      9. Australian Market Fit (BNPL options like Afterpay, QBCC compliance, Australian spelling and trade references)
+      10. Speed & Technical Basics (Security SSL, pixel tags, layout complexity)
+      
+      ---
+      CLIENT PAGE CONTEXT (${url}):
+      ${clientMarkdown}
+      
+      ---
+      COMPETITORS SCRAPED:
+      ${competitorUrls.map((cUrl, idx) => `COMPETITOR ${idx + 1} (${cUrl}):\n${competitorMarkdowns[idx] || "N/A"}`).join("\n\n")}
+      
+      ---
+      OUTPUT FORMAT: You must return a valid, parsable JSON object. Follow this schema exactly:
+      {
+        "overall_score": 75,
+        "scores": {
+          "hero": 7,
+          "cta": 8,
+          "trust": 6,
+          "mobile": 7,
+          "copy": 8,
+          "seo": 9,
+          "design": 6,
+          "flow": 7,
+          "market_fit": 8,
+          "tech": 9
+        },
+        "breakdown": {
+          "hero": { "working": ["..."], "missing": ["..."], "fix": "..." },
+          "cta": { "working": ["..."], "missing": ["..."], "fix": "..." },
+          "trust": { "working": ["..."], "missing": ["..."], "fix": "..." },
+          "mobile": { "working": ["..."], "missing": ["..."], "fix": "..." },
+          "copy": { "working": ["..."], "missing": ["..."], "fix": "..." },
+          "seo": { "working": ["..."], "missing": ["..."], "fix": "..." },
+          "design": { "working": ["..."], "missing": ["..."], "fix": "..." },
+          "flow": { "working": ["..."], "missing": ["..."], "fix": "..." },
+          "market_fit": { "working": ["..."], "missing": ["..."], "fix": "..." },
+          "tech": { "working": ["..."], "missing": ["..."], "fix": "..." }
+        },
+        "client_action_script": "A punchy copy-paste script the account manager can email or text the client highlighting the critical CRO updates needed on their site today.",
+        "competitors": [
+          {
+            "name": "Competitor 1 Name or Domain",
+            "url": "Competitor 1 URL",
+            "score": 8,
+            "pros": ["Nice above fold CTA", "Star rating badge"],
+            "cons": ["Poor typography", "No local SEO hooks"],
+            "takeaway": "Include their 'Same Day Booking Guarantee' pitch."
+          }
+        ],
+        "top_ideas": [
+          {
+            "idea": "Actionable visual or copy recommendation",
+            "why": "Conversion rate reasoning",
+            "effort": "Easy/Medium/Hard",
+            "impact": "Low/Medium/High"
+          }
+        ],
+        "quick_wins": [
+          "Quick Win Idea 1 (under 30 mins to do)",
+          "Quick Win Idea 2 (under 30 mins to do)"
+        ],
+        "roadmap": {
+          "week1": ["Weekly task 1", "Weekly task 2"],
+          "week2": ["Weekly task 3"],
+          "week3": ["Weekly task 4"],
+          "week4": ["Weekly task 5"]
+        }
+      }
+      
+      CRITICAL CONSTRAINTS:
+      - Do NOT include markdown code blocks (e.g. \`\`\`json) in the response text, return ONLY the raw JSON string.
+      - Ensure all key names match the schema.
+      - Be highly constructive, trade-specific, and include actual text recommendations (do not say "make it look better", suggest specific text).
+  `;
+
+  const aiResponse = await ai.models.generateContent({
+    model: "gemini-3.5-flash",
+    contents: prompt,
+    config: { responseMimeType: "application/json" },
+  });
+
+  const parsedAudit = JSON.parse(aiResponse.text as string);
+
+  // Save in Database
+  console.log(`[Audit] Saving audit results to database...`);
+  const [savedAudit] = await db
+    .insert(landingPageAudits)
+    .values({
+      adAccountId: adAccountId,
+      campaignId: campaignId,
+      campaignName: campaignName,
+      url: url,
+      searchTerm: searchTerm,
+      score: parsedAudit.overall_score || 0,
+      heroScore: parsedAudit.scores?.hero || 0,
+      ctaScore: parsedAudit.scores?.cta || 0,
+      trustScore: parsedAudit.scores?.trust || 0,
+      mobileScore: parsedAudit.scores?.mobile || 0,
+      copyScore: parsedAudit.scores?.copy || 0,
+      seoScore: parsedAudit.scores?.seo || 0,
+      designScore: parsedAudit.scores?.design || 0,
+      flowScore: parsedAudit.scores?.flow || 0,
+      marketFitScore: parsedAudit.scores?.market_fit || 0,
+      techScore: parsedAudit.scores?.tech || 0,
+      aiAnalysis: parsedAudit,
+      createdAt: new Date(),
+    })
+    .returning({ id: landingPageAudits.id });
+
+  return {
+    auditId: savedAudit.id,
+    score: parsedAudit.overall_score,
+  };
+}
+
 export async function runLandingPageAuditAction(
   adAccountId: number,
   campaignId: string | null,
@@ -422,190 +602,42 @@ export async function runLandingPageAuditAction(
   if (!session) throw new Error("Unauthorized");
 
   try {
-    if (!url.startsWith("http://") && !url.startsWith("https://")) {
-      throw new Error("Invalid URL. It must begin with http:// or https://");
-    }
-
-    // Resolve client domain to avoid self-scraping
-    const clientDomain = new URL(url).hostname.replace("www.", "");
-
-    // STEP 1: Discover competitor landing pages
-    console.log(
-      `[Audit] Scanning competitor pages for keyword "${searchTerm}"...`,
-    );
-    const competitorUrls = await getLiveCompetitorsRobust(
+    const data = await runLandingPageAuditInternal(
+      adAccountId,
+      campaignId,
+      campaignName,
+      url,
       searchTerm,
-      clientDomain,
     );
-
-    // STEP 2: Scrape client and competitors in parallel
-    console.log(
-      `[Audit] Scraping target page and ${competitorUrls.length} competitors...`,
-    );
-    const [clientMarkdown, ...competitorMarkdowns] = await Promise.all([
-      scrapeAndCompressLandingPage(url),
-      ...competitorUrls.map((compUrl) => scrapeAndCompressLandingPage(compUrl)),
-    ]);
-
-    // STEP 3: Construct AI prompt for 10-dimension evaluation (gemini-3.5-flash)
-    console.log(`[Audit] Querying gemini-3.5-flash for scoring...`);
-    const prompt = `
-        You are an elite Conversion Rate Optimisation (CRO) specialist, UX analyst, and digital marketing strategist.
-        Conduct a rigorous audit of our Client's landing page copy and compare it with the competitor pages who compete in the same Google Ads auction for the search term "${searchTerm}".
-        
-        Evaluate the Client page across 10 categories, giving each category a score out of 10.
-        
-        1. Hero Section & First Impression (Hero headline, above-the-fold CTA, 5-second test)
-        2. Call-to-Action (CTA) Quality (Urgency, prominence, low friction, click-to-call mobile buttons)
-        3. Trust & Social Proof (Reviews, real photos, before/afters, badges, HIA/Master Builders / licenses like QBCC / Fair Trading)
-        4. Mobile Experience (Tap-to-call, readable fonts, thumb-friendly elements)
-        5. Copy & Content Quality (Clear benefits, pain points addressed, local Aussie tone, layout hierarchy)
-        6. Local SEO & Geo-Relevance (Mentioning suburbs, region, local trust hooks)
-        7. Design & Visual Hierarchy (Consistent branding, visual flow to CTAs, modern UI)
-        8. Conversion Flow & Page Structure (Problem -> Solution -> Proof -> CTA, simple forms with 3-5 fields)
-        9. Australian Market Fit (BNPL options like Afterpay, QBCC compliance, Australian spelling and trade references)
-        10. Speed & Technical Basics (Security SSL, pixel tags, layout complexity)
-        
-        ---
-        CLIENT PAGE CONTEXT (${url}):
-        ${clientMarkdown}
-        
-        ---
-        COMPETITORS SCRAPED:
-        ${competitorUrls.map((cUrl, idx) => `COMPETITOR ${idx + 1} (${cUrl}):\n${competitorMarkdowns[idx] || "N/A"}`).join("\n\n")}
-        
-        ---
-        OUTPUT FORMAT: You must return a valid, parsable JSON object. Follow this schema exactly:
-        {
-          "overall_score": 75,
-          "scores": {
-            "hero": 7,
-            "cta": 8,
-            "trust": 6,
-            "mobile": 7,
-            "copy": 8,
-            "seo": 9,
-            "design": 6,
-            "flow": 7,
-            "market_fit": 8,
-            "tech": 9
-          },
-          "breakdown": {
-            "hero": { "working": ["..."], "missing": ["..."], "fix": "..." },
-            "cta": { "working": ["..."], "missing": ["..."], "fix": "..." },
-            "trust": { "working": ["..."], "missing": ["..."], "fix": "..." },
-            "mobile": { "working": ["..."], "missing": ["..."], "fix": "..." },
-            "copy": { "working": ["..."], "missing": ["..."], "fix": "..." },
-            "seo": { "working": ["..."], "missing": ["..."], "fix": "..." },
-            "design": { "working": ["..."], "missing": ["..."], "fix": "..." },
-            "flow": { "working": ["..."], "missing": ["..."], "fix": "..." },
-            "market_fit": { "working": ["..."], "missing": ["..."], "fix": "..." },
-            "tech": { "working": ["..."], "missing": ["..."], "fix": "..." }
-          },
-          "client_action_script": "A punchy copy-paste script the account manager can email or text the client highlighting the critical CRO updates needed on their site today.",
-          "competitors": [
-            {
-              "name": "Competitor 1 Name or Domain",
-              "url": "Competitor 1 URL",
-              "score": 8,
-              "pros": ["Nice above fold CTA", "Star rating badge"],
-              "cons": ["Poor typography", "No local SEO hooks"],
-              "takeaway": "Include their 'Same Day Booking Guarantee' pitch."
-            }
-          ],
-          "top_ideas": [
-            {
-              "idea": "Actionable visual or copy recommendation",
-              "why": "Conversion rate reasoning",
-              "effort": "Easy/Medium/Hard",
-              "impact": "Low/Medium/High"
-            }
-          ],
-          "quick_wins": [
-            "Quick Win Idea 1 (under 30 mins to do)",
-            "Quick Win Idea 2 (under 30 mins to do)"
-          ],
-          "roadmap": {
-            "week1": ["Weekly task 1", "Weekly task 2"],
-            "week2": ["Weekly task 3"],
-            "week3": ["Weekly task 4"],
-            "week4": ["Weekly task 5"]
-          }
-        }
-        
-        CRITICAL CONSTRAINTS:
-        - Do NOT include markdown code blocks (e.g. \`\`\`json) in the response text, return ONLY the raw JSON string.
-        - Ensure all key names match the schema.
-        - Be highly constructive, trade-specific, and include actual text recommendations (do not say "make it look better", suggest specific text).
-    `;
-
-    const aiResponse = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
-
-    const parsedAudit = JSON.parse(aiResponse.text as string);
-
-    // Save in Database
-    console.log(`[Audit] Saving audit results to database...`);
-    const [savedAudit] = await db
-      .insert(landingPageAudits)
-      .values({
-        adAccountId: adAccountId,
-        campaignId: campaignId,
-        campaignName: campaignName,
-        url: url,
-        searchTerm: searchTerm,
-        score: parsedAudit.overall_score || 0,
-        heroScore: parsedAudit.scores?.hero || 0,
-        ctaScore: parsedAudit.scores?.cta || 0,
-        trustScore: parsedAudit.scores?.trust || 0,
-        mobileScore: parsedAudit.scores?.mobile || 0,
-        copyScore: parsedAudit.scores?.copy || 0,
-        seoScore: parsedAudit.scores?.seo || 0,
-        designScore: parsedAudit.scores?.design || 0,
-        flowScore: parsedAudit.scores?.flow || 0,
-        marketFitScore: parsedAudit.scores?.market_fit || 0,
-        techScore: parsedAudit.scores?.tech || 0,
-        aiAnalysis: parsedAudit,
-        createdAt: new Date(),
-      })
-      .returning({ id: landingPageAudits.id });
-
-    return {
-      success: true,
-      data: {
-        auditId: savedAudit.id,
-        score: parsedAudit.overall_score,
-      },
-    };
+    return { success: true as const, data };
   } catch (error: any) {
     console.error("[runLandingPageAuditAction Error]:", error);
-    return { success: false, error: error.message };
+    return { success: false as const, error: error.message };
   }
 }
 
-// ============================================================================
-// 7. ACTION: GET AUDIT DETAILS BY ID
-// ============================================================================
+export async function getAuditDetailInternal(auditId: number) {
+  const audit = await db.query.landingPageAudits.findFirst({
+    where: eq(landingPageAudits.id, auditId),
+    with: {
+      account: true,
+    },
+  });
+
+  if (!audit) throw new Error("Audit record not found");
+
+  return audit;
+}
+
 export async function getAuditDetailAction(auditId: number) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
 
   try {
-    const audit = await db.query.landingPageAudits.findFirst({
-      where: eq(landingPageAudits.id, auditId),
-      with: {
-        account: true,
-      },
-    });
-
-    if (!audit) throw new Error("Audit record not found");
-
-    return { success: true, data: audit };
+    const data = await getAuditDetailInternal(auditId);
+    return { success: true as const, data };
   } catch (error: any) {
     console.error("[getAuditDetailAction Error]:", error);
-    return { success: false, error: error.message };
+    return { success: false as const, error: error.message };
   }
 }
