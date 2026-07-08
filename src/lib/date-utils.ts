@@ -15,8 +15,8 @@ export function getMelbourneDateStrings(targetDate?: Date) {
   };
 
   // Get current date string in Melbourne
-  const todayStr = targetDate 
-    ? formatYMD(targetDate, "UTC") 
+  const todayStr = targetDate
+    ? formatYMD(targetDate, "UTC")
     : formatYMD(new Date(), "Australia/Melbourne");
 
   const [y, m, d] = todayStr.split("-").map(Number);

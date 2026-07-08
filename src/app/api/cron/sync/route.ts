@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { syncAgencyPortfolioAction } from "@/actions/agency.actions";
-import { getMelbourneTodayStr, parseUTCDate, formatUTCDate } from "@/lib/date-utils";
+import {
+  getMelbourneTodayStr,
+  parseUTCDate,
+  formatUTCDate,
+} from "@/lib/date-utils";
 
 // Next.js config to allow this route to run for a longer time if needed (max duration depends on your host)
 export const maxDuration = 300; // 5 minutes

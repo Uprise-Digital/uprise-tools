@@ -254,6 +254,8 @@ export const adAccountRelations = relations(adAccounts, ({ many, one }) => ({
   threatAudits: many(threatMatrixAudits), // <-- NEW
   triageSettings: one(accountTriageSettings),
   negativeKeywordSuggestions: many(negativeKeywordSuggestions),
+  campaignLandingPages: many(campaignLandingPages),
+  landingPageAudits: many(landingPageAudits),
 }));
 
 export const alertRuleRelations = relations(alertRules, ({ one, many }) => ({
@@ -475,6 +477,72 @@ export const negativeKeywordSuggestionsRelations = relations(
   ({ one }) => ({
     account: one(adAccounts, {
       fields: [negativeKeywordSuggestions.adAccountId],
+      references: [adAccounts.id],
+    }),
+  }),
+);
+
+// --- 9. LANDING PAGE ANALYSIS (NEW) ---
+export const campaignLandingPages = pgTable(
+  "campaign_landing_pages",
+  {
+    id: serial("id").primaryKey(),
+    adAccountId: integer("ad_account_id")
+      .references(() => adAccounts.id, { onDelete: "cascade" })
+      .notNull(),
+    campaignId: text("campaign_id").notNull(),
+    campaignName: text("campaign_name").notNull(),
+    url: text("url").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    uniqueCampaignLp: uniqueIndex("unique_campaign_lp").on(
+      table.adAccountId,
+      table.campaignId,
+    ),
+  }),
+);
+
+export const landingPageAudits = pgTable("landing_page_audits", {
+  id: serial("id").primaryKey(),
+  adAccountId: integer("ad_account_id")
+    .references(() => adAccounts.id, { onDelete: "cascade" })
+    .notNull(),
+  campaignId: text("campaign_id"), // Nullable for standalone landing pages
+  campaignName: text("campaign_name"),
+  url: text("url").notNull(),
+  searchTerm: text("search_term").notNull(),
+  score: integer("score").notNull(),
+  heroScore: integer("hero_score").default(0).notNull(),
+  ctaScore: integer("cta_score").default(0).notNull(),
+  trustScore: integer("trust_score").default(0).notNull(),
+  mobileScore: integer("mobile_score").default(0).notNull(),
+  copyScore: integer("copy_score").default(0).notNull(),
+  seoScore: integer("seo_score").default(0).notNull(),
+  designScore: integer("design_score").default(0).notNull(),
+  flowScore: integer("flow_score").default(0).notNull(),
+  marketFitScore: integer("market_fit_score").default(0).notNull(),
+  techScore: integer("tech_score").default(0).notNull(),
+  aiAnalysis: jsonb("ai_analysis").notNull(), // Stores markdown lists, competitor matrix, and roadmaps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const campaignLandingPagesRelations = relations(
+  campaignLandingPages,
+  ({ one }) => ({
+    account: one(adAccounts, {
+      fields: [campaignLandingPages.adAccountId],
+      references: [adAccounts.id],
+    }),
+  }),
+);
+
+export const landingPageAuditsRelations = relations(
+  landingPageAudits,
+  ({ one }) => ({
+    account: one(adAccounts, {
+      fields: [landingPageAudits.adAccountId],
       references: [adAccounts.id],
     }),
   }),

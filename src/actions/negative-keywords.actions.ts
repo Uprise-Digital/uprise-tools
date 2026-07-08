@@ -4,7 +4,11 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import {accountTriageSettings, adAccounts, negativeKeywordSuggestions} from "@/db/schema";
+import {
+  accountTriageSettings,
+  adAccounts,
+  negativeKeywordSuggestions,
+} from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import {
@@ -147,26 +151,27 @@ export async function generateSuggestionsInternal(
 
   // Fallback chain: Account level setting -> Organization level default -> fallback threshold ($25)
   const criticalSpendThreshold = Number(
-      triageSettings?.criticalSpendThreshold ??
+    triageSettings?.criticalSpendThreshold ??
       orgDefaults?.criticalSpendThreshold ??
-      25.0
+      25.0,
   );
 
   // Separate terms based on performance metrics
-  const convertingTerms = formattedSearchTerms.filter((st: any) => st.conversions > 0);
+  const convertingTerms = formattedSearchTerms.filter(
+    (st: any) => st.conversions > 0,
+  );
   const wastedTerms = formattedSearchTerms.filter(
-      (st: any) => st.conversions === 0 && st.spend >= criticalSpendThreshold
+    (st: any) => st.conversions === 0 && st.spend >= criticalSpendThreshold,
   );
 
-
-
   // 4.5 Fetch historical decisions for feedback loop
-  const historicalDBSuggestions = await db.query.negativeKeywordSuggestions.findMany({
-    where: eq(negativeKeywordSuggestions.adAccountId, adAccountId),
-  });
+  const historicalDBSuggestions =
+    await db.query.negativeKeywordSuggestions.findMany({
+      where: eq(negativeKeywordSuggestions.adAccountId, adAccountId),
+    });
 
   const historicalDecisions = historicalDBSuggestions
-    .filter((s) => s.status === 'approved' || s.status === 'denied')
+    .filter((s) => s.status === "approved" || s.status === "denied")
     .map((s) => ({
       keyword: s.keyword,
       status: s.status,
@@ -578,7 +583,9 @@ export async function deduplicateSuggestionsAction(adAccountId: number) {
 
     // Group non-pending keywords for quick lookup
     const activeExclusions = new Set(
-      nonPending.map((s) => `${s.keyword.toLowerCase().trim()}|${s.campaignId}`),
+      nonPending.map(
+        (s) => `${s.keyword.toLowerCase().trim()}|${s.campaignId}`,
+      ),
     );
     const globalActiveExclusions = new Set(
       nonPending
@@ -771,7 +778,10 @@ export async function getAccountCampaignsAction(adAccountId: number) {
 /**
  * Server action to save account persona details (target notes).
  */
-export async function saveAccountPersonaAction(accountId: number, targetNotes: string) {
+export async function saveAccountPersonaAction(
+  accountId: number,
+  targetNotes: string,
+) {
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) throw new Error("Unauthorized");

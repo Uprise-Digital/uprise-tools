@@ -16,7 +16,11 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 const SYSTEM_ACTOR = "SYSTEM_AUTOMATION";
 
 // Date utility to get YYYY-MM-DD in Australia/Melbourne timezone
-import { getMelbourneDateStrings, parseUTCDate, formatUTCDate } from "@/lib/date-utils";
+import {
+  getMelbourneDateStrings,
+  parseUTCDate,
+  formatUTCDate,
+} from "@/lib/date-utils";
 
 export async function getBriefingDataAction(yesterdayStrOverride?: string) {
   // 1. Get correct date strings

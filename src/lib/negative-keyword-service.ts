@@ -92,8 +92,12 @@ export async function generateNegativeKeywordSuggestions({
   }
 
   // Format historical decisions for presentation
-  const previouslyDenied = historicalDecisions.filter((d) => d.status === "denied");
-  const previouslyApproved = historicalDecisions.filter((d) => d.status === "approved");
+  const previouslyDenied = historicalDecisions.filter(
+    (d) => d.status === "denied",
+  );
+  const previouslyApproved = historicalDecisions.filter(
+    (d) => d.status === "approved",
+  );
 
   const prompt = `
     You are an elite Google Ads Performance Director at Uprise Digital.
@@ -115,14 +119,22 @@ export async function generateNegativeKeywordSuggestions({
     ${convertingTerms.length > 0 ? JSON.stringify(convertingTerms, null, 2) : "None recorded this period."}
     
     PREVIOUSLY DENIED SUGGESTIONS (Avoid re-suggesting these or terms that would block them):
-    ${previouslyDenied.length > 0
-      ? previouslyDenied.map((d) => `- "${d.keyword}": Denied because [${d.rationale}]`).join("\n")
-      : "None recorded."}
+    ${
+      previouslyDenied.length > 0
+        ? previouslyDenied
+            .map((d) => `- "${d.keyword}": Denied because [${d.rationale}]`)
+            .join("\n")
+        : "None recorded."
+    }
       
     PREVIOUSLY APPROVED EXCLUSIONS (Use as templates for what this client considers waste):
-    ${previouslyApproved.length > 0
-      ? previouslyApproved.map((d) => `- "${d.keyword}": Approved because [${d.rationale}]`).join("\n")
-      : "None recorded."}
+    ${
+      previouslyApproved.length > 0
+        ? previouslyApproved
+            .map((d) => `- "${d.keyword}": Approved because [${d.rationale}]`)
+            .join("\n")
+        : "None recorded."
+    }
 
     WASTED SEARCH TERMS TO EVALUATE:
     ${JSON.stringify(filteredWastedTerms, null, 2)}

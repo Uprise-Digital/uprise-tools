@@ -4,6 +4,7 @@ import {
   BarChart3,
   BellRing,
   FileText,
+  Globe,
   LayoutDashboard,
   Menu,
   ScrollText,
@@ -28,6 +29,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/accounts", label: "Ad Accounts", icon: BarChart3 },
+  { href: "/lp-analysis", label: "LP Analysis", icon: Globe },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/mcp", label: "MCP Settings", icon: BellRing },
   { href: "/team", label: "Team Management", icon: Users },
@@ -131,6 +133,7 @@ export function MainLayout({
           <div className="text-xs font-semibold text-slate-400">
             {pathname === "/overview" && "Dashboard / Overview"}
             {pathname?.startsWith("/accounts") && "Dashboard / Ad Accounts"}
+            {pathname?.startsWith("/lp-analysis") && "Dashboard / LP Analysis"}
             {pathname?.startsWith("/reports") && "Dashboard / Reports"}
             {pathname?.startsWith("/mcp") && "Dashboard / MCP settings"}
             {pathname?.startsWith("/team") && "Dashboard / Team"}

@@ -650,3 +650,78 @@ export async function fetchAccountCampaigns(googleAccountId: string) {
     name: row.campaign?.name || "",
   }));
 }
+
+/**
+ * Fetches all enabled campaigns and their corresponding final landing page URLs.
+ */
+export async function fetchCampaignLandingPages(googleAccountId: string) {
+  const accessToken = await getManagementAccessToken();
+  const sanitizedId = googleAccountId.replace(/-/g, "");
+
+  const query = `
+        SELECT
+            campaign.id,
+            campaign.name,
+            ad_group_ad.ad.final_urls
+        FROM ad_group_ad
+        WHERE campaign.status = 'ENABLED'
+          AND ad_group_ad.status = 'ENABLED'
+    `;
+
+  const response = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({ query }),
+    },
+  );
+
+  const data = await response.json();
+
+  if (data.error) {
+    console.error(
+      "[GAQL Error - Campaign Landing Pages]",
+      JSON.stringify(data.error, null, 2),
+    );
+    throw new Error(
+      `Campaign Landing Pages Query Failed: ${data.error.message}`,
+    );
+  }
+
+  // Parse results and group by campaign.id
+  const campaignMap = new Map<
+    string,
+    { campaignId: string; campaignName: string; urls: string[] }
+  >();
+
+  for (const row of data.results || []) {
+    const campaignId = row.campaign?.id || "";
+    const campaignName = row.campaign?.name || "";
+    const urls = row.adGroupAd?.ad?.finalUrls || [];
+
+    if (!campaignId) continue;
+
+    if (!campaignMap.has(campaignId)) {
+      campaignMap.set(campaignId, { campaignId, campaignName, urls: [] });
+    }
+
+    const item = campaignMap.get(campaignId)!;
+    for (const url of urls) {
+      if (url && !item.urls.includes(url)) {
+        item.urls.push(url);
+      }
+    }
+  }
+
+  return Array.from(campaignMap.values()).map((item) => ({
+    campaignId: item.campaignId,
+    campaignName: item.campaignName,
+    url: item.urls[0] || "", // Return the first final URL associated with the campaign
+  }));
+}

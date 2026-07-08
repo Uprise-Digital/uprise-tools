@@ -1203,7 +1203,14 @@ const handler = createMcpHandler(
           }
 
           return {
-            content: [{ type: "text", text: JSON.stringify(persona || { message: "No persona configured yet." }) }],
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  persona || { message: "No persona configured yet." },
+                ),
+              },
+            ],
           };
         } catch (error: any) {
           return {
@@ -1233,10 +1240,14 @@ const handler = createMcpHandler(
             .describe("The internal database ID of the ad account"),
           targetBuyer: z
             .string()
-            .describe("Description of the ideal target buyer (e.g. IT managers, CISOs at Australian businesses)"),
+            .describe(
+              "Description of the ideal target buyer (e.g. IT managers, CISOs at Australian businesses)",
+            ),
           notTargetBuyer: z
             .string()
-            .describe("Description of who is NOT a target buyer (e.g. students, researchers, seekers of free templates)"),
+            .describe(
+              "Description of who is NOT a target buyer (e.g. students, researchers, seekers of free templates)",
+            ),
           serviceScope: z
             .array(z.string())
             .describe("List of services in scope"),
@@ -1248,7 +1259,9 @@ const handler = createMcpHandler(
             .describe("List of terms indicating commercial/converting intent"),
           researchIntentSignals: z
             .array(z.string())
-            .describe("List of terms indicating pure informational or research intent"),
+            .describe(
+              "List of terms indicating pure informational or research intent",
+            ),
         },
       },
       async ({
