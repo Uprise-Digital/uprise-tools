@@ -783,7 +783,11 @@ export async function fetchImpressionShareReport(
   }
 
   return (data.results || []).map((row: any) => {
-    const isPMax = row.campaign?.advertisingChannelType === "PERFORMANCE_MAX";
+    const channelType =
+      row.campaign?.advertisingChannelType ||
+      row.campaign?.advertising_channel_type ||
+      "";
+    const isPMax = String(channelType).toUpperCase() === "PERFORMANCE_MAX";
     const rawSearchIS = row.metrics?.searchImpressionShare;
     const rawRankLost = row.metrics?.searchRankLostImpressionShare;
     const rawBudgetLost = row.metrics?.searchBudgetLostImpressionShare;
@@ -822,21 +826,21 @@ export async function fetchImpressionShareReport(
     return {
       campaignId: String(row.campaign?.id || ""),
       campaignName: row.campaign?.name || "",
-      advertisingChannelType: row.campaign?.advertisingChannelType || "",
+      advertisingChannelType: String(channelType),
       isPMax,
-      searchImpressionShare: rawSearchIS || "--",
-      searchRankLostImpressionShare: rawRankLost || "--",
-      searchBudgetLostImpressionShare: rawBudgetLost || "--",
-      searchTopImpressionShare: rawTopIS || "--",
-      searchAbsoluteTopImpressionShare: rawAbsTopIS || "--",
+      searchImpressionShare: isPMax ? "--" : rawSearchIS || "--",
+      searchRankLostImpressionShare: isPMax ? "--" : rawRankLost || "--",
+      searchBudgetLostImpressionShare: isPMax ? "--" : rawBudgetLost || "--",
+      searchTopImpressionShare: isPMax ? "--" : rawTopIS || "--",
+      searchAbsoluteTopImpressionShare: isPMax ? "--" : rawAbsTopIS || "--",
       parsedMetrics: {
-        searchImpressionShare: isVal,
-        searchRankLostImpressionShare: rlVal,
-        searchBudgetLostImpressionShare: blVal,
-        searchTopImpressionShare: topVal,
-        searchAbsoluteTopImpressionShare: absTopVal,
+        searchImpressionShare: isPMax ? 0 : isVal,
+        searchRankLostImpressionShare: isPMax ? 0 : rlVal,
+        searchBudgetLostImpressionShare: isPMax ? 0 : blVal,
+        searchTopImpressionShare: isPMax ? 0 : topVal,
+        searchAbsoluteTopImpressionShare: isPMax ? 0 : absTopVal,
       },
-      flag,
+      flag: isPMax ? ("healthy" as const) : flag,
     };
   });
 }
