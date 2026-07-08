@@ -18,6 +18,13 @@ import {
   listAccountsAction,
 } from "@/actions/agency.actions";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
+import {
+  getAuditDetailAction,
+  getCampaignLandingPagesAction,
+  runLandingPageAuditAction,
+  saveCampaignLandingPageAction,
+  syncCampaignLandingPagesAction,
+} from "@/actions/lp-analysis.actions";
 import { generateSuggestionsInternal } from "@/actions/negative-keywords.actions";
 import {
   getAccountTriageSettingsAction,
@@ -229,6 +236,173 @@ const handler = createMcpHandler(
           };
         }
 
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data) }],
+        };
+      },
+    );
+
+    server.registerTool(
+      "list_campaign_landing_pages",
+      {
+        title: "List Campaign Landing Pages",
+        description:
+          "Lists campaign landing pages, URLs, and latest audit scores for an ad account.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+        },
+      },
+      async ({ accountId }) => {
+        const result = await getCampaignLandingPagesAction(accountId);
+        if (!result.success || !result.data) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ error: result.error }) },
+            ],
+          };
+        }
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data) }],
+        };
+      },
+    );
+
+    server.registerTool(
+      "sync_campaign_landing_pages",
+      {
+        title: "Sync Campaign Landing Pages",
+        description:
+          "Syncs campaign landing page URLs from the Google Ads API for an ad account.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+        },
+      },
+      async ({ accountId }) => {
+        const result = await syncCampaignLandingPagesAction(accountId);
+        if (!result.success) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ error: result.error }) },
+            ],
+          };
+        }
+        return {
+          content: [{ type: "text", text: JSON.stringify(result) }],
+        };
+      },
+    );
+
+    server.registerTool(
+      "save_campaign_landing_page_url",
+      {
+        title: "Save Campaign Landing Page URL",
+        description:
+          "Manually saves/attaches a landing page URL to a specific campaign.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+          campaignId: z.string().describe("The Google Ads Campaign ID"),
+          campaignName: z.string().describe("The Google Ads Campaign Name"),
+          url: z
+            .string()
+            .describe(
+              "The landing page URL (must begin with http:// or https://)",
+            ),
+        },
+      },
+      async ({ accountId, campaignId, campaignName, url }) => {
+        const result = await saveCampaignLandingPageAction(
+          accountId,
+          campaignId,
+          campaignName,
+          url,
+        );
+        if (!result.success || !result.data) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ error: result.error }) },
+            ],
+          };
+        }
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data) }],
+        };
+      },
+    );
+
+    server.registerTool(
+      "run_landing_page_cro_audit",
+      {
+        title: "Run Landing Page CRO Audit",
+        description:
+          "Runs a 10-dimension landing page CRO audit with competitor scanning on a focus keyword using Gemini.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .describe("The internal database ID of the ad account"),
+          campaignId: z
+            .string()
+            .nullable()
+            .describe("The Google Ads Campaign ID (optional)"),
+          campaignName: z
+            .string()
+            .nullable()
+            .describe("The Google Ads Campaign Name (optional)"),
+          url: z.string().describe("The target landing page URL to audit"),
+          searchTerm: z
+            .string()
+            .describe(
+              "The focus search query/keyword bidding in the Google Ads auction",
+            ),
+        },
+      },
+      async ({ accountId, campaignId, campaignName, url, searchTerm }) => {
+        const result = await runLandingPageAuditAction(
+          accountId,
+          campaignId,
+          campaignName,
+          url,
+          searchTerm,
+        );
+        if (!result.success || !result.data) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ error: result.error }) },
+            ],
+          };
+        }
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data) }],
+        };
+      },
+    );
+
+    server.registerTool(
+      "get_landing_page_audit_details",
+      {
+        title: "Get Landing Page Audit Details",
+        description:
+          "Retrieves the detailed breakdown, score cards, and AM action plan script for a specific landing page audit by its ID.",
+        inputSchema: {
+          auditId: z
+            .number()
+            .describe("The database ID of the landing page audit"),
+        },
+      },
+      async ({ auditId }) => {
+        const result = await getAuditDetailAction(auditId);
+        if (!result.success || !result.data) {
+          return {
+            content: [
+              { type: "text", text: JSON.stringify({ error: result.error }) },
+            ],
+          };
+        }
         return {
           content: [{ type: "text", text: JSON.stringify(result.data) }],
         };

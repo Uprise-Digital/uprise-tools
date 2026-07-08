@@ -143,6 +143,36 @@ const AVAILABLE_TOOLS = [
     description:
       "Fetches all campaign-level active negative keywords currently running in Google Ads for a specific account.",
   },
+  {
+    name: "list_campaign_landing_pages",
+    title: "List Campaign Landing Pages",
+    description:
+      "Lists campaign landing pages, URLs, and latest audit scores for an ad account.",
+  },
+  {
+    name: "sync_campaign_landing_pages",
+    title: "Sync Campaign Landing Pages",
+    description:
+      "Syncs campaign landing page URLs from the Google Ads API for an ad account.",
+  },
+  {
+    name: "save_campaign_landing_page_url",
+    title: "Save Campaign Landing Page URL",
+    description:
+      "Manually saves/attaches a landing page URL to a specific campaign.",
+  },
+  {
+    name: "run_landing_page_cro_audit",
+    title: "Run Landing Page CRO Audit",
+    description:
+      "Runs a 10-dimension landing page CRO audit with competitor scanning on a focus keyword using Gemini.",
+  },
+  {
+    name: "get_landing_page_audit_details",
+    title: "Get Landing Page Audit Details",
+    description:
+      "Retrieves the detailed breakdown, score cards, and AM action plan script for a specific landing page audit by its ID.",
+  },
 ];
 
 interface McpSettingsClientProps {
