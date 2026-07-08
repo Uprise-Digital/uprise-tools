@@ -29,10 +29,10 @@ import { generateSuggestionsInternal } from "@/actions/negative-keywords.actions
 import {
   getAccountTriageSettingsAction,
   getOrgTriageDefaultsAction,
+  saveAccountTriageSettingsInternal,
 } from "@/actions/triage-settings.actions";
 import { db } from "@/db";
 import {
-  accountTriageSettings,
   adAccounts,
   mcpSettings,
   negativeKeywordSuggestions,
@@ -878,57 +878,10 @@ const handler = createMcpHandler(
             };
           }
 
-          const payload = {
-            adAccountId: accountId,
-            criticalSpendThreshold:
-              data.criticalSpendThreshold !== undefined
-                ? data.criticalSpendThreshold
-                : null,
-            criticalConversionsThreshold:
-              data.criticalConversionsThreshold !== undefined
-                ? data.criticalConversionsThreshold
-                : null,
-            ctrHighThreshold:
-              data.ctrHighThreshold !== undefined
-                ? data.ctrHighThreshold
-                : null,
-            ctrHighSpendThreshold:
-              data.ctrHighSpendThreshold !== undefined
-                ? data.ctrHighSpendThreshold
-                : null,
-            cpcHighThreshold:
-              data.cpcHighThreshold !== undefined
-                ? data.cpcHighThreshold
-                : null,
-            anomalySpendChangeThreshold:
-              data.anomalySpendChangeThreshold !== undefined
-                ? data.anomalySpendChangeThreshold
-                : null,
-            anomalyConversionsChangeThreshold:
-              data.anomalyConversionsChangeThreshold !== undefined
-                ? data.anomalyConversionsChangeThreshold
-                : null,
-            updatedAt: new Date(),
-          };
-
-          const existing = await db.query.accountTriageSettings.findFirst({
-            where: eq(accountTriageSettings.adAccountId, accountId),
-          });
-          let savedId: number;
-
-          if (existing) {
-            await db
-              .update(accountTriageSettings)
-              .set(payload)
-              .where(eq(accountTriageSettings.id, existing.id));
-            savedId = existing.id;
-          } else {
-            const [newSettings] = await db
-              .insert(accountTriageSettings)
-              .values(payload)
-              .returning();
-            savedId = newSettings.id;
-          }
+          const { savedId, payload } = await saveAccountTriageSettingsInternal(
+            accountId,
+            data,
+          );
 
           await logAction(
             "MCP_AGENT",

@@ -198,6 +198,91 @@ export async function getAccountTriageSettingsAction(accountId: number) {
   }
 }
 
+export async function saveAccountTriageSettingsInternal(
+  accountId: number,
+  data: {
+    id?: number | null;
+    criticalSpendThreshold?: number | null;
+    criticalConversionsThreshold?: number | null;
+    ctrHighThreshold?: number | null;
+    ctrHighSpendThreshold?: number | null;
+    cpcHighThreshold?: number | null;
+    anomalySpendChangeThreshold?: number | null;
+    anomalyConversionsChangeThreshold?: number | null;
+    includeInBriefing?: boolean;
+  },
+) {
+  if (data.includeInBriefing !== undefined) {
+    await db
+      .update(adAccounts)
+      .set({ includeInBriefing: data.includeInBriefing })
+      .where(eq(adAccounts.id, accountId));
+  }
+
+  // Check if there is an existing record
+  const existing = await db.query.accountTriageSettings.findFirst({
+    where: eq(accountTriageSettings.adAccountId, accountId),
+  });
+
+  const payload: any = {
+    updatedAt: new Date(),
+  };
+
+  if (data.criticalSpendThreshold !== undefined) {
+    payload.criticalSpendThreshold = data.criticalSpendThreshold;
+  }
+  if (data.criticalConversionsThreshold !== undefined) {
+    payload.criticalConversionsThreshold = data.criticalConversionsThreshold;
+  }
+  if (data.ctrHighThreshold !== undefined) {
+    payload.ctrHighThreshold = data.ctrHighThreshold;
+  }
+  if (data.ctrHighSpendThreshold !== undefined) {
+    payload.ctrHighSpendThreshold = data.ctrHighSpendThreshold;
+  }
+  if (data.cpcHighThreshold !== undefined) {
+    payload.cpcHighThreshold = data.cpcHighThreshold;
+  }
+  if (data.anomalySpendChangeThreshold !== undefined) {
+    payload.anomalySpendChangeThreshold = data.anomalySpendChangeThreshold;
+  }
+  if (data.anomalyConversionsChangeThreshold !== undefined) {
+    payload.anomalyConversionsChangeThreshold =
+      data.anomalyConversionsChangeThreshold;
+  }
+
+  let savedId = data.id;
+
+  if (existing) {
+    await db
+      .update(accountTriageSettings)
+      .set(payload)
+      .where(eq(accountTriageSettings.id, existing.id));
+    savedId = existing.id;
+  } else {
+    // For a brand new insert, merge in default nulls for any unspecified fields
+    const insertPayload = {
+      adAccountId: accountId,
+      criticalSpendThreshold: data.criticalSpendThreshold ?? null,
+      criticalConversionsThreshold: data.criticalConversionsThreshold ?? null,
+      ctrHighThreshold: data.ctrHighThreshold ?? null,
+      ctrHighSpendThreshold: data.ctrHighSpendThreshold ?? null,
+      cpcHighThreshold: data.cpcHighThreshold ?? null,
+      anomalySpendChangeThreshold: data.anomalySpendChangeThreshold ?? null,
+      anomalyConversionsChangeThreshold:
+        data.anomalyConversionsChangeThreshold ?? null,
+      updatedAt: new Date(),
+    };
+    const [newSettings] = await db
+      .insert(accountTriageSettings)
+      .values(insertPayload)
+      .returning();
+    savedId = newSettings.id;
+  }
+
+  return { savedId, payload };
+}
+
 /**
  * Save overrides for a specific ad account
  */
@@ -219,52 +304,10 @@ export async function saveAccountTriageSettingsAction(
   if (!session) throw new Error("Unauthorized");
 
   try {
-    if (data.includeInBriefing !== undefined) {
-      await db
-        .update(adAccounts)
-        .set({ includeInBriefing: data.includeInBriefing })
-        .where(eq(adAccounts.id, accountId));
-    }
-
-    const payload = {
-      adAccountId: accountId,
-      criticalSpendThreshold: data.criticalSpendThreshold,
-      criticalConversionsThreshold: data.criticalConversionsThreshold,
-      ctrHighThreshold: data.ctrHighThreshold,
-      ctrHighSpendThreshold: data.ctrHighSpendThreshold,
-      cpcHighThreshold: data.cpcHighThreshold,
-      anomalySpendChangeThreshold: data.anomalySpendChangeThreshold,
-      anomalyConversionsChangeThreshold: data.anomalyConversionsChangeThreshold,
-      updatedAt: new Date(),
-    };
-
-    let savedId = data.id;
-
-    if (data.id) {
-      await db
-        .update(accountTriageSettings)
-        .set(payload)
-        .where(eq(accountTriageSettings.id, data.id));
-    } else {
-      // Check if it already exists to avoid unique constraint violation on adAccountId
-      const existing = await db.query.accountTriageSettings.findFirst({
-        where: eq(accountTriageSettings.adAccountId, accountId),
-      });
-
-      if (existing) {
-        await db
-          .update(accountTriageSettings)
-          .set(payload)
-          .where(eq(accountTriageSettings.id, existing.id));
-        savedId = existing.id;
-      } else {
-        const [newSettings] = await db
-          .insert(accountTriageSettings)
-          .values(payload)
-          .returning();
-        savedId = newSettings.id;
-      }
-    }
+    const { savedId, payload } = await saveAccountTriageSettingsInternal(
+      accountId,
+      data,
+    );
 
     await logAction(
       session.user.id,
@@ -275,12 +318,12 @@ export async function saveAccountTriageSettingsAction(
     );
 
     revalidatePath(`/accounts/${accountId}`);
-    return { success: true };
+    return { success: true as const };
   } catch (error: any) {
     console.error(
       `Failed to save account triage settings for account ${accountId}:`,
       error,
     );
-    return { success: false, error: error.message };
+    return { success: false as const, error: error.message };
   }
 }
