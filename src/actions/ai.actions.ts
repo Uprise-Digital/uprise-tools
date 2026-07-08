@@ -86,8 +86,8 @@ export async function getOrGenerateAiInsightsAction(
       total_spend: totalSpend.toFixed(2),
       total_conversions: totalConversions,
       blended_cpa: blendedCPA.toFixed(2),
-      blended_ctr: blendedCTR.toFixed(2) + "%",
-      blended_conversion_rate: blendedCR.toFixed(2) + "%",
+      blended_ctr: `${blendedCTR.toFixed(2)}%`,
+      blended_conversion_rate: `${blendedCR.toFixed(2)}%`,
     },
     top_performer: {
       name: topCampaign?.campaignName || "None",

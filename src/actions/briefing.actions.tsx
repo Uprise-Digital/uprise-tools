@@ -1,8 +1,6 @@
 "use server";
 
 import { and, eq, gte, lte, ne } from "drizzle-orm";
-import fs from "fs";
-import path from "path";
 import { Resend } from "resend";
 import { db } from "@/db";
 import { adAccounts, adPerformanceDaily, user } from "@/db/schema";
@@ -17,9 +15,9 @@ const SYSTEM_ACTOR = "SYSTEM_AUTOMATION";
 
 // Date utility to get YYYY-MM-DD in Australia/Melbourne timezone
 import {
+  formatUTCDate,
   getMelbourneDateStrings,
   parseUTCDate,
-  formatUTCDate,
 } from "@/lib/date-utils";
 
 export async function getBriefingDataAction(yesterdayStrOverride?: string) {
@@ -497,7 +495,7 @@ export async function sendMorningBriefingAction() {
       `☀️ Morning Briefing — ${dataRes.data.todayDayOfWeek} ${dataRes.data.todayDateStr}`;
 
     // 2. Fetch recipients (fallback to all team members if empty)
-    if (settings && settings.recipients && settings.recipients.length > 0) {
+    if (settings?.recipients && settings.recipients.length > 0) {
       emails = settings.recipients;
     } else {
       const team = await db

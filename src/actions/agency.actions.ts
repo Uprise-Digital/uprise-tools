@@ -5,15 +5,15 @@ import { and, eq, gte, ilike, lte } from "drizzle-orm";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { db } from "@/db";
 import {
-  getMelbourneTodayStr,
-  parseUTCDate,
-  formatUTCDate,
-} from "@/lib/date-utils";
-import {
   adAccounts,
   adPerformanceDaily,
   agencyAiInsightsCache,
 } from "@/db/schema";
+import {
+  formatUTCDate,
+  getMelbourneTodayStr,
+  parseUTCDate,
+} from "@/lib/date-utils";
 import {
   getCurrentPeriodDateClause,
   getManagementAccessToken,
@@ -135,7 +135,7 @@ export async function getOrGenerateAgencyAiInsightsAction(
 
       const formattedWhales = whales.map((w) => ({
         name: w.name,
-        spend_share: ((w.spend / totalSpend) * 100).toFixed(1) + "%",
+        spend_share: `${((w.spend / totalSpend) * 100).toFixed(1)}%`,
       }));
 
       // Upgraded Bleed Index: Uses Target CPA if available, otherwise falls back to Non-Whale CPA

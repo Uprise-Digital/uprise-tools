@@ -1,10 +1,10 @@
 "use server";
 
+import fs from "node:fs";
+import path from "node:path";
 import { GoogleGenAI } from "@google/genai";
 import * as cheerio from "cheerio";
 import { eq } from "drizzle-orm";
-import fs from "fs";
-import path from "path";
 import TurndownService from "turndown";
 import { db } from "@/db";
 import { adAccounts, threatMatrixAudits } from "@/db/schema";
@@ -57,18 +57,18 @@ async function scrapeAndCompressLandingPage(targetUrl: string) {
 
     let highValueHtml = "";
     $("h1, h2, h3").each((i, el) => {
-      highValueHtml += $.html(el) + "<br/>";
+      highValueHtml += `${$.html(el)}<br/>`;
     });
     $("a, button, .btn").each((i, el) => {
-      highValueHtml += $.html(el) + "<br/>";
+      highValueHtml += `${$.html(el)}<br/>`;
     });
     $("ul, ol").each((i, el) => {
-      highValueHtml += $.html(el) + "<br/>";
+      highValueHtml += `${$.html(el)}<br/>`;
     });
     $("p")
       .slice(0, 10)
       .each((i, el) => {
-        highValueHtml += $.html(el) + "<br/>";
+        highValueHtml += `${$.html(el)}<br/>`;
       });
 
     const turndownService = new TurndownService();

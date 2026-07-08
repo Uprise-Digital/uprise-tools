@@ -1,35 +1,36 @@
 "use client";
 
 import {
-  History,
-  Mail,
-  Search,
-  Filter,
-  Info,
-  User as UserIcon,
+  Check,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Download,
   Copy,
-  Check,
-  XCircle,
-  CheckCircle2,
+  Download,
   ExternalLink,
+  Filter,
+  History,
+  Info,
+  Mail,
+  Search,
+  User as UserIcon,
+  XCircle,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -38,13 +39,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 interface AuditLogData {
   id: number;

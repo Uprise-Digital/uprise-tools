@@ -1,6 +1,6 @@
-import { db } from "@/db";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { db } from "@/db";
 import { auth } from "@/lib/auth";
 import LpAnalysisClientPage from "./pageClient";
 

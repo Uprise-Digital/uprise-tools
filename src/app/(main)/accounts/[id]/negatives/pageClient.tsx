@@ -25,9 +25,9 @@ import {
   generateNegativeSuggestionsAction,
   getAccountCampaignsAction,
   getSuggestionsAction,
+  saveAccountPersonaAction,
   toggleTurboModeAction,
   updateSuggestionStatusAction,
-  saveAccountPersonaAction,
 } from "@/actions/negative-keywords.actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

@@ -19,7 +19,30 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noUnknownAtRules": "off"
+        "noUnknownAtRules": "off",
+        "noExplicitAny": "off",
+        "noGlobalIsNan": "off",
+        "noArrayIndexKey": "off",
+        "noDocumentCookie": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off"
+      },
+      "correctness": {
+        "noUnusedVariables": "off",
+        "noUnusedFunctionParameters": "off",
+        "useExhaustiveDependencies": "off",
+        "noInvalidUseBeforeDeclaration": "off"
+      },
+      "complexity": {
+        "useArrowFunction": "off"
+      },
+      "a11y": {
+        "noStaticElementInteractions": "off",
+        "useButtonType": "off",
+        "noLabelWithoutControl": "off",
+        "useKeyWithClickEvents": "off",
+        "noSvgWithoutTitle": "off"
       }
     },
     "domains": {

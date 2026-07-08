@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { getAuditDetailAction } from "@/actions/lp-analysis.actions";
+import { auth } from "@/lib/auth";
 import AuditDetailClientPage from "./pageClient";
 
 interface AuditPageProps {

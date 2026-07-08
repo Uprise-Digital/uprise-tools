@@ -1,25 +1,25 @@
 "use client";
 
-import { useState } from "react";
 import {
+  Activity,
   ArrowLeft,
   Calendar,
   CheckCircle2,
-  Copy,
   ChevronDown,
   ChevronUp,
-  FileText,
-  ExternalLink,
-  ShieldCheck,
-  TrendingUp,
-  Activity,
-  Flame,
   Clock,
-  Sparkles,
+  Copy,
+  ExternalLink,
+  FileText,
+  Flame,
   Printer,
-  ChevronRight,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,15 +28,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +36,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface AuditDetailProps {
   audit: {

@@ -1,25 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
-  Search,
+  AlertTriangle,
+  ArrowRight,
+  ChevronRight,
+  Edit2,
+  ExternalLink,
   Globe,
   Loader2,
-  AlertTriangle,
   Play,
-  Edit2,
-  Save,
-  CheckCircle2,
-  RefreshCw,
   Plus,
-  ArrowRight,
-  ExternalLink,
-  ChevronRight,
+  RefreshCw,
+  Save,
+  Search,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  getCampaignLandingPagesAction,
+  runLandingPageAuditAction,
+  saveCampaignLandingPageAction,
+  syncCampaignLandingPagesAction,
+} from "@/actions/lp-analysis.actions";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -28,15 +33,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -44,13 +40,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  getCampaignLandingPagesAction,
-  syncCampaignLandingPagesAction,
-  saveCampaignLandingPageAction,
-  runLandingPageAuditAction,
-} from "@/actions/lp-analysis.actions";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface AdAccount {
   id: number;
@@ -124,7 +123,7 @@ export default function LpAnalysisClientPage({
     if (selectedAccountId) {
       fetchCampaigns(selectedAccountId);
     }
-  }, [selectedAccountId]);
+  }, [selectedAccountId, fetchCampaigns]);
 
   // Sync campaigns action
   const handleSyncLps = async () => {

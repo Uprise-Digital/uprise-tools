@@ -4,7 +4,7 @@ const formatMetric = (value: number, decimalPlaces = 2, fallback = "-") => {
     value === null ||
     value === undefined ||
     isNaN(value) ||
-    !isFinite(value) ||
+    !Number.isFinite(value) ||
     value === 0
   ) {
     return fallback;

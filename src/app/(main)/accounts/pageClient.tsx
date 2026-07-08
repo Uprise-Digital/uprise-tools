@@ -1,16 +1,15 @@
 // app/accounts/pageClient.tsx
 "use client";
 
+import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { syncAdAccountsAction } from "@/actions/ads.actions";
 import { ReportAutomationTrigger } from "@/components/reportAutomationTrigger";
 import { SyncButton } from "@/components/sync-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -18,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -65,7 +65,7 @@ export default function AccountsClientPage({
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, []);
 
   const exportClientsToCsv = () => {
     const headers = ["Account Name", "Google ID", "Currency", "Status"];

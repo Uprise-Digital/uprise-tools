@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getOrgTriageDefaultsAction } from "@/actions/triage-settings.actions";
 import { db } from "@/db";
-import { adAccounts, auditLogs, emailLogs } from "@/db/schema";
+import { adAccounts } from "@/db/schema";
 import SettingsClient from "./pageClient";
 
 export default async function SettingsPage() {

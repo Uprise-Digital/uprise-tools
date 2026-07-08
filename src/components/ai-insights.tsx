@@ -112,7 +112,7 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 // Formatter for relative time
 const formatTimeAgo = (date: Date) => {
-  const mins = Math.floor((new Date().getTime() - date.getTime()) / 60000);
+  const mins = Math.floor((Date.now() - date.getTime()) / 60000);
   if (mins < 1) return "Just now";
   if (mins < 60) return `${mins} min ago`;
   const hours = Math.floor(mins / 60);
@@ -155,7 +155,7 @@ export function AiInsights({
     return () => {
       isMounted = false;
     };
-  }, [adAccountId, googleAccountId, startDate, endDate]);
+  }, [fetchData]);
 
   const fetchData = async (
     forceRefresh: boolean,

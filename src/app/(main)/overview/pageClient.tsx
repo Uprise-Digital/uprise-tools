@@ -4,28 +4,28 @@ import {
   Activity,
   AlertTriangle,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   CloudDownload,
   DollarSign,
+  Download,
   Eye,
   EyeOff,
   Flame,
   Loader2,
   RefreshCw,
   Scale,
+  Search,
   ShieldAlert,
   Sparkles,
   Target,
   TrendingUp,
   Users,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Search,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 
 import {
   getAgencyPortfolioMetricsAction,
@@ -80,7 +80,7 @@ export default function AgencyReportsClient() {
 
   useEffect(() => {
     setLedgerPage(1);
-  }, [ledgerSearch, hideInactive]);
+  }, []);
 
   // 1. Fetch Base Data
   const fetchPortfolioData = async (isMounted = true) => {
@@ -110,7 +110,7 @@ export default function AgencyReportsClient() {
     return () => {
       isMounted = false;
     };
-  }, [startDate, endDate]);
+  }, [fetchGodModeAi, fetchPortfolioData]);
 
   // 2. Fetch or Generate AI Insights
   const fetchGodModeAi = async (forceRefresh: boolean, isMounted = true) => {
@@ -190,7 +190,7 @@ export default function AgencyReportsClient() {
   const fPct = (v: number) => `${(isNaN(v) ? 0 : v).toFixed(2)}%`;
 
   const formatTimeAgo = (date: Date) => {
-    const mins = Math.floor((new Date().getTime() - date.getTime()) / 60000);
+    const mins = Math.floor((Date.now() - date.getTime()) / 60000);
     if (mins < 1) return "Just now";
     if (mins < 60) return `${mins} min ago`;
     const hours = Math.floor(mins / 60);

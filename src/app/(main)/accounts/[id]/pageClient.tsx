@@ -5,8 +5,12 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowUpRight,
+  Ban,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   DollarSign,
+  Download,
   Eye,
   LineChart,
   Loader2,
@@ -14,13 +18,9 @@ import {
   MousePointerClick,
   Percent,
   Save,
+  Search,
   Settings as SettingsIcon,
   Target,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Search,
-  Ban,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -157,7 +157,7 @@ export default function ClientDashboard({
 
   useEffect(() => {
     setCampaignPage(1);
-  }, [campaignSearch]);
+  }, []);
 
   const exportCampaignsToCsv = () => {
     const headers = [

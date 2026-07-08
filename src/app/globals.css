@@ -141,14 +141,14 @@
 @layer components {
   /* Remove spacing from all Card internal elements */
   .card {
-    margin: 0 !important;
-    padding: 0 !important;
+    margin: 0;
+    padding: 0;
   }
 
   .card-header,
   .card-content,
   .card-footer {
-    margin: 0 !important;
-    padding: 0 !important;
+    margin: 0;
+    padding: 0;
   }
 }

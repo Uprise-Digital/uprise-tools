@@ -3,28 +3,30 @@
 import {
   Activity,
   AlertTriangle,
+  Check,
   CheckCircle2,
   Clock,
+  Copy,
   Database,
+  ExternalLink,
+  Filter,
+  History,
+  Info,
   Loader2,
+  Mail,
   Save,
+  Search,
   Settings as SettingsIcon,
   SlidersHorizontal,
-  XCircle,
-  History,
-  Mail,
-  Search,
-  Filter,
-  Info,
   User as UserIcon,
-  ExternalLink,
-  Copy,
-  Check,
+  XCircle,
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { saveOrgTriageDefaultsAction } from "@/actions/triage-settings.actions";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,10 +36,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -46,13 +53,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 interface TriageDefaultsData {
   id: number | null;

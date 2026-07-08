@@ -2,7 +2,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import * as cheerio from "cheerio";
-import { eq, desc, and } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import TurndownService from "turndown";
 import { db } from "@/db";
@@ -38,18 +38,18 @@ async function scrapeAndCompressLandingPage(
 
     let highValueHtml = "";
     $("h1, h2, h3").each((_, el) => {
-      highValueHtml += $.html(el) + "<br/>";
+      highValueHtml += `${$.html(el)}<br/>`;
     });
     $("a, button, .btn").each((_, el) => {
-      highValueHtml += $.html(el) + "<br/>";
+      highValueHtml += `${$.html(el)}<br/>`;
     });
     $("ul, ol").each((_, el) => {
-      highValueHtml += $.html(el) + "<br/>";
+      highValueHtml += `${$.html(el)}<br/>`;
     });
     $("p")
       .slice(0, 15)
       .each((_, el) => {
-        highValueHtml += $.html(el) + "<br/>";
+        highValueHtml += `${$.html(el)}<br/>`;
       });
 
     const turndownService = new TurndownService();

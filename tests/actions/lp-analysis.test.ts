@@ -1,21 +1,20 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  getCampaignLandingPagesAction,
-  syncCampaignLandingPagesAction,
-  saveCampaignLandingPageAction,
-  runLandingPageAuditAction,
   getAuditDetailAction,
+  getCampaignLandingPagesAction,
+  runLandingPageAuditAction,
+  saveCampaignLandingPageAction,
+  syncCampaignLandingPagesAction,
 } from "@/actions/lp-analysis.actions";
-import { db } from "@/db";
 
 describe("Landing Page CRO Analysis Actions", () => {
   it("should retrieve campaign landing pages and attach latest audit scores", async () => {
     const result = await getCampaignLandingPagesAction(1);
-    
+
     expect(result.success).toBe(true);
     expect(result.data).toBeDefined();
     expect(result.data?.length).toBeGreaterThan(0);
-    
+
     const campaign = result.data![0];
     expect(campaign.campaignId).toBe("camp-1");
     expect(campaign.latestAudit).not.toBeNull();
@@ -24,7 +23,7 @@ describe("Landing Page CRO Analysis Actions", () => {
 
   it("should sync landing pages from Google Ads API", async () => {
     const result = await syncCampaignLandingPagesAction(1);
-    
+
     expect(result.success).toBe(true);
     expect(result.count).toBe(1);
   });
@@ -34,9 +33,9 @@ describe("Landing Page CRO Analysis Actions", () => {
       1,
       "camp-1",
       "Plumbing Campaign",
-      "https://test-client.com.au/plumbing-v2"
+      "https://test-client.com.au/plumbing-v2",
     );
-    
+
     expect(result.success).toBe(true);
     expect(result.data).toBeDefined();
   });
@@ -46,9 +45,9 @@ describe("Landing Page CRO Analysis Actions", () => {
       1,
       "camp-1",
       "Plumbing Campaign",
-      "test-client.com.au/plumbing"
+      "test-client.com.au/plumbing",
     );
-    
+
     expect(result.success).toBe(false);
     expect(result.error).toContain("URL must begin with http:// or https://");
   });
@@ -59,7 +58,7 @@ describe("Landing Page CRO Analysis Actions", () => {
       "camp-1",
       "Plumbing Campaign",
       "https://test-client.com.au/plumbing",
-      "emergency plumber gold coast"
+      "emergency plumber gold coast",
     );
 
     expect(result.success).toBe(true);
@@ -69,7 +68,7 @@ describe("Landing Page CRO Analysis Actions", () => {
 
   it("should retrieve detailed audit report by ID", async () => {
     const result = await getAuditDetailAction(100);
-    
+
     expect(result.success).toBe(true);
     expect(result.data).toBeDefined();
     expect(result.data?.score).toBe(85);

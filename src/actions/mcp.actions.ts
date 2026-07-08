@@ -1,7 +1,7 @@
 // actions/mcp.actions.ts
 "use server";
 
-import { randomBytes } from "crypto";
+import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db"; // Adjust path to your db instance

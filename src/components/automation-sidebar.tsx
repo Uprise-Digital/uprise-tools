@@ -457,7 +457,7 @@ export function AutomationSidebar({
                   className="h-10"
                   type="number"
                   value={dayOfMonth}
-                  onChange={(e) => setDayOfMonth(parseInt(e.target.value))}
+                  onChange={(e) => setDayOfMonth(parseInt(e.target.value, 10))}
                 />
               </div>
             </div>

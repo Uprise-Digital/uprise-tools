@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { generateClientReportAction } from "@/actions/pdf.actions";
 import { AutomationSidebar } from "@/components/automation-sidebar";

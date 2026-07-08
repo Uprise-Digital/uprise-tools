@@ -1,10 +1,10 @@
 import { renderToStream } from "@react-pdf/renderer";
-import { eq, and, or, isNull, lt, ne } from "drizzle-orm";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import React from "react";
 import { Resend } from "resend";
 import { db } from "@/db";
-import { adAccounts, reportSchedules, user } from "@/db/schema";
+import { adAccounts, reportSchedules } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
 import { logAction, logEmail } from "@/lib/audit";
 import { cleanCcEmails } from "@/lib/cleaners";
@@ -39,7 +39,7 @@ async function processReportPayload(payload: {
   const ACTOR = userId || "SYSTEM_AUTOMATION";
 
   console.log(
-    `[Report Engine] Processing report for: ${clientName} (ID: ${scheduleId})`
+    `[Report Engine] Processing report for: ${clientName} (ID: ${scheduleId})`,
   );
 
   let schedule: any = null;
@@ -62,7 +62,7 @@ async function processReportPayload(payload: {
       clientName,
       rawSummary,
       rawKeywords,
-      lastMonth
+      lastMonth,
     );
 
     // 4. Generate AI Insights and Email Body in parallel
@@ -136,13 +136,15 @@ async function processReportPayload(payload: {
         "AUTOMATED_REPORT_SENT",
         "report_schedules",
         scheduleId.toString(),
-        { clientName, recipient: schedule.recipientEmail, status: "SUCCESS" }
+        { clientName, recipient: schedule.recipientEmail, status: "SUCCESS" },
       );
     } catch (auditErr) {
       console.error("[Report Engine] Audit logging failed:", auditErr);
     }
 
-    console.log(`[Report Engine] Successfully delivered report for ${clientName}`);
+    console.log(
+      `[Report Engine] Successfully delivered report for ${clientName}`,
+    );
     return { success: true };
   } catch (error: any) {
     // 9. Failure: Log the error
@@ -169,7 +171,10 @@ async function processReportPayload(payload: {
         error: error.message || "Unknown cron error",
       });
     } catch (logErr) {
-      console.error("[Report Engine] Failed to write failure emailLog:", logErr);
+      console.error(
+        "[Report Engine] Failed to write failure emailLog:",
+        logErr,
+      );
     }
 
     try {
@@ -182,7 +187,7 @@ async function processReportPayload(payload: {
           clientName,
           error: error.message || "Unknown error",
           status: "FAILURE",
-        }
+        },
       );
     } catch (auditErr) {
       console.error("[Report Engine] Failed to log failure audit:", auditErr);
@@ -207,7 +212,9 @@ export async function GET(request: Request) {
   try {
     // Determine today's day of the month (Melbourne context is fine)
     const today = new Date().getDate();
-    console.log(`[Cron] Checking scheduled reports due today (day ${today})...`);
+    console.log(
+      `[Cron] Checking scheduled reports due today (day ${today})...`,
+    );
 
     // Fetch schedules that are active, due today, and not run in the last 20 hours
     const dueSchedules = await db
@@ -228,9 +235,12 @@ export async function GET(request: Request) {
           eq(reportSchedules.dayOfMonth, today),
           or(
             isNull(reportSchedules.lastRunAt),
-            lt(reportSchedules.lastRunAt, new Date(Date.now() - 20 * 60 * 60 * 1000))
-          )
-        )
+            lt(
+              reportSchedules.lastRunAt,
+              new Date(Date.now() - 20 * 60 * 60 * 1000),
+            ),
+          ),
+        ),
       );
 
     console.log(`[Cron] Found ${dueSchedules.length} schedules to process.`);
@@ -244,7 +254,11 @@ export async function GET(request: Request) {
           googleAccountId: schedule.googleAccountId,
           clientName: schedule.clientName,
         });
-        results.push({ scheduleId: schedule.id, clientName: schedule.clientName, status: "SUCCESS" });
+        results.push({
+          scheduleId: schedule.id,
+          clientName: schedule.clientName,
+          status: "SUCCESS",
+        });
       } catch (err: any) {
         results.push({
           scheduleId: schedule.id,
@@ -279,7 +293,10 @@ export async function POST(request: Request) {
   try {
     const payload = await request.json();
     if (!payload.scheduleId || !payload.googleAccountId) {
-      return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing parameters" },
+        { status: 400 },
+      );
     }
 
     await processReportPayload({

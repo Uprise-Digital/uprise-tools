@@ -1,4 +1,5 @@
-import { vi, beforeAll, afterAll } from "vitest";
+/* biome-ignore-all lint/suspicious/noExplicitAny: mocked types */
+import { afterAll, beforeAll, vi } from "vitest";
 
 // ============================================================================
 // 1. MOCK NEXT.JS HEADERS AND AUTH
@@ -15,7 +16,11 @@ vi.mock("@/lib/auth", () => ({
   auth: {
     api: {
       getSession: vi.fn().mockResolvedValue({
-        user: { id: "test-user-id", name: "Test User", email: "test@uprise.com" },
+        user: {
+          id: "test-user-id",
+          name: "Test User",
+          email: "test@uprise.com",
+        },
       }),
     },
   },
@@ -32,22 +37,35 @@ const mockDbQuery = {
       name: "Test Trade Account",
       websiteUrl: "https://test-client.com.au",
     }),
-    findMany: vi.fn().mockResolvedValue([
-      { id: 1, googleAccountId: "123-456-7890", name: "Test Trade Account" },
-    ]),
+    findMany: vi
+      .fn()
+      .mockResolvedValue([
+        { id: 1, googleAccountId: "123-456-7890", name: "Test Trade Account" },
+      ]),
   },
   campaignLandingPages: {
     findMany: vi.fn().mockResolvedValue([
-      { id: 10, campaignId: "camp-1", campaignName: "Plumbing Campaign", url: "https://test-client.com.au/plumbing", updatedAt: new Date() },
+      {
+        id: 10,
+        campaignId: "camp-1",
+        campaignName: "Plumbing Campaign",
+        url: "https://test-client.com.au/plumbing",
+        updatedAt: new Date(),
+      },
     ]),
     findFirst: vi.fn().mockResolvedValue({
-      id: 10, campaignId: "camp-1", campaignName: "Plumbing Campaign", url: "https://test-client.com.au/plumbing"
+      id: 10,
+      campaignId: "camp-1",
+      campaignName: "Plumbing Campaign",
+      url: "https://test-client.com.au/plumbing",
     }),
   },
   landingPageAudits: {
-    findMany: vi.fn().mockResolvedValue([
-      { id: 100, campaignId: "camp-1", score: 85, createdAt: new Date() },
-    ]),
+    findMany: vi
+      .fn()
+      .mockResolvedValue([
+        { id: 100, campaignId: "camp-1", score: 85, createdAt: new Date() },
+      ]),
     findFirst: vi.fn().mockResolvedValue({
       id: 100,
       campaignId: "camp-1",
@@ -71,23 +89,44 @@ const mockDbQuery = {
   },
   negativeKeywordSuggestions: {
     findMany: vi.fn().mockResolvedValue([
-      { id: 1, adAccountId: 1, keyword: "free", matchType: "phrase", status: "pending", campaignId: "camp-1", campaignName: "Plumbing Campaign", account: { googleAccountId: "123-456-7890" } },
+      {
+        id: 1,
+        adAccountId: 1,
+        keyword: "free",
+        matchType: "phrase",
+        status: "pending",
+        campaignId: "camp-1",
+        campaignName: "Plumbing Campaign",
+        account: { googleAccountId: "123-456-7890" },
+      },
     ]),
     findFirst: vi.fn().mockResolvedValue({
-      id: 1, adAccountId: 1, keyword: "free", matchType: "phrase", status: "pending", campaignId: "camp-1", campaignName: "Plumbing Campaign", account: { googleAccountId: "123-456-7890" }
+      id: 1,
+      adAccountId: 1,
+      keyword: "free",
+      matchType: "phrase",
+      status: "pending",
+      campaignId: "camp-1",
+      campaignName: "Plumbing Campaign",
+      account: { googleAccountId: "123-456-7890" },
     }),
   },
   accountTriageSettings: {
     findFirst: vi.fn().mockResolvedValue({
-      id: 1, adAccountId: 1, criticalSpendThreshold: 70
+      id: 1,
+      adAccountId: 1,
+      criticalSpendThreshold: 70,
     }),
-    findMany: vi.fn().mockResolvedValue([
-      { id: 1, adAccountId: 1, criticalSpendThreshold: 70 }
-    ]),
+    findMany: vi
+      .fn()
+      .mockResolvedValue([
+        { id: 1, adAccountId: 1, criticalSpendThreshold: 70 },
+      ]),
   },
   orgTriageDefaults: {
     findFirst: vi.fn().mockResolvedValue({
-      id: 1, criticalSpendThreshold: 70
+      id: 1,
+      criticalSpendThreshold: 70,
     }),
   },
   briefingSettings: {
@@ -96,12 +135,22 @@ const mockDbQuery = {
       recipients: ["admin@uprise.com"],
       sendTime: "07:00",
       dataPoints: {},
-      isActive: true
+      isActive: true,
     }),
   },
   adPerformanceDaily: {
     findMany: vi.fn().mockResolvedValue([
-      { id: 1, adAccountId: 1, date: new Date(), campaignId: "camp-1", campaignName: "Plumbing Campaign", spend: "100.00", impressions: 1000, clicks: 100, conversions: "10.00" }
+      {
+        id: 1,
+        adAccountId: 1,
+        date: new Date(),
+        campaignId: "camp-1",
+        campaignName: "Plumbing Campaign",
+        spend: "100.00",
+        impressions: 1000,
+        clicks: 100,
+        conversions: "10.00",
+      },
     ]),
   },
 };
@@ -136,7 +185,7 @@ vi.mock("@/db", () => ({
 // ============================================================================
 vi.mock("@google/genai", () => {
   return {
-    GoogleGenAI: vi.fn().mockImplementation(function() {
+    GoogleGenAI: vi.fn().mockImplementation(function () {
       return {
         models: {
           generateContent: vi.fn().mockResolvedValue({
@@ -156,14 +205,31 @@ vi.mock("@google/genai", () => {
                 tech: 8,
               },
               breakdown: {
-                hero: { working: ["Clear hook"], missing: ["Generic sub"], fix: "Update sub headline" },
+                hero: {
+                  working: ["Clear hook"],
+                  missing: ["Generic sub"],
+                  fix: "Update sub headline",
+                },
               },
-              client_action_script: "Please change the hero above the fold copy.",
+              client_action_script:
+                "Please change the hero above the fold copy.",
               competitors: [
-                { name: "Best Competitor", url: "https://best-competitor.com.au", score: 9, pros: [], cons: [], takeaway: "Match offer" },
+                {
+                  name: "Best Competitor",
+                  url: "https://best-competitor.com.au",
+                  score: 9,
+                  pros: [],
+                  cons: [],
+                  takeaway: "Match offer",
+                },
               ],
               top_ideas: [
-                { idea: "Add reviews", why: "Improves trust", effort: "Easy", impact: "High" },
+                {
+                  idea: "Add reviews",
+                  why: "Improves trust",
+                  effort: "Easy",
+                  impact: "High",
+                },
               ],
               quick_wins: ["Add trust badge"],
               roadmap: {
@@ -171,12 +237,18 @@ vi.mock("@google/genai", () => {
               },
               // Morning Briefing fields
               subject: "☀️ Morning Briefing — Thursday 26 June 2026",
-              macroSummary: "Yesterday spend was highly efficient with solid conversions.",
-              whaleAnalysisCommentary: "Test Trade Account accounted for 100% of all spend yesterday.",
+              macroSummary:
+                "Yesterday spend was highly efficient with solid conversions.",
+              whaleAnalysisCommentary:
+                "Test Trade Account accounted for 100% of all spend yesterday.",
               alerts: [],
               zeroConversionFootnote: "None.",
               successes: [
-                { accountName: "Test Trade Account", statsText: "CPA of AUD $10.00", details: "Excellent CPA yesterday." }
+                {
+                  accountName: "Test Trade Account",
+                  statsText: "CPA of AUD $10.00",
+                  details: "Excellent CPA yesterday.",
+                },
               ],
               priorityList: ["Review campaign status."],
             }),
@@ -192,10 +264,18 @@ vi.mock("@google/genai", () => {
 // ============================================================================
 vi.mock("@/lib/google-ads", () => ({
   fetchCampaignLandingPages: vi.fn().mockResolvedValue([
-    { campaignId: "camp-1", campaignName: "Plumbing Campaign", url: "https://test-client.com.au/plumbing" },
+    {
+      campaignId: "camp-1",
+      campaignName: "Plumbing Campaign",
+      url: "https://test-client.com.au/plumbing",
+    },
   ]),
-  fetchTopClientLandingPage: vi.fn().mockResolvedValue("https://test-client.com.au/plumbing"),
-  fetchTopNonBrandedSearchTerm: vi.fn().mockResolvedValue("emergency plumber sydney"),
+  fetchTopClientLandingPage: vi
+    .fn()
+    .mockResolvedValue("https://test-client.com.au/plumbing"),
+  fetchTopNonBrandedSearchTerm: vi
+    .fn()
+    .mockResolvedValue("emergency plumber sydney"),
   fetchMCCAccounts: vi.fn().mockResolvedValue({
     results: [
       {
@@ -210,9 +290,9 @@ vi.mock("@/lib/google-ads", () => ({
     ],
   }),
   addCampaignNegativeKeyword: vi.fn().mockResolvedValue(true),
-  fetchAccountCampaigns: vi.fn().mockResolvedValue([
-    { id: "camp-1", name: "Plumbing Campaign" },
-  ]),
+  fetchAccountCampaigns: vi
+    .fn()
+    .mockResolvedValue([{ id: "camp-1", name: "Plumbing Campaign" }]),
   fetchActiveNegativeKeywords: vi.fn().mockResolvedValue([]),
   fetchSearchTermsReport: vi.fn().mockResolvedValue([]),
 }));
@@ -227,7 +307,7 @@ vi.mock("@/lib/audit", () => ({
 // ============================================================================
 vi.mock("resend", () => {
   return {
-    Resend: vi.fn().mockImplementation(function() {
+    Resend: vi.fn().mockImplementation(function () {
       return {
         emails: {
           send: vi.fn().mockResolvedValue({
@@ -246,14 +326,19 @@ vi.mock("resend", () => {
 const originalFetch = global.fetch;
 
 beforeAll(() => {
-  global.fetch = vi.fn().mockImplementation((url: string, init?: any) => {
+  global.fetch = vi.fn().mockImplementation((url: string, _init?: any) => {
     if (url.includes("google.serper.dev")) {
       return Promise.resolve({
         ok: true,
         json: () =>
           Promise.resolve({
             ads: [{ link: "https://competitor-ad.com.au" }],
-            organic: [{ link: "https://competitor-organic.com.au", title: "Organic competitor" }],
+            organic: [
+              {
+                link: "https://competitor-organic.com.au",
+                title: "Organic competitor",
+              },
+            ],
           }),
       } as any);
     }
@@ -262,7 +347,7 @@ beforeAll(() => {
         ok: true,
         text: () =>
           Promise.resolve(
-            "<html><body><h1>Emergency Plumber Gold Coast</h1><p>Master plumbers since 2005</p></body></html>"
+            "<html><body><h1>Emergency Plumber Gold Coast</h1><p>Master plumbers since 2005</p></body></html>",
           ),
       } as any);
     }
