@@ -11,11 +11,11 @@ describe("Landing Page CRO Analysis Actions", () => {
   it("should retrieve campaign landing pages and attach latest audit scores", async () => {
     const result = await getCampaignLandingPagesAction(1);
 
-    expect(result.success).toBe(true);
+    if (!result.success) throw new Error(result.error);
     expect(result.data).toBeDefined();
-    expect(result.data?.length).toBeGreaterThan(0);
+    expect(result.data.length).toBeGreaterThan(0);
 
-    const campaign = result.data![0];
+    const campaign = result.data[0];
     expect(campaign.campaignId).toBe("camp-1");
     expect(campaign.latestAudit).not.toBeNull();
     expect(campaign.latestAudit?.score).toBe(85);
@@ -24,7 +24,7 @@ describe("Landing Page CRO Analysis Actions", () => {
   it("should sync landing pages from Google Ads API", async () => {
     const result = await syncCampaignLandingPagesAction(1);
 
-    expect(result.success).toBe(true);
+    if (!result.success) throw new Error(result.error);
     expect(result.count).toBe(1);
   });
 
@@ -36,7 +36,7 @@ describe("Landing Page CRO Analysis Actions", () => {
       "https://test-client.com.au/plumbing-v2",
     );
 
-    expect(result.success).toBe(true);
+    if (!result.success) throw new Error(result.error);
     expect(result.data).toBeDefined();
   });
 
@@ -48,7 +48,7 @@ describe("Landing Page CRO Analysis Actions", () => {
       "test-client.com.au/plumbing",
     );
 
-    expect(result.success).toBe(false);
+    if (result.success) throw new Error("Expected failure");
     expect(result.error).toContain("URL must begin with http:// or https://");
   });
 
@@ -61,18 +61,18 @@ describe("Landing Page CRO Analysis Actions", () => {
       "emergency plumber gold coast",
     );
 
-    expect(result.success).toBe(true);
-    expect(result.data?.auditId).toBeDefined();
-    expect(result.data?.score).toBe(85);
+    if (!result.success) throw new Error(result.error);
+    expect(result.data.auditId).toBeDefined();
+    expect(result.data.score).toBe(85);
   });
 
   it("should retrieve detailed audit report by ID", async () => {
     const result = await getAuditDetailAction(100);
 
-    expect(result.success).toBe(true);
+    if (!result.success) throw new Error(result.error);
     expect(result.data).toBeDefined();
-    expect(result.data?.score).toBe(85);
-    expect(result.data?.heroScore).toBe(8);
-    expect(result.data?.ctaScore).toBe(9);
+    expect(result.data.score).toBe(85);
+    expect(result.data.heroScore).toBe(8);
+    expect(result.data.ctaScore).toBe(9);
   });
 });
