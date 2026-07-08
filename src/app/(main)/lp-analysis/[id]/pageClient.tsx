@@ -12,10 +12,16 @@ import {
   ExternalLink,
   FileText,
   Flame,
+  Globe,
+  Layers,
+  MousePointerClick,
+  Palette,
   Printer,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -71,6 +77,33 @@ interface AuditDetailProps {
     };
   };
 }
+
+const getDimensionIcon = (key: string) => {
+  switch (key) {
+    case "hero":
+      return Sparkles;
+    case "cta":
+      return MousePointerClick;
+    case "trust":
+      return ShieldCheck;
+    case "mobile":
+      return Smartphone;
+    case "copy":
+      return FileText;
+    case "seo":
+      return Globe;
+    case "design":
+      return Palette;
+    case "flow":
+      return Layers;
+    case "market_fit":
+      return Activity;
+    case "tech":
+      return Zap;
+    default:
+      return FileText;
+  }
+};
 
 export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
   const [copied, setCopied] = useState(false);
@@ -130,44 +163,44 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
   const dimensions = [
     {
       key: "hero",
-      label: "🎯 Hero Section & First Impression",
+      label: "Hero Section & First Impression",
       score: audit.heroScore,
     },
     {
       key: "cta",
-      label: "📣 Call-to-Action (CTA) Quality",
+      label: "Call-to-Action (CTA) Quality",
       score: audit.ctaScore,
     },
-    { key: "trust", label: "🏆 Trust & Social Proof", score: audit.trustScore },
-    { key: "mobile", label: "📱 Mobile Experience", score: audit.mobileScore },
-    { key: "copy", label: "✍️ Copy & Content Quality", score: audit.copyScore },
-    { key: "seo", label: "🗺️ Local SEO & Geo-Relevance", score: audit.seoScore },
+    { key: "trust", label: "Trust & Social Proof", score: audit.trustScore },
+    { key: "mobile", label: "Mobile Experience", score: audit.mobileScore },
+    { key: "copy", label: "Copy & Content Quality", score: audit.copyScore },
+    { key: "seo", label: "Local SEO & Geo-Relevance", score: audit.seoScore },
     {
       key: "design",
-      label: "🎨 Design & Visual Hierarchy",
+      label: "Design & Visual Hierarchy",
       score: audit.designScore,
     },
     {
       key: "flow",
-      label: "🔄 Conversion Flow & Structure",
+      label: "Conversion Flow & Structure",
       score: audit.flowScore,
     },
     {
       key: "market_fit",
-      label: "🇦🇺 Australian Market Fit",
+      label: "Australian Market Fit",
       score: audit.marketFitScore,
     },
     {
       key: "tech",
-      label: "⚡ Speed & Technical Basics",
+      label: "Speed & Technical Basics",
       score: audit.techScore,
     },
   ];
 
   const getProgressBarColor = (score: number) => {
     if (score >= 8) return "bg-emerald-500";
-    if (score >= 7) return "bg-emerald-400";
-    if (score >= 5) return "bg-amber-500";
+    if (score >= 7) return "bg-amber-500";
+    if (score >= 5) return "bg-orange-500";
     return "bg-red-500";
   };
 
@@ -259,8 +292,9 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                 </DialogDescription>
               </DialogHeader>
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 max-h-[350px] overflow-y-auto mt-2">
-                <pre className="text-xs text-slate-700 font-medium leading-relaxed whitespace-pre-wrap font-sans">
-                  {report?.client_action_script || "No script generated."}
+                <pre className="text-sm text-slate-700 font-medium leading-relaxed whitespace-pre-wrap font-sans">
+                  {report?.client_action_script?.trim() ||
+                    "No script generated."}
                 </pre>
               </div>
               <div className="flex justify-end pt-3 border-t mt-4">
@@ -369,22 +403,28 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3.5 py-4">
-            {dimensions.map((dim) => (
-              <div key={dim.key} className="space-y-1">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span className="truncate pr-1">{dim.label}</span>
-                  <span className="font-mono">{dim.score} / 10</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-2.5 rounded-full ${getProgressBarColor(dim.score)}`}
-                      style={{ width: `${dim.score * 10}%` }}
-                    />
+            {dimensions.map((dim) => {
+              const Icon = getDimensionIcon(dim.key);
+              return (
+                <div key={dim.key} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span className="truncate pr-1 flex items-center gap-1.5">
+                      <Icon className="w-3.5 h-3.5 text-slate-450 shrink-0" />
+                      {dim.label}
+                    </span>
+                    <span className="font-mono">{dim.score} / 10</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                      <div
+                        className={`h-2.5 rounded-full ${getProgressBarColor(dim.score)}`}
+                        style={{ width: `${dim.score * 10}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       </div>
@@ -397,8 +437,8 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
             Client action plan script
           </CardTitle>
         </CardHeader>
-        <CardContent className="py-4 text-xs font-medium text-slate-700 leading-relaxed whitespace-pre-wrap font-sans">
-          {report?.client_action_script}
+        <CardContent className="py-4 text-sm font-medium text-slate-700 leading-relaxed whitespace-pre-wrap font-sans">
+          {report?.client_action_script?.trim()}
         </CardContent>
       </Card>
 
@@ -430,6 +470,12 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                   className="w-full flex items-center justify-between px-4 py-3.5 text-left bg-slate-50/60 hover:bg-slate-50 transition-colors border-b border-slate-100"
                 >
                   <div className="flex items-center gap-2">
+                    {(() => {
+                      const Icon = getDimensionIcon(dim.key);
+                      return (
+                        <Icon className="w-4 h-4 text-indigo-500 shrink-0" />
+                      );
+                    })()}
                     <span className="text-xs font-black text-slate-800">
                       {dim.label}
                     </span>
