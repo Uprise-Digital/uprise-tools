@@ -1,10 +1,10 @@
 import { renderToStream } from "@react-pdf/renderer";
-import { handleCallback } from "@vercel/queue";
-import { eq } from "drizzle-orm";
+import { eq, and, or, isNull, lt, ne } from "drizzle-orm";
+import { NextResponse } from "next/server";
 import React from "react";
 import { Resend } from "resend";
 import { db } from "@/db";
-import { reportSchedules } from "@/db/schema";
+import { adAccounts, reportSchedules, user } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
 import { logAction, logEmail } from "@/lib/audit";
 import { cleanCcEmails } from "@/lib/cleaners";
@@ -25,22 +25,21 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-// Ensure the function has enough time for AI and PDF generation
+// Ensure Next.js/Railway allocates maximum time for AI and PDF rendering
 export const maxDuration = 300;
 
-/**
- * Vercel Queue Worker
- * This handles the heavy lifting of generating and sending reports.
- */
-export const POST = handleCallback(async (payload: any) => {
+// Shared report processing logic
+async function processReportPayload(payload: {
+  scheduleId: number;
+  googleAccountId: string;
+  clientName: string;
+  userId?: string;
+}) {
   const { scheduleId, googleAccountId, clientName, userId } = payload;
-
-  // Fallback to SYSTEM_AUTOMATION if no userId (Cron jobs)
-  // Note: Ensure this ID exists in your 'user' table to satisfy FK constraints
   const ACTOR = userId || "SYSTEM_AUTOMATION";
 
   console.log(
-    `[Queue] Processing report for: ${clientName} (ID: ${scheduleId})`,
+    `[Report Engine] Processing report for: ${clientName} (ID: ${scheduleId})`
   );
 
   let schedule: any = null;
@@ -63,7 +62,7 @@ export const POST = handleCallback(async (payload: any) => {
       clientName,
       rawSummary,
       rawKeywords,
-      lastMonth,
+      lastMonth
     );
 
     // 4. Generate AI Insights and Email Body in parallel
@@ -89,7 +88,6 @@ export const POST = handleCallback(async (payload: any) => {
       schedule.emailSubject || `Performance Report: ${clientName}`;
 
     // 6. Send the email via Resend
-    // cleanCcEmails converts "test@test.com, dev@test.com" into ["test@test.com", "dev@test.com"]
     const emailResult = await resend.emails.send({
       from: "Uprise Digital <reports@uprisedigital.com.au>",
       to: schedule.recipientEmail,
@@ -131,22 +129,23 @@ export const POST = handleCallback(async (payload: any) => {
       .set({ lastRunAt: new Date() })
       .where(eq(reportSchedules.id, scheduleId));
 
-    // 8. Audit Log - Wrapped in try/catch so logging errors don't trigger re-sends
+    // 8. Audit Log
     try {
       await logAction(
         ACTOR,
         "AUTOMATED_REPORT_SENT",
         "report_schedules",
         scheduleId.toString(),
-        { clientName, recipient: schedule.recipientEmail, status: "SUCCESS" },
+        { clientName, recipient: schedule.recipientEmail, status: "SUCCESS" }
       );
     } catch (auditErr) {
-      console.error("[Queue] Audit logging failed:", auditErr);
+      console.error("[Report Engine] Audit logging failed:", auditErr);
     }
 
-    console.log(`[Queue] Successfully delivered report for ${clientName}`);
+    console.log(`[Report Engine] Successfully delivered report for ${clientName}`);
+    return { success: true };
   } catch (error: any) {
-    // 9. Failure: Log the error and re-throw to allow Vercel Queue to retry
+    // 9. Failure: Log the error
     try {
       const adAccId =
         typeof schedule !== "undefined" && schedule
@@ -167,10 +166,10 @@ export const POST = handleCallback(async (payload: any) => {
         subject: sub,
         emailType: "scheduled_report",
         status: "failed",
-        error: error.message || "Unknown worker error",
+        error: error.message || "Unknown cron error",
       });
     } catch (logErr) {
-      console.error("[Queue] Failed to write failure emailLog:", logErr);
+      console.error("[Report Engine] Failed to write failure emailLog:", logErr);
     }
 
     try {
@@ -183,15 +182,115 @@ export const POST = handleCallback(async (payload: any) => {
           clientName,
           error: error.message || "Unknown error",
           status: "FAILURE",
-        },
+        }
       );
     } catch (auditErr) {
-      console.error("[Queue] Failed to log failure audit:", auditErr);
+      console.error("[Report Engine] Failed to log failure audit:", auditErr);
     }
 
-    console.error(`[Queue] Worker Failure:`, error.message);
-
-    // Throwing here triggers the Queue Retry Policy (up to 10 times)
+    console.error(`[Report Engine] Failure:`, error.message);
     throw error;
   }
-});
+}
+
+/**
+ * GET Handler (Automated Cron Job)
+ * Queries all report schedules due today and runs them sequentially.
+ */
+export async function GET(request: Request) {
+  // Security Check
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.WORKER_SECRET_KEY}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    // Determine today's day of the month (Melbourne context is fine)
+    const today = new Date().getDate();
+    console.log(`[Cron] Checking scheduled reports due today (day ${today})...`);
+
+    // Fetch schedules that are active, due today, and not run in the last 20 hours
+    const dueSchedules = await db
+      .select({
+        id: reportSchedules.id,
+        adAccountId: reportSchedules.adAccountId,
+        recipientEmail: reportSchedules.recipientEmail,
+        dayOfMonth: reportSchedules.dayOfMonth,
+        lastRunAt: reportSchedules.lastRunAt,
+        googleAccountId: adAccounts.googleAccountId,
+        clientName: adAccounts.name,
+      })
+      .from(reportSchedules)
+      .innerJoin(adAccounts, eq(reportSchedules.adAccountId, adAccounts.id))
+      .where(
+        and(
+          eq(reportSchedules.isActive, true),
+          eq(reportSchedules.dayOfMonth, today),
+          or(
+            isNull(reportSchedules.lastRunAt),
+            lt(reportSchedules.lastRunAt, new Date(Date.now() - 20 * 60 * 60 * 1000))
+          )
+        )
+      );
+
+    console.log(`[Cron] Found ${dueSchedules.length} schedules to process.`);
+    const results: any[] = [];
+
+    // Run them sequentially so we do not hit API rate limits or overflow PDF memory streams
+    for (const schedule of dueSchedules) {
+      try {
+        await processReportPayload({
+          scheduleId: schedule.id,
+          googleAccountId: schedule.googleAccountId,
+          clientName: schedule.clientName,
+        });
+        results.push({ scheduleId: schedule.id, clientName: schedule.clientName, status: "SUCCESS" });
+      } catch (err: any) {
+        results.push({
+          scheduleId: schedule.id,
+          clientName: schedule.clientName,
+          status: "FAILED",
+          error: err.message || "Unknown error",
+        });
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      processed: dueSchedules.length,
+      results,
+    });
+  } catch (error: any) {
+    console.error("[Cron] Daily schedule processor failed:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * POST Handler (Manual Trigger for Single Job)
+ */
+export async function POST(request: Request) {
+  // Security Check
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.WORKER_SECRET_KEY}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const payload = await request.json();
+    if (!payload.scheduleId || !payload.googleAccountId) {
+      return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+    }
+
+    await processReportPayload({
+      scheduleId: Number(payload.scheduleId),
+      googleAccountId: payload.googleAccountId,
+      clientName: payload.clientName || "Unknown Client",
+      userId: payload.userId,
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
