@@ -95,23 +95,6 @@ export default function AgencyReportsClient() {
     }
   };
 
-  // Run this when dates change
-  useEffect(() => {
-    let isMounted = true;
-    setInsights(null); // Clear UI while fetching
-    setGeneratedAt(null);
-
-    fetchPortfolioData(isMounted).then(() => {
-      if (isMounted) {
-        fetchGodModeAi(false, isMounted);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [fetchGodModeAi, fetchPortfolioData]);
-
   // 2. Fetch or Generate AI Insights
   const fetchGodModeAi = async (forceRefresh: boolean, isMounted = true) => {
     if (forceRefresh) setIsAiRefreshing(true);
@@ -137,6 +120,25 @@ export default function AgencyReportsClient() {
       }
     }
   };
+
+  // Run this when dates change
+  useEffect(() => {
+    let isMounted = true;
+    setInsights(null); // Clear UI while fetching
+    setGeneratedAt(null);
+
+    fetchPortfolioData(isMounted).then(() => {
+      if (isMounted) {
+        fetchGodModeAi(false, isMounted);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchGodModeAi, fetchPortfolioData]);
+
+
 
   // Sync Portfolio Action
   const handleSyncPortfolio = async () => {

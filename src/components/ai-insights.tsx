@@ -148,15 +148,6 @@ export function AiInsights({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-fetch cached report on mount/date change
-  useEffect(() => {
-    let isMounted = true;
-    fetchData(false, isMounted);
-    return () => {
-      isMounted = false;
-    };
-  }, [fetchData]);
-
   const fetchData = async (
     forceRefresh: boolean,
     isMounted: boolean = true,
@@ -187,6 +178,15 @@ export function AiInsights({
       }
     }
   };
+
+  // Auto-fetch cached report on mount/date change
+  useEffect(() => {
+    let isMounted = true;
+    fetchData(false, isMounted);
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchData]);
 
   // ── Empty / Initial Loading State ──
   if (isInitialLoading) {
