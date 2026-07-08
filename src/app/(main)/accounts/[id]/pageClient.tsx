@@ -160,6 +160,31 @@ export default function ClientDashboard({
   const [isISLoading, setIsISLoading] = useState(false);
   const [isData, setIsData] = useState<any[] | null>(null);
   const [isError, setIsError] = useState<string | null>(null);
+  const [isSortBy, setIsSortBy] = useState<string>("campaignName");
+  const [isSortDir, setIsSortDir] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (field: string) => {
+    if (isSortBy === field) {
+      setIsSortDir(isSortDir === "asc" ? "desc" : "asc");
+    } else {
+      setIsSortBy(field);
+      setIsSortDir("desc");
+    }
+  };
+
+  const formatPrecision = (val: any) => {
+    if (val === undefined || val === null || val === "--" || val === "")
+      return "--";
+    const num = parseFloat(String(val));
+    if (isNaN(num)) return String(val);
+    const formatted = num.toPrecision(3);
+    return String(Number(formatted));
+  };
+
+  const formatChannelType = (type: string) => {
+    if (type === "PERFORMANCE_MAX") return "P_MAX";
+    return type;
+  };
 
   // Conversion Health States
   const [isConvLoading, setIsConvLoading] = useState(false);
@@ -409,6 +434,31 @@ export default function ClientDashboard({
   const fNum = (v: number) =>
     new Intl.NumberFormat("en-US").format(Number.isNaN(v) ? 0 : v);
   const fPct = (v: number) => `${(Number.isNaN(v) ? 0 : v).toFixed(2)}%`;
+  const sortedData = [...(isData || [])].sort((a, b) => {
+    let valA = a[isSortBy];
+    let valB = b[isSortBy];
+
+    if (isSortBy === "searchImpressionShare") {
+      valA = a.parsedMetrics?.searchImpressionShare ?? 0;
+      valB = b.parsedMetrics?.searchImpressionShare ?? 0;
+    } else if (isSortBy === "searchBudgetLostImpressionShare") {
+      valA = a.parsedMetrics?.searchBudgetLostImpressionShare ?? 0;
+      valB = b.parsedMetrics?.searchBudgetLostImpressionShare ?? 0;
+    } else if (isSortBy === "searchRankLostImpressionShare") {
+      valA = a.parsedMetrics?.searchRankLostImpressionShare ?? 0;
+      valB = b.parsedMetrics?.searchRankLostImpressionShare ?? 0;
+    } else if (isSortBy === "searchTopImpressionShare") {
+      valA = a.parsedMetrics?.searchTopImpressionShare ?? 0;
+      valB = b.parsedMetrics?.searchTopImpressionShare ?? 0;
+    }
+
+    if (typeof valA === "string") valA = valA.toLowerCase();
+    if (typeof valB === "string") valB = valB.toLowerCase();
+
+    if (valA < valB) return isSortDir === "asc" ? -1 : 1;
+    if (valA > valB) return isSortDir === "asc" ? 1 : -1;
+    return 0;
+  });
 
   return (
     <div className="space-y-6 p-4 mt-0 pt-0 max-w-400 mx-auto">
@@ -1206,33 +1256,157 @@ export default function ClientDashboard({
                   <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                     <Table>
                       <TableHeader className="bg-slate-50/50">
-                        <TableRow>
-                          <TableHead className="w-[200px]">Campaign</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead className="w-[300px]">
+                        <TableRow className="border-b border-slate-200">
+                          <TableHead className="w-[180px]">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("campaignName")}
+                              className="flex items-center gap-1 hover:text-slate-900 font-extrabold cursor-pointer text-xs text-left"
+                            >
+                              Campaign
+                              {isSortBy === "campaignName" ? (
+                                isSortDir === "asc" ? (
+                                  "▲"
+                                ) : (
+                                  "▼"
+                                )
+                              ) : (
+                                <span className="opacity-30 text-[9px]">▲</span>
+                              )}
+                            </button>
+                          </TableHead>
+                          <TableHead className="w-[70px]">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSort("advertisingChannelType")
+                              }
+                              className="flex items-center gap-1 hover:text-slate-900 font-extrabold cursor-pointer text-xs text-left"
+                            >
+                              Type
+                              {isSortBy === "advertisingChannelType" ? (
+                                isSortDir === "asc" ? (
+                                  "▲"
+                                ) : (
+                                  "▼"
+                                )
+                              ) : (
+                                <span className="opacity-30 text-[9px]">▲</span>
+                              )}
+                            </button>
+                          </TableHead>
+                          <TableHead className="w-[160px] font-extrabold text-slate-800 text-xs text-left">
                             Auction Opportunity Breakdown (100%)
                           </TableHead>
                           <TableHead className="text-right">
-                            Search IS
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSort("searchImpressionShare")
+                              }
+                              className="flex items-center justify-end gap-1 hover:text-slate-900 font-extrabold cursor-pointer w-full text-xs text-right"
+                            >
+                              Search IS
+                              {isSortBy === "searchImpressionShare" ? (
+                                isSortDir === "asc" ? (
+                                  "▲"
+                                ) : (
+                                  "▼"
+                                )
+                              ) : (
+                                <span className="opacity-30 text-[9px]">▲</span>
+                              )}
+                            </button>
                           </TableHead>
                           <TableHead className="text-right">
-                            Lost (Budget)
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSort("searchBudgetLostImpressionShare")
+                              }
+                              className="flex items-center justify-end gap-1 hover:text-slate-900 font-extrabold cursor-pointer w-full text-xs text-right"
+                            >
+                              Lost (Budget)
+                              {isSortBy ===
+                              "searchBudgetLostImpressionShare" ? (
+                                isSortDir === "asc" ? (
+                                  "▲"
+                                ) : (
+                                  "▼"
+                                )
+                              ) : (
+                                <span className="opacity-30 text-[9px]">▲</span>
+                              )}
+                            </button>
                           </TableHead>
                           <TableHead className="text-right">
-                            Lost (Rank)
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSort("searchRankLostImpressionShare")
+                              }
+                              className="flex items-center justify-end gap-1 hover:text-slate-900 font-extrabold cursor-pointer w-full text-xs text-right"
+                            >
+                              Lost (Rank)
+                              {isSortBy === "searchRankLostImpressionShare" ? (
+                                isSortDir === "asc" ? (
+                                  "▲"
+                                ) : (
+                                  "▼"
+                                )
+                              ) : (
+                                <span className="opacity-30 text-[9px]">▲</span>
+                              )}
+                            </button>
                           </TableHead>
-                          <TableHead className="text-right">Top IS</TableHead>
-                          <TableHead className="text-center">Status</TableHead>
+                          <TableHead className="text-right">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSort("searchTopImpressionShare")
+                              }
+                              className="flex items-center justify-end gap-1 hover:text-slate-900 font-extrabold cursor-pointer w-full text-xs text-right"
+                            >
+                              Top IS
+                              {isSortBy === "searchTopImpressionShare" ? (
+                                isSortDir === "asc" ? (
+                                  "▲"
+                                ) : (
+                                  "▼"
+                                )
+                              ) : (
+                                <span className="opacity-30 text-[9px]">▲</span>
+                              )}
+                            </button>
+                          </TableHead>
+                          <TableHead className="text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("flag")}
+                              className="flex items-center justify-center gap-1 hover:text-slate-900 font-extrabold cursor-pointer w-full text-xs text-center"
+                            >
+                              Status
+                              {isSortBy === "flag" ? (
+                                isSortDir === "asc" ? (
+                                  "▲"
+                                ) : (
+                                  "▼"
+                                )
+                              ) : (
+                                <span className="opacity-30 text-[9px]">▲</span>
+                              )}
+                            </button>
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {isData.map((c, i) => (
+                        {sortedData.map((c, i) => (
                           <TableRow key={i} className="text-xs">
                             <TableCell className="font-semibold text-slate-800">
                               {c.campaignName}
                             </TableCell>
                             <TableCell className="text-slate-500 font-mono text-[10px]">
-                              {c.advertisingChannelType}
+                              {formatChannelType(c.advertisingChannelType)}
                             </TableCell>
                             <TableCell>
                               {c.isPMax ? (
@@ -1240,60 +1414,67 @@ export default function ClientDashboard({
                                   Not available for Performance Max
                                 </span>
                               ) : (
-                                <div className="space-y-1.5 py-1">
-                                  <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                                <div className="space-y-1 py-0.5">
+                                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
                                     <div
                                       style={{
                                         width: `${c.parsedMetrics.searchImpressionShare}%`,
                                       }}
                                       className="bg-emerald-500 h-full transition-all duration-300"
-                                      title={`Search IS: ${c.searchImpressionShare}`}
+                                      title={`Search IS: ${formatPrecision(c.searchImpressionShare)}`}
                                     />
                                     <div
                                       style={{
                                         width: `${c.parsedMetrics.searchBudgetLostImpressionShare}%`,
                                       }}
                                       className="bg-amber-500 h-full transition-all duration-300"
-                                      title={`Lost to Budget: ${c.searchBudgetLostImpressionShare}`}
+                                      title={`Lost to Budget: ${formatPrecision(c.searchBudgetLostImpressionShare)}`}
                                     />
                                     <div
                                       style={{
                                         width: `${c.parsedMetrics.searchRankLostImpressionShare}%`,
                                       }}
                                       className="bg-rose-500 h-full transition-all duration-300"
-                                      title={`Lost to Rank: ${c.searchRankLostImpressionShare}`}
+                                      title={`Lost to Rank: ${formatPrecision(c.searchRankLostImpressionShare)}`}
                                     />
                                   </div>
-                                  <div className="flex items-center gap-3 text-[9px] text-slate-400 font-semibold font-sans">
+                                  <div className="flex items-center gap-2 text-[9px] text-slate-400 font-semibold font-sans">
                                     <span className="flex items-center gap-1">
                                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                      IS: {c.searchImpressionShare}
+                                      IS:{" "}
+                                      {formatPrecision(c.searchImpressionShare)}
                                     </span>
                                     <span className="flex items-center gap-1">
                                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                                       Lost (Budget):{" "}
-                                      {c.searchBudgetLostImpressionShare}
+                                      {formatPrecision(
+                                        c.searchBudgetLostImpressionShare,
+                                      )}
                                     </span>
                                     <span className="flex items-center gap-1">
                                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                                       Lost (Rank):{" "}
-                                      {c.searchRankLostImpressionShare}
+                                      {formatPrecision(
+                                        c.searchRankLostImpressionShare,
+                                      )}
                                     </span>
                                   </div>
                                 </div>
                               )}
                             </TableCell>
                             <TableCell className="text-right font-mono font-bold text-emerald-600">
-                              {c.searchImpressionShare}
+                              {formatPrecision(c.searchImpressionShare)}
                             </TableCell>
                             <TableCell className="text-right font-mono text-amber-600">
-                              {c.searchBudgetLostImpressionShare}
+                              {formatPrecision(
+                                c.searchBudgetLostImpressionShare,
+                              )}
                             </TableCell>
                             <TableCell className="text-right font-mono text-rose-600">
-                              {c.searchRankLostImpressionShare}
+                              {formatPrecision(c.searchRankLostImpressionShare)}
                             </TableCell>
                             <TableCell className="text-right font-mono text-slate-600">
-                              {c.searchTopImpressionShare}
+                              {formatPrecision(c.searchTopImpressionShare)}
                             </TableCell>
                             <TableCell className="text-center">
                               {c.isPMax ? (
