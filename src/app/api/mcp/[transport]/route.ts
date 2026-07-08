@@ -1,7 +1,7 @@
 // app/api/mcp/[transport]/route.ts
 
 import { eq } from "drizzle-orm";
-import { createMcpHandler, experimental_withMcpAuth } from "mcp-handler";
+import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { setAccountTargetsMcpAction } from "@/actions/account-targets.actions";
 import {
@@ -1508,24 +1508,72 @@ const handler = createMcpHandler(
   },
 );
 
-const authHandler = experimental_withMcpAuth(
-  handler,
-  async (req, bearerToken) => {
-    const url = new URL(req.url);
-    const keyFromUrl = url.searchParams.get("key");
-    const token = bearerToken || keyFromUrl;
-
-    if (!token) return undefined;
-
-    const validSettings = await db.query.mcpSettings.findFirst({
-      where: eq(mcpSettings.apiKey, token),
+const authHandler = async (req: Request) => {
+  // Handle CORS pre-flight OPTIONS requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      },
     });
+  }
 
-    if (!validSettings) return undefined;
+  const url = new URL(req.url);
+  const keyFromUrl = url.searchParams.get("key");
 
-    return { token, clientId: "uprise-mcp", scopes: [] };
-  },
-  { required: true },
-);
+  const authHeader = req.headers.get("Authorization");
+  let bearerToken = "";
+  if (authHeader?.startsWith("Bearer ")) {
+    bearerToken = authHeader.substring(7);
+  }
+
+  const token = bearerToken || keyFromUrl;
+
+  if (!token) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized: Missing API key" }),
+      {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      },
+    );
+  }
+
+  const validSettings = await db.query.mcpSettings.findFirst({
+    where: eq(mcpSettings.apiKey, token),
+  });
+
+  if (!validSettings) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized: Invalid API key" }),
+      {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      },
+    );
+  }
+
+  const response = await handler(req);
+
+  const newHeaders = new Headers(response.headers);
+  newHeaders.set("Access-Control-Allow-Origin", "*");
+  newHeaders.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+  newHeaders.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders,
+  });
+};
 
 export { authHandler as GET, authHandler as POST, authHandler as DELETE };
