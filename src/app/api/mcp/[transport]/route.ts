@@ -5,6 +5,7 @@ import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { setAccountTargetsMcpAction } from "@/actions/account-targets.actions";
 import {
+  auditConversionTrackingInternal,
   getAccountAnomaliesAction,
   getAccountByIdAction,
   getAccountByNameAction,
@@ -13,6 +14,7 @@ import {
   getCampaignDetailsAction,
   getConcentrationReportAction,
   getHistoricalComparisonAction,
+  getImpressionShareReportInternal,
   getOrGenerateAgencyAiInsightsAction,
   getSearchTermInsightsAction,
   listAccountsAction,
@@ -1464,6 +1466,140 @@ const handler = createMcpHandler(
                 text: JSON.stringify({
                   success: false,
                   error: error.message || "Failed to update account persona",
+                }),
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "get_impression_share_report",
+      {
+        title: "Get Impression Share Report",
+        description:
+          "Fetches impression share metrics (Search IS, Lost IS due to budget/rank, Top IS) for search campaigns in a given account. Returns constraint flags: budget-constrained, rank-constrained, or healthy. Performance Max (PMax) campaigns are automatically marked as notAvailable.",
+        inputSchema: {
+          accountId: z
+            .number()
+            .int()
+            .positive()
+            .describe("The internal database ID of the ad account"),
+          startDate: z
+            .string()
+            .optional()
+            .describe(
+              "Start date in YYYY-MM-DD format (defaults to beginning of current month)",
+            ),
+          endDate: z
+            .string()
+            .optional()
+            .describe("End date in YYYY-MM-DD format (defaults to today)"),
+          campaignId: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe("Optional campaign ID to filter results"),
+        },
+      },
+      async ({ accountId, startDate, endDate, campaignId }) => {
+        try {
+          const result = await getImpressionShareReportInternal(
+            accountId,
+            startDate,
+            endDate,
+            campaignId,
+          );
+
+          if (!result.success) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: result.error,
+                  }),
+                },
+              ],
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(result.data),
+              },
+            ],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error:
+                    error.message || "Failed to fetch impression share report",
+                }),
+              },
+            ],
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "audit_conversion_tracking",
+      {
+        title: "Audit Conversion Tracking Health",
+        description:
+          "Audits all configured conversion actions for a given account. Validates status, counting type, and flags issues: MANY_PER_CLICK primary goal inflation, multiple primary actions in the same category, and broken tags (zero conversions in 14 days under active account spend).",
+        inputSchema: {
+          accountId: z
+            .number()
+            .int()
+            .positive()
+            .describe("The internal database ID of the ad account"),
+        },
+      },
+      async ({ accountId }) => {
+        try {
+          const result = await auditConversionTrackingInternal(accountId);
+
+          if (!result.success) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: result.error,
+                  }),
+                },
+              ],
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(result.data),
+              },
+            ],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: error.message || "Failed to audit conversion tracking",
                 }),
               },
             ],

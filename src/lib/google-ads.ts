@@ -725,3 +725,273 @@ export async function fetchCampaignLandingPages(googleAccountId: string) {
     url: item.urls[0] || "", // Return the first final URL associated with the campaign
   }));
 }
+
+/**
+ * Fetches search impression share metrics for Search campaigns.
+ */
+export async function fetchImpressionShareReport(
+  googleAccountId: string,
+  startDate?: string,
+  endDate?: string,
+  campaignId?: string,
+) {
+  const accessToken = await getManagementAccessToken();
+  const sanitizedId = googleAccountId.replace(/-/g, "");
+  const dateClause = getCurrentPeriodDateClause(startDate, endDate);
+
+  let query = `
+        SELECT
+            campaign.id,
+            campaign.name,
+            campaign.advertising_channel_type,
+            metrics.search_impression_share,
+            metrics.search_rank_lost_impression_share,
+            metrics.search_budget_lost_impression_share,
+            metrics.search_top_impression_share,
+            metrics.search_absolute_top_impression_share
+        FROM campaign
+        WHERE campaign.status = 'ENABLED'
+          AND ${dateClause}
+    `;
+
+  if (campaignId) {
+    query += ` AND campaign.id = ${campaignId}`;
+  }
+
+  const response = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({ query }),
+    },
+  );
+
+  const data = await response.json();
+
+  if (data.error) {
+    console.error(
+      "[GAQL Error - Impression Share]",
+      JSON.stringify(data.error, null, 2),
+    );
+    throw new Error(`Impression Share Query Failed: ${data.error.message}`);
+  }
+
+  return (data.results || []).map((row: any) => {
+    const isPMax = row.campaign?.advertisingChannelType === "PERFORMANCE_MAX";
+    const rawSearchIS = row.metrics?.searchImpressionShare;
+    const rawRankLost = row.metrics?.searchRankLostImpressionShare;
+    const rawBudgetLost = row.metrics?.searchBudgetLostImpressionShare;
+    const rawTopIS = row.metrics?.searchTopImpressionShare;
+    const rawAbsTopIS = row.metrics?.searchAbsoluteTopImpressionShare;
+
+    const parsePercent = (val: any): number => {
+      if (val === undefined || val === null) return 0;
+      if (typeof val === "number") {
+        return val <= 1 ? val * 100 : val;
+      }
+      const str = String(val).trim();
+      if (str === "--" || str === "") return 0;
+      const clean = str.replace(/[<>\s%]/g, "");
+      const num = parseFloat(clean);
+      if (isNaN(num)) return 0;
+      if (str.includes("%")) return num;
+      return num <= 1 ? num * 100 : num;
+    };
+
+    const isVal = parsePercent(rawSearchIS);
+    const rlVal = parsePercent(rawRankLost);
+    const blVal = parsePercent(rawBudgetLost);
+    const topVal = parsePercent(rawTopIS);
+    const absTopVal = parsePercent(rawAbsTopIS);
+
+    let flag: "budget-constrained" | "rank-constrained" | "healthy" = "healthy";
+    if (!isPMax && isVal < 70) {
+      if (blVal > 10 && blVal > rlVal) {
+        flag = "budget-constrained";
+      } else if (rlVal > 10) {
+        flag = "rank-constrained";
+      }
+    }
+
+    return {
+      campaignId: String(row.campaign?.id || ""),
+      campaignName: row.campaign?.name || "",
+      advertisingChannelType: row.campaign?.advertisingChannelType || "",
+      isPMax,
+      searchImpressionShare: rawSearchIS || "--",
+      searchRankLostImpressionShare: rawRankLost || "--",
+      searchBudgetLostImpressionShare: rawBudgetLost || "--",
+      searchTopImpressionShare: rawTopIS || "--",
+      searchAbsoluteTopImpressionShare: rawAbsTopIS || "--",
+      parsedMetrics: {
+        searchImpressionShare: isVal,
+        searchRankLostImpressionShare: rlVal,
+        searchBudgetLostImpressionShare: blVal,
+        searchTopImpressionShare: topVal,
+        searchAbsoluteTopImpressionShare: absTopVal,
+      },
+      flag,
+    };
+  });
+}
+
+/**
+ * Runs a diagnostics check on conversion tracking actions configuration and history.
+ */
+export async function fetchConversionTrackingAudit(googleAccountId: string) {
+  const accessToken = await getManagementAccessToken();
+  const sanitizedId = googleAccountId.replace(/-/g, "");
+
+  // Query 1: Retrieve conversion actions metadata
+  const metaQuery = `
+        SELECT
+            conversion_action.id,
+            conversion_action.name,
+            conversion_action.status,
+            conversion_action.counting_type,
+            conversion_action.primary_for_goal,
+            conversion_action.category,
+            conversion_action.type
+        FROM conversion_action
+    `;
+
+  const metaResponse = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({ query: metaQuery }),
+    },
+  );
+
+  const metaData = await metaResponse.json();
+
+  if (metaData.error) {
+    console.error(
+      "[GAQL Error - Conversion Metadata]",
+      JSON.stringify(metaData.error, null, 2),
+    );
+    throw new Error(
+      `Conversion Action Metadata Query Failed: ${metaData.error.message}`,
+    );
+  }
+
+  // Query 2: Daily conversions over the last 30 days
+  const historyQuery = `
+        SELECT
+            segments.conversion_action,
+            segments.date,
+            metrics.conversions
+        FROM campaign
+        WHERE segments.date DURING LAST_30_DAYS
+          AND metrics.conversions > 0
+    `;
+
+  const historyResponse = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({ query: historyQuery }),
+    },
+  );
+
+  const historyData = await historyResponse.json();
+  const historyResults = historyData.results || [];
+
+  // Query 3: Account-level spend over the last 14 days
+  const spendQuery = `
+        SELECT
+            metrics.cost_micros
+        FROM customer
+        WHERE segments.date DURING LAST_14_DAYS
+    `;
+
+  const spendResponse = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({ query: spendQuery }),
+    },
+  );
+
+  const spendData = await spendResponse.json();
+  let hasSpendInLast14Days = false;
+  if (!spendData.error && spendData.results && spendData.results.length > 0) {
+    let totalCost = 0;
+    for (const row of spendData.results) {
+      totalCost += parseFloat(row.metrics?.costMicros || "0");
+    }
+    if (totalCost > 0) {
+      hasSpendInLast14Days = true;
+    }
+  }
+
+  // Process history to find last conversion date per conversion action ID
+  const lastConversionMap = new Map<string, string>();
+  for (const row of historyResults) {
+    const actionUri = row.segments?.conversionAction || "";
+    const actionId = actionUri.split("/").pop() || "";
+    const date = row.segments?.date || "";
+    if (actionId && date) {
+      const existing = lastConversionMap.get(actionId);
+      if (!existing || date > existing) {
+        lastConversionMap.set(actionId, date);
+      }
+    }
+  }
+
+  const actions = (metaData.results || []).map((row: any) => {
+    const act = row.conversionAction || {};
+    const actionId = String(act.id || "");
+    const lastDate = lastConversionMap.get(actionId) || null;
+
+    let daysSinceLastConversion: number | null = null;
+    if (lastDate) {
+      const [y, m, d] = lastDate.split("-").map(Number);
+      const lastConvDateObj = new Date(Date.UTC(y, m - 1, d));
+      const today = new Date();
+      const diffTime = today.getTime() - lastConvDateObj.getTime();
+      daysSinceLastConversion = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    return {
+      id: actionId,
+      name: act.name || "",
+      status: act.status || "",
+      countingType: act.countingType || "",
+      primaryForGoal: !!act.primaryForGoal,
+      category: act.category || "",
+      type: act.type || "",
+      lastConversionDate: lastDate,
+      daysSinceLastConversion,
+    };
+  });
+
+  return {
+    hasSpendInLast14Days,
+    actions,
+  };
+}

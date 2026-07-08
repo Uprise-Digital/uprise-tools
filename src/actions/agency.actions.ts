@@ -2,6 +2,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { and, eq, gte, ilike, lte } from "drizzle-orm";
+import { headers } from "next/headers";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { db } from "@/db";
 import {
@@ -9,12 +10,15 @@ import {
   adPerformanceDaily,
   agencyAiInsightsCache,
 } from "@/db/schema";
+import { auth } from "@/lib/auth";
 import {
   formatUTCDate,
   getMelbourneTodayStr,
   parseUTCDate,
 } from "@/lib/date-utils";
 import {
+  fetchConversionTrackingAudit,
+  fetchImpressionShareReport,
   getCurrentPeriodDateClause,
   getManagementAccessToken,
   getPreviousPeriodDateClause,
@@ -1162,5 +1166,141 @@ export async function getAccountTargetsAction(accountId: number) {
     };
   } catch (error: any) {
     return { success: false, error: error.message };
+  }
+}
+
+export async function getImpressionShareReportInternal(
+  accountId: number,
+  startDate?: string,
+  endDate?: string,
+  campaignId?: number,
+) {
+  const account = await db.query.adAccounts.findFirst({
+    where: eq(adAccounts.id, accountId),
+  });
+
+  if (!account) {
+    return {
+      success: false as const,
+      error: `No account found with ID ${accountId}.`,
+    };
+  }
+
+  const reports = await fetchImpressionShareReport(
+    account.googleAccountId,
+    startDate,
+    endDate,
+    campaignId ? String(campaignId) : undefined,
+  );
+
+  return {
+    success: true as const,
+    data: reports,
+  };
+}
+
+export async function getImpressionShareReportAction(
+  accountId: number,
+  startDate?: string,
+  endDate?: string,
+  campaignId?: number,
+) {
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session) throw new Error("Unauthorized");
+
+    return await getImpressionShareReportInternal(
+      accountId,
+      startDate,
+      endDate,
+      campaignId,
+    );
+  } catch (error: any) {
+    return { success: false as const, error: error.message };
+  }
+}
+
+export async function auditConversionTrackingInternal(accountId: number) {
+  const account = await db.query.adAccounts.findFirst({
+    where: eq(adAccounts.id, accountId),
+  });
+
+  if (!account) {
+    return {
+      success: false as const,
+      error: `No account found with ID ${accountId}.`,
+    };
+  }
+
+  const audit = await fetchConversionTrackingAudit(account.googleAccountId);
+
+  // Group by category, count how many primary actions are enabled
+  const categoryCounts = new Map<string, number>();
+  for (const act of audit.actions) {
+    if (act.status === "ENABLED" && act.primaryForGoal) {
+      categoryCounts.set(
+        act.category,
+        (categoryCounts.get(act.category) || 0) + 1,
+      );
+    }
+  }
+
+  const actionsWithWarnings = audit.actions.map((act: any) => {
+    const flags: string[] = [];
+
+    // Rule 1: MANY_PER_CLICK on primary goal
+    if (
+      act.countingType === "MANY_PER_CLICK" &&
+      act.primaryForGoal &&
+      act.status === "ENABLED"
+    ) {
+      flags.push("MANY_PER_CLICK on primary goal — check for inflation");
+    }
+
+    // Rule 2: two primary actions in same category
+    if (
+      act.status === "ENABLED" &&
+      act.primaryForGoal &&
+      (categoryCounts.get(act.category) || 0) > 1
+    ) {
+      flags.push(
+        "two primary actions in same category — possible double count",
+      );
+    }
+
+    // Rule 3: zero conversions in 14d despite active spend
+    if (
+      act.status === "ENABLED" &&
+      act.primaryForGoal &&
+      (act.daysSinceLastConversion === null ||
+        act.daysSinceLastConversion > 14) &&
+      audit.hasSpendInLast14Days
+    ) {
+      flags.push("zero conversions in 14d despite active spend — check tag");
+    }
+
+    return {
+      ...act,
+      flags,
+    };
+  });
+
+  return {
+    success: true as const,
+    data: {
+      hasSpendInLast14Days: audit.hasSpendInLast14Days,
+      actions: actionsWithWarnings,
+    },
+  };
+}
+
+export async function auditConversionTrackingAction(accountId: number) {
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session) throw new Error("Unauthorized");
+
+    return await auditConversionTrackingInternal(accountId);
+  } catch (error: any) {
+    return { success: false as const, error: error.message };
   }
 }

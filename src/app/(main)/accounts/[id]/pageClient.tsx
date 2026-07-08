@@ -2,16 +2,19 @@
 
 import {
   Activity,
+  AlertCircle,
   AlertTriangle,
   ArrowLeft,
   ArrowUpRight,
   Ban,
   Calendar,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   DollarSign,
   Download,
   Eye,
+  Info,
   LineChart,
   Loader2,
   Mail,
@@ -20,6 +23,8 @@ import {
   Save,
   Search,
   Settings as SettingsIcon,
+  ShieldAlert,
+  Sparkles,
   Target,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -34,6 +39,10 @@ import {
   YAxis,
 } from "recharts";
 import { toast } from "sonner";
+import {
+  auditConversionTrackingAction,
+  getImpressionShareReportAction,
+} from "@/actions/agency.actions";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { saveAccountTriageSettingsAction } from "@/actions/triage-settings.actions";
 import { AiInsights } from "@/components/ai-insights";
@@ -141,6 +150,90 @@ export default function ClientDashboard({
   const [campaignSearch, setCampaignSearch] = useState("");
   const [campaignPage, setCampaignPage] = useState(1);
   const [campaignLimit, setCampaignLimit] = useState(10);
+
+  // Tabs state
+  const [activeTab, setActiveTab] = useState<
+    "performance" | "impression_share" | "conversion_health"
+  >("performance");
+
+  // Impression Share States
+  const [isISLoading, setIsISLoading] = useState(false);
+  const [isData, setIsData] = useState<any[] | null>(null);
+  const [isError, setIsError] = useState<string | null>(null);
+
+  // Conversion Health States
+  const [isConvLoading, setIsConvLoading] = useState(false);
+  const [convData, setConvData] = useState<{
+    hasSpendInLast14Days: boolean;
+    actions: any[];
+  } | null>(null);
+  const [convError, setConvError] = useState<string | null>(null);
+
+  // Fetch Impression Share on tab change or date change
+  useEffect(() => {
+    if (activeTab !== "impression_share") return;
+
+    let isMounted = true;
+    async function loadIS() {
+      setIsISLoading(true);
+      setIsError(null);
+      try {
+        const res = await getImpressionShareReportAction(
+          account.id,
+          startDate,
+          endDate,
+        );
+        if (isMounted) {
+          if (res.success && res.data) {
+            setIsData(res.data);
+          } else {
+            setIsError(res.error || "Failed to load impression share report.");
+          }
+        }
+      } catch (err: any) {
+        if (isMounted)
+          setIsError(err.message || "An unexpected error occurred.");
+      } finally {
+        if (isMounted) setIsISLoading(false);
+      }
+    }
+    loadIS();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab, account.id, startDate, endDate]);
+
+  // Fetch Conversion tracking audit on tab change
+  useEffect(() => {
+    if (activeTab !== "conversion_health") return;
+
+    let isMounted = true;
+    async function loadConv() {
+      setIsConvLoading(true);
+      setConvError(null);
+      try {
+        const res = await auditConversionTrackingAction(account.id);
+        if (isMounted) {
+          if (res.success && res.data) {
+            setConvData(res.data);
+          } else {
+            setConvError(
+              res.error || "Failed to load conversion tracking audit.",
+            );
+          }
+        }
+      } catch (err: any) {
+        if (isMounted)
+          setConvError(err.message || "An unexpected error occurred.");
+      } finally {
+        if (isMounted) setIsConvLoading(false);
+      }
+    }
+    loadConv();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab, account.id]);
 
   // Filtered Campaigns
   const filteredCampaigns = (data?.campaigns || []).filter((c: any) => {
@@ -663,357 +756,749 @@ export default function ClientDashboard({
         </div>
       </div>
 
-      {/* NEW: Insert the AI Insight Engine here */}
-      <AiInsights
-        adAccountId={account.id}
-        googleAccountId={account.googleAccountId}
-        startDate={startDate}
-        endDate={endDate}
-      />
-
-      {/* KPI GRID */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* TABS SELECTOR */}
+      <div className="flex border-b border-slate-200 gap-6 text-sm font-semibold mb-4 shrink-0">
         {[
-          {
-            label: "Cost",
-            val: data?.totals.spend,
-            icon: DollarSign,
-            color: "text-blue-600",
-            bg: "bg-blue-50",
-            f: fCur,
-          },
-          {
-            label: "Clicks",
-            val: data?.totals.clicks,
-            icon: MousePointerClick,
-            color: "text-purple-600",
-            bg: "bg-purple-50",
-            f: fNum,
-          },
-          {
-            label: "Impressions",
-            val: data?.totals.impressions,
-            icon: Eye,
-            color: "text-amber-600",
-            bg: "bg-amber-50",
-            f: fNum,
-          },
-          {
-            label: "CTR",
-            val: data?.totals.ctr,
-            icon: Percent,
-            color: "text-indigo-600",
-            bg: "bg-indigo-50",
-            f: fPct,
-          },
-          {
-            label: "Conversions",
-            val: data?.totals.conversions,
-            icon: Target,
-            color: "text-emerald-600",
-            bg: "bg-emerald-50",
-            f: fNum,
-          },
-          {
-            label: "Cost / Conv.",
-            val: data?.totals.cpa,
-            icon: Activity,
-            color: "text-rose-600",
-            bg: "bg-rose-50",
-            f: fCur,
-          },
-          {
-            label: "Conv. Rate",
-            val: data?.totals.convRate,
-            icon: LineChart,
-            color: "text-teal-600",
-            bg: "bg-teal-50",
-            f: fPct,
-          },
-          {
-            label: "Avg. CPC",
-            val: data?.totals.cpc,
-            icon: DollarSign,
-            color: "text-slate-600",
-            bg: "bg-slate-100",
-            f: fCur,
-          },
-        ].map((kpi, i) => (
-          <Card key={i} className="mt-0 pt-0 shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-[10px] font-bold uppercase text-slate-500">
-                  {kpi.label}
-                </p>
-                <p className="text-xl font-bold">
+          { id: "performance", label: "Performance Dashboard" },
+          { id: "impression_share", label: "Impression Share Audit" },
+          { id: "conversion_health", label: "Conversion Tracking Health" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => {
+              setActiveTab(tab.id as any);
+            }}
+            className={`pb-3 relative transition-all duration-200 font-sans cursor-pointer ${
+              activeTab === tab.id
+                ? "text-indigo-600 font-bold border-b-2 border-indigo-600"
+                : "text-slate-500 hover:text-slate-800 font-medium"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "performance" && (
+        <>
+          {/* NEW: Insert the AI Insight Engine here */}
+          <AiInsights
+            adAccountId={account.id}
+            googleAccountId={account.googleAccountId}
+            startDate={startDate}
+            endDate={endDate}
+          />
+
+          {/* KPI GRID */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                label: "Cost",
+                val: data?.totals.spend,
+                icon: DollarSign,
+                color: "text-blue-600",
+                bg: "bg-blue-50",
+                f: fCur,
+              },
+              {
+                label: "Clicks",
+                val: data?.totals.clicks,
+                icon: MousePointerClick,
+                color: "text-purple-600",
+                bg: "bg-purple-50",
+                f: fNum,
+              },
+              {
+                label: "Impressions",
+                val: data?.totals.impressions,
+                icon: Eye,
+                color: "text-amber-600",
+                bg: "bg-amber-50",
+                f: fNum,
+              },
+              {
+                label: "CTR",
+                val: data?.totals.ctr,
+                icon: Percent,
+                color: "text-indigo-600",
+                bg: "bg-indigo-50",
+                f: fPct,
+              },
+              {
+                label: "Conversions",
+                val: data?.totals.conversions,
+                icon: Target,
+                color: "text-emerald-600",
+                bg: "bg-emerald-50",
+                f: fNum,
+              },
+              {
+                label: "Cost / Conv.",
+                val: data?.totals.cpa,
+                icon: Activity,
+                color: "text-rose-600",
+                bg: "bg-rose-50",
+                f: fCur,
+              },
+              {
+                label: "Conv. Rate",
+                val: data?.totals.convRate,
+                icon: LineChart,
+                color: "text-teal-600",
+                bg: "bg-teal-50",
+                f: fPct,
+              },
+              {
+                label: "Avg. CPC",
+                val: data?.totals.cpc,
+                icon: DollarSign,
+                color: "text-slate-600",
+                bg: "bg-slate-100",
+                f: fCur,
+              },
+            ].map((kpi, i) => (
+              <Card key={i} className="mt-0 pt-0 shadow-sm">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-bold uppercase text-slate-500">
+                      {kpi.label}
+                    </p>
+                    <p className="text-xl font-bold">
+                      {isLoading ? (
+                        <Skeleton className="h-6 w-16" />
+                      ) : (
+                        kpi.f(kpi.val)
+                      )}
+                    </p>
+                  </div>
+                  <div className={`p-2 rounded-lg ${kpi.bg}`}>
+                    <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* TRIPLE GRAPH GRID */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {[
+              {
+                title: "Cost",
+                dataKey: "spend",
+                color: "#3b82f6",
+                format: fCur,
+              },
+              { title: "CPC", dataKey: "cpc", color: "#8b5cf6", format: fCur },
+              { title: "CTR", dataKey: "ctr", color: "#10b981", format: fPct },
+            ].map((chart) => (
+              <Card key={chart.title} className="mt-0 pt-0 shadow-sm">
+                <CardHeader className="py-4">
+                  <CardTitle className="text-sm font-bold">
+                    {chart.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="h-50">
                   {isLoading ? (
-                    <Skeleton className="h-6 w-16" />
+                    <Skeleton className="h-full w-full" />
                   ) : (
-                    kpi.f(kpi.val)
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        margin={{ top: 10, right: 10, left: -40, bottom: 0 }}
+                        data={data?.timeSeries}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          vertical={false}
+                          stroke="#f1f5f9"
+                        />
+                        <XAxis
+                          dataKey="date"
+                          stroke="#94a3b8"
+                          fontSize={10}
+                          tickLine={false}
+                          padding={{ left: 0, right: 0 }}
+                          axisLine={false}
+                          dy={10} // Adds space between the axis and the text
+                          minTickGap={20} // Prevents labels from overlapping
+                          tickFormatter={(value) => {
+                            const date = new Date(value);
+                            return date.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            });
+                          }}
+                        />
+                        <YAxis
+                          fontSize={10}
+                          tickLine={false}
+                          axisLine={false}
+                          dy={10} // Adds space between the axis and the text
+                          minTickGap={20} // Prevents labels from overlapping
+                          domain={["auto", "auto"]}
+                        />
+                        <RechartsTooltip
+                          formatter={(v: any) => [
+                            chart.format(Number(v)),
+                            chart.title,
+                          ]}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey={chart.dataKey}
+                          stroke={chart.color}
+                          fill={chart.color}
+                          fillOpacity={0.1}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   )}
-                </p>
-              </div>
-              <div className={`p-2 rounded-lg ${kpi.bg}`}>
-                <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {/* TRIPLE GRAPH GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {[
-          { title: "Cost", dataKey: "spend", color: "#3b82f6", format: fCur },
-          { title: "CPC", dataKey: "cpc", color: "#8b5cf6", format: fCur },
-          { title: "CTR", dataKey: "ctr", color: "#10b981", format: fPct },
-        ].map((chart) => (
-          <Card key={chart.title} className="mt-0 pt-0 shadow-sm">
-            <CardHeader className="py-4">
-              <CardTitle className="text-sm font-bold">{chart.title}</CardTitle>
+          {/* FULL CAMPAIGN TABLE */}
+          <Card className="shadow-sm overflow-hidden mt-0 pt-0">
+            <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center py-4 gap-3">
+              <div>
+                <CardTitle className="text-base font-bold text-slate-800">
+                  Campaign Breakdown
+                </CardTitle>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative w-64">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                  <Input
+                    placeholder="Search campaigns..."
+                    value={campaignSearch}
+                    onChange={(e) => setCampaignSearch(e.target.value)}
+                    className="pl-8 text-xs h-8 bg-white"
+                    disabled={isLoading}
+                  />
+                </div>
+                <Button
+                  onClick={exportCampaignsToCsv}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8 flex items-center gap-1.5 border-slate-200"
+                  disabled={isLoading || filteredCampaigns.length === 0}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className="h-50">
-              {isLoading ? (
-                <Skeleton className="h-full w-full" />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    margin={{ top: 10, right: 10, left: -40, bottom: 0 }}
-                    data={data?.timeSeries}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#f1f5f9"
-                    />
-                    <XAxis
-                      dataKey="date"
-                      stroke="#94a3b8"
-                      fontSize={10}
-                      tickLine={false}
-                      padding={{ left: 0, right: 0 }}
-                      axisLine={false}
-                      dy={10} // Adds space between the axis and the text
-                      minTickGap={20} // Prevents labels from overlapping
-                      tickFormatter={(value) => {
-                        const date = new Date(value);
-                        return date.toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        });
-                      }}
-                    />
-                    <YAxis
-                      fontSize={10}
-                      tickLine={false}
-                      axisLine={false}
-                      dy={10} // Adds space between the axis and the text
-                      minTickGap={20} // Prevents labels from overlapping
-                      domain={["auto", "auto"]}
-                    />
-                    <RechartsTooltip
-                      formatter={(v: any) => [
-                        chart.format(Number(v)),
-                        chart.title,
-                      ]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey={chart.dataKey}
-                      stroke={chart.color}
-                      fill={chart.color}
-                      fillOpacity={0.1}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* FULL CAMPAIGN TABLE */}
-      <Card className="shadow-sm overflow-hidden mt-0 pt-0">
-        <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center py-4 gap-3">
-          <div>
-            <CardTitle className="text-base font-bold text-slate-800">
-              Campaign Breakdown
-            </CardTitle>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <Input
-                placeholder="Search campaigns..."
-                value={campaignSearch}
-                onChange={(e) => setCampaignSearch(e.target.value)}
-                className="pl-8 text-xs h-8 bg-white"
-                disabled={isLoading}
-              />
-            </div>
-            <Button
-              onClick={exportCampaignsToCsv}
-              variant="outline"
-              size="sm"
-              className="text-xs h-8 flex items-center gap-1.5 border-slate-200"
-              disabled={isLoading || filteredCampaigns.length === 0}
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export
-            </Button>
-          </div>
-        </CardHeader>
-        <Table>
-          <TableHeader className="bg-slate-50/50">
-            <TableRow>
-              <TableHead>Campaign</TableHead>
-              <TableHead className="text-right">Cost</TableHead>
-              <TableHead className="text-right">Clicks</TableHead>
-              <TableHead className="text-right">Impr.</TableHead>
-              <TableHead className="text-right">CTR</TableHead>
-              <TableHead className="text-right">CPC</TableHead>
-              <TableHead className="text-right">Conv.</TableHead>
-              <TableHead className="text-right">CPA</TableHead>
-              <TableHead className="text-right">Conv. Rate</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={9}
-                  className="h-24 text-center text-xs text-slate-500 font-sans"
-                >
-                  Loading campaigns...
-                </TableCell>
-              </TableRow>
-            ) : paginatedCampaigns.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={9}
-                  className="h-24 text-center text-xs text-slate-500 font-sans"
-                >
-                  No matching campaigns found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginatedCampaigns.map((c: any, i: number) => (
-                <TableRow key={i} className="text-xs">
-                  <TableCell className="font-medium max-w-[200px] truncate">
-                    {c.campaignName}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {fCur(c.spend)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {fNum(c.clicks)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {fNum(c.impressions)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {fPct(c.ctr)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {fCur(c.cpc)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono font-bold">
-                    {fNum(c.conversions)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {fCur(c.cpa)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {fPct(c.convRate)}
-                  </TableCell>
+            <Table>
+              <TableHeader className="bg-slate-50/50">
+                <TableRow>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead className="text-right">Cost</TableHead>
+                  <TableHead className="text-right">Clicks</TableHead>
+                  <TableHead className="text-right">Impr.</TableHead>
+                  <TableHead className="text-right">CTR</TableHead>
+                  <TableHead className="text-right">CPC</TableHead>
+                  <TableHead className="text-right">Conv.</TableHead>
+                  <TableHead className="text-right">CPA</TableHead>
+                  <TableHead className="text-right">Conv. Rate</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-
-        {/* PAGINATION CONTROLS */}
-        {!isLoading && filteredCampaigns.length > 0 && (
-          <div className="border-t border-slate-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-            <div>
-              Showing{" "}
-              <strong className="text-slate-800">
-                {(campaignPage - 1) * campaignLimit + 1}
-              </strong>{" "}
-              to{" "}
-              <strong className="text-slate-800">
-                {Math.min(
-                  campaignPage * campaignLimit,
-                  filteredCampaigns.length,
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={9}
+                      className="h-24 text-center text-xs text-slate-500 font-sans"
+                    >
+                      Loading campaigns...
+                    </TableCell>
+                  </TableRow>
+                ) : paginatedCampaigns.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={9}
+                      className="h-24 text-center text-xs text-slate-500 font-sans"
+                    >
+                      No matching campaigns found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedCampaigns.map((c: any, i: number) => (
+                    <TableRow key={i} className="text-xs">
+                      <TableCell className="font-medium max-w-[200px] truncate">
+                        {c.campaignName}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {fCur(c.spend)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {fNum(c.clicks)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {fNum(c.impressions)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {fPct(c.ctr)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {fCur(c.cpc)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold">
+                        {fNum(c.conversions)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {fCur(c.cpa)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {fPct(c.convRate)}
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
-              </strong>{" "}
-              of{" "}
-              <strong className="text-slate-800">
-                {filteredCampaigns.length}
-              </strong>{" "}
-              campaigns
-            </div>
+              </TableBody>
+            </Table>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-white">
-                <span className="text-[10px] text-slate-400">Rows:</span>
-                <select
-                  value={campaignLimit}
-                  onChange={(e) =>
-                    setCampaignLimit(parseInt(e.target.value, 10))
-                  }
-                  className="bg-transparent border-none focus:outline-none text-[10px] font-semibold cursor-pointer"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
+            {/* PAGINATION CONTROLS */}
+            {!isLoading && filteredCampaigns.length > 0 && (
+              <div className="border-t border-slate-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+                <div>
+                  Showing{" "}
+                  <strong className="text-slate-800">
+                    {(campaignPage - 1) * campaignLimit + 1}
+                  </strong>{" "}
+                  to{" "}
+                  <strong className="text-slate-800">
+                    {Math.min(
+                      campaignPage * campaignLimit,
+                      filteredCampaigns.length,
+                    )}
+                  </strong>{" "}
+                  of{" "}
+                  <strong className="text-slate-800">
+                    {filteredCampaigns.length}
+                  </strong>{" "}
+                  campaigns
+                </div>
 
-              {totalCampaignPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    disabled={campaignPage <= 1}
-                    onClick={() => setCampaignPage(campaignPage - 1)}
-                    className="h-7 w-7 border-slate-200"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </Button>
-                  {Array.from({ length: totalCampaignPages }).map(
-                    (_, index) => {
-                      const pNum = index + 1;
-                      return (
-                        <Button
-                          key={pNum}
-                          variant={
-                            campaignPage === pNum ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() => setCampaignPage(pNum)}
-                          className="h-7 w-7 text-[10px] border-slate-200"
-                        >
-                          {pNum}
-                        </Button>
-                      );
-                    },
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-white">
+                    <span className="text-[10px] text-slate-400">Rows:</span>
+                    <select
+                      value={campaignLimit}
+                      onChange={(e) =>
+                        setCampaignLimit(parseInt(e.target.value, 10))
+                      }
+                      className="bg-transparent border-none focus:outline-none text-[10px] font-semibold cursor-pointer"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </div>
+
+                  {totalCampaignPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        disabled={campaignPage <= 1}
+                        onClick={() => setCampaignPage(campaignPage - 1)}
+                        className="h-7 w-7 border-slate-200"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </Button>
+                      {Array.from({ length: totalCampaignPages }).map(
+                        (_, index) => {
+                          const pNum = index + 1;
+                          return (
+                            <Button
+                              key={pNum}
+                              variant={
+                                campaignPage === pNum ? "default" : "outline"
+                              }
+                              size="sm"
+                              onClick={() => setCampaignPage(pNum)}
+                              className="h-7 w-7 text-[10px] border-slate-200"
+                            >
+                              {pNum}
+                            </Button>
+                          );
+                        },
+                      )}
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        disabled={campaignPage >= totalCampaignPages}
+                        onClick={() => setCampaignPage(campaignPage + 1)}
+                        className="h-7 w-7 border-slate-200"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   )}
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    disabled={campaignPage >= totalCampaignPages}
-                    onClick={() => setCampaignPage(campaignPage + 1)}
-                    className="h-7 w-7 border-slate-200"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {activeTab === "impression_share" && (
+        <div className="space-y-6">
+          <Card className="shadow-sm">
+            <CardHeader className="border-b border-slate-100 bg-slate-50/50 py-4">
+              <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <Info className="w-5 h-5 text-indigo-500" />
+                Impression Share Diagnostics
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5">
+              {isISLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                  <p className="text-xs text-slate-500">
+                    Querying impression share reports...
+                  </p>
+                </div>
+              ) : isError ? (
+                <div className="bg-red-50 text-red-700 text-xs p-4 rounded-xl border border-red-100 flex items-center gap-3">
+                  <ShieldAlert className="w-5 h-5 shrink-0 text-red-500" />
+                  <p>{isError}</p>
+                </div>
+              ) : !isData || isData.length === 0 ? (
+                <p className="text-center text-xs text-slate-500 py-12">
+                  No campaign impression share data found.
+                </p>
+              ) : (
+                <div className="space-y-6">
+                  {/* DIAGNOSTIC RECOMMENDATION PANEL */}
+                  <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 space-y-3">
+                    <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-indigo-500" />
+                      Impression Share Recommendations
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-indigo-900/90 leading-relaxed">
+                      <div className="bg-white rounded-lg p-3 border border-indigo-100/50 shadow-sm space-y-1">
+                        <strong className="text-indigo-950 block">
+                          Budget-Constrained Campaigns
+                        </strong>
+                        <p>
+                          Increase daily budgets for these campaigns. They are
+                          converting well but running out of budget early in the
+                          day, causing you to leave high-intent searches on the
+                          table.
+                        </p>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-indigo-100/50 shadow-sm space-y-1">
+                        <strong className="text-indigo-950 block">
+                          Rank-Constrained Campaigns
+                        </strong>
+                        <p>
+                          Improve Quality Score, increase bid caps, or optimize
+                          landing page copy. These campaigns have budget
+                          available but are losing ad auctions due to bid levels
+                          or ad relevance issues.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CAMPAIGN METRICS TABLE / LIST */}
+                  <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                    <Table>
+                      <TableHeader className="bg-slate-50/50">
+                        <TableRow>
+                          <TableHead className="w-[200px]">Campaign</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead className="w-[300px]">
+                            Auction Opportunity Breakdown (100%)
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Search IS
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Lost (Budget)
+                          </TableHead>
+                          <TableHead className="text-right">
+                            Lost (Rank)
+                          </TableHead>
+                          <TableHead className="text-right">Top IS</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isData.map((c, i) => (
+                          <TableRow key={i} className="text-xs">
+                            <TableCell className="font-semibold text-slate-800">
+                              {c.campaignName}
+                            </TableCell>
+                            <TableCell className="text-slate-500 font-mono text-[10px]">
+                              {c.advertisingChannelType}
+                            </TableCell>
+                            <TableCell>
+                              {c.isPMax ? (
+                                <span className="text-[10px] text-slate-400 italic">
+                                  Not available for Performance Max
+                                </span>
+                              ) : (
+                                <div className="space-y-1.5 py-1">
+                                  <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                                    <div
+                                      style={{
+                                        width: `${c.parsedMetrics.searchImpressionShare}%`,
+                                      }}
+                                      className="bg-emerald-500 h-full transition-all duration-300"
+                                      title={`Search IS: ${c.searchImpressionShare}`}
+                                    />
+                                    <div
+                                      style={{
+                                        width: `${c.parsedMetrics.searchBudgetLostImpressionShare}%`,
+                                      }}
+                                      className="bg-amber-500 h-full transition-all duration-300"
+                                      title={`Lost to Budget: ${c.searchBudgetLostImpressionShare}`}
+                                    />
+                                    <div
+                                      style={{
+                                        width: `${c.parsedMetrics.searchRankLostImpressionShare}%`,
+                                      }}
+                                      className="bg-rose-500 h-full transition-all duration-300"
+                                      title={`Lost to Rank: ${c.searchRankLostImpressionShare}`}
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-3 text-[9px] text-slate-400 font-semibold font-sans">
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                      IS: {c.searchImpressionShare}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                      Lost (Budget):{" "}
+                                      {c.searchBudgetLostImpressionShare}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                      Lost (Rank):{" "}
+                                      {c.searchRankLostImpressionShare}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-bold text-emerald-600">
+                              {c.searchImpressionShare}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-amber-600">
+                              {c.searchBudgetLostImpressionShare}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-rose-600">
+                              {c.searchRankLostImpressionShare}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-600">
+                              {c.searchTopImpressionShare}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {c.isPMax ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                  PMAX
+                                </span>
+                              ) : c.flag === "budget-constrained" ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                  BUDGET LIMIT
+                                </span>
+                              ) : c.flag === "rank-constrained" ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                  RANK LIMIT
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  HEALTHY
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
-        )}
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "conversion_health" && (
+        <div className="space-y-6">
+          <Card className="shadow-sm">
+            <CardHeader className="border-b border-slate-100 bg-slate-50/50 py-4">
+              <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <Target className="w-5 h-5 text-emerald-500" />
+                Conversion Tracking Diagnostics
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5">
+              {isConvLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+                  <p className="text-xs text-slate-500">
+                    Auditing conversion tracking configurations...
+                  </p>
+                </div>
+              ) : convError ? (
+                <div className="bg-red-50 text-red-700 text-xs p-4 rounded-xl border border-red-100 flex items-center gap-3">
+                  <ShieldAlert className="w-5 h-5 shrink-0 text-red-500" />
+                  <p>{convError}</p>
+                </div>
+              ) : !convData || convData.actions.length === 0 ? (
+                <p className="text-center text-xs text-slate-500 py-12">
+                  No conversion actions found.
+                </p>
+              ) : (
+                <div className="space-y-6">
+                  {/* ACTIVE WARNINGS CARDS */}
+                  {(() => {
+                    const allFlags = convData.actions.flatMap((a) => a.flags);
+                    if (allFlags.length === 0) {
+                      return (
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-3 text-xs text-emerald-800">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                          <div>
+                            <strong className="text-emerald-950 block">
+                              All Conversion Tags Healthy
+                            </strong>
+                            No anomalies, double-counting, or tracking breaks
+                            detected. Your automated bidding strategies are
+                            optimizing against clean conversion data.
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 space-y-3">
+                        <h3 className="text-xs font-bold text-rose-950 uppercase tracking-wider flex items-center gap-1.5">
+                          <AlertCircle className="w-4 h-4 text-rose-600" />
+                          Tracking Diagnostics Alerts ({allFlags.length})
+                        </h3>
+                        <ul className="list-disc pl-5 text-xs text-rose-900/90 space-y-1.5">
+                          {convData.actions
+                            .filter((a) => a.flags.length > 0)
+                            .map((a, i) => (
+                              <li key={i}>
+                                <strong className="text-rose-950">
+                                  {a.name}
+                                </strong>
+                                : {a.flags.join(", ")}
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    );
+                  })()}
+
+                  {/* CONVERSION ACTIONS TABLE */}
+                  <div className="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                    <Table>
+                      <TableHeader className="bg-slate-50/50">
+                        <TableRow>
+                          <TableHead>Conversion Action</TableHead>
+                          <TableHead>Origin</TableHead>
+                          <TableHead>Counting</TableHead>
+                          <TableHead>Bidding Role</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead className="text-right">
+                            Last Conversion
+                          </TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {convData.actions.map((a, i) => {
+                          const hasWarning = a.flags.length > 0;
+                          return (
+                            <TableRow
+                              key={i}
+                              className={`text-xs ${hasWarning ? "bg-rose-50/20" : ""}`}
+                            >
+                              <TableCell className="font-semibold text-slate-800 py-3">
+                                <div className="space-y-0.5">
+                                  <span>{a.name}</span>
+                                  {hasWarning && (
+                                    <div className="flex flex-col gap-1 mt-1">
+                                      {a.flags.map(
+                                        (flag: string, idx: number) => (
+                                          <span
+                                            key={idx}
+                                            className="text-[9px] font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded px-1 w-max"
+                                          >
+                                            {flag}
+                                          </span>
+                                        ),
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-slate-500 font-mono text-[10px]">
+                                {a.type}
+                              </TableCell>
+                              <TableCell className="text-slate-600 font-mono text-[10px]">
+                                {a.countingType}
+                              </TableCell>
+                              <TableCell>
+                                {a.primaryForGoal ? (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    PRIMARY
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                    SECONDARY
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-slate-500 font-mono text-[10px]">
+                                {a.category}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-slate-700 font-bold">
+                                {a.daysSinceLastConversion === null ? (
+                                  <span className="text-slate-400 italic">
+                                    No conversions in &gt; 30d
+                                  </span>
+                                ) : a.daysSinceLastConversion === 0 ? (
+                                  <span className="text-emerald-600 font-bold">
+                                    Today
+                                  </span>
+                                ) : a.daysSinceLastConversion === 1 ? (
+                                  <span className="text-slate-700">
+                                    1 day ago
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-700">
+                                    {a.daysSinceLastConversion} days ago
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {a.status === "ENABLED" ? (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    ENABLED
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                    {a.status}
+                                  </span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
