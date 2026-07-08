@@ -185,13 +185,31 @@ export default function LpAnalysisClientPage({
   const openAuditModal = (campaign: CampaignLP) => {
     setAuditCampaign(campaign);
     setAuditUrl(campaign.url);
-    // Guesses a search term based on campaign name
-    const cleanedName = campaign.campaignName
-      .toLowerCase()
-      .replace(/[_-]/g, " ")
-      .replace(/campaign/g, "")
-      .replace(/search/g, "")
+
+    // Guesses a search term based on campaign name (replaces symbols, removes dates, removes match types)
+    let cleanedName = campaign.campaignName.toLowerCase();
+    // Replace pipes, dashes, underscores, brackets with spaces
+    cleanedName = cleanedName.replace(/[|_\-[\]()]/g, " ");
+    // Remove common metadata words/suffixes
+    cleanedName = cleanedName
+      .replace(
+        /\b(campaign|search|broad|phrase|exact|ppc|pmax|leads|mcc|leads|client|competitor)\b/g,
+        "",
+      )
+      // Remove dates like "12 may", "may 2026", "2026"
+      .replace(
+        /\b\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/g,
+        "",
+      )
+      .replace(
+        /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/g,
+        "",
+      )
+      .replace(/\b\d{4}\b/g, "")
+      // Clean up whitespace
+      .replace(/\s+/g, " ")
       .trim();
+
     setAuditKeyword(cleanedName || "emergency plumber sydney");
     setAuditStep(1);
     setIsAuditModalOpen(true);
@@ -545,6 +563,18 @@ export default function LpAnalysisClientPage({
                   top 3 direct competitors bidding in the auction and compare
                   their hooks/landing pages side-by-side.
                 </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-800 leading-normal flex items-start gap-2 mt-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Important:</span> Ensure this is
+                    a real search query that prospects actually search (e.g.,{" "}
+                    <code className="bg-amber-100/60 px-1 rounded">
+                      martial arts Adelaide
+                    </code>
+                    ). Avoid internal campaign names with pipes, dates, or
+                    symbols, as they will fetch unrelated search results.
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
