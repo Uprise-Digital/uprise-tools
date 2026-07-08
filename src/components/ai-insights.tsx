@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getOrGenerateAiInsightsAction } from "@/actions/ai.actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -148,36 +148,36 @@ export function AiInsights({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async (
-    forceRefresh: boolean,
-    isMounted: boolean = true,
-  ) => {
-    if (forceRefresh) setIsRefreshing(true);
-    else setIsInitialLoading(true);
-    setError(null);
+  const fetchData = useCallback(
+    async (forceRefresh: boolean, isMounted: boolean = true) => {
+      if (forceRefresh) setIsRefreshing(true);
+      else setIsInitialLoading(true);
+      setError(null);
 
-    try {
-      const res = await getOrGenerateAiInsightsAction(
-        adAccountId,
-        googleAccountId,
-        startDate,
-        endDate,
-        forceRefresh,
-      );
-      if (isMounted && res.success) {
-        setInsights(res.data);
-        setGeneratedAt(new Date(res.generatedAt));
+      try {
+        const res = await getOrGenerateAiInsightsAction(
+          adAccountId,
+          googleAccountId,
+          startDate,
+          endDate,
+          forceRefresh,
+        );
+        if (isMounted && res.success) {
+          setInsights(res.data);
+          setGeneratedAt(new Date(res.generatedAt));
+        }
+      } catch (e: any) {
+        if (isMounted)
+          setError(e.message ?? "Analysis failed. Please try again.");
+      } finally {
+        if (isMounted) {
+          setIsInitialLoading(false);
+          setIsRefreshing(false);
+        }
       }
-    } catch (e: any) {
-      if (isMounted)
-        setError(e.message ?? "Analysis failed. Please try again.");
-    } finally {
-      if (isMounted) {
-        setIsInitialLoading(false);
-        setIsRefreshing(false);
-      }
-    }
-  };
+    },
+    [adAccountId, googleAccountId, startDate, endDate],
+  );
 
   // Auto-fetch cached report on mount/date change
   useEffect(() => {

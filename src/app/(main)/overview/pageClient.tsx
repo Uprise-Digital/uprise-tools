@@ -24,7 +24,7 @@ import {
   Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -83,43 +83,51 @@ export default function AgencyReportsClient() {
   }, []);
 
   // 1. Fetch Base Data
-  const fetchPortfolioData = async (isMounted = true) => {
-    setLoadingData(true);
-    try {
-      const res = await getAgencyPortfolioMetricsAction(startDate, endDate);
-      if (isMounted && res.success) {
-        setPortfolio(res.data);
+  const fetchPortfolioData = useCallback(
+    async (isMounted = true) => {
+      setLoadingData(true);
+      try {
+        const res = await getAgencyPortfolioMetricsAction(startDate, endDate);
+        if (isMounted && res.success) {
+          setPortfolio(res.data);
+          return res.data;
+        }
+      } finally {
+        if (isMounted) setLoadingData(false);
       }
-    } finally {
-      if (isMounted) setLoadingData(false);
-    }
-  };
+      return null;
+    },
+    [startDate, endDate],
+  );
 
   // 2. Fetch or Generate AI Insights
-  const fetchGodModeAi = async (forceRefresh: boolean, isMounted = true) => {
-    if (forceRefresh) setIsAiRefreshing(true);
-    else setIsAiLoading(true);
+  const fetchGodModeAi = useCallback(
+    async (forceRefresh: boolean, portfolioToUse: any, isMounted = true) => {
+      if (forceRefresh) setIsAiRefreshing(true);
+      else setIsAiLoading(true);
 
-    try {
-      const res = await getOrGenerateAgencyAiInsightsAction(
-        startDate,
-        endDate,
-        portfolio,
-        forceRefresh,
-      );
-      if (isMounted && res.success) {
-        setInsights(res.data);
-        setGeneratedAt(new Date(res.generatedAt));
+      try {
+        const res = await getOrGenerateAgencyAiInsightsAction(
+          startDate,
+          endDate,
+          portfolioToUse,
+          forceRefresh,
+        );
+        if (isMounted && res.success) {
+          setInsights(res.data);
+          setGeneratedAt(new Date(res.generatedAt));
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (isMounted) {
+          setIsAiLoading(false);
+          setIsAiRefreshing(false);
+        }
       }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      if (isMounted) {
-        setIsAiLoading(false);
-        setIsAiRefreshing(false);
-      }
-    }
-  };
+    },
+    [startDate, endDate],
+  );
 
   // Run this when dates change
   useEffect(() => {
@@ -127,9 +135,9 @@ export default function AgencyReportsClient() {
     setInsights(null); // Clear UI while fetching
     setGeneratedAt(null);
 
-    fetchPortfolioData(isMounted).then(() => {
+    fetchPortfolioData(isMounted).then((freshPortfolio) => {
       if (isMounted) {
-        fetchGodModeAi(false, isMounted);
+        fetchGodModeAi(false, freshPortfolio, isMounted);
       }
     });
 
@@ -521,7 +529,7 @@ export default function AgencyReportsClient() {
               </div>
             )}
             <Button
-              onClick={() => fetchGodModeAi(true)}
+              onClick={() => fetchGodModeAi(true, portfolio)}
               disabled={isAiLoading || isAiRefreshing || !portfolio}
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-lg shadow-blue-900/20"
