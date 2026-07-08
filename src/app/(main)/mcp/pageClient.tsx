@@ -347,7 +347,7 @@ export default function McpSettingsClient({
                   <div className="flex items-center gap-2">
                     <Input
                       readOnly
-                      value={`https://uprise-tools-production.up.railway.app/api/mcp/mcp?key=${apiKey}`}
+                      value={`https://uprise-tools-production.up.railway.app/api/mcp/sse?key=${apiKey}`}
                       className="font-mono text-xs bg-slate-50 border-slate-200 text-slate-600 h-8"
                     />
                     <Button
@@ -390,18 +390,14 @@ export default function McpSettingsClient({
                   </span>
                   , select the{" "}
                   <span className="font-semibold text-slate-700">SSE</span>{" "}
-                  option, and name it{" "}
+                  option, name it{" "}
                   <code className="bg-slate-150 px-1 rounded font-bold text-slate-800">
-                    agency-os
+                    Uprise Digital MCP
                   </code>
-                  .<br />
-                  4. Paste the copied pre-authenticated{" "}
-                  <span className="font-bold">SSE Connection URL</span> above
-                  (which securely contains your API key as a URL query
-                  parameter).
+                  , and paste the copied pre-authenticated{" "}
+                  <span className="font-bold">SSE Connection URL</span>.
                   <br />
-                  5. Leave the Headers section empty and click{" "}
-                  <span className="font-bold">Connect</span>.
+                  4. Click <span className="font-bold">Connect</span>.
                 </div>
               </div>
             </CardContent>
