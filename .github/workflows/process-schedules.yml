@@ -1,0 +1,16 @@
+name: Process Report Schedules
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Daily at midnight UTC (10 AM AEST / 11 AM AEDT Melbourne time)
+  workflow_dispatch:      # Allows manual trigger from GitHub Actions dashboard
+
+jobs:
+  run-scheduler:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Daily Schedules Check
+        run: |
+          curl -f -s -S -X GET "${{ secrets.PRODUCTION_APP_URL }}/api/cron/process-schedules" \
+            -H "Authorization: Bearer ${{ secrets.WORKER_SECRET_KEY }}"
