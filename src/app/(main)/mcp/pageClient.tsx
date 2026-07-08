@@ -347,7 +347,7 @@ export default function McpSettingsClient({
                   <div className="flex items-center gap-2">
                     <Input
                       readOnly
-                      value={`https://uprise-tools-production.up.railway.app/api/mcp/sse?key=${apiKey}`}
+                      value={`https://uprise-tools-production.up.railway.app/api/mcp/mcp?key=${apiKey}`}
                       className="font-mono text-xs bg-slate-50 border-slate-200 text-slate-600 h-8"
                     />
                     <Button
