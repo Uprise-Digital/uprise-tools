@@ -138,8 +138,6 @@ export default function AgencyReportsClient() {
     };
   }, [fetchGodModeAi, fetchPortfolioData]);
 
-
-
   // Sync Portfolio Action
   const handleSyncPortfolio = async () => {
     setIsSyncing(true);
