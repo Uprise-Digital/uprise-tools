@@ -287,7 +287,10 @@ export async function runAdCopyAuditInternal(
   const aiResponse = await ai.models.generateContent({
     model: "gemini-3.5-flash",
     contents: prompt,
-    config: { responseMimeType: "application/json" },
+    config: {
+      responseMimeType: "application/json",
+      temperature: 0,
+    },
   });
 
   const parsedAudit: AdCopyAuditAnalysis = JSON.parse(
