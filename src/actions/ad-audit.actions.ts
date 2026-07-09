@@ -311,9 +311,9 @@ export async function runAdCopyAuditInternal(
     .values({
       adAccountId,
       campaignId,
-      campaignName,
+      campaignName: targetAd.campaignName || campaignName,
       adGroupId,
-      adGroupName,
+      adGroupName: targetAd.adGroupName || adGroupName,
       adId,
       searchTerm,
       score: parsedAudit.overall_score || 0,
@@ -498,6 +498,12 @@ export async function getAssetPerformanceReportInternal(
       text: a.text,
     }));
 
+  const labelsAvailable = lowCount + goodCount + bestCount > 0;
+  const reason =
+    !labelsAvailable && assetPerformance.length > 0
+      ? "All assets returned 'NOT_APPLICABLE'. This is normal behavior when the ad group's impression volume is below Google's serving/interaction threshold (typically ~5,000 impressions in the last 30 days) to calculate relative performance labels."
+      : null;
+
   return {
     totalAssetsAudited: assetPerformance.length,
     lowCount,
@@ -506,6 +512,8 @@ export async function getAssetPerformanceReportInternal(
     otherCount,
     pinningConflicts,
     assets: assetPerformance,
+    labelsAvailable,
+    reason,
   };
 }
 
