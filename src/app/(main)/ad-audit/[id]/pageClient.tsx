@@ -55,6 +55,23 @@ export default function AdAuditDetailClientPage({
 
   const report = audit.aiAnalysis;
 
+  const score = audit.score;
+  const scoreMin = Math.max(0, score - 3);
+  const scoreMax = Math.min(100, score + 3);
+  const scoreBandText = `${scoreMin}% - ${scoreMax}%`;
+
+  const getLetterGrade = (val: number) => {
+    if (val >= 90) return "A";
+    if (val >= 85) return "B+";
+    if (val >= 80) return "B";
+    if (val >= 75) return "B-";
+    if (val >= 70) return "C+";
+    if (val >= 60) return "C";
+    if (val >= 50) return "C-";
+    return "D/F";
+  };
+  const letterGrade = getLetterGrade(score);
+
   const handleCopyScript = () => {
     navigator.clipboard.writeText(report.client_action_script || "");
     toast.success("AM Action Script copied to clipboard!");
@@ -63,30 +80,24 @@ export default function AdAuditDetailClientPage({
   return (
     <main className="flex-1 overflow-y-auto p-6 bg-slate-50">
       <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
-        {/* TOP BAR / BACK BUTTON */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        {/* BREADCRUMBS & NAVIGATION */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="icon"
               onClick={() => router.push("/ad-audit")}
-              className="rounded-xl border-slate-200"
+              className="rounded-xl border-slate-200 bg-white"
             >
               <ArrowLeft className="h-4.5 w-4.5 text-slate-600" />
             </Button>
             <div>
-              <div className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
-                Ad Creative Audit Details
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Ad Diagnostics / Audit Details
               </div>
-              <h1 className="text-xl font-black text-slate-800 tracking-tight mt-0.5">
-                {audit.adGroupName}
+              <h1 className="text-lg font-black text-slate-900 tracking-tight mt-0.5">
+                {audit.campaignName}
               </h1>
-              <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                {audit.campaignName} • Keyword:{" "}
-                <span className="font-bold text-slate-600">
-                  "{audit.searchTerm}"
-                </span>
-              </p>
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs font-semibold text-slate-400 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
@@ -117,11 +128,11 @@ export default function AdAuditDetailClientPage({
                         : "bg-rose-50 text-rose-700 border-rose-200"
                   }`}
                 >
-                  {audit.score}
+                  {letterGrade}
                 </span>
               </div>
               <p className="text-xs font-semibold text-slate-400 mt-4 text-center">
-                Refined search term intent matching performance
+                Range: {scoreBandText} (Diagnostic)
               </p>
             </CardContent>
           </Card>
@@ -144,7 +155,7 @@ export default function AdAuditDetailClientPage({
                         : "bg-rose-50 text-rose-700 border-rose-200"
                   }`}
                 >
-                  {audit.messageMatchScore}
+                  {audit.messageMatchScore}%
                 </span>
               </div>
               <p className="text-xs font-semibold text-slate-400 mt-4 text-center">
@@ -193,6 +204,19 @@ export default function AdAuditDetailClientPage({
           </Card>
         </div>
 
+        {/* DISCLAIMER NOTE */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-start gap-2.5">
+          <Info className="h-4.5 w-4.5 text-indigo-500 flex-shrink-0 mt-0.5" />
+          <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+            Note: Ad relevance diagnostic scores represent a statistical range
+            (±3%) calculated deterministically via a weighted copywriting
+            rubric. Small variations between runs are expected due to the
+            non-deterministic nature of AI heuristics. Focus on qualitative
+            recommendations (such as pinning adjustments, typos, and missing
+            triggers) as the primary audit signal.
+          </p>
+        </div>
+
         {/* PINNING WARNING ALERT */}
         {report.pinning_analysis?.issues &&
           report.pinning_analysis.issues.length > 0 && (
@@ -235,7 +259,7 @@ export default function AdAuditDetailClientPage({
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="px-6 bg-white border-slate-200 shadow-sm rounded-2xl">
+            <Card className="py-6 bg-white border-slate-200 shadow-sm rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider">
                   Headline Copy Audit
@@ -317,7 +341,7 @@ export default function AdAuditDetailClientPage({
               </CardContent>
             </Card>
 
-            <Card className="px-6  bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
+            <Card className="py-6  bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider">
                   Ad Strength Critique & Context
@@ -336,7 +360,7 @@ export default function AdAuditDetailClientPage({
         {activeTab === "assets" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Pinning analysis card */}
-            <Card className="px-6  bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
+            <Card className="py-6  bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider">
                   Pinning Recommendations
@@ -361,7 +385,7 @@ export default function AdAuditDetailClientPage({
             </Card>
 
             {/* Missing signals card */}
-            <Card className="px-6 bg-white border-slate-200 shadow-sm rounded-2xl">
+            <Card className="py-6 bg-white border-slate-200 shadow-sm rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider">
                   Missing Copywriting Triggers
@@ -416,7 +440,7 @@ export default function AdAuditDetailClientPage({
                 {report.competitors.map((comp) => (
                   <Card
                     key={comp.domain}
-                    className="px-6  bg-white border-slate-200 shadow-sm rounded-2xl hover:border-slate-300 transition duration-150"
+                    className="py-6  bg-white border-slate-200 shadow-sm rounded-2xl hover:border-slate-300 transition duration-150"
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
@@ -489,7 +513,7 @@ export default function AdAuditDetailClientPage({
         {activeTab === "suggestions" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Suggested Headlines & Descriptions */}
-            <Card className="px-6 bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
+            <Card className="py-6 bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
                   <Sparkles className="h-4.5 w-4.5 text-indigo-500" />
@@ -570,7 +594,7 @@ export default function AdAuditDetailClientPage({
             </Card>
 
             {/* Account Manager Action Script */}
-            <Card className="px-6  bg-white border-slate-200 shadow-sm rounded-2xl">
+            <Card className="py-6  bg-white border-slate-200 shadow-sm rounded-2xl">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center justify-between">
                   AM Action Script

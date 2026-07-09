@@ -20,6 +20,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 export interface AdCopyAuditAnalysis {
   overall_score: number;
   message_match_score: number;
+  search_intent_score?: number;
+  landing_page_match_score?: number;
+  ad_strength_score?: number;
+  pinning_score?: number;
+  copy_triggers_score?: number;
   ad_strength_analysis: string;
   copy_relevance_breakdown: {
     headlines: { pro: string[]; con: string[]; fix: string };
@@ -237,8 +242,11 @@ export async function runAdCopyAuditInternal(
     ---
     OUTPUT FORMAT: Return a valid, parsable JSON object matching this schema exactly:
     {
-      "overall_score": 75,
-      "message_match_score": 85,
+      "search_intent_score": 8, // Integer 0-10 evaluating headlines/descriptions relevance to search term.
+      "landing_page_match_score": 7, // Integer 0-10 evaluating copy message match to landing page.
+      "ad_strength_score": 5, // Integer 0-10 corresponding to Google Ad Strength (EXCELLENT=10, GOOD=8, AVERAGE=5, POOR=2).
+      "pinning_score": 8, // Integer 0-10 evaluating pinning practices (penalize low performance pinned, or over-pinning).
+      "copy_triggers_score": 6, // Integer 0-10 based on presence of price, urgency, and trust triggers.
       "ad_strength_analysis": "PPC critique of the current Google Ad Strength score and how to improve it.",
       "copy_relevance_breakdown": {
         "headlines": {
@@ -283,19 +291,56 @@ export async function runAdCopyAuditInternal(
     - Be highly constructive, trade-specific, and include actual text recommendations (do not say "make it look better", suggest specific text).
   `;
 
-  console.log("[Ad Audit] Querying gemini-3.5-flash for scoring...");
-  const aiResponse = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      temperature: 0,
-    },
-  });
-
-  const parsedAudit: AdCopyAuditAnalysis = JSON.parse(
-    aiResponse.text as string,
+  console.log(
+    "[Ad Audit] Querying gemini-3.5-flash for scoring (3x parallel)...",
   );
+  const calls = Array.from({ length: 3 }).map(() =>
+    ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.2,
+      },
+    }),
+  );
+
+  const responses = await Promise.all(calls);
+  const parsedSamples: AdCopyAuditAnalysis[] = [];
+
+  for (const resp of responses) {
+    try {
+      const text = resp.text || "";
+      const parsed = JSON.parse(text.trim()) as AdCopyAuditAnalysis;
+
+      const searchVal = parsed.search_intent_score ?? 7;
+      const lpVal = parsed.landing_page_match_score ?? 7;
+      const strengthVal = parsed.ad_strength_score ?? 5;
+      const pinVal = parsed.pinning_score ?? 7;
+      const triggersVal = parsed.copy_triggers_score ?? 7;
+
+      parsed.overall_score = Math.round(
+        searchVal * 3.5 +
+          lpVal * 3.5 +
+          strengthVal * 1.0 +
+          pinVal * 1.0 +
+          triggersVal * 1.0,
+      );
+      parsed.message_match_score = Math.round(lpVal * 10);
+
+      parsedSamples.push(parsed);
+    } catch (e) {
+      console.warn("[Ad Audit] Failed to parse a Gemini sample:", e);
+    }
+  }
+
+  if (parsedSamples.length === 0) {
+    throw new Error("Failed to parse any of the Gemini audit responses.");
+  }
+
+  // Sort by overall_score and select the median
+  parsedSamples.sort((a, b) => a.overall_score - b.overall_score);
+  const parsedAudit = parsedSamples[Math.floor(parsedSamples.length / 2)];
 
   // Append pinning issues discovered mechanically
   if (pinningIssues.length > 0) {

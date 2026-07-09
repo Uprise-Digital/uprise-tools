@@ -270,6 +270,11 @@ vi.mock("@google/genai", () => {
             if (prompt.includes("AD HEADLINES AUDITED")) {
               return {
                 text: JSON.stringify({
+                  search_intent_score: 9,
+                  landing_page_match_score: 9,
+                  ad_strength_score: 8,
+                  pinning_score: 6,
+                  copy_triggers_score: 8,
                   overall_score: 85,
                   message_match_score: 90,
                   ad_strength_analysis: "Critique",
