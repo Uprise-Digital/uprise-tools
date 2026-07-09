@@ -18,22 +18,25 @@ import {
   Plus,
   Save,
   Search,
+  RefreshCw,
   Settings as SettingsIcon,
   SlidersHorizontal,
   User as UserIcon,
   XCircle,
   Trash,
 } from "lucide-react";
-import type React from "react";
-import { useState } from "react";
+import React, { useState } from "react";
 import { toast } from "sonner";
 import { saveOrgTriageDefaultsAction } from "@/actions/triage-settings.actions";
+import { syncAgencyPortfolioAction } from "@/actions/agency.actions";
 import {
   disconnectGoogleAdsAction,
   updateLinkedAccountsAction,
   updateOrganizationNameAction,
+  refreshAdAccountsMetadataAction,
 } from "@/actions/settings.actions";
 import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
+import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,6 +48,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -140,14 +149,72 @@ interface SettingsClientProps {
   orgName: string;
   userEmail: string;
   userRole: string;
+  initialAutoJoinDomainEnabled: boolean;
 }
 
-function formatCustomerId(id: string) {
-  const clean = id.replace(/[^0-9]/g, "");
+function formatCustomerId(id: any) {
+  if (!id) return "";
+  const str = String(id);
+  const clean = str.replace(/[^0-9]/g, "");
   if (clean.length === 10) {
     return `${clean.slice(0, 3)}-${clean.slice(3, 6)}-${clean.slice(6)}`;
   }
-  return id;
+  return str;
+}
+
+function getPrettySyncError(rawError: string) {
+  const err = rawError.toLowerCase();
+  if (err.includes("reading '0'") || err.includes("reading '0'")) {
+    return "No campaign data or metrics found in the sync period. The Google Ads account might be inactive, paused, or deactivated.";
+  }
+  if (err.includes("caller does not have permission") || err.includes("permission_denied") || err.includes("customer_not_enabled")) {
+    return "Access denied: The connected manager account doesn't have permission to fetch data for this client account.";
+  }
+  if (err.includes("invalid argument") || err.includes("request contains an invalid argument")) {
+    return "Invalid request argument sent to Google Ads API. Please check account configurations.";
+  }
+  return "Data synchronization failed. This is usually due to temporary API rate limits or missing metrics in the search range.";
+}
+
+// React Error Boundary to catch hydration and client-side crashes
+class SettingsErrorBoundary extends React.Component<
+  { children?: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children?: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("SettingsClient Render Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 bg-rose-50 border border-rose-200 rounded-xl m-6 text-rose-900 font-sans">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <XCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            Client-Side Settings Page Crash
+          </h2>
+          <p className="text-sm mt-2 font-semibold text-rose-800">
+            {this.state.error?.message}
+          </p>
+          {this.state.error?.stack && (
+            <pre className="mt-4 p-4 bg-slate-900 text-slate-200 rounded-lg text-xs font-mono overflow-auto max-h-96 whitespace-pre-wrap">
+              {this.state.error.stack}
+            </pre>
+          )}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default function SettingsClient({
@@ -159,11 +226,37 @@ export default function SettingsClient({
   orgName,
   userEmail,
   userRole,
+  initialAutoJoinDomainEnabled,
 }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<"general" | "triage" | "audit" | "emails">(
     "general",
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [allowDomainAutoJoin, setAllowDomainAutoJoin] = useState(initialAutoJoinDomainEnabled);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    const toastId = toast.loading("Triggering portfolio synchronization...");
+    try {
+      const today = new Date();
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const startDateStr = thirtyDaysAgo.toISOString().split("T")[0];
+      const endDateStr = today.toISOString().split("T")[0];
+
+      const res = await syncAgencyPortfolioAction(startDateStr, endDateStr);
+      if (res.success) {
+        toast.success("Portfolio sync triggered successfully! Running in the background.", { id: toastId });
+        window.location.reload();
+      } else {
+        toast.error(res.error || "Failed to trigger portfolio sync", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to trigger sync", { id: toastId });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // General Settings Form State
   const [formState, setFormState] = useState({
@@ -210,6 +303,7 @@ export default function SettingsClient({
   const [modalSearch, setModalSearch] = useState("");
   const [modalStatusFilter, setModalStatusFilter] = useState("ALL");
   const [savingLinkedAccounts, setSavingLinkedAccounts] = useState(false);
+  const [refreshingAccounts, setRefreshingAccounts] = useState(false);
 
   const handleSaveOrgName = async () => {
     if (!orgNameInput.trim()) {
@@ -218,11 +312,14 @@ export default function SettingsClient({
     }
     setSavingOrgName(true);
     try {
-      const res = await updateOrganizationNameAction({ name: orgNameInput });
+      const res = await updateOrganizationNameAction({
+        name: orgNameInput,
+        allowDomainAutoJoin,
+      });
       if (res.success) {
-        toast.success("Agency name updated successfully.");
+        toast.success("Agency settings updated successfully.");
       } else {
-        toast.error(res.error || "Failed to update agency name.");
+        toast.error(res.error || "Failed to update agency settings.");
       }
     } catch (err: any) {
       toast.error(err.message || "An unexpected error occurred.");
@@ -250,6 +347,24 @@ export default function SettingsClient({
       toast.error(err.message || "An unexpected error occurred.");
     } finally {
       setDisconnecting(false);
+    }
+  };
+
+  const handleRefreshAdAccountsMetadata = async () => {
+    setRefreshingAccounts(true);
+    const toastId = toast.loading("Refreshing Google Ads accounts status...");
+    try {
+      const res = await refreshAdAccountsMetadataAction();
+      if (res.success) {
+        toast.success("Google Ads accounts metadata refreshed successfully!", { id: toastId });
+        window.location.reload();
+      } else {
+        toast.error(res.error || "Failed to refresh metadata.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An unexpected error occurred.", { id: toastId });
+    } finally {
+      setRefreshingAccounts(false);
     }
   };
 
@@ -470,7 +585,9 @@ export default function SettingsClient({
   };
 
   return (
-    <div className="w-full h-full p-8 font-sans bg-slate-50/50">
+    <SettingsErrorBoundary>
+      <TooltipProvider>
+        <div className="w-full h-full p-8 font-sans bg-slate-50/50">
       {/* HEADER */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -591,13 +708,24 @@ export default function SettingsClient({
 
                     <div className="flex flex-wrap gap-3 pt-2">
                       {connection.managerCustomerId && (
-                        <Button
-                          onClick={handleOpenAccountsDialog}
-                          className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          Add or Remove Accounts
-                        </Button>
+                        <>
+                          <Button
+                            onClick={handleOpenAccountsDialog}
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Add or Remove Accounts
+                          </Button>
+                          <Button
+                            onClick={handleRefreshAdAccountsMetadata}
+                            disabled={refreshingAccounts}
+                            variant="outline"
+                            className="border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs px-4 py-2 flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <RefreshCw className={cn("w-3.5 h-3.5", refreshingAccounts && "animate-spin text-indigo-600")} />
+                            {refreshingAccounts ? "Refreshing..." : "Refresh Data"}
+                          </Button>
+                        </>
                       )}
                       <Button
                         onClick={() => setDisconnectDialogOpen(true)}
@@ -662,8 +790,27 @@ export default function SettingsClient({
                       disabled={savingOrgName}
                       className="bg-indigo-600 hover:bg-indigo-500 font-bold text-xs h-9 px-4 shrink-0"
                     >
-                      {savingOrgName ? "Saving..." : "Save Name"}
+                      {savingOrgName ? "Saving..." : "Save Settings"}
                     </Button>
+                  </div>
+                </div>
+
+                {/* Auto-join domain checkbox */}
+                <div className="flex items-start gap-2.5 p-3 bg-slate-50 border border-slate-100 rounded-xl mt-3 select-none">
+                  <input
+                    id="auto-join-domain"
+                    type="checkbox"
+                    checked={allowDomainAutoJoin}
+                    onChange={(e) => setAllowDomainAutoJoin(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <div className="text-xs">
+                    <label htmlFor="auto-join-domain" className="font-semibold text-slate-800 cursor-pointer">
+                      Auto-add team members
+                    </label>
+                    <p className="text-slate-500 mt-0.5 leading-relaxed">
+                      Allow anyone with a <strong className="text-indigo-600">@{userEmail.split("@")[1] || "domain"}</strong> email address to automatically join this organization.
+                    </p>
                   </div>
                 </div>
 
@@ -1227,14 +1374,32 @@ export default function SettingsClient({
 
           <div className="lg:col-span-1 space-y-6">
             <Card className="border-slate-200 shadow-sm overflow-hidden">
-              <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
-                <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
-                  <Database className="w-4 h-4 text-indigo-500" />
-                  Portfolio Sync Status
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Real-time connection and sync health of your portfolio.
-                </CardDescription>
+              <CardHeader className="bg-slate-50 border-b border-slate-100 p-5 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                    <Database className="w-4 h-4 text-indigo-500" />
+                    Portfolio Sync Status
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-0.5">
+                    Real-time connection and sync health of your portfolio.
+                  </CardDescription>
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleManualSync}
+                      disabled={isSyncing}
+                      className="h-8 w-8 rounded-lg border-slate-200 text-slate-600 hover:bg-slate-100/80 transition-all shrink-0 cursor-pointer"
+                    >
+                      <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin text-indigo-500")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="bg-slate-900 text-white text-[10px] p-2 rounded-lg border border-slate-850">
+                    Sync Portfolio Now
+                  </TooltipContent>
+                </Tooltip>
               </CardHeader>
               <CardContent className="p-5 space-y-5">
                 <div className="grid grid-cols-3 gap-2 text-center">
@@ -1354,8 +1519,30 @@ export default function SettingsClient({
                             </div>
 
                             {isFailed && acc.syncError && (
-                              <div className="text-[10px] font-mono text-rose-600 bg-rose-50/50 p-2 rounded border border-rose-100/50 break-words leading-relaxed">
-                                {acc.syncError}
+                              <div className="text-[10px] text-rose-600 bg-rose-50/50 p-2.5 rounded-lg border border-rose-100/50 flex items-start gap-2 leading-relaxed shadow-sm">
+                                <span className="flex-1 font-semibold">
+                                  {getPrettySyncError(acc.syncError)}
+                                </span>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="p-1 -m-1 hover:bg-rose-100 rounded-md transition-colors text-rose-400 hover:text-rose-600 shrink-0 cursor-pointer"
+                                    >
+                                      <Info className="w-3.5 h-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent
+                                    side="top"
+                                    align="end"
+                                    className="max-w-[280px] bg-slate-900 text-slate-100 p-2 rounded-lg text-[9px] font-mono whitespace-normal break-all leading-normal border border-slate-800 shadow-xl"
+                                  >
+                                    <p className="font-bold text-slate-400 mb-1 border-b border-slate-800 pb-1">
+                                      Raw Error Code / Trace
+                                    </p>
+                                    {acc.syncError}
+                                  </TooltipContent>
+                                </Tooltip>
                               </div>
                             )}
                           </div>
@@ -1948,5 +2135,7 @@ export default function SettingsClient({
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
+    </SettingsErrorBoundary>
   );
 }

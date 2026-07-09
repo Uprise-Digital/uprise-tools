@@ -92,6 +92,19 @@ export default function AdAuditClientPage({
     accounts[0]?.id || 0,
   );
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const accId = params.get("accountId");
+      if (accId) {
+        const parsed = parseInt(accId, 10);
+        if (!isNaN(parsed) && accounts.some((a) => a.id === parsed)) {
+          setSelectedAccountId(parsed);
+        }
+      }
+    }
+  }, [accounts]);
+
   // List Ads state
   const [ads, setAds] = useState<AdGroupAdItem[]>([]);
   const [loadingAds, setLoadingAds] = useState(false);

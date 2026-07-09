@@ -1,11 +1,12 @@
 "use server";
 
 import { db } from "@/db";
-import { googleAdsConnections, adAccounts, organization } from "@/db/schema";
+import { googleAdsConnections, adAccounts, organization, member } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { withTenantContext } from "@/db/tenant-db";
 
 async function getAccessToken(refreshToken: string) {
   const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -38,44 +39,55 @@ export async function disconnectGoogleAdsAction(payload: {
     throw new Error("Unauthorized");
   }
 
-  const orgId = session.session.activeOrganizationId;
+  let orgId = session.session.activeOrganizationId;
+  if (!orgId) {
+    const userMember = await db.query.member.findFirst({
+      where: eq(member.userId, session.user.id),
+    });
+    if (userMember) {
+      orgId = userMember.organizationId;
+    }
+  }
+
   if (!orgId) {
     throw new Error("No active organization found");
   }
 
   try {
-    // 1. If deleteSyncedData is true, delete all ad accounts under this connection
-    if (payload.deleteSyncedData) {
-      await db
-        .delete(adAccounts)
-        .where(
-          and(
-            eq(adAccounts.connectionId, payload.connectionId),
-            eq(adAccounts.organizationId, orgId)
-          )
-        );
-    } else {
-      // Otherwise, keep the accounts but set connectionId to null so they are orphaned
-      await db
-        .update(adAccounts)
-        .set({ connectionId: null, isActive: false })
-        .where(
-          and(
-            eq(adAccounts.connectionId, payload.connectionId),
-            eq(adAccounts.organizationId, orgId)
-          )
-        );
-    }
+    await withTenantContext(orgId, async (tx) => {
+      // 1. If deleteSyncedData is true, delete all ad accounts under this connection
+      if (payload.deleteSyncedData) {
+        await tx
+          .delete(adAccounts)
+          .where(
+            and(
+              eq(adAccounts.connectionId, payload.connectionId),
+              eq(adAccounts.organizationId, orgId)
+            )
+          );
+      } else {
+        // Otherwise, keep the accounts but set connectionId to null so they are orphaned
+        await tx
+          .update(adAccounts)
+          .set({ connectionId: null, isActive: false })
+          .where(
+            and(
+              eq(adAccounts.connectionId, payload.connectionId),
+              eq(adAccounts.organizationId, orgId)
+            )
+          );
+      }
 
-    // 2. Delete the connection
-    await db
-      .delete(googleAdsConnections)
-      .where(
-        and(
-          eq(googleAdsConnections.id, payload.connectionId),
-          eq(googleAdsConnections.organizationId, orgId)
-        )
-      );
+      // 2. Delete the connection
+      await tx
+        .delete(googleAdsConnections)
+        .where(
+          and(
+            eq(googleAdsConnections.id, payload.connectionId),
+            eq(googleAdsConnections.organizationId, orgId)
+          )
+        );
+    });
 
     revalidatePath("/settings");
     return { success: true };
@@ -99,7 +111,16 @@ export async function updateLinkedAccountsAction(payload: {
     throw new Error("Unauthorized");
   }
 
-  const orgId = session.session.activeOrganizationId;
+  let orgId = session.session.activeOrganizationId;
+  if (!orgId) {
+    const userMember = await db.query.member.findFirst({
+      where: eq(member.userId, session.user.id),
+    });
+    if (userMember) {
+      orgId = userMember.organizationId;
+    }
+  }
+
   if (!orgId) {
     throw new Error("No active organization found");
   }
@@ -176,39 +197,41 @@ export async function updateLinkedAccountsAction(payload: {
       }
     }
 
-    // Deactivate accounts that are NOT checked
-    await db
-      .update(adAccounts)
-      .set({ isActive: false })
-      .where(
-        and(
-          eq(adAccounts.connectionId, conn.id),
-          eq(adAccounts.organizationId, orgId),
-          payload.selectedCustomerIds.length > 0
-            ? sql`${adAccounts.googleAccountId} NOT IN (${sql.join(
-                payload.selectedCustomerIds.map((id) => sql`${id}`),
-                sql`, `
-              )})`
-            : sql`TRUE`
-        )
-      );
+    // Deactivate accounts that are NOT checked & upsert checked ones inside RLS context
+    await withTenantContext(orgId, async (tx) => {
+      await tx
+        .update(adAccounts)
+        .set({ isActive: false })
+        .where(
+          and(
+            eq(adAccounts.connectionId, conn.id),
+            eq(adAccounts.organizationId, orgId),
+            payload.selectedCustomerIds.length > 0
+              ? sql`${adAccounts.googleAccountId} NOT IN (${sql.join(
+                  payload.selectedCustomerIds.map((id) => sql`${id}`),
+                  sql`, `
+                )})`
+              : sql`TRUE`
+          )
+        );
 
-    // Upsert the checked ones (activate or insert)
-    if (accountsToInsert.length > 0) {
-      await db
-        .insert(adAccounts)
-        .values(accountsToInsert)
-        .onConflictDoUpdate({
-          target: adAccounts.googleAccountId,
-          set: {
-            name: sql`EXCLUDED.name`,
-            currencyCode: sql`EXCLUDED.currency_code`,
-            timeZone: sql`EXCLUDED.time_zone`,
-            googleStatus: sql`EXCLUDED.google_status`,
-            isActive: true,
-          },
-        });
-    }
+      // Upsert the checked ones (activate or insert)
+      if (accountsToInsert.length > 0) {
+        await tx
+          .insert(adAccounts)
+          .values(accountsToInsert)
+          .onConflictDoUpdate({
+            target: adAccounts.googleAccountId,
+            set: {
+              name: sql`EXCLUDED.name`,
+              currencyCode: sql`EXCLUDED.currency_code`,
+              timeZone: sql`EXCLUDED.time_zone`,
+              googleStatus: sql`EXCLUDED.google_status`,
+              isActive: true,
+            },
+          });
+      }
+    });
 
     // Trigger background sync for newly imported/re-activated accounts
     const endDateStr = new Date().toISOString().split("T")[0];
@@ -240,8 +263,11 @@ export async function updateLinkedAccountsAction(payload: {
   }
 }
 
-// --- Action 3: Update Organization Name ---
-export async function updateOrganizationNameAction(payload: { name: string }) {
+// --- Action 3: Update Organization Name & Domain Auto-Join Settings ---
+export async function updateOrganizationNameAction(payload: {
+  name: string;
+  allowDomainAutoJoin: boolean;
+}) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -250,21 +276,158 @@ export async function updateOrganizationNameAction(payload: { name: string }) {
     throw new Error("Unauthorized");
   }
 
-  const orgId = session.session.activeOrganizationId;
+  let orgId = session.session.activeOrganizationId;
+  if (!orgId) {
+    const userMember = await db.query.member.findFirst({
+      where: eq(member.userId, session.user.id),
+    });
+    if (userMember) {
+      orgId = userMember.organizationId;
+    }
+  }
+
   if (!orgId) {
     throw new Error("No active organization found");
   }
 
   try {
+    const org = await db.query.organization.findFirst({
+      where: eq(organization.id, orgId),
+    });
+    if (!org) throw new Error("Organization not found");
+
+    const userEmail = session.user.email;
+    const userDomain = userEmail.split("@")[1];
+
+    let metaObj: any = {};
+    if (org.metadata) {
+      try {
+        metaObj = JSON.parse(org.metadata);
+      } catch (e) {
+        // Ignore
+      }
+    }
+
+    metaObj.autoJoinDomain = payload.allowDomainAutoJoin ? userDomain : null;
+
     await db
       .update(organization)
-      .set({ name: payload.name, updatedAt: new Date() })
+      .set({
+        name: payload.name,
+        metadata: JSON.stringify(metaObj),
+        updatedAt: new Date(),
+      })
       .where(eq(organization.id, orgId));
 
     revalidatePath("/settings");
     return { success: true };
   } catch (error: any) {
     console.error("Failed to update organization name:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function refreshAdAccountsMetadataAction() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  let orgId = session.session.activeOrganizationId;
+  if (!orgId) {
+    const userMember = await db.query.member.findFirst({
+      where: eq(member.userId, session.user.id),
+    });
+    if (userMember) {
+      orgId = userMember.organizationId;
+    }
+  }
+
+  if (!orgId) {
+    throw new Error("No active organization found");
+  }
+
+  try {
+    const conn = await db.query.googleAdsConnections.findFirst({
+      where: eq(googleAdsConnections.organizationId, orgId),
+    });
+
+    if (!conn) {
+      throw new Error("Google Ads connection not found. Please connect your manager account first.");
+    }
+
+    const { decryptToken } = await import("@/lib/crypto");
+    const decToken = decryptToken(conn.refreshToken);
+    const accessToken = await getAccessToken(decToken);
+    const sanitizedId = conn.managerCustomerId.replace(/-/g, "");
+
+    const DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+
+    const query = `
+      SELECT
+        customer_client.id,
+        customer_client.descriptive_name,
+        customer_client.currency_code,
+        customer_client.time_zone,
+        customer_client.status
+      FROM customer_client
+      WHERE customer_client.level <= 1
+        AND customer_client.manager = false
+    `;
+
+    const searchRes = await fetch(
+      `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "developer-token": DEVELOPER_TOKEN || "",
+          Authorization: `Bearer ${accessToken}`,
+          "login-customer-id": sanitizedId,
+        },
+        body: JSON.stringify({ query }),
+      }
+    );
+    const searchData = await searchRes.json();
+    if (searchData.error) {
+      throw new Error(`Failed to fetch live client accounts: ${searchData.error.message}`);
+    }
+
+    const results = searchData.results || [];
+
+    await withTenantContext(orgId, async (tx) => {
+      for (const row of results) {
+        const client = row.customerClient;
+        if (client) {
+          const clientIdStr = client.id.toString();
+          const liveStatus = client.status || "ENABLED";
+          
+          await tx
+            .update(adAccounts)
+            .set({
+              name: client.descriptiveName || `Client Account (${client.id})`,
+              currencyCode: client.currencyCode || "AUD",
+              timeZone: client.timeZone || "Australia/Melbourne",
+              googleStatus: liveStatus,
+              isActive: liveStatus === "ENABLED", 
+            })
+            .where(
+              and(
+                eq(adAccounts.googleAccountId, clientIdStr),
+                eq(adAccounts.organizationId, orgId)
+              )
+            );
+        }
+      }
+    });
+
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to refresh ad accounts metadata:", error);
     return { success: false, error: error.message };
   }
 }

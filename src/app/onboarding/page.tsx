@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { member } from "@/db/schema";
+import { member, organization } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import OnboardingClient from "./onboarding-client";
 
@@ -24,6 +24,37 @@ export default async function OnboardingPage() {
 
   if (userMemberships.length > 0) {
     redirect("/overview");
+  }
+
+  // If no membership, check for domain auto-join match
+  const userEmail = session.user.email;
+  const userDomain = userEmail.split("@")[1];
+
+  if (userDomain) {
+    const allOrgs = await db.select().from(organization);
+    const matchedOrg = allOrgs.find((org) => {
+      if (!org.metadata) return false;
+      try {
+        const meta = JSON.parse(org.metadata);
+        return meta.autoJoinDomain === userDomain;
+      } catch (e) {
+        return false;
+      }
+    });
+
+    if (matchedOrg) {
+      // Auto-add team member
+      await db.insert(member).values({
+        id: crypto.randomUUID(),
+        organizationId: matchedOrg.id,
+        userId: session.user.id,
+        role: "member",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      redirect("/overview");
+    }
   }
 
   return (

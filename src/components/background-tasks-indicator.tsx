@@ -59,16 +59,19 @@ export function BackgroundTasksIndicator() {
     }
   }, []);
 
-  // Dynamic Polling Strategy
+  const hasRunningTasks = tasks.some((t) => t.status === "running");
+
+  // Initial fetch on mount
   useEffect(() => {
     fetchTasks();
+  }, [fetchTasks]);
 
-    const hasRunningTasks = tasks.some((t) => t.status === "running");
+  // Dynamic Polling Strategy
+  useEffect(() => {
     const intervalTime = hasRunningTasks ? 2500 : 6000;
-
     const interval = setInterval(fetchTasks, intervalTime);
     return () => clearInterval(interval);
-  }, [fetchTasks, tasks]);
+  }, [fetchTasks, hasRunningTasks]);
 
   if (tasks.length === 0) return null;
 

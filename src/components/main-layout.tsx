@@ -3,6 +3,7 @@
 import {
   BarChart3,
   BellRing,
+  ChevronDown,
   FileText,
   Globe,
   LayoutDashboard,
@@ -27,6 +28,13 @@ import {
 import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 import { BackgroundTasksIndicator } from "@/components/background-tasks-indicator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { authClient } from "@/lib/auth-client";
 
 const navItems = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
@@ -40,17 +48,39 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
+interface OrgItem {
+  id: string;
+  name: string;
+  slug: string | null;
+}
+
 export function MainLayout({
   children,
   userInitials,
   userName,
+  organizations = [],
+  activeOrganization,
 }: {
   children: React.ReactNode;
   userInitials: string;
   userName: string;
+  organizations?: OrgItem[];
+  activeOrganization?: OrgItem;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleSwitchOrg = async (orgId: string) => {
+    if (activeOrganization?.id === orgId) return;
+    try {
+      await authClient.organization.setActive({
+        organizationId: orgId,
+      });
+      window.location.reload();
+    } catch (err) {
+      console.error("Failed to switch organization:", err);
+    }
+  };
 
   const NavContent = () => (
     <div className="flex flex-col gap-1 py-4">
@@ -84,20 +114,52 @@ export function MainLayout({
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 antialiased">
       {/* 1. DESKTOP SIDEBAR */}
       <aside className="hidden md:flex flex-col w-56 bg-slate-950 text-white flex-shrink-0 h-full border-r border-slate-900">
-        {/* Brand Header */}
-        <div className="h-14 border-b border-slate-900 flex items-center px-4 flex-shrink-0 gap-2">
-          <Link href="/overview" className="flex items-center gap-2">
-            <Image
-              src="/logo_white.png"
-              alt="Uprise Tools Logo"
-              width={20}
-              height={20}
-              className="object-contain"
-            />
-            <span className="font-extrabold text-[11px] tracking-wider uppercase text-slate-100 mt-0.5">
-              Uprise Tools
-            </span>
-          </Link>
+        {/* Brand/Organization Switcher Header */}
+        <div className="h-14 border-b border-slate-900 flex items-center px-4 flex-shrink-0">
+          {activeOrganization ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 hover:text-white cursor-pointer transition-colors text-xs font-semibold select-none">
+                  <span className="text-slate-500 font-bold">/</span>
+                  <span className="truncate max-w-[120px]">{activeOrganization.name}</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48 bg-slate-950 border-slate-800 text-white z-[100] shadow-xl">
+                <div className="px-2 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                  Switch Organization
+                </div>
+                {organizations.map((org) => (
+                  <DropdownMenuItem
+                    key={org.id}
+                    onClick={() => handleSwitchOrg(org.id)}
+                    className={cn(
+                      "cursor-pointer text-xs font-medium px-2 py-1.5 rounded-md hover:bg-slate-900 focus:bg-slate-900 focus:text-white flex items-center justify-between",
+                      org.id === activeOrganization.id && "text-indigo-400 font-bold bg-slate-900/50"
+                    )}
+                  >
+                    <span>{org.name}</span>
+                    {org.id === activeOrganization.id && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Image
+                src="/logo_white.png"
+                alt="Uprise Tools Logo"
+                width={20}
+                height={20}
+                className="object-contain"
+              />
+              <span className="font-extrabold text-[11px] tracking-wider uppercase text-slate-100 mt-0.5">
+                Uprise Tools
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Sidebar Nav Items */}
@@ -127,6 +189,20 @@ export function MainLayout({
             })}
           </div>
         </nav>
+
+        {/* Sidebar Footer Branding */}
+        <div className="p-4 border-t border-slate-900 mt-auto flex items-center justify-center gap-2 bg-slate-950">
+          <Image
+            src="/logo_white.png"
+            alt="Uprise Tools Logo"
+            width={16}
+            height={16}
+            className="object-contain opacity-60 hover:opacity-100 transition-opacity"
+          />
+          <span className="font-extrabold text-[10px] tracking-widest uppercase text-slate-500 hover:text-slate-400 transition-colors">
+            Uprise Tools
+          </span>
+        </div>
       </aside>
 
       {/* 2. MAIN CONTAINER */}
@@ -165,21 +241,46 @@ export function MainLayout({
             </SheetTrigger>
             <SheetContent
               side="left"
-              className="bg-slate-950 border-slate-900 text-white w-56 p-4"
+              className="bg-slate-950 border-slate-900 text-white w-56 p-4 flex flex-col justify-between"
             >
-              <div className="flex items-center justify-between border-b border-slate-900 pb-4 mb-2">
-                <SheetTitle className="text-left font-extrabold text-[11px] tracking-wider bg-gradient-to-r from-indigo-400 to-blue-500 bg-clip-text text-transparent uppercase flex items-center gap-2">
-                  <Image
-                    src="/logo_white.png"
-                    alt="Uprise Tools Logo"
-                    width={18}
-                    height={18}
-                    className="object-contain"
-                  />
-                  Uprise Tools
-                </SheetTitle>
+              <div>
+                <div className="flex items-center justify-between border-b border-slate-900 pb-4 mb-2">
+                  <SheetTitle className="text-left">
+                    {activeOrganization ? (
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-200 text-xs font-semibold select-none">
+                        <span className="text-slate-500 font-bold">/</span>
+                        <span className="truncate max-w-[100px]">{activeOrganization.name}</span>
+                      </div>
+                    ) : (
+                      <span className="font-extrabold text-[11px] tracking-wider uppercase text-slate-100 flex items-center gap-2">
+                        <Image
+                          src="/logo_white.png"
+                          alt="Uprise Tools Logo"
+                          width={18}
+                          height={18}
+                          className="object-contain"
+                        />
+                        Uprise Tools
+                      </span>
+                    )}
+                  </SheetTitle>
+                </div>
+                <NavContent />
               </div>
-              <NavContent />
+
+              {/* Mobile Sidebar Footer Branding */}
+              <div className="pt-4 border-t border-slate-900 flex items-center justify-center gap-2 mt-auto">
+                <Image
+                  src="/logo_white.png"
+                  alt="Uprise Tools Logo"
+                  width={14}
+                  height={14}
+                  className="object-contain opacity-50"
+                />
+                <span className="font-extrabold text-[9px] tracking-widest uppercase text-slate-500">
+                  Uprise Tools
+                </span>
+              </div>
             </SheetContent>
           </Sheet>
 

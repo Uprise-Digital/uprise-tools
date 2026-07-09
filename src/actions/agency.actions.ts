@@ -332,6 +332,18 @@ export async function getAgencyPortfolioMetricsAction(
       };
     });
 
+    // 4.5 Aggregate Daily Totals
+    const dailyTotalsMap: Record<string, { date: string; spend: number; conversions: number }> = {};
+    
+    // Pre-populate all dates to prevent gaps
+    let currentDate = new Date(startDate);
+    const lastDate = new Date(endDate);
+    while (currentDate <= lastDate) {
+      const dateStr = currentDate.toISOString().split("T")[0];
+      dailyTotalsMap[dateStr] = { date: dateStr, spend: 0, conversions: 0 };
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
     allPerformance.forEach((row) => {
       const spend = Number(row.spend || 0);
       const clicks = Number(row.clicks || 0);
@@ -351,6 +363,13 @@ export async function getAgencyPortfolioMetricsAction(
         accountBreakdownMap[row.adAccountId].impressions += impressions;
         accountBreakdownMap[row.adAccountId].conversions += conversions;
       }
+
+      // Add to daily totals
+      const dateStr = row.date;
+      if (dailyTotalsMap[dateStr]) {
+        dailyTotalsMap[dateStr].spend += spend;
+        dailyTotalsMap[dateStr].conversions += conversions;
+      }
     });
 
     // 5. Format Breakdown & Calculate derived metrics (CPA, CTR)
@@ -362,6 +381,8 @@ export async function getAgencyPortfolioMetricsAction(
         cpc: acc.clicks > 0 ? acc.spend / acc.clicks : 0,
       }))
       .sort((a, b) => b.spend - a.spend); // Sort by highest spend
+
+    const dailyTotals = Object.values(dailyTotalsMap).sort((a, b) => a.date.localeCompare(b.date));
 
     return {
       success: true,
@@ -378,6 +399,7 @@ export async function getAgencyPortfolioMetricsAction(
           cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
         },
         accountBreakdown,
+        dailyTotals,
       },
     };
   } catch (error: any) {

@@ -6,6 +6,7 @@ import SettingsClient from "./pageClient";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { withTenantContext } from "@/db/tenant-db";
 
 export default async function SettingsPage() {
   const session = await auth.api.getSession({
@@ -16,7 +17,16 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  const orgId = session.session.activeOrganizationId;
+  let orgId = session.session.activeOrganizationId;
+  if (!orgId) {
+    const userMember = await db.query.member.findFirst({
+      where: eq(member.userId, session.user.id),
+    });
+    if (userMember) {
+      orgId = userMember.organizationId;
+    }
+  }
+
   if (!orgId) {
     redirect("/onboarding");
   }
@@ -31,9 +41,11 @@ export default async function SettingsPage() {
     memberRecord,
   ] = await Promise.all([
     getOrgTriageDefaultsAction(),
-    db.query.adAccounts.findMany({
-      where: eq(adAccounts.organizationId, orgId), // Fetch all accounts (even inactive ones so they can be re-linked)
-    }),
+    withTenantContext(orgId, (tx) =>
+      tx.query.adAccounts.findMany({
+        where: eq(adAccounts.organizationId, orgId),
+      })
+    ),
     db.query.auditLogs.findMany({
       with: {
         actor: true,
@@ -124,6 +136,16 @@ export default async function SettingsPage() {
       }
     : null;
 
+  let initialAutoJoinDomainEnabled = false;
+  if (orgRecord?.metadata) {
+    try {
+      const meta = JSON.parse(orgRecord.metadata);
+      initialAutoJoinDomainEnabled = !!meta.autoJoinDomain;
+    } catch (e) {
+      // Ignore
+    }
+  }
+
   return (
     <SettingsClient
       initialDefaults={defaultsRes.data}
@@ -134,6 +156,7 @@ export default async function SettingsPage() {
       orgName={orgRecord?.name || "Uprise Digital Agency"}
       userEmail={session.user.email}
       userRole={memberRecord?.role || "member"}
+      initialAutoJoinDomainEnabled={initialAutoJoinDomainEnabled}
     />
   );
 }

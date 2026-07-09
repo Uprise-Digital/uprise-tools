@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { MainLayout } from "@/components/main-layout";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { member } from "@/db/schema";
+import { member, organization } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export default async function DashboardLayout({
@@ -19,26 +19,42 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Check if user has an active organization membership
-  const userMemberships = await db
-    .select()
+  // Fetch all organizations the user belongs to
+  const userOrgs = await db
+    .select({
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+    })
     .from(member)
-    .where(eq(member.userId, session.user.id))
-    .limit(1);
+    .innerJoin(organization, eq(member.organizationId, organization.id))
+    .where(eq(member.userId, session.user.id));
 
-  console.log(`[Layout Check] User: ${session.user.email} (${session.user.id}), Memberships Count: ${userMemberships.length}, Memberships:`, userMemberships);
+  console.log(
+    `[Layout Check] User: ${session.user.email} (${session.user.id}), Memberships Count: ${userOrgs.length}`
+  );
 
-  if (userMemberships.length === 0) {
+  if (userOrgs.length === 0) {
     console.log(`[Layout Check] No memberships found. Redirecting user to /onboarding`);
     redirect("/onboarding");
   }
 
+  let activeOrgId = session.session.activeOrganizationId;
+  if (!activeOrgId) {
+    activeOrgId = userOrgs[0]?.id;
+  }
 
+  const activeOrg = userOrgs.find((org) => org.id === activeOrgId) || userOrgs[0];
   const userInitials = session.user.name.substring(0, 2).toUpperCase();
   const userName = session.user.name;
 
   return (
-    <MainLayout userInitials={userInitials} userName={userName}>
+    <MainLayout
+      userInitials={userInitials}
+      userName={userName}
+      organizations={userOrgs}
+      activeOrganization={activeOrg}
+    >
       {children}
     </MainLayout>
   );

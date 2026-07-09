@@ -147,7 +147,7 @@ export default function AdAuditDetailClientPage({
             <CardContent className="p-0 flex flex-col items-center">
               <div className="relative flex items-center justify-center">
                 <span
-                  className={`text-5xl font-black rounded-full h-24 w-24 flex items-center justify-center border-4 ${
+                  className={`text-3xl font-black rounded-full h-24 w-24 flex items-center justify-center border-4 ${
                     audit.messageMatchScore >= 80
                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                       : audit.messageMatchScore >= 50
@@ -302,7 +302,7 @@ export default function AdAuditDetailClientPage({
 
             <Card className="bg-white border-slate-200 shadow-sm rounded-2xl">
               <CardHeader>
-                <CardTitle className="px-6 text-sm font-black text-slate-800 uppercase tracking-wider">
+                <CardTitle className="py-6 text-sm font-black text-slate-800 uppercase tracking-wider">
                   Description Copy Audit
                 </CardTitle>
                 <CardDescription className="text-xs">
