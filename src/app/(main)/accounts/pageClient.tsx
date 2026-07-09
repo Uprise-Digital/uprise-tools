@@ -34,6 +34,7 @@ type AccountWithSchedules = {
   name: string;
   currencyCode: string | null;
   isActive: boolean;
+  googleStatus: string;
   reportSchedules: any[];
 };
 
@@ -173,7 +174,29 @@ export default function AccountsClientPage({
                   onClick={() => handleRowClick(acc.id)}
                 >
                   <TableCell className="font-semibold text-slate-900 pl-6">
-                    {acc.name}
+                    <div className="flex items-center gap-2">
+                      <span
+                        title={
+                          acc.googleStatus === "ENABLED"
+                            ? "Google Ads: Active"
+                            : acc.googleStatus === "CANCELED"
+                            ? "Google Ads: Cancelled"
+                            : acc.googleStatus === "SUSPENDED"
+                            ? "Google Ads: Suspended"
+                            : `Google Ads: ${acc.googleStatus}`
+                        }
+                        className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
+                          acc.googleStatus === "ENABLED"
+                            ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
+                            : acc.googleStatus === "CANCELED"
+                            ? "bg-slate-400"
+                            : acc.googleStatus === "SUSPENDED"
+                            ? "bg-rose-500 shadow-sm shadow-rose-500/30"
+                            : "bg-amber-500"
+                        }`}
+                      />
+                      <span>{acc.name}</span>
+                    </div>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-slate-500">
                     {acc.googleAccountId}

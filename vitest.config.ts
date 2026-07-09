@@ -8,8 +8,10 @@ export default defineConfig({
     environment: "node", // Running actions/libs in Node.js environment
     globals: true,
     setupFiles: "./tests/setup.ts",
+    fileParallelism: false, // Prevent concurrent database locks during integration tests
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
 });
+

@@ -772,10 +772,32 @@ export default function AgencyReportsClient() {
                     className="text-sm hover:bg-slate-50 cursor-pointer transition-colors"
                   >
                     <TableCell>
-                      <div className="font-semibold text-slate-900">
-                        {acc.name}
+                      <div className="flex items-center gap-2">
+                        <span
+                          title={
+                            acc.googleStatus === "ENABLED"
+                              ? "Status: Active"
+                              : acc.googleStatus === "CANCELED"
+                              ? "Status: Cancelled"
+                              : acc.googleStatus === "SUSPENDED"
+                              ? "Status: Suspended"
+                              : `Status: ${acc.googleStatus}`
+                          }
+                          className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
+                            acc.googleStatus === "ENABLED"
+                              ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
+                              : acc.googleStatus === "CANCELED"
+                              ? "bg-slate-400"
+                              : acc.googleStatus === "SUSPENDED"
+                              ? "bg-rose-500 shadow-sm shadow-rose-500/30"
+                              : "bg-amber-500"
+                          }`}
+                        />
+                        <span className="font-semibold text-slate-900">
+                          {acc.name}
+                        </span>
                       </div>
-                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                      <div className="text-[10px] text-slate-500 font-mono mt-0.5 pl-4.5">
                         {acc.googleAccountId}
                       </div>
                     </TableCell>

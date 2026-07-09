@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { admin, organization } from "better-auth/plugins";
 import { Resend } from "resend";
 import { db } from "../db";
 
@@ -9,6 +10,10 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
+  plugins: [
+    organization(),
+    admin(),
+  ],
   // ENABLE ACCOUNT MERGING HERE
   account: {
     accountLinking: {
@@ -43,3 +48,4 @@ export const auth = betterAuth({
     },
   },
 });
+

@@ -152,3 +152,17 @@
     padding: 0;
   }
 }
+
+@keyframes indeterminate-slide {
+  0% {
+    left: -33%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.animate-indeterminate-slide {
+  animation: indeterminate-slide 1.5s infinite linear;
+}
+

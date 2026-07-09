@@ -59,19 +59,11 @@ export function getPreviousPeriodDateClause(
 
 // --- API Functions ---
 
-export async function getManagementAccessToken() {
-  // Grab the permanent system token from your environment variables
-  const refreshToken = process.env.GOOGLE_ADS_REFRESH_TOKEN;
-
-  if (!refreshToken) {
-    throw new Error(
-      "CRITICAL: Missing GOOGLE_ADS_REFRESH_TOKEN in environment variables.",
-    );
-  }
-
-  // Exchange the refresh token for a fresh 60-minute access token
+// --- Helper: Exchange refresh token for a fresh 60-minute access token ---
+async function refreshAccessToken(refreshToken: string) {
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID!,
       client_secret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -79,21 +71,79 @@ export async function getManagementAccessToken() {
       grant_type: "refresh_token",
     }),
   });
-
   const data = await response.json();
-
   if (data.error) {
-    console.error("[OAuth Refresh Error]", data);
-    throw new Error(
-      `Failed to refresh system token: ${data.error_description || data.error}`,
-    );
+    throw new Error(`Failed to refresh token: ${data.error_description || data.error}`);
+  }
+  return data.access_token as string;
+}
+
+export async function getManagementAccessToken(): Promise<{
+  accessToken: string;
+  managerCustomerId: string;
+}> {
+  // 1. Try to get credentials from active session organization connection
+  try {
+    const { auth } = await import("@/lib/auth");
+    const { headers } = await import("next/headers");
+    const { db } = await import("@/db");
+    const { googleAdsConnections, member } = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const { decryptToken } = await import("@/lib/crypto");
+
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (session) {
+      const activeOrgId = session.session.activeOrganizationId;
+      let conn;
+
+      if (activeOrgId) {
+        conn = await db.query.googleAdsConnections.findFirst({
+          where: eq(googleAdsConnections.organizationId, activeOrgId),
+        });
+      }
+
+      if (!conn) {
+        // Fallback to first member organization
+        const userMember = await db.query.member.findFirst({
+          where: eq(member.userId, session.user.id),
+        });
+        if (userMember) {
+          conn = await db.query.googleAdsConnections.findFirst({
+            where: eq(googleAdsConnections.organizationId, userMember.organizationId),
+          });
+        }
+      }
+
+      if (conn && conn.status === "active") {
+        const decToken = decryptToken(conn.refreshToken);
+        const accessToken = await refreshAccessToken(decToken);
+        return {
+          accessToken,
+          managerCustomerId: conn.managerCustomerId.replace(/-/g, ""),
+        };
+      }
+    }
+  } catch (e) {
+    // Ignore headers/session errors when run outside of request contexts
   }
 
-  return data.access_token;
+  // 2. Default fallback to environment variables
+  const refreshToken = process.env.GOOGLE_ADS_REFRESH_TOKEN;
+  if (!refreshToken) {
+    throw new Error("CRITICAL: Missing GOOGLE_ADS_REFRESH_TOKEN in environment variables.");
+  }
+  const accessToken = await refreshAccessToken(refreshToken);
+  return {
+    accessToken,
+    managerCustomerId: (process.env.GOOGLE_ADS_MANAGER_ID || "").replace(/-/g, ""),
+  };
 }
 
 export async function fetchMCCAccounts() {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedManagerId = MANAGER_ID?.replace(/-/g, "");
   const url = `https://googleads.googleapis.com/v23/customers/${sanitizedManagerId}/googleAds:search`;
 
@@ -114,7 +164,7 @@ export async function fetchMCCAccounts() {
       "Content-Type": "application/json",
       "developer-token": DEVELOPER_TOKEN!,
       Authorization: `Bearer ${accessToken}`,
-      "login-customer-id": sanitizedManagerId!,
+      "login-customer-id": managerCustomerId,
     },
     body: JSON.stringify({ query }),
   });
@@ -131,7 +181,7 @@ export async function fetchAccountMonthlySummary(
   startDate?: string,
   endDate?: string,
 ) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
   const dateClause = getCurrentPeriodDateClause(startDate, endDate);
 
@@ -158,7 +208,7 @@ export async function fetchAccountMonthlySummary(
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },
@@ -182,7 +232,7 @@ export async function fetchAccountKeywords(
   startDate?: string,
   endDate?: string,
 ) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
   const dateClause = getCurrentPeriodDateClause(startDate, endDate);
 
@@ -212,7 +262,7 @@ export async function fetchAccountKeywords(
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },
@@ -236,7 +286,7 @@ export async function fetchAccountLastMonthSummary(
   startDate?: string,
   endDate?: string,
 ) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
   const dateClause = getPreviousPeriodDateClause(startDate, endDate);
 
@@ -258,7 +308,7 @@ export async function fetchAccountLastMonthSummary(
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },
@@ -282,7 +332,7 @@ export async function fetchDailyCampaignData(
   startDate: string,
   endDate: string,
 ) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
 
   // We add metrics.cost_micros and ensure segments.date is handled correctly
@@ -307,7 +357,7 @@ export async function fetchDailyCampaignData(
         "Content-Type": "application/json",
         "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": process.env.GOOGLE_ADS_MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },
@@ -332,7 +382,7 @@ export async function fetchDailyCampaignData(
 export async function fetchTopClientLandingPage(
   googleAccountId: string,
 ): Promise<string | null> {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
 
   const query = `
@@ -354,7 +404,7 @@ export async function fetchTopClientLandingPage(
           "Content-Type": "application/json",
           "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
           Authorization: `Bearer ${accessToken}`,
-          "login-customer-id": process.env.GOOGLE_ADS_MANAGER_ID!,
+          "login-customer-id": managerCustomerId,
         },
         body: JSON.stringify({ query }),
       },
@@ -395,7 +445,7 @@ export async function fetchTopNonBrandedSearchTerm(
   googleAccountId: string,
   brandName: string,
 ): Promise<string | null> {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
 
   // We use search_term_view because it shows what humans actually typed
@@ -418,7 +468,7 @@ export async function fetchTopNonBrandedSearchTerm(
           "Content-Type": "application/json",
           "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
           Authorization: `Bearer ${accessToken}`,
-          "login-customer-id": process.env.GOOGLE_ADS_MANAGER_ID!,
+          "login-customer-id": managerCustomerId,
         },
         body: JSON.stringify({ query }),
       },
@@ -455,7 +505,7 @@ export async function fetchTopNonBrandedSearchTerm(
  * Fetches all campaign-level active negative keywords.
  */
 export async function fetchActiveNegativeKeywords(googleAccountId: string) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
 
   const query = `
@@ -478,7 +528,7 @@ export async function fetchActiveNegativeKeywords(googleAccountId: string) {
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },
@@ -505,7 +555,7 @@ export async function fetchSearchTermsReport(
   startDate?: string,
   endDate?: string,
 ) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
   const dateClause = getCurrentPeriodDateClause(startDate, endDate);
 
@@ -532,7 +582,7 @@ export async function fetchSearchTermsReport(
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },
@@ -560,7 +610,7 @@ export async function addCampaignNegativeKeyword(
   keywordText: string,
   matchType: string,
 ) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
   const formattedMatchType = matchType.toUpperCase();
 
@@ -588,7 +638,7 @@ export async function addCampaignNegativeKeyword(
       "Content-Type": "application/json",
       "developer-token": DEVELOPER_TOKEN!,
       Authorization: `Bearer ${accessToken}`,
-      "login-customer-id": MANAGER_ID!,
+      "login-customer-id": managerCustomerId,
     },
     body: JSON.stringify(body),
   });
@@ -610,7 +660,7 @@ export async function addCampaignNegativeKeyword(
  * Fetches all active/enabled campaigns in the specified account.
  */
 export async function fetchAccountCampaigns(googleAccountId: string) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
 
   const query = `
@@ -629,7 +679,7 @@ export async function fetchAccountCampaigns(googleAccountId: string) {
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },
@@ -655,7 +705,7 @@ export async function fetchAccountCampaigns(googleAccountId: string) {
  * Fetches all enabled campaigns and their corresponding final landing page URLs.
  */
 export async function fetchCampaignLandingPages(googleAccountId: string) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
 
   const query = `
@@ -676,7 +726,7 @@ export async function fetchCampaignLandingPages(googleAccountId: string) {
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },
@@ -735,7 +785,7 @@ export async function fetchImpressionShareReport(
   endDate?: string,
   campaignId?: string,
 ) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
   const dateClause = getCurrentPeriodDateClause(startDate, endDate);
 
@@ -766,7 +816,7 @@ export async function fetchImpressionShareReport(
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },
@@ -853,7 +903,7 @@ export async function fetchImpressionShareReport(
  * Runs a diagnostics check on conversion tracking actions configuration and history.
  */
 export async function fetchConversionTrackingAudit(googleAccountId: string) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
 
   // Query 1: Retrieve conversion actions metadata
@@ -877,7 +927,7 @@ export async function fetchConversionTrackingAudit(googleAccountId: string) {
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query: metaQuery }),
     },
@@ -914,7 +964,7 @@ export async function fetchConversionTrackingAudit(googleAccountId: string) {
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query: historyQuery }),
     },
@@ -939,7 +989,7 @@ export async function fetchConversionTrackingAudit(googleAccountId: string) {
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query: spendQuery }),
     },
@@ -1012,7 +1062,7 @@ export async function fetchAdGroupAds(
   campaignId?: string,
   adGroupId?: string,
 ) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
 
   let query = `
@@ -1047,7 +1097,7 @@ export async function fetchAdGroupAds(
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },
@@ -1093,7 +1143,7 @@ export async function fetchAdGroupAdAssetPerformance(
   googleAccountId: string,
   campaignId?: string,
 ) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
 
   let query = `
@@ -1120,7 +1170,7 @@ export async function fetchAdGroupAdAssetPerformance(
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN!,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID!,
+        "login-customer-id": managerCustomerId,
       },
       body: JSON.stringify({ query }),
     },

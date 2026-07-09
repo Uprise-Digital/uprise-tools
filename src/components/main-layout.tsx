@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/sheet";
 import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
+import { BackgroundTasksIndicator } from "@/components/background-tasks-indicator";
 
 const navItems = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
@@ -217,6 +218,7 @@ export function MainLayout({
           </footer>
         </div>
       </div>
+      <BackgroundTasksIndicator />
     </div>
   );
 }

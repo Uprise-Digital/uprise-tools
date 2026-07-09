@@ -16,96 +16,21 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-// --- 1. GOOGLE ADS CORE ---
-export const adAccounts = pgTable("ad_accounts", {
-  id: serial("id").primaryKey(),
-  googleAccountId: text("google_account_id").notNull().unique(),
-  name: text("name").notNull(),
-  websiteUrl: text("website_url"), // <-- NEW: Required for the Threat Matrix
-  currencyCode: text("currency_code").default("AUD"),
-  timeZone: text("time_zone").default("Australia/Melbourne"),
-  isActive: boolean("is_active").default(true).notNull(),
-  lastSyncedAt: timestamp("last_synced_at").defaultNow(),
-  syncStatus: text("sync_status"),
-  syncError: text("sync_error"),
-  includeInBriefing: boolean("include_in_briefing").default(true).notNull(),
-  negativeKeywordTurboMode: boolean("negative_keyword_turbo_mode")
-    .default(false)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-
-  targetCpa: decimal("target_cpa", { precision: 10, scale: 2 }),
-  targetRoas: decimal("target_roas", { precision: 5, scale: 2 }),
-  monthlyBudgetCap: decimal("monthly_budget_cap", { precision: 10, scale: 2 }),
-  targetNotes: text("target_notes"),
-});
-
-export const accountMetrics = pgTable(
-  "account_metrics",
-  {
-    id: serial("id").primaryKey(),
-    adAccountId: integer("ad_account_id")
-      .references(() => adAccounts.id, { onDelete: "cascade" })
-      .notNull(),
-    date: timestamp("date").notNull(),
-    conversions: numeric("conversions").default("0"),
-    cost: numeric("cost").default("0"),
-    clicks: integer("clicks").default(0),
-    impressions: integer("impressions").default(0),
-    avgCpc: numeric("avg_cpc").default("0"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    dateIdx: index("date_idx").on(table.date),
-    accountDateIdx: uniqueIndex("account_date_unique").on(
-      table.adAccountId,
-      table.date,
-    ),
-  }),
-);
-
-// --- 2. ALERT ENGINE ---
-export const alertRules = pgTable("alert_rules", {
-  id: serial("id").primaryKey(),
-  adAccountId: integer("ad_account_id")
-    .references(() => adAccounts.id)
-    .notNull(),
-  metric: text("metric").notNull(),
-  timeWindow: text("time_window").notNull(),
-  operator: text("operator").notNull(),
-  threshold: numeric("threshold").notNull(),
-  frequency: text("frequency").notNull(),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const notificationRoutes = pgTable("notification_routes", {
-  id: serial("id").primaryKey(),
-  ruleId: integer("rule_id")
-    .references(() => alertRules.id, { onDelete: "cascade" })
-    .notNull(),
-  emailAddress: text("email_address").notNull(),
-});
-
-export const alertLogs = pgTable("alert_logs", {
-  id: serial("id").primaryKey(),
-  ruleId: integer("rule_id")
-    .references(() => alertRules.id)
-    .notNull(),
-  triggeredValue: numeric("triggered_value").notNull(),
-  dispatchedAt: timestamp("dispatched_at").defaultNow().notNull(),
-});
-
-// --- 3. AUTHENTICATION & SESSIONS ---
+// --- 1. AUTHENTICATION & SESSIONS ---
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("emailVerified").notNull(),
   image: text("image"),
+  role: text("role"),
+  banned: boolean("banned"),
+  banReason: text("banReason"),
+  banExpires: timestamp("banExpires"),
   createdAt: timestamp("createdAt").notNull(),
   updatedAt: timestamp("updatedAt").notNull(),
 });
+
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
@@ -147,9 +72,175 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updatedAt"),
 });
 
+// --- 2. ORGANIZATIONS & TENANCY (SaaS) ---
+export const organization = pgTable("organization", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").unique(),
+  logo: text("logo"),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+  metadata: text("metadata"),
+  // Stripe Subscription
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionStatus: text("stripe_subscription_status"),
+  subscriptionEndsAt: timestamp("stripe_subscription_ends_at"),
+});
+
+export const member = pgTable("member", {
+  id: text("id").primaryKey(),
+  organizationId: text("organizationId")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  userId: text("userId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  role: text("role").notNull(),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+});
+
+export const invitation = pgTable("invitation", {
+  id: text("id").primaryKey(),
+  organizationId: text("organizationId")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role").notNull(),
+  status: text("status").notNull(), // 'pending', 'accepted', 'rejected', 'canceled'
+  expiresAt: timestamp("expiresAt").notNull(),
+  inviterId: text("inviterId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+});
+
+export const googleAdsConnections = pgTable("google_ads_connections", {
+  id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  connectedEmail: text("connected_email").notNull(),
+  managerCustomerId: text("manager_customer_id").notNull(), // MCC Customer ID
+  refreshToken: text("refresh_token").notNull(), // Encrypted at rest
+  status: text("status").notNull().default("active"), // 'active', 'revoked', 'error'
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const usageLogs = pgTable("usage_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+  actionType: text("action_type").notNull(), // 'gemini_query', 'google_ads_api_call', 'email_sent', 'pdf_generated'
+  unitsUsed: integer("units_used").default(1).notNull(),
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 6 })
+    .default("0.000000")
+    .notNull(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// --- 3. GOOGLE ADS CORE ---
+export const adAccounts = pgTable("ad_accounts", {
+  id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
+  connectionId: integer("connection_id")
+    .references(() => googleAdsConnections.id, { onDelete: "cascade" }),
+  googleAccountId: text("google_account_id").notNull().unique(),
+  name: text("name").notNull(),
+  websiteUrl: text("website_url"), // <-- NEW: Required for the Threat Matrix
+  currencyCode: text("currency_code").default("AUD"),
+  timeZone: text("time_zone").default("Australia/Melbourne"),
+  isActive: boolean("is_active").default(true).notNull(),
+  googleStatus: text("google_status").default("ENABLED").notNull(),
+  lastSyncedAt: timestamp("last_synced_at").defaultNow(),
+  syncStatus: text("sync_status"),
+  syncError: text("sync_error"),
+  includeInBriefing: boolean("include_in_briefing").default(true).notNull(),
+  negativeKeywordTurboMode: boolean("negative_keyword_turbo_mode")
+    .default(false)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+
+  targetCpa: decimal("target_cpa", { precision: 10, scale: 2 }),
+  targetRoas: decimal("target_roas", { precision: 5, scale: 2 }),
+  monthlyBudgetCap: decimal("monthly_budget_cap", { precision: 10, scale: 2 }),
+  targetNotes: text("target_notes"),
+});
+
+export const accountMetrics = pgTable(
+  "account_metrics",
+  {
+    id: serial("id").primaryKey(),
+    adAccountId: integer("ad_account_id")
+      .references(() => adAccounts.id, { onDelete: "cascade" })
+      .notNull(),
+    date: timestamp("date").notNull(),
+    conversions: numeric("conversions").default("0"),
+    cost: numeric("cost").default("0"),
+    clicks: integer("clicks").default(0),
+    impressions: integer("impressions").default(0),
+    avgCpc: numeric("avg_cpc").default("0"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    dateIdx: index("date_idx").on(table.date),
+    accountDateIdx: uniqueIndex("account_date_unique").on(
+      table.adAccountId,
+      table.date,
+    ),
+  }),
+);
+
+// --- 4. ALERT ENGINE ---
+export const alertRules = pgTable("alert_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
+  adAccountId: integer("ad_account_id")
+    .references(() => adAccounts.id)
+    .notNull(),
+  metric: text("metric").notNull(),
+  timeWindow: text("time_window").notNull(),
+  operator: text("operator").notNull(),
+  threshold: numeric("threshold").notNull(),
+  frequency: text("frequency").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const notificationRoutes = pgTable("notification_routes", {
+  id: serial("id").primaryKey(),
+  ruleId: integer("rule_id")
+    .references(() => alertRules.id, { onDelete: "cascade" })
+    .notNull(),
+  emailAddress: text("email_address").notNull(),
+});
+
+export const alertLogs = pgTable("alert_logs", {
+  id: serial("id").primaryKey(),
+  ruleId: integer("rule_id")
+    .references(() => alertRules.id)
+    .notNull(),
+  triggeredValue: numeric("triggered_value").notNull(),
+  dispatchedAt: timestamp("dispatched_at").defaultNow().notNull(),
+});
+
 // --- 4. AUDIT & LOGGING ---
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
   actorId: text("actor_id"),
   action: text("action").notNull(),
   targetTable: text("target_table").notNull(),
@@ -160,6 +251,9 @@ export const auditLogs = pgTable("audit_logs", {
 
 export const emailLogs = pgTable("email_logs", {
   id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
   adAccountId: integer("ad_account_id").references(() => adAccounts.id, {
     onDelete: "set null",
   }),
@@ -175,6 +269,9 @@ export const emailLogs = pgTable("email_logs", {
 // --- 5. AUTOMATION & REPORTS ---
 export const reportSchedules = pgTable("report_schedules", {
   id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id, { onDelete: "cascade" })
     .notNull(),
@@ -337,6 +434,9 @@ export const agencyAiInsightsCache = pgTable(
 // --- 8. COMPETITOR INTELLIGENCE (NEW) ---
 export const threatMatrixAudits = pgTable("threat_matrix_audits", {
   id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id, { onDelete: "cascade" })
     .notNull(),
@@ -371,6 +471,9 @@ export const mcpSettings = pgTable("mcp_settings", {
 
 export const briefingSettings = pgTable("briefing_settings", {
   id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
   recipients: jsonb("recipients").notNull().default([]), // Array of email strings
   sendTime: varchar("send_time", { length: 5 }).notNull().default("07:00"),
   dataPoints: jsonb("data_points").notNull().default({
@@ -390,6 +493,9 @@ export const briefingSettings = pgTable("briefing_settings", {
 
 export const orgTriageDefaults = pgTable("org_triage_defaults", {
   id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
   criticalSpendThreshold: doublePrecision("critical_spend_threshold")
     .default(70.0)
     .notNull(),
@@ -418,6 +524,9 @@ export const orgTriageDefaults = pgTable("org_triage_defaults", {
 
 export const accountTriageSettings = pgTable("account_triage_settings", {
   id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id, { onDelete: "cascade" })
     .unique()
@@ -450,6 +559,9 @@ export const negativeKeywordSuggestions = pgTable(
   "negative_keyword_suggestions",
   {
     id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .default("default-org"),
     adAccountId: integer("ad_account_id")
       .references(() => adAccounts.id, { onDelete: "cascade" })
       .notNull(),
@@ -487,6 +599,9 @@ export const campaignLandingPages = pgTable(
   "campaign_landing_pages",
   {
     id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .default("default-org"),
     adAccountId: integer("ad_account_id")
       .references(() => adAccounts.id, { onDelete: "cascade" })
       .notNull(),
@@ -506,6 +621,9 @@ export const campaignLandingPages = pgTable(
 
 export const landingPageAudits = pgTable("landing_page_audits", {
   id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id, { onDelete: "cascade" })
     .notNull(),
@@ -550,6 +668,9 @@ export const landingPageAuditsRelations = relations(
 
 export const adGroupAdAudits = pgTable("ad_group_ad_audits", {
   id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id, { onDelete: "cascade" })
     .notNull(),
@@ -575,3 +696,23 @@ export const adGroupAdAuditsRelations = relations(
     }),
   }),
 );
+
+export const backgroundTasks = pgTable("background_tasks", {
+  id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("running"), // 'running', 'completed', 'failed'
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const backgroundTasksRelations = relations(backgroundTasks, ({ one }) => ({
+  organization: one(organization, {
+    fields: [backgroundTasks.organizationId],
+    references: [organization.id],
+  }),
+}));
+

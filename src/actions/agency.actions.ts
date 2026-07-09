@@ -9,6 +9,8 @@ import {
   adAccounts,
   adPerformanceDaily,
   agencyAiInsightsCache,
+  backgroundTasks,
+  member,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import {
@@ -321,6 +323,7 @@ export async function getAgencyPortfolioMetricsAction(
         accountId: acc.id,
         name: acc.name,
         googleAccountId: acc.googleAccountId,
+        googleStatus: acc.googleStatus,
         targetCpa: acc.targetCpa ? parseFloat(acc.targetCpa) : 0, // ← ADD THIS LINE
         spend: 0,
         clicks: 0,
@@ -386,14 +389,62 @@ export async function getAgencyPortfolioMetricsAction(
 export async function syncAgencyPortfolioAction(
   startDate: string,
   endDate: string,
+  options?: {
+    organizationId?: string;
+    backgroundTaskId?: number;
+  }
 ) {
+  // Get active organization from session if running in session context
+  let orgId: string | null | undefined = options?.organizationId || null;
+  if (!orgId) {
+    try {
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
+      if (session) {
+        orgId = session.session.activeOrganizationId;
+        if (!orgId) {
+          const userMember = await db.query.member.findFirst({
+            where: eq(member.userId, session.user.id),
+          });
+          if (userMember) {
+            orgId = userMember.organizationId;
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore error if run in background without session context
+    }
+  }
+
+  let taskRecordId = options?.backgroundTaskId;
+  if (!taskRecordId && orgId) {
+    const [taskRecord] = await db
+      .insert(backgroundTasks)
+      .values({
+        organizationId: orgId,
+        name: "Google Ads Portfolio Sync",
+        status: "running",
+      })
+      .returning({ id: backgroundTasks.id });
+    taskRecordId = taskRecord?.id;
+  }
+
   try {
     // 1. Get all active accounts
     const activeAccounts = await db.query.adAccounts.findMany({
       where: eq(adAccounts.isActive, true),
     });
 
-    if (activeAccounts.length === 0) return { success: true, syncedCount: 0 };
+    if (activeAccounts.length === 0) {
+      if (taskRecordId) {
+        await db
+          .update(backgroundTasks)
+          .set({ status: "completed", updatedAt: new Date() })
+          .where(eq(backgroundTasks.id, taskRecordId));
+      }
+      return { success: true, syncedCount: 0 };
+    }
 
     // 2. Loop through and trigger the JIT sync for each account.
     // We use a `for...of` loop instead of `Promise.all` to avoid hitting
@@ -415,9 +466,22 @@ export async function syncAgencyPortfolioAction(
       }
     }
 
+    if (taskRecordId) {
+      await db
+        .update(backgroundTasks)
+        .set({ status: "completed", updatedAt: new Date() })
+        .where(eq(backgroundTasks.id, taskRecordId));
+    }
+
     return { success: true, syncedCount };
   } catch (error: any) {
     console.error("Failed to sync agency portfolio:", error);
+    if (taskRecordId) {
+      await db
+        .update(backgroundTasks)
+        .set({ status: "failed", error: error.message || String(error), updatedAt: new Date() })
+        .where(eq(backgroundTasks.id, taskRecordId));
+    }
     return { success: false, error: error.message };
   }
 }
