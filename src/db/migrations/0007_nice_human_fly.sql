@@ -1,0 +1,1 @@
+ALTER TABLE "ad_accounts" ADD COLUMN "google_status" text DEFAULT 'ENABLED' NOT NULL;
