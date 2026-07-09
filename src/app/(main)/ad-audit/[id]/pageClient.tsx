@@ -235,7 +235,7 @@ export default function AdAuditDetailClientPage({
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-white border-slate-200 shadow-sm rounded-2xl">
+            <Card className="px-6 bg-white border-slate-200 shadow-sm rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider">
                   Headline Copy Audit
@@ -278,7 +278,7 @@ export default function AdAuditDetailClientPage({
 
             <Card className="bg-white border-slate-200 shadow-sm rounded-2xl">
               <CardHeader>
-                <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                <CardTitle className="px-6 text-sm font-black text-slate-800 uppercase tracking-wider">
                   Description Copy Audit
                 </CardTitle>
                 <CardDescription className="text-xs">
@@ -317,7 +317,7 @@ export default function AdAuditDetailClientPage({
               </CardContent>
             </Card>
 
-            <Card className="bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
+            <Card className="px-6  bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider">
                   Ad Strength Critique & Context
@@ -336,7 +336,7 @@ export default function AdAuditDetailClientPage({
         {activeTab === "assets" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Pinning analysis card */}
-            <Card className="bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
+            <Card className="px-6  bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider">
                   Pinning Recommendations
@@ -361,7 +361,7 @@ export default function AdAuditDetailClientPage({
             </Card>
 
             {/* Missing signals card */}
-            <Card className="bg-white border-slate-200 shadow-sm rounded-2xl">
+            <Card className="px-6 bg-white border-slate-200 shadow-sm rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider">
                   Missing Copywriting Triggers
@@ -416,7 +416,7 @@ export default function AdAuditDetailClientPage({
                 {report.competitors.map((comp) => (
                   <Card
                     key={comp.domain}
-                    className="bg-white border-slate-200 shadow-sm rounded-2xl hover:border-slate-300 transition duration-150"
+                    className="px-6  bg-white border-slate-200 shadow-sm rounded-2xl hover:border-slate-300 transition duration-150"
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
@@ -489,7 +489,7 @@ export default function AdAuditDetailClientPage({
         {activeTab === "suggestions" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Suggested Headlines & Descriptions */}
-            <Card className="bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
+            <Card className="px-6 bg-white border-slate-200 shadow-sm rounded-2xl md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
                   <Sparkles className="h-4.5 w-4.5 text-indigo-500" />
@@ -570,7 +570,7 @@ export default function AdAuditDetailClientPage({
             </Card>
 
             {/* Account Manager Action Script */}
-            <Card className="bg-white border-slate-200 shadow-sm rounded-2xl">
+            <Card className="px-6  bg-white border-slate-200 shadow-sm rounded-2xl">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center justify-between">
                   AM Action Script
@@ -589,7 +589,7 @@ export default function AdAuditDetailClientPage({
                   report optimizations directly to the client.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="bg-slate-900 text-slate-100 p-5 rounded-2xl border border-slate-800 min-h-[300px]">
+              <CardContent className="my-4 bg-slate-900 text-slate-100 p-5 rounded-2xl border border-slate-800 min-h-[300px]">
                 <p className="text-xs font-medium leading-relaxed whitespace-pre-wrap font-mono">
                   {report.client_action_script}
                 </p>
