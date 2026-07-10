@@ -658,10 +658,7 @@ export default function LpAnalysisClientPage({
                         {isExpanded && c.audits && c.audits.length > 0 && (
                           <TableRow className="bg-slate-50/40 border-t border-slate-150">
                             <TableCell colSpan={4} className="pl-14 py-3 bg-slate-50/20 pr-6">
-                              <div className="border-l-2 border-indigo-200 pl-4 space-y-2">
-                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                                  Audit History Run Log
-                                </div>
+                              <div className="space-y-2">
                                 <div className="border border-slate-150 rounded-lg overflow-hidden bg-white shadow-sm max-h-[300px] overflow-y-auto">
                                   <Table>
                                     <TableHeader className="bg-slate-50/30">
