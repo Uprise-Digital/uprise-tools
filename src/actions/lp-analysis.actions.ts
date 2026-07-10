@@ -92,7 +92,7 @@ export async function scrapeLandingPageExtended(
     let scrapeDoUrl = `http://api.scrape.do?token=${process.env.SCRAPE_DO_KEY}&url=${encodeURIComponent(targetUrl)}`;
     if (options?.render) scrapeDoUrl += "&render=true";
     if (options?.screenshot) {
-      scrapeDoUrl += "&screenShot=true&returnJSON=true";
+      scrapeDoUrl += "&screenShot=true&returnJSON=true&customWait=5000";
       if (options.width) scrapeDoUrl += `&width=${options.width}`;
       if (options.height) scrapeDoUrl += `&height=${options.height}`;
     }
