@@ -23,8 +23,10 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { getAuditDetailAction } from "@/actions/lp-analysis.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,10 +73,18 @@ interface AuditDetailProps {
     marketFitScore: number;
     techScore: number;
     aiAnalysis: any;
+    auditType: string;
+    screenshotUrl: string | null;
     createdAt: Date;
     account: {
       name: string;
     };
+    pastAudits?: {
+      id: number;
+      score: number;
+      auditType: string;
+      createdAt: Date | string;
+    }[];
   };
 }
 
@@ -106,10 +116,32 @@ const getDimensionIcon = (key: string) => {
 };
 
 export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [expandedDimension, setExpandedDimension] = useState<string | null>(
     "hero",
   );
+  
+  const [compareAuditId, setCompareAuditId] = useState<number | null>(null);
+  const [compareAuditData, setCompareAuditData] = useState<any | null>(null);
+  const [loadingCompare, setLoadingCompare] = useState(false);
+
+  const handleSelectCompare = async (id: number) => {
+    setCompareAuditId(id);
+    setLoadingCompare(true);
+    try {
+      const res = await getAuditDetailAction(id);
+      if (res.success && res.data) {
+        setCompareAuditData(res.data);
+      } else {
+        toast.error("Failed to load past audit data.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.");
+    } finally {
+      setLoadingCompare(false);
+    }
+  };
 
   const report = audit.aiAnalysis;
 
@@ -228,7 +260,7 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => window.history.back()}
+            onClick={() => router.push(`/lp-analysis?accountId=${audit.adAccountId}`)}
             className="border-slate-200 hover:bg-slate-50 bg-white"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -265,6 +297,43 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
 
         {/* Action Controls */}
         <div className="flex items-center gap-3">
+          {/* Comparison Selector */}
+          {audit.pastAudits && audit.pastAudits.length > 1 && (
+            <div className="flex items-center gap-2 print:hidden">
+              {loadingCompare && (
+                <span className="text-[10px] text-slate-400 animate-pulse font-bold">Loading...</span>
+              )}
+              <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Compare with:</span>
+              <select
+                value={compareAuditId || ""}
+                disabled={loadingCompare}
+                onChange={(e) => {
+                  const id = e.target.value ? Number(e.target.value) : null;
+                  if (id) {
+                    handleSelectCompare(id);
+                  } else {
+                    setCompareAuditId(null);
+                    setCompareAuditData(null);
+                  }
+                }}
+                className="bg-white border border-slate-200 rounded-lg text-xs font-bold p-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">-- None --</option>
+                {audit.pastAudits
+                  .filter((pa) => pa.id !== audit.id)
+                  .map((pa) => (
+                    <option key={pa.id} value={pa.id}>
+                      {new Date(pa.createdAt).toLocaleDateString("en-AU", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}{" "}
+                      (Score: {pa.score} - {pa.auditType === "VISUAL" ? "Visual" : "Source"})
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
           <Button
             variant="outline"
             onClick={() => window.print()}
@@ -332,6 +401,152 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
           </span>
         </div>
       </div>
+
+      {/* ── COMPARISON DELTA SCORECARD ── */}
+      {compareAuditData && (
+        <Card className="border-indigo-200 bg-indigo-50/20 shadow-sm overflow-hidden mb-6 print:hidden">
+          <CardHeader className="py-3 border-b border-indigo-100 bg-indigo-50/50 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-sm font-bold text-indigo-900 flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-indigo-600" /> CRO Optimization Delta Comparison
+              </CardTitle>
+              <CardDescription className="text-xs text-indigo-750">
+                Comparing current run ({new Date(audit.createdAt).toLocaleDateString("en-AU")}) against past run ({new Date(compareAuditData.createdAt).toLocaleDateString("en-AU")})
+              </CardDescription>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setCompareAuditId(null);
+                setCompareAuditData(null);
+              }}
+              className="text-xs font-bold text-indigo-700 hover:text-indigo-800"
+            >
+              Clear Comparison
+            </Button>
+          </CardHeader>
+          <CardContent className="py-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              {/* Overall Score Delta */}
+              <div className="bg-white p-3 rounded-xl border border-indigo-100/50 shadow-sm">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Overall Score</span>
+                <div className="flex items-baseline justify-center gap-1.5 mt-1">
+                  <span className="text-2xl font-black text-slate-900">{audit.score}</span>
+                  <span className="text-[10px] text-slate-400">vs {compareAuditData.score}</span>
+                </div>
+                <div className="mt-1.5">
+                  {audit.score > compareAuditData.score ? (
+                    <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block">
+                      ▲ +{audit.score - compareAuditData.score} (Improved!)
+                    </span>
+                  ) : audit.score < compareAuditData.score ? (
+                    <span className="text-xs font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full inline-block">
+                      ▼ {audit.score - compareAuditData.score}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full inline-block">
+                      No change
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Visual Type Transition */}
+              <div className="bg-white p-3 rounded-xl border border-indigo-100/50 shadow-sm">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Audit Type</span>
+                <div className="mt-2 text-xs font-black text-slate-800 flex items-center justify-center gap-1">
+                  <span className="uppercase text-[10px] px-1.5 py-0.5 bg-slate-50 border rounded text-slate-600">
+                    {compareAuditData.auditType === "VISUAL" ? "Visual" : "Source"}
+                  </span>
+                  <span>➜</span>
+                  <span className="uppercase text-[10px] px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 rounded text-indigo-700">
+                    {audit.auditType === "VISUAL" ? "Visual" : "Source"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Major Wins */}
+              <div className="bg-white p-3 rounded-xl border border-indigo-100/50 shadow-sm col-span-2 text-left">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Optimization Delta Summary</span>
+                <p className="text-xs text-slate-600 mt-1.5 leading-normal font-semibold">
+                  {audit.score > compareAuditData.score 
+                    ? `Great job! Your latest page optimizations boosted the overall CRO score by ${audit.score - compareAuditData.score} points. Review the updated week-by-week roadmap below to maintain momentum.`
+                    : audit.score === compareAuditData.score
+                    ? "The CRO score remains identical. Ensure you've published all recommended code/copy changes before executing a new audit."
+                    : "The latest score is lower. Double-check that all key trust signals and above-the-fold CTA elements are correctly rendered and visible."
+                  }
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── SCREENSHOT / COMPARISON VIEW ── */}
+      {compareAuditData ? (
+        (audit.screenshotUrl || compareAuditData.screenshotUrl) && (
+          <Card className="border-slate-200 shadow-sm overflow-hidden mb-6 print:hidden">
+            <CardHeader className="py-3 bg-slate-50/50 border-b">
+              <CardTitle className="text-xs uppercase font-bold text-slate-400 tracking-wider">
+                Visual Viewport Snapshot Comparison
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-100/30">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-bold text-slate-500">Past Screenshot ({new Date(compareAuditData.createdAt).toLocaleDateString("en-AU")})</span>
+                {compareAuditData.screenshotUrl ? (
+                  <img
+                    src={compareAuditData.screenshotUrl}
+                    alt="Past Screenshot"
+                    className="max-h-[280px] w-auto border rounded-lg shadow object-contain bg-white"
+                  />
+                ) : (
+                  <div className="h-[200px] w-full border border-dashed rounded-lg flex items-center justify-center text-xs text-slate-400 bg-white">
+                    No screenshot captured
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-bold text-indigo-600">Current Screenshot ({new Date(audit.createdAt).toLocaleDateString("en-AU")})</span>
+                {audit.screenshotUrl ? (
+                  <img
+                    src={audit.screenshotUrl}
+                    alt="Current Screenshot"
+                    className="max-h-[280px] w-auto border rounded-lg shadow object-contain bg-white"
+                  />
+                ) : (
+                  <div className="h-[200px] w-full border border-dashed rounded-lg flex items-center justify-center text-xs text-slate-400 bg-white">
+                    No screenshot captured
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      ) : (
+        audit.screenshotUrl && (
+          <Card className="border-slate-200 shadow-sm overflow-hidden mb-6">
+            <CardHeader className="py-3 bg-slate-50/50 border-b flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xs uppercase font-bold text-slate-400 tracking-wider">
+                  Page Visual Screenshot
+                </CardTitle>
+                <CardDescription className="text-[10px] text-slate-500 mt-0.5">
+                  Captured viewport at execution time
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 flex justify-center bg-slate-100/30">
+              <img
+                src={audit.screenshotUrl}
+                alt="Viewport Screenshot"
+                className="max-h-[350px] w-auto border rounded-lg shadow-md object-contain"
+              />
+            </CardContent>
+          </Card>
+        )
+      )}
 
       {/* ── SECTION 1: DASHBOARD GRID (Radial Score & Category Scores) ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -608,6 +608,7 @@ export const campaignLandingPages = pgTable(
     campaignId: text("campaign_id").notNull(),
     campaignName: text("campaign_name").notNull(),
     url: text("url").notNull(),
+    status: text("status").notNull().default("ENABLED"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -643,6 +644,8 @@ export const landingPageAudits = pgTable("landing_page_audits", {
   marketFitScore: integer("market_fit_score").default(0).notNull(),
   techScore: integer("tech_score").default(0).notNull(),
   aiAnalysis: jsonb("ai_analysis").notNull(), // Stores markdown lists, competitor matrix, and roadmaps
+  auditType: text("audit_type").notNull().default("PAGE_SOURCE"),
+  screenshotUrl: text("screenshot_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -712,10 +712,11 @@ export async function fetchCampaignLandingPages(googleAccountId: string) {
         SELECT
             campaign.id,
             campaign.name,
+            campaign.status,
             ad_group_ad.ad.final_urls
         FROM ad_group_ad
-        WHERE campaign.status = 'ENABLED'
-          AND ad_group_ad.status = 'ENABLED'
+        WHERE campaign.status IN ('ENABLED', 'PAUSED')
+          AND ad_group_ad.status IN ('ENABLED', 'PAUSED')
     `;
 
   const response = await fetch(
@@ -747,18 +748,19 @@ export async function fetchCampaignLandingPages(googleAccountId: string) {
   // Parse results and group by campaign.id
   const campaignMap = new Map<
     string,
-    { campaignId: string; campaignName: string; urls: string[] }
+    { campaignId: string; campaignName: string; status: string; urls: string[] }
   >();
 
   for (const row of data.results || []) {
     const campaignId = row.campaign?.id || "";
     const campaignName = row.campaign?.name || "";
+    const status = row.campaign?.status || "ENABLED";
     const urls = row.adGroupAd?.ad?.finalUrls || [];
 
     if (!campaignId) continue;
 
     if (!campaignMap.has(campaignId)) {
-      campaignMap.set(campaignId, { campaignId, campaignName, urls: [] });
+      campaignMap.set(campaignId, { campaignId, campaignName, status, urls: [] });
     }
 
     const item = campaignMap.get(campaignId)!;
@@ -772,6 +774,7 @@ export async function fetchCampaignLandingPages(googleAccountId: string) {
   return Array.from(campaignMap.values()).map((item) => ({
     campaignId: item.campaignId,
     campaignName: item.campaignName,
+    status: item.status,
     url: item.urls[0] || "", // Return the first final URL associated with the campaign
   }));
 }

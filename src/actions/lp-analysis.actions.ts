@@ -2,7 +2,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import * as cheerio from "cheerio";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import TurndownService from "turndown";
 import { db } from "@/db";
@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { fetchCampaignLandingPages } from "@/lib/google-ads";
+import { uploadImageToR2 } from "@/lib/storage";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 function isElementHidden(el: any, $: any): boolean {
@@ -81,15 +82,29 @@ function isElementHidden(el: any, $: any): boolean {
   return false;
 }
 
-export async function scrapeAndCompressLandingPage(
+export async function scrapeLandingPageExtended(
   targetUrl: string,
-): Promise<string> {
+  options?: { render?: boolean; screenshot?: boolean }
+): Promise<{ markdown: string; screenshotBase64?: string }> {
   try {
-    console.log(`[LP Scraper] Scraping URL: ${targetUrl}`);
-    const scrapeDoUrl = `http://api.scrape.do?token=${process.env.SCRAPE_DO_KEY}&url=${encodeURIComponent(targetUrl)}`;
+    console.log(`[LP Scraper] Scraping URL: ${targetUrl} (Render: ${!!options?.render}, Screenshot: ${!!options?.screenshot})`);
+    
+    let scrapeDoUrl = `http://api.scrape.do?token=${process.env.SCRAPE_DO_KEY}&url=${encodeURIComponent(targetUrl)}`;
+    if (options?.render) scrapeDoUrl += "&render=true";
+    if (options?.screenshot) scrapeDoUrl += "&screenShot=true&returnJSON=true";
 
     const response = await fetch(scrapeDoUrl, { next: { revalidate: 3600 } });
-    const html = await response.text();
+    
+    let html = "";
+    let screenshotBase64: string | undefined;
+
+    if (options?.screenshot) {
+      const data = await response.json();
+      html = data.html || "";
+      screenshotBase64 = data.screenShots?.[0]?.image;
+    } else {
+      html = await response.text();
+    }
 
     const $ = cheerio.load(html);
 
@@ -127,11 +142,21 @@ export async function scrapeAndCompressLandingPage(
       highValueHtml || $.html("body"),
     );
 
-    return cleanMarkdown.substring(0, 18000);
+    return {
+      markdown: cleanMarkdown.substring(0, 18000),
+      screenshotBase64,
+    };
   } catch (error) {
     console.error(`[LP Scraper Error] Failed to scrape ${targetUrl}:`, error);
-    return "ERROR_SCRAPING_PAGE";
+    return { markdown: "ERROR_SCRAPING_PAGE" };
   }
+}
+
+export async function scrapeAndCompressLandingPage(
+  targetUrl: string,
+): Promise<string> {
+  const result = await scrapeLandingPageExtended(targetUrl);
+  return result.markdown;
 }
 
 // ============================================================================
@@ -318,6 +343,7 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
           campaignId: s.campaignId,
           campaignName: s.campaignName,
           url: s.url || "",
+          status: s.status,
         }));
 
         await db
@@ -350,6 +376,7 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
       latestAuditsMap.set(audit.campaignId, {
         id: audit.id,
         score: audit.score,
+        auditType: audit.auditType,
         createdAt: audit.createdAt,
       });
     }
@@ -363,6 +390,7 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
       campaignId: m.campaignId,
       campaignName: m.campaignName,
       url: m.url,
+      status: m.status,
       updatedAt: m.updatedAt,
       latestAudit,
     };
@@ -406,6 +434,7 @@ export async function syncCampaignLandingPagesInternal(adAccountId: number) {
           campaignId: item.campaignId,
           campaignName: item.campaignName,
           url: item.url || "",
+          status: item.status,
         })
         .onConflictDoUpdate({
           target: [
@@ -414,6 +443,7 @@ export async function syncCampaignLandingPagesInternal(adAccountId: number) {
           ],
           set: {
             url: item.url || "",
+            status: item.status,
             updatedAt: new Date(),
           },
         });
@@ -503,6 +533,7 @@ export async function runLandingPageAuditInternal(
   campaignName: string | null,
   url: string,
   searchTerm: string,
+  auditType: "PAGE_SOURCE" | "VISUAL" = "PAGE_SOURCE",
 ) {
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     throw new Error("Invalid URL. It must begin with http:// or https://");
@@ -522,12 +553,37 @@ export async function runLandingPageAuditInternal(
 
   // STEP 2: Scrape client and competitors in parallel
   console.log(
-    `[Audit] Scraping target page and ${competitorUrls.length} competitors...`,
+    `[Audit] Scraping target page and ${competitorUrls.length} competitors (Type: ${auditType})...`,
   );
-  const [clientMarkdown, ...competitorMarkdowns] = await Promise.all([
-    scrapeAndCompressLandingPage(url),
-    ...competitorUrls.map((compUrl) => scrapeAndCompressLandingPage(compUrl)),
-  ]);
+
+  let clientMarkdown = "";
+  let screenshotBase64: string | undefined;
+
+  if (auditType === "VISUAL") {
+    // Enable Javascript rendering and screenshot capture
+    const clientScrape = await scrapeLandingPageExtended(url, {
+      render: true,
+      screenshot: true,
+    });
+    clientMarkdown = clientScrape.markdown;
+    screenshotBase64 = clientScrape.screenshotBase64;
+  } else {
+    // Normal HTML scraping
+    clientMarkdown = await scrapeAndCompressLandingPage(url);
+  }
+
+  const competitorMarkdowns = await Promise.all(
+    competitorUrls.map((compUrl) => scrapeAndCompressLandingPage(compUrl))
+  );
+
+  // Upload screenshot to Cloudflare R2 if available
+  let screenshotUrl: string | null = null;
+  if (auditType === "VISUAL" && screenshotBase64) {
+    const filename = `audit-${adAccountId}-${Date.now()}.png`;
+    console.log(`[Audit] Uploading screenshot to Cloudflare R2: ${filename}...`);
+    screenshotUrl = await uploadImageToR2(screenshotBase64, filename);
+    console.log(`[Audit] Screenshot uploaded successfully: ${screenshotUrl}`);
+  }
 
   // STEP 3: Construct AI prompt for 10-dimension evaluation (gemini-3.5-flash)
   console.log(`[Audit] Querying gemini-3.5-flash for scoring...`);
@@ -627,9 +683,19 @@ export async function runLandingPageAuditInternal(
       - Be highly constructive, trade-specific, and include actual text recommendations (do not say "make it look better", suggest specific text).
   `;
 
+  let contents: any[] = [prompt];
+  if (auditType === "VISUAL" && screenshotBase64) {
+    contents.push({
+      inlineData: {
+        data: screenshotBase64,
+        mimeType: "image/png",
+      },
+    });
+  }
+
   const aiResponse = await ai.models.generateContent({
     model: "gemini-3.5-flash",
-    contents: prompt,
+    contents,
     config: { responseMimeType: "application/json" },
   });
 
@@ -657,6 +723,8 @@ export async function runLandingPageAuditInternal(
       marketFitScore: parsedAudit.scores?.market_fit || 0,
       techScore: parsedAudit.scores?.tech || 0,
       aiAnalysis: parsedAudit,
+      auditType: auditType,
+      screenshotUrl: screenshotUrl,
       createdAt: new Date(),
     })
     .returning({ id: landingPageAudits.id });
@@ -673,6 +741,7 @@ export async function runLandingPageAuditAction(
   campaignName: string | null,
   url: string,
   searchTerm: string,
+  auditType: "PAGE_SOURCE" | "VISUAL" = "PAGE_SOURCE",
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
@@ -684,6 +753,7 @@ export async function runLandingPageAuditAction(
       campaignName,
       url,
       searchTerm,
+      auditType,
     );
     return { success: true as const, data };
   } catch (error: any) {
@@ -702,7 +772,24 @@ export async function getAuditDetailInternal(auditId: number) {
 
   if (!audit) throw new Error("Audit record not found");
 
-  return audit;
+  // Fetch past audits for the same URL and account
+  const pastAudits = await db.query.landingPageAudits.findMany({
+    where: and(
+      eq(landingPageAudits.adAccountId, audit.adAccountId),
+      eq(landingPageAudits.url, audit.url)
+    ),
+    orderBy: [desc(landingPageAudits.createdAt)],
+  });
+
+  return {
+    ...audit,
+    pastAudits: pastAudits.map((pa) => ({
+      id: pa.id,
+      score: pa.score,
+      auditType: pa.auditType,
+      createdAt: pa.createdAt,
+    })),
+  };
 }
 
 export async function getAuditDetailAction(auditId: number) {

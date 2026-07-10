@@ -14,7 +14,7 @@ import {
   Save,
   Search,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -25,6 +25,7 @@ import {
 } from "@/actions/lp-analysis.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -62,10 +63,12 @@ interface CampaignLP {
   campaignId: string;
   campaignName: string;
   url: string;
+  status: string;
   updatedAt: Date;
   latestAudit: {
     id: number;
     score: number;
+    auditType: string;
     createdAt: Date;
   } | null;
 }
@@ -76,11 +79,15 @@ export default function LpAnalysisClientPage({
   accounts: AdAccount[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const paramAccountId = searchParams.get("accountId");
 
   // Selection & Search State
   const [selectedAccountId, setSelectedAccountId] = useState<number>(
-    accounts[0]?.id || 0,
+    paramAccountId ? Number(paramAccountId) : (accounts[0]?.id || 0),
   );
+  const selectedAccountName = accounts.find((acc) => acc.id === selectedAccountId)?.name || "Campaign Landing Pages";
+  const [accountSearchQuery, setAccountSearchQuery] = useState("");
   const [campaigns, setCampaigns] = useState<CampaignLP[]>([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,6 +105,7 @@ export default function LpAnalysisClientPage({
   const [auditCampaign, setAuditCampaign] = useState<CampaignLP | null>(null);
   const [auditKeyword, setAuditKeyword] = useState("");
   const [auditUrl, setAuditUrl] = useState("");
+  const [auditVisual, setAuditVisual] = useState(false);
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditStep, setAuditStep] = useState(1);
 
@@ -123,6 +131,15 @@ export default function LpAnalysisClientPage({
       fetchCampaigns(selectedAccountId);
     }
   }, [selectedAccountId, fetchCampaigns]);
+
+  // Sync selectedAccountId to URL search params
+  useEffect(() => {
+    if (selectedAccountId) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("accountId", selectedAccountId.toString());
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [selectedAccountId]);
 
   // Sync campaigns action
   const handleSyncLps = async () => {
@@ -185,6 +202,7 @@ export default function LpAnalysisClientPage({
   const openAuditModal = (campaign: CampaignLP) => {
     setAuditCampaign(campaign);
     setAuditUrl(campaign.url);
+    setAuditVisual(false);
 
     // Guesses a search term based on campaign name (replaces symbols, removes dates, removes match types)
     let cleanedName = campaign.campaignName.toLowerCase();
@@ -234,6 +252,7 @@ export default function LpAnalysisClientPage({
         auditCampaign.campaignName,
         auditUrl,
         auditKeyword,
+        auditVisual ? "VISUAL" : "PAGE_SOURCE",
       );
 
       clearInterval(stepInterval);
@@ -256,6 +275,11 @@ export default function LpAnalysisClientPage({
   // Filter campaigns by query
   const filteredCampaigns = campaigns.filter((c) =>
     c.campaignName.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  // Filter accounts by query
+  const filteredAccounts = accounts.filter((acc) =>
+    acc.name.toLowerCase().includes(accountSearchQuery.toLowerCase()),
   );
 
   const getScoreBadgeStyles = (score: number) => {
@@ -301,46 +325,77 @@ export default function LpAnalysisClientPage({
         </div>
       </div>
 
-      {/* ── AD ACCOUNT SELECTOR CARD ── */}
+      {/* Mobile Selector Dropdown (Visible only on mobile/tablet) */}
+      <div className="block md:hidden border-slate-200 shadow-sm bg-white p-3.5 rounded-xl border mb-4">
+        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1.5">
+          Select Client Account
+        </label>
+        <select
+          value={selectedAccountId}
+          onChange={(e) => setSelectedAccountId(Number(e.target.value))}
+          className="w-full bg-slate-50 border border-slate-200 text-xs font-bold rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          {accounts.map((acc) => (
+            <option key={acc.id} value={acc.id}>
+              {acc.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="md:col-span-1 border-slate-200 shadow-sm">
-          <CardHeader className="py-4">
-            <CardTitle className="text-xs uppercase font-bold text-slate-400 tracking-wider">
+        {/* Desktop Sidebar Selector (Hidden on mobile) */}
+        <Card className="hidden md:block md:col-span-1 border-slate-200 shadow-sm h-fit">
+          <CardHeader className="py-0 h-12 border-b border-slate-100 flex flex-row items-center justify-between [.border-b]:pb-0 px-4">
+            <CardTitle className="text-[10px] uppercase font-bold text-slate-400 tracking-wider leading-none">
               Select Client Account
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {accounts.map((acc) => (
-              <button
-                key={acc.id}
-                onClick={() => setSelectedAccountId(acc.id)}
-                className={`w-full text-left px-3 py-2.5 rounded-xl transition-all text-xs font-bold flex items-center justify-between ${
-                  selectedAccountId === acc.id
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                <span className="truncate pr-2">{acc.name}</span>
-                <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
-              </button>
-            ))}
-            {accounts.length === 0 && (
-              <p className="text-xs text-slate-400 italic">
-                No connected accounts.
-              </p>
-            )}
+          <div className="p-3 border-b border-slate-100 bg-slate-50/50">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                placeholder="Filter accounts..."
+                value={accountSearchQuery}
+                onChange={(e) => setAccountSearchQuery(e.target.value)}
+                className="pl-8 text-xs h-8 bg-white border-slate-200"
+              />
+            </div>
+          </div>
+          <CardContent className="p-3">
+            <div className="overflow-y-auto max-h-[420px] pr-1 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-200">
+              {filteredAccounts.map((acc) => (
+                <button
+                  key={acc.id}
+                  onClick={() => setSelectedAccountId(acc.id)}
+                  className={`w-full text-left px-3 py-2 rounded-xl transition-all text-xs font-bold flex items-center justify-between ${
+                    selectedAccountId === acc.id
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="truncate pr-2">{acc.name}</span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                </button>
+              ))}
+              {filteredAccounts.length === 0 && (
+                <p className="text-xs text-slate-400 italic py-4 text-center">
+                  No matching accounts.
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
         {/* ── CAMPAIGNS AND URL LIST ── */}
-        <Card className="md:col-span-3 border-slate-200 shadow-sm">
+        <Card className="col-span-1 md:col-span-3 border-slate-200 shadow-sm">
           <CardHeader className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center border-b border-slate-100 bg-slate-50/50 py-4 gap-3">
             <div>
               <CardTitle className="text-base font-bold text-slate-800">
-                Campaign Landing Pages
+                {selectedAccountName}
               </CardTitle>
-              <CardDescription className="text-xs">
-                Inspect and connect URL entry points for optimization audits.
+              <CardDescription className="text-xs font-semibold text-indigo-600">
+                Campaign Landing Pages
               </CardDescription>
             </div>
             <div className="relative w-64">
@@ -400,7 +455,17 @@ export default function LpAnalysisClientPage({
                         className="hover:bg-slate-50/30 transition-colors"
                       >
                         <TableCell className="font-semibold text-slate-900 text-xs pl-6">
-                          {c.campaignName}
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className={`h-2.5 w-2.5 rounded-full shrink-0 inline-block transition-colors cursor-help ${
+                                c.status === "ENABLED"
+                                  ? "bg-emerald-500 shadow-sm shadow-emerald-500/20"
+                                  : "bg-slate-400 shadow-sm shadow-slate-400/20"
+                              }`}
+                              title={`Status: ${c.status === "ENABLED" ? "Active" : "Paused"}`}
+                            />
+                            <span>{c.campaignName}</span>
+                          </div>
                         </TableCell>
                         <TableCell className="text-xs">
                           {isEditing ? (
@@ -460,19 +525,39 @@ export default function LpAnalysisClientPage({
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-middle">
                           {c.latestAudit ? (
-                            <Badge
-                              variant="outline"
-                              className={`rounded-md cursor-pointer font-bold border ${getScoreBadgeStyles(
-                                c.latestAudit.score,
-                              )}`}
-                              onClick={() =>
-                                router.push(`/lp-analysis/${c.latestAudit!.id}`)
-                              }
-                            >
-                              {c.latestAudit.score} / 100
-                            </Badge>
+                            <div className="flex flex-col gap-1 items-start">
+                              <Badge
+                                variant="outline"
+                                className={`rounded-md cursor-pointer font-bold border ${getScoreBadgeStyles(
+                                  c.latestAudit.score,
+                                )}`}
+                                onClick={() =>
+                                  router.push(`/lp-analysis/${c.latestAudit!.id}`)
+                                }
+                              >
+                                {c.latestAudit.score} / 100
+                              </Badge>
+                              <span className="text-[9px] text-slate-400 font-semibold pl-0.5 whitespace-nowrap">
+                                {new Date(c.latestAudit.createdAt).toLocaleDateString("en-AU", {
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: true,
+                                }).toLowerCase()}
+                              </span>
+                              {c.latestAudit.auditType === "VISUAL" ? (
+                                <span className="text-[8px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded px-1 py-0.5 mt-0.5 uppercase tracking-wide">
+                                  Visual
+                                </span>
+                              ) : (
+                                <span className="text-[8px] font-extrabold text-slate-500 bg-slate-50 border border-slate-100 rounded px-1 py-0.5 mt-0.5 uppercase tracking-wide">
+                                  Source
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-slate-400 text-xs italic">
                               Not Audited
@@ -574,6 +659,26 @@ export default function LpAnalysisClientPage({
                     ). Avoid internal campaign names with pipes, dates, or
                     symbols, as they will fetch unrelated search results.
                   </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5 pt-3.5 border-t border-slate-100 mt-1">
+                <Checkbox
+                  id="audit-visual"
+                  checked={auditVisual}
+                  onCheckedChange={(checked) => setAuditVisual(!!checked)}
+                  className="mt-0.5 border-slate-300"
+                />
+                <div className="grid gap-1">
+                  <Label
+                    htmlFor="audit-visual"
+                    className="text-xs font-bold text-slate-700 cursor-pointer"
+                  >
+                    Visual CRO Audit (JavaScript Rendering + Screenshot)
+                  </Label>
+                  <p className="text-[10px] text-slate-400 leading-tight">
+                    Uses headless Chromium browser to capture layout screenshots and run a visual/layout analysis.
+                  </p>
                 </div>
               </div>
             </div>
