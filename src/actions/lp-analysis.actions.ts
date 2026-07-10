@@ -84,14 +84,18 @@ function isElementHidden(el: any, $: any): boolean {
 
 export async function scrapeLandingPageExtended(
   targetUrl: string,
-  options?: { render?: boolean; screenshot?: boolean }
+  options?: { render?: boolean; screenshot?: boolean; width?: number; height?: number }
 ): Promise<{ markdown: string; screenshotBase64?: string }> {
   try {
-    console.log(`[LP Scraper] Scraping URL: ${targetUrl} (Render: ${!!options?.render}, Screenshot: ${!!options?.screenshot})`);
+    console.log(`[LP Scraper] Scraping URL: ${targetUrl} (Render: ${!!options?.render}, Screenshot: ${!!options?.screenshot}, Viewport: ${options?.width || "default"}x${options?.height || "default"})`);
     
     let scrapeDoUrl = `http://api.scrape.do?token=${process.env.SCRAPE_DO_KEY}&url=${encodeURIComponent(targetUrl)}`;
     if (options?.render) scrapeDoUrl += "&render=true";
-    if (options?.screenshot) scrapeDoUrl += "&screenShot=true&returnJSON=true";
+    if (options?.screenshot) {
+      scrapeDoUrl += "&screenShot=true&returnJSON=true";
+      if (options.width) scrapeDoUrl += `&width=${options.width}`;
+      if (options.height) scrapeDoUrl += `&height=${options.height}`;
+    }
 
     const response = await fetch(scrapeDoUrl, { next: { revalidate: 3600 } });
     
@@ -573,15 +577,28 @@ export async function runLandingPageAuditInternal(
 
   let clientMarkdown = "";
   let screenshotBase64: string | undefined;
+  let screenshotMobileBase64: string | undefined;
 
   if (auditType === "VISUAL") {
-    // Enable Javascript rendering and screenshot capture
-    const clientScrape = await scrapeLandingPageExtended(url, {
-      render: true,
-      screenshot: true,
-    });
-    clientMarkdown = clientScrape.markdown;
-    screenshotBase64 = clientScrape.screenshotBase64;
+    // Enable Javascript rendering and screenshot capture in parallel for both Desktop and Mobile viewports
+    console.log(`[Audit] Fetching Desktop and Mobile visual snapshots in parallel...`);
+    const [desktopScrape, mobileScrape] = await Promise.all([
+      scrapeLandingPageExtended(url, {
+        render: true,
+        screenshot: true,
+        width: 1280,
+        height: 800,
+      }),
+      scrapeLandingPageExtended(url, {
+        render: true,
+        screenshot: true,
+        width: 375,
+        height: 812,
+      }),
+    ]);
+    clientMarkdown = desktopScrape.markdown;
+    screenshotBase64 = desktopScrape.screenshotBase64;
+    screenshotMobileBase64 = mobileScrape.screenshotBase64;
   } else {
     // Normal HTML scraping
     clientMarkdown = await scrapeAndCompressLandingPage(url);
@@ -591,13 +608,36 @@ export async function runLandingPageAuditInternal(
     competitorUrls.map((compUrl) => scrapeAndCompressLandingPage(compUrl))
   );
 
-  // Upload screenshot to Cloudflare R2 if available
+  // Upload screenshots to Cloudflare R2 if available
   let screenshotUrl: string | null = null;
-  if (auditType === "VISUAL" && screenshotBase64) {
-    const filename = `audit-${adAccountId}-${Date.now()}.png`;
-    console.log(`[Audit] Uploading screenshot to Cloudflare R2: ${filename}...`);
-    screenshotUrl = await uploadImageToR2(screenshotBase64, filename);
-    console.log(`[Audit] Screenshot uploaded successfully: ${screenshotUrl}`);
+  let screenshotMobileUrl: string | null = null;
+
+  if (auditType === "VISUAL") {
+    const uploadPromises: Promise<any>[] = [];
+    
+    if (screenshotBase64) {
+      const filename = `audit-${adAccountId}-${Date.now()}-desktop.png`;
+      uploadPromises.push(
+        uploadImageToR2(screenshotBase64, filename).then((resUrl) => {
+          screenshotUrl = resUrl;
+        })
+      );
+    }
+    
+    if (screenshotMobileBase64) {
+      const filename = `audit-${adAccountId}-${Date.now()}-mobile.png`;
+      uploadPromises.push(
+        uploadImageToR2(screenshotMobileBase64, filename).then((resUrl) => {
+          screenshotMobileUrl = resUrl;
+        })
+      );
+    }
+
+    if (uploadPromises.length > 0) {
+      console.log(`[Audit] Uploading desktop & mobile screenshots to Cloudflare R2...`);
+      await Promise.all(uploadPromises);
+      console.log(`[Audit] Screenshots uploaded successfully: Desktop=${screenshotUrl}, Mobile=${screenshotMobileUrl}`);
+    }
   }
 
   // STEP 3: Construct AI prompt for 10-dimension evaluation (gemini-3.5-flash)
@@ -740,6 +780,7 @@ export async function runLandingPageAuditInternal(
       aiAnalysis: parsedAudit,
       auditType: auditType,
       screenshotUrl: screenshotUrl,
+      screenshotMobileUrl: screenshotMobileUrl,
       createdAt: new Date(),
     })
     .returning({ id: landingPageAudits.id });

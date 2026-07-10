@@ -646,6 +646,7 @@ export const landingPageAudits = pgTable("landing_page_audits", {
   aiAnalysis: jsonb("ai_analysis").notNull(), // Stores markdown lists, competitor matrix, and roadmaps
   auditType: text("audit_type").notNull().default("PAGE_SOURCE"),
   screenshotUrl: text("screenshot_url"),
+  screenshotMobileUrl: text("screenshot_mobile_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -75,6 +75,7 @@ interface AuditDetailProps {
     aiAnalysis: any;
     auditType: string;
     screenshotUrl: string | null;
+    screenshotMobileUrl: string | null;
     createdAt: Date;
     account: {
       name: string;
@@ -128,6 +129,7 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
   const [compareAuditId, setCompareAuditId] = useState<number | null>(null);
   const [compareAuditData, setCompareAuditData] = useState<any | null>(null);
   const [loadingCompare, setLoadingCompare] = useState(false);
+  const [compareViewportMode, setCompareViewportMode] = useState<"desktop" | "mobile">("desktop");
 
   const handleSelectCompare = async (id: number) => {
     setCompareAuditId(id);
@@ -262,9 +264,9 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
   };
 
   return (
-    <div className="space-y-8 p-2 max-w-[1200px] mx-auto print:p-0">
+    <div className="space-y-5 p-2 max-w-[1200px] mx-auto print:p-0">
       {/* ── HEADER NAVIGATION (Hidden on Print) ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5 print:hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-3 print:hidden">
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
@@ -287,7 +289,7 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                 })}
               </span>
             </div>
-            <h1 className="text-2xl font-black text-slate-900 mt-1 break-all pr-4">
+            <h1 className="text-xl font-black text-slate-900 mt-0.5 break-all pr-4">
               LP Audit: {audit.campaignName || "Standalone URL"}
             </h1>
             <p className="text-xs text-slate-500 font-medium truncate mt-0.5 max-w-[500px]">
@@ -495,63 +497,146 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
       {/* ── SCREENSHOT / COMPARISON VIEW ── */}
       {compareAuditData ? (
         (audit.screenshotUrl || compareAuditData.screenshotUrl) && (
-          <Card className="border-slate-200 shadow-sm overflow-hidden mb-6 print:hidden">
-            <CardHeader className="py-3 bg-slate-50/50 border-b">
-              <CardTitle className="text-xs uppercase font-bold text-slate-400 tracking-wider">
-                Visual Viewport Snapshot Comparison
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-100/30">
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-bold text-slate-500">Past Screenshot ({new Date(compareAuditData.createdAt).toLocaleDateString("en-AU")})</span>
-                {compareAuditData.screenshotUrl ? (
-                  <img
-                    src={compareAuditData.screenshotUrl}
-                    alt="Past Screenshot"
-                    className="max-h-[280px] w-auto border rounded-lg shadow object-contain bg-white"
-                  />
-                ) : (
-                  <div className="h-[200px] w-full border border-dashed rounded-lg flex items-center justify-center text-xs text-slate-400 bg-white">
-                    No screenshot captured
-                  </div>
-                )}
+          <Card className="border-slate-200 shadow-sm overflow-hidden mb-6 print:hidden bg-white">
+            <CardHeader className="py-2.5 px-5 bg-slate-50/50 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <CardTitle className="text-[11px] uppercase font-extrabold text-slate-400 tracking-wider">
+                  Visual Viewport Snapshot Comparison
+                </CardTitle>
+                <CardDescription className="text-[10px] text-slate-500 mt-0.5">
+                  Compare side-by-side snapshots of the page design changes
+                </CardDescription>
               </div>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-bold text-indigo-600">Current Screenshot ({new Date(audit.createdAt).toLocaleDateString("en-AU")})</span>
-                {audit.screenshotUrl ? (
-                  <img
-                    src={audit.screenshotUrl}
-                    alt="Current Screenshot"
-                    className="max-h-[280px] w-auto border rounded-lg shadow object-contain bg-white"
-                  />
-                ) : (
-                  <div className="h-[200px] w-full border border-dashed rounded-lg flex items-center justify-center text-xs text-slate-400 bg-white">
-                    No screenshot captured
+              {(audit.screenshotMobileUrl || compareAuditData.screenshotMobileUrl) && (
+                <div className="flex bg-slate-200/60 p-0.5 rounded-lg border border-slate-250 shrink-0 self-start sm:self-auto">
+                  <button
+                    onClick={() => setCompareViewportMode("desktop")}
+                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
+                      compareViewportMode === "desktop"
+                        ? "bg-white text-indigo-650 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Desktop (1280px)
+                  </button>
+                  <button
+                    onClick={() => setCompareViewportMode("mobile")}
+                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
+                      compareViewportMode === "mobile"
+                        ? "bg-white text-indigo-650 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Mobile (375px)
+                  </button>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="p-5 bg-slate-50/30">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* Past Screenshot */}
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    Past Layout ({new Date(compareAuditData.createdAt).toLocaleDateString("en-AU")})
+                  </span>
+                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white p-1.5 flex items-center justify-center w-full max-h-[360px] h-[360px]">
+                    {(compareViewportMode === "desktop" ? compareAuditData.screenshotUrl : compareAuditData.screenshotMobileUrl) ? (
+                      <img
+                        src={compareViewportMode === "desktop" ? compareAuditData.screenshotUrl! : compareAuditData.screenshotMobileUrl!}
+                        alt="Past Screenshot"
+                        className="max-h-[340px] w-auto object-contain rounded-lg"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 font-semibold italic">
+                        No snapshot captured
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+                {/* Current Screenshot */}
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                    Current Layout ({new Date(audit.createdAt).toLocaleDateString("en-AU")})
+                  </span>
+                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white p-1.5 flex items-center justify-center w-full max-h-[360px] h-[360px]">
+                    {(compareViewportMode === "desktop" ? audit.screenshotUrl : audit.screenshotMobileUrl) ? (
+                      <img
+                        src={compareViewportMode === "desktop" ? audit.screenshotUrl! : audit.screenshotMobileUrl!}
+                        alt="Current Screenshot"
+                        className="max-h-[340px] w-auto object-contain rounded-lg"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 font-semibold italic">
+                        No snapshot captured
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
         )
       ) : (
         audit.screenshotUrl && (
-          <Card className="border-slate-200 shadow-sm overflow-hidden mb-6">
-            <CardHeader className="py-3 bg-slate-50/50 border-b flex flex-row items-center justify-between">
+          <Card className="border-slate-200 shadow-sm overflow-hidden mb-6 bg-white">
+            <CardHeader className="py-2.5 px-5 bg-slate-50/50 border-b">
               <div>
-                <CardTitle className="text-xs uppercase font-bold text-slate-400 tracking-wider">
-                  Page Visual Screenshot
+                <CardTitle className="text-[11px] uppercase font-extrabold text-slate-400 tracking-wider">
+                  Page Visual Snapshot Viewports
                 </CardTitle>
                 <CardDescription className="text-[10px] text-slate-500 mt-0.5">
-                  Captured viewport at execution time
+                  Captured desktop (1280x800) and mobile (375x812) layouts at execution time
                 </CardDescription>
               </div>
             </CardHeader>
-            <CardContent className="p-4 flex justify-center bg-slate-100/30">
-              <img
-                src={audit.screenshotUrl}
-                alt="Viewport Screenshot"
-                className="max-h-[350px] w-auto border rounded-lg shadow-md object-contain"
-              />
+            <CardContent className="p-5 bg-slate-50/30">
+              {audit.screenshotMobileUrl ? (
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
+                  {/* Desktop Viewport */}
+                  <div className="md:col-span-8 flex flex-col gap-2">
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                      Desktop Layout (1280px)
+                    </div>
+                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white p-1.5 flex items-center justify-center h-full max-h-[420px] min-h-[320px]">
+                      <img
+                        src={audit.screenshotUrl}
+                        alt="Desktop Screenshot"
+                        className="max-h-[400px] w-auto object-contain rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  {/* Mobile Viewport */}
+                  <div className="md:col-span-4 flex flex-col gap-2">
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Mobile Layout (375px)
+                    </div>
+                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white p-1.5 flex items-center justify-center h-full max-h-[420px] min-h-[320px]">
+                      <img
+                        src={audit.screenshotMobileUrl}
+                        alt="Mobile Screenshot"
+                        className="max-h-[400px] w-auto object-contain rounded-lg"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    Desktop Viewport (1280px)
+                  </div>
+                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white p-1.5 flex items-center justify-center max-w-3xl w-full">
+                    <img
+                      src={audit.screenshotUrl}
+                      alt="Desktop Screenshot"
+                      className="max-h-[350px] w-auto object-contain rounded-lg"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )
