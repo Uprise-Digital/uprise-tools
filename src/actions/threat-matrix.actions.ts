@@ -38,9 +38,72 @@ export async function getAutoTargetAction(
   }
 }
 
-// ============================================================================
-// 1. HELPER: SCRAPE & COMPRESS PIPELINE
-// ============================================================================
+function isElementHidden(el: any, $: any): boolean {
+  // 1. Traverse up to check if this is a progressively disclosed element (accordions, tabs, FAQs)
+  // If so, we want to KEEP the content rather than filtering it out as dead code.
+  let current = el;
+  let isProgressiveDisclosure = false;
+  while (current && current.length > 0) {
+    const className = current.attr("class") || "";
+    const idName = current.attr("id") || "";
+    const role = current.attr("role") || "";
+    if (
+      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(className) ||
+      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(idName) ||
+      role === "tabpanel"
+    ) {
+      isProgressiveDisclosure = true;
+      break;
+    }
+    const parentNode = current.parent();
+    if (parentNode && parentNode.length > 0) {
+      const pNode = parentNode[0];
+      if (pNode && pNode.type !== "root" && pNode.name !== "body" && pNode.name !== "html") {
+        current = parentNode;
+      } else {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+
+  if (isProgressiveDisclosure) {
+    // For accordions/tabs, we only filter out if explicitly marked as screen-reader-only
+    if (el.hasClass("sr-only") || el.hasClass("screen-reader-only")) {
+      return true;
+    }
+    return false;
+  }
+
+  // 2. Otherwise apply the standard hidden patterns blocklist
+  const style = el.attr("style") || "";
+  if (
+    /display\s*:\s*none/i.test(style) ||
+    /visibility\s*:\s*hidden/i.test(style) ||
+    el.attr("aria-hidden") === "true" ||
+    el.prop("hidden") === true ||
+    el.hasClass("hidden") ||
+    el.hasClass("d-none") ||
+    el.hasClass("invisible") ||
+    el.hasClass("sr-only") ||
+    el.hasClass("screen-reader-only") ||
+    el.hasClass("hide")
+  ) {
+    return true;
+  }
+
+  const parent = el.parent();
+  if (parent && parent.length > 0) {
+    const parentNode = parent[0];
+    if (parentNode && parentNode.type !== "root" && parentNode.name !== "body" && parentNode.name !== "html") {
+      return isElementHidden(parent, $);
+    }
+  }
+
+  return false;
+}
+
 async function scrapeAndCompressLandingPage(targetUrl: string) {
   try {
     console.log(`[Scraper] Fetching URL via scrape.do: ${targetUrl}`);
@@ -57,17 +120,25 @@ async function scrapeAndCompressLandingPage(targetUrl: string) {
 
     let highValueHtml = "";
     $("h1, h2, h3").each((i, el) => {
+      const $el = $(el);
+      if (isElementHidden($el, $)) return;
       highValueHtml += `${$.html(el)}<br/>`;
     });
     $("a, button, .btn").each((i, el) => {
+      const $el = $(el);
+      if (isElementHidden($el, $)) return;
       highValueHtml += `${$.html(el)}<br/>`;
     });
     $("ul, ol").each((i, el) => {
+      const $el = $(el);
+      if (isElementHidden($el, $)) return;
       highValueHtml += `${$.html(el)}<br/>`;
     });
     $("p")
       .slice(0, 10)
       .each((i, el) => {
+        const $el = $(el);
+        if (isElementHidden($el, $)) return;
         highValueHtml += `${$.html(el)}<br/>`;
       });
 

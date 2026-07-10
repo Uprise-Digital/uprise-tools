@@ -4,6 +4,8 @@ import {
   ActivitySquare,
   Bot,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Copy,
   Database,
   Globe,
@@ -28,154 +30,248 @@ const AVAILABLE_TOOLS = [
   {
     name: "get_agency_god_view",
     title: "Agency God View",
-    description:
-      "Fetches macro portfolio performance and identifies critical fires.",
+    description: "Fetches macro portfolio performance and identifies critical fires."
   },
   {
     name: "get_account_metrics",
-    title: "Account Metrics",
-    description:
-      "Fetches detailed dashboard metrics for a specific ad account by its internal ID.",
+    title: "Get Account Metrics",
+    description: "Fetches detailed dashboard metrics for a specific ad account by its internal ID."
   },
   {
     name: "lookup_account_by_name",
-    title: "Lookup Account by Name",
-    description:
-      "Searches for ad accounts by name (partial match) to discover internal IDs.",
+    title: "Lookup Account By Name",
+    description: "Searches for ad accounts by name (partial match). Use this to find an account ID."
   },
   {
     name: "lookup_account_by_id",
-    title: "Lookup Account by ID",
-    description:
-      "Fetches account name and details for a given internal account ID.",
+    title: "Lookup Account By Id",
+    description: "Fetches account name and details for a given internal account ID."
   },
   {
     name: "list_accounts",
-    title: "List All Accounts",
-    description:
-      "Returns all ad accounts in the system with their internal IDs, names, and active status.",
-  },
-  {
-    name: "get_historical_comparison",
-    title: "Historical Period Comparison",
-    description:
-      "Compares current performance against the prior period side-by-side with delta percentages.",
-  },
-  {
-    name: "get_search_term_insights",
-    title: "Search Term Insights",
-    description:
-      "Returns top search terms, converting terms, and wasted spend analysis.",
-  },
-  {
-    name: "get_campaign_details",
-    title: "Campaign Settings & Details",
-    description:
-      "Returns campaign configuration details, bidding strategies, budgets, and targeting settings.",
-  },
-  {
-    name: "get_account_anomalies",
-    title: "Account Anomaly Detection",
-    description:
-      "Detects statistically significant deviations in an account's recent performance.",
-  },
-  {
-    name: "get_concentration_report",
-    title: "Portfolio Concentration Report",
-    description:
-      "Returns a quantified analysis of revenue concentration risk (HHI) across the portfolio.",
-  },
-  {
-    name: "get_account_targets",
-    title: "Account KPI Targets",
-    description:
-      "Returns agreed client targets, such as target CPA, target ROAS, and budget caps.",
-  },
-  {
-    name: "get_org_triage_defaults",
-    title: "Get Organization Triage Defaults",
-    description:
-      "Fetches the organization-wide defaults for alert and anomaly triage thresholds.",
-  },
-  {
-    name: "get_account_triage_settings",
-    title: "Get Account Triage Settings",
-    description:
-      "Fetches the triage threshold override settings for a specific client account by its internal ID.",
-  },
-  {
-    name: "set_org_triage_defaults",
-    title: "Set Organization Triage Defaults",
-    description:
-      "Sets/updates the organization-wide defaults for alert and anomaly triage thresholds.",
-  },
-  {
-    name: "set_account_triage_settings",
-    title: "Set Account Triage Settings",
-    description:
-      "Sets/updates the custom triage threshold override settings for a specific client account. Set fields to null to clear overrides.",
-  },
-  {
-    name: "set_account_targets",
-    title: "Set Account KPI Targets",
-    description:
-      "Sets or updates the agreed client KPI targets for an account — target CPA, target ROAS, monthly budget cap, and notes.",
-  },
-  {
-    name: "get_negative_keyword_suggestions",
-    title: "Get Negative Keyword Suggestions",
-    description:
-      "Fetches all negative keyword suggestions (pending, approved, denied, archived) for a specific account.",
-  },
-  {
-    name: "generate_negative_keyword_suggestions",
-    title: "Generate Negative Keyword Suggestions",
-    description:
-      "Pulls search terms and active keywords from Google Ads, runs AI analysis via Gemini to discover waste, and saves pending recommendations.",
-  },
-  {
-    name: "add_negative_keyword",
-    title: "Add Negative Keyword",
-    description:
-      "Pushes a campaign-level negative keyword directly to Google Ads and marks it as approved in the database.",
-  },
-  {
-    name: "get_active_negative_keywords",
-    title: "Get Active Negative Keywords",
-    description:
-      "Fetches all campaign-level active negative keywords currently running in Google Ads for a specific account.",
+    title: "List Accounts",
+    description: "Returns all ad accounts in the system with their internal IDs, names, Google account IDs, currency, and active status."
   },
   {
     name: "list_campaign_landing_pages",
     title: "List Campaign Landing Pages",
-    description:
-      "Lists campaign landing pages, URLs, and latest audit scores for an ad account.",
+    description: "Lists campaign landing pages, URLs, and latest audit scores for an ad account."
   },
   {
     name: "sync_campaign_landing_pages",
     title: "Sync Campaign Landing Pages",
-    description:
-      "Syncs campaign landing page URLs from the Google Ads API for an ad account.",
+    description: "Syncs campaign landing page URLs from the Google Ads API for an ad account."
   },
   {
     name: "save_campaign_landing_page_url",
-    title: "Save Campaign Landing Page URL",
-    description:
-      "Manually saves/attaches a landing page URL to a specific campaign.",
+    title: "Save Campaign Landing Page Url",
+    description: "Manually saves/attaches a landing page URL to a specific campaign."
   },
   {
     name: "run_landing_page_cro_audit",
-    title: "Run Landing Page CRO Audit",
-    description:
-      "Runs a 10-dimension landing page CRO audit with competitor scanning on a focus keyword using Gemini.",
+    title: "Run Landing Page Cro Audit",
+    description: "Runs a 10-dimension landing page CRO audit with competitor scanning on a focus keyword using Gemini."
   },
   {
     name: "get_landing_page_audit_details",
     title: "Get Landing Page Audit Details",
-    description:
-      "Retrieves the detailed breakdown, score cards, and AM action plan script for a specific landing page audit by its ID.",
+    description: "Retrieves the detailed breakdown, score cards, and AM action plan script for a specific landing page audit by its ID."
   },
+  {
+    name: "list_ad_group_ads",
+    title: "List Ad Group Ads",
+    description: "Retrieves a list of active ad group ads with latest audit status and parameters."
+  },
+  {
+    name: "get_asset_performance_report",
+    title: "Get Asset Performance Report",
+    description: "Fetches performance labels and pinning info for RSA assets across campaigns."
+  },
+  {
+    name: "run_ad_copy_audit",
+    title: "Run Ad Copy Audit",
+    description: "Runs a Google RSA ad copy audit, comparing asset performance, pinning config, and message-match using Gemini."
+  },
+  {
+    name: "get_ad_copy_audit_details",
+    title: "Get Ad Copy Audit Details",
+    description: "Retrieves detailed ad copy audit results by audit ID."
+  },
+  {
+    name: "get_historical_comparison",
+    title: "Get Historical Comparison",
+    description: "Compares current performance against the prior period side-by-side with delta percentages."
+  },
+  {
+    name: "get_search_term_insights",
+    title: "Get Search Term Insights",
+    description: "Returns top search terms, converting terms, and wasted spend analysis."
+  },
+  {
+    name: "get_campaign_details",
+    title: "Get Campaign Details",
+    description: "Returns campaign configuration details, bidding strategies, budgets, status, and targets set in Google Ads."
+  },
+  {
+    name: "get_account_anomalies",
+    title: "Get Account Anomalies",
+    description: "Detects statistically significant deviations in an account's recent performance."
+  },
+  {
+    name: "get_concentration_report",
+    title: "Get Concentration Report",
+    description: "Returns a quantified HHI analysis of client concentration risk across the agency portfolio."
+  },
+  {
+    name: "get_account_targets",
+    title: "Get Account Targets",
+    description: "Returns agreed client targets, such as target CPA, target ROAS, and budget caps."
+  },
+  {
+    name: "get_org_triage_defaults",
+    title: "Get Org Triage Defaults",
+    description: "Fetches the organization-wide defaults for alert and anomaly triage thresholds."
+  },
+  {
+    name: "get_account_triage_settings",
+    title: "Get Account Triage Settings",
+    description: "Fetches the triage threshold override settings for a specific client account."
+  },
+  {
+    name: "set_org_triage_defaults",
+    title: "Set Org Triage Defaults",
+    description: "Sets/updates the organization-wide defaults for alert and anomaly triage thresholds."
+  },
+  {
+    name: "set_account_triage_settings",
+    title: "Set Account Triage Settings",
+    description: "Sets/updates the custom triage threshold override settings for a specific client account."
+  },
+  {
+    name: "set_account_targets",
+    title: "Set Account Targets",
+    description: "Sets or updates the agreed client KPI targets for an account — target CPA, target ROAS, and monthly budget cap."
+  },
+  {
+    name: "get_negative_keyword_suggestions",
+    title: "Get Negative Keyword Suggestions",
+    description: "Fetches all negative keyword suggestions (pending, approved, denied, archived) for an account."
+  },
+  {
+    name: "generate_negative_keyword_suggestions",
+    title: "Generate Negative Keyword Suggestions",
+    description: "Pulls search terms and active keywords, runs AI waste analysis via Gemini, and saves pending recommendations."
+  },
+  {
+    name: "add_negative_keyword",
+    title: "Add Negative Keyword",
+    description: "Pushes a campaign-level negative keyword directly to Google Ads and marks it as approved."
+  },
+  {
+    name: "get_active_negative_keywords",
+    title: "Get Active Negative Keywords",
+    description: "Fetches campaign-level negative keywords currently active in Google Ads."
+  },
+  {
+    name: "get_account_persona",
+    title: "Get Account Persona",
+    description: "Fetches the structured buyer persona, targeting intent, and scope defaults for an ad account."
+  },
+  {
+    name: "set_account_persona",
+    title: "Set Account Persona",
+    description: "Sets or updates the structured buyer persona and targeting intent notes for an ad account."
+  },
+  {
+    name: "get_impression_share_report",
+    title: "Get Impression Share Report",
+    description: "Fetches search impression share, lost IS due to budget/rank, and constraint flags."
+  },
+  {
+    name: "audit_conversion_tracking",
+    title: "Audit Conversion Tracking",
+    description: "Audits conversion actions, counting type, and flags issues like inflated goals or broken tags."
+  }
 ];
+
+const TOOL_CATEGORIES = [
+  {
+    id: "portfolio",
+    title: "Portfolio & Directory",
+    description: "Discover accounts and view macro metrics.",
+    tools: [
+      "get_agency_god_view",
+      "list_accounts",
+      "lookup_account_by_name",
+      "lookup_account_by_id",
+      "get_account_metrics",
+      "get_historical_comparison"
+    ]
+  },
+  {
+    id: "campaigns",
+    title: "Campaign & Bidding",
+    description: "Diagnose bidding strategy, budgets, and impressions.",
+    tools: [
+      "get_campaign_details",
+      "get_impression_share_report",
+      "get_account_anomalies",
+      "get_concentration_report",
+      "audit_conversion_tracking"
+    ]
+  },
+  {
+    id: "keywords",
+    title: "Negative Keyword Automation",
+    description: "Scan search queries, detect waste, and apply keywords.",
+    tools: [
+      "get_search_term_insights",
+      "get_active_negative_keywords",
+      "get_negative_keyword_suggestions",
+      "generate_negative_keyword_suggestions",
+      "add_negative_keyword"
+    ]
+  },
+  {
+    id: "cro",
+    title: "Landing Page CRO",
+    description: "Audit page copy alignment and run competitor scans.",
+    tools: [
+      "list_campaign_landing_pages",
+      "sync_campaign_landing_pages",
+      "save_campaign_landing_page_url",
+      "run_landing_page_cro_audit",
+      "get_landing_page_audit_details"
+    ]
+  },
+  {
+    id: "copywriting",
+    title: "Ad Copy & RSA Pinning",
+    description: "Audit ad copies and check asset performance pinning.",
+    tools: [
+      "list_ad_group_ads",
+      "get_asset_performance_report",
+      "run_ad_copy_audit",
+      "get_ad_copy_audit_details"
+    ]
+  },
+  {
+    id: "targets",
+    title: "KPI Targets & Thresholds",
+    description: "Configure targets and customize anomaly triggers.",
+    tools: [
+      "get_account_targets",
+      "set_account_targets",
+      "get_org_triage_defaults",
+      "set_org_triage_defaults",
+      "get_account_triage_settings",
+      "set_account_triage_settings",
+      "get_account_persona",
+      "set_account_persona"
+    ]
+  }
+];
+
 
 interface McpSettingsClientProps {
   initialApiKey: string;
@@ -191,6 +287,7 @@ export default function McpSettingsClient({
 
   // Loading states
   const [isRolling, setIsRolling] = useState(false);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>("portfolio");
 
   const handleCopyConfig = () => {
     const config = `{\n  "mcpServers": {\n    "agency-os": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "@modelcontextprotocol/client-sse",\n        "--url",\n        "https://uprise-tools-production.up.railway.app/api/mcp",\n        "--header",\n        "Authorization: Bearer ${apiKey}"\n      ]\n    }\n  }\n}`;
@@ -404,7 +501,7 @@ export default function McpSettingsClient({
 
         {/* RIGHT COLUMN: Available MCP Tools */}
         <div className="lg:col-span-1">
-          <Card className="py-0 border-slate-200 shadow-sm flex flex-col max-h-[600px] overflow-hidden">
+          <Card className="py-0 border-slate-200 shadow-sm flex flex-col min-h-[750px] overflow-hidden bg-white">
             <CardHeader className="bg-slate-50 border-b border-slate-100 p-5 shrink-0">
               <CardTitle className="text-sm font-bold flex items-center justify-between text-slate-800">
                 <span className="flex items-center gap-2">
@@ -417,28 +514,62 @@ export default function McpSettingsClient({
                 server.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-0 overflow-y-auto divide-y divide-slate-100">
-              {AVAILABLE_TOOLS.map((tool) => (
-                <div
-                  key={tool.name}
-                  className="p-4 hover:bg-slate-50 transition-colors"
-                >
-                  <div className="space-y-1">
-                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <ActivitySquare className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                      {tool.title}
-                    </div>
-                    <div className="pt-0.5">
-                      <code className="text-[9px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                        {tool.name}
-                      </code>
-                    </div>
-                    <p className="text-[10px] text-slate-500 leading-normal pt-1">
-                      {tool.description}
-                    </p>
+            <CardContent className="p-0 overflow-y-auto divide-y divide-slate-100 flex-1">
+              {TOOL_CATEGORIES.map((cat) => {
+                const isExpanded = expandedCategory === cat.id;
+                const categoryTools = AVAILABLE_TOOLS.filter((tool) =>
+                  cat.tools.includes(tool.name)
+                );
+
+                return (
+                  <div key={cat.id} className="border-b border-slate-100 last:border-b-0">
+                    <button
+                      onClick={() => setExpandedCategory(isExpanded ? null : cat.id)}
+                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors text-left"
+                    >
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          {cat.title}
+                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                            {categoryTools.length}
+                          </span>
+                        </span>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          {cat.description}
+                        </p>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-slate-450" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-slate-450" />
+                      )}
+                    </button>
+
+                    {isExpanded && (
+                      <div className="bg-slate-50/50 px-4 pb-4 divide-y divide-slate-100/60 border-t border-slate-100">
+                        {categoryTools.map((tool) => (
+                          <div key={tool.name} className="py-3 last:pb-0 first:pt-3">
+                            <div className="space-y-1">
+                              <div className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                                <ActivitySquare className="w-3 h-3 text-indigo-500 shrink-0" />
+                                {tool.title}
+                              </div>
+                              <div className="pt-0.5">
+                                <code className="text-[8px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                                  {tool.name}
+                                </code>
+                              </div>
+                              <p className="text-[10px] text-slate-500 leading-normal pt-1">
+                                {tool.description}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         </div>

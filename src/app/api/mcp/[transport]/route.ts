@@ -40,6 +40,7 @@ import {
   saveAccountTriageSettingsInternal,
 } from "@/actions/triage-settings.actions";
 import { db } from "@/db";
+import { withTenantContext } from "@/db/tenant-db";
 import {
   adAccounts,
   mcpSettings,
@@ -1824,7 +1825,9 @@ const authHandler = async (req: Request) => {
     );
   }
 
-  const response = await handler(req);
+  const response = await withTenantContext(validSettings.organizationId, async () => {
+    return await handler(req);
+  });
 
   const newHeaders = new Headers(response.headers);
   newHeaders.set("Access-Control-Allow-Origin", "*");

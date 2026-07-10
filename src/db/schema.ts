@@ -459,7 +459,7 @@ export const threatMatrixAuditRelations = relations(
 
 export const mcpSettings = pgTable("mcp_settings", {
   id: serial("id").primaryKey(),
-  agencyId: integer("agency_id").notNull().unique(), // Link to your agency/tenant
+  organizationId: text("organization_id").notNull().unique(),
   apiKey: varchar("api_key", { length: 255 }).notNull().unique(),
   toolsConfig: jsonb("tools_config").notNull().default({
     godView: true,

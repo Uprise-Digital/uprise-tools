@@ -15,10 +15,72 @@ import { auth } from "@/lib/auth";
 import { fetchCampaignLandingPages } from "@/lib/google-ads";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+function isElementHidden(el: any, $: any): boolean {
+  // 1. Traverse up to check if this is a progressively disclosed element (accordions, tabs, FAQs)
+  // If so, we want to KEEP the content rather than filtering it out as dead code.
+  let current = el;
+  let isProgressiveDisclosure = false;
+  while (current && current.length > 0) {
+    const className = current.attr("class") || "";
+    const idName = current.attr("id") || "";
+    const role = current.attr("role") || "";
+    if (
+      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(className) ||
+      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(idName) ||
+      role === "tabpanel"
+    ) {
+      isProgressiveDisclosure = true;
+      break;
+    }
+    const parentNode = current.parent();
+    if (parentNode && parentNode.length > 0) {
+      const pNode = parentNode[0];
+      if (pNode && pNode.type !== "root" && pNode.name !== "body" && pNode.name !== "html") {
+        current = parentNode;
+      } else {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
 
-// ============================================================================
-// 1. HELPER: SCRAPE & COMPRESS PIPELINE (Bypasses bot checks using scrape.do)
-// ============================================================================
+  if (isProgressiveDisclosure) {
+    // For accordions/tabs, we only filter out if explicitly marked as screen-reader-only
+    if (el.hasClass("sr-only") || el.hasClass("screen-reader-only")) {
+      return true;
+    }
+    return false;
+  }
+
+  // 2. Otherwise apply the standard hidden patterns blocklist
+  const style = el.attr("style") || "";
+  if (
+    /display\s*:\s*none/i.test(style) ||
+    /visibility\s*:\s*hidden/i.test(style) ||
+    el.attr("aria-hidden") === "true" ||
+    el.prop("hidden") === true ||
+    el.hasClass("hidden") ||
+    el.hasClass("d-none") ||
+    el.hasClass("invisible") ||
+    el.hasClass("sr-only") ||
+    el.hasClass("screen-reader-only") ||
+    el.hasClass("hide")
+  ) {
+    return true;
+  }
+
+  const parent = el.parent();
+  if (parent && parent.length > 0) {
+    const parentNode = parent[0];
+    if (parentNode && parentNode.type !== "root" && parentNode.name !== "body" && parentNode.name !== "html") {
+      return isElementHidden(parent, $);
+    }
+  }
+
+  return false;
+}
+
 export async function scrapeAndCompressLandingPage(
   targetUrl: string,
 ): Promise<string> {
@@ -38,17 +100,25 @@ export async function scrapeAndCompressLandingPage(
 
     let highValueHtml = "";
     $("h1, h2, h3").each((_, el) => {
+      const $el = $(el);
+      if (isElementHidden($el, $)) return;
       highValueHtml += `${$.html(el)}<br/>`;
     });
     $("a, button, .btn").each((_, el) => {
+      const $el = $(el);
+      if (isElementHidden($el, $)) return;
       highValueHtml += `${$.html(el)}<br/>`;
     });
     $("ul, ol").each((_, el) => {
+      const $el = $(el);
+      if (isElementHidden($el, $)) return;
       highValueHtml += `${$.html(el)}<br/>`;
     });
     $("p")
       .slice(0, 15)
       .each((_, el) => {
+        const $el = $(el);
+        if (isElementHidden($el, $)) return;
         highValueHtml += `${$.html(el)}<br/>`;
       });
 
@@ -477,6 +547,12 @@ export async function runLandingPageAuditInternal(
       8. Conversion Flow & Page Structure (Problem -> Solution -> Proof -> CTA, simple forms with 3-5 fields)
       9. Australian Market Fit (BNPL options like Afterpay, QBCC compliance, Australian spelling and trade references)
       10. Speed & Technical Basics (Security SSL, pixel tags, layout complexity)
+      
+      ---
+      CRITICAL AUDIT ACCURACY AND FALSE-POSITIVE PREVENTIONS:
+      - Be precise in separating phantom markup (such as hidden desktop/mobile duplicate widgets or background system configurations) from real, visible user issues.
+      - If you detect a critical CRO issue (e.g. missing visible CTA, broken mobile layout, or poor headline match on the active page), flag it with full urgency.
+      - Only soften the warning if you suspect the element is not visually active/rendered for the current visitor screen size (e.g. duplicate mobile layouts scraped on desktop viewport). Do not soften warnings for genuine visible issues.
       
       ---
       CLIENT PAGE CONTEXT (${url}):

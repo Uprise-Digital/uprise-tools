@@ -4,13 +4,36 @@
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
-import { db } from "@/db"; // Adjust path to your db instance
-import { mcpSettings } from "@/db/schema";
+import { db } from "@/db";
+import { mcpSettings, member } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 
-// Mock auth fetcher - replace with your actual session/auth logic
-const getAgencyId = async () => 1;
+/**
+ * Helper: Resolve active organization ID from session
+ */
+async function getActiveOrgId() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  let orgId = session.session.activeOrganizationId;
+  if (!orgId) {
+    const userMember = await db.query.member.findFirst({
+      where: eq(member.userId, session.user.id),
+    });
+    if (userMember) {
+      orgId = userMember.organizationId;
+    }
+  }
+
+  if (!orgId) {
+    throw new Error("No active organization found");
+  }
+
+  return { orgId, userId: session.user.id };
+}
 
 /**
  * Helper: Generate a secure, recognizable API key
@@ -18,13 +41,13 @@ const getAgencyId = async () => 1;
 const generateApiKey = () => `agv_live_${randomBytes(24).toString("hex")}`;
 
 /**
- * Fetch or initialize the MCP settings for the current agency
+ * Fetch or initialize the MCP settings for the current organization
  */
 export async function getMcpSettingsAction() {
-  const agencyId = await getAgencyId();
+  const { orgId } = await getActiveOrgId();
 
   let settings = await db.query.mcpSettings.findFirst({
-    where: eq(mcpSettings.agencyId, agencyId),
+    where: eq(mcpSettings.organizationId, orgId),
   });
 
   // If no settings exist yet, create the default profile
@@ -32,7 +55,7 @@ export async function getMcpSettingsAction() {
     const [newSettings] = await db
       .insert(mcpSettings)
       .values({
-        agencyId,
+        organizationId: orgId,
         apiKey: generateApiKey(),
         toolsConfig: { godView: true, campaignDiagnostics: true },
       })
@@ -47,26 +70,24 @@ export async function getMcpSettingsAction() {
  * Generate and save a new API Key, revoking the old one
  */
 export async function rollMcpApiKeyAction() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error("Unauthorized");
+  const { orgId, userId } = await getActiveOrgId();
 
   try {
-    const agencyId = await getAgencyId();
     const newKey = generateApiKey();
 
     const [updated] = await db
       .update(mcpSettings)
       .set({ apiKey: newKey, updatedAt: new Date() })
-      .where(eq(mcpSettings.agencyId, agencyId))
+      .where(eq(mcpSettings.organizationId, orgId))
       .returning();
 
     // Log the roll key security event
     await logAction(
-      session.user.id,
+      userId,
       "ROLL_MCP_API_KEY",
       "mcp_settings",
-      agencyId,
-      { agencyId, action: "rolled_apiKey" },
+      orgId,
+      { organizationId: orgId, action: "rolled_apiKey" },
     );
 
     return { success: true, apiKey: updated.apiKey };
@@ -82,23 +103,20 @@ export async function rollMcpApiKeyAction() {
 export async function updateMcpToolsAction(
   toolsConfig: Record<string, boolean>,
 ) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error("Unauthorized");
+  const { orgId, userId } = await getActiveOrgId();
 
   try {
-    const agencyId = await getAgencyId();
-
     await db
       .update(mcpSettings)
       .set({ toolsConfig, updatedAt: new Date() })
-      .where(eq(mcpSettings.agencyId, agencyId));
+      .where(eq(mcpSettings.organizationId, orgId));
 
     // Log the tool updates event
     await logAction(
-      session.user.id,
+      userId,
       "UPDATE_MCP_TOOLS",
       "mcp_settings",
-      agencyId,
+      orgId,
       toolsConfig,
     );
 
