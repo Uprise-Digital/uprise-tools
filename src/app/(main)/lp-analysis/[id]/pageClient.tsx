@@ -23,8 +23,8 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { getAuditDetailAction } from "@/actions/lp-analysis.actions";
 import { Badge } from "@/components/ui/badge";
@@ -117,6 +117,9 @@ const getDimensionIcon = (key: string) => {
 
 export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const compareIdParam = searchParams.get("compareId");
+
   const [copied, setCopied] = useState(false);
   const [expandedDimension, setExpandedDimension] = useState<string | null>(
     "hero",
@@ -142,6 +145,12 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
       setLoadingCompare(false);
     }
   };
+
+  useEffect(() => {
+    if (compareIdParam) {
+      handleSelectCompare(Number(compareIdParam));
+    }
+  }, [compareIdParam]);
 
   const report = audit.aiAnalysis;
 

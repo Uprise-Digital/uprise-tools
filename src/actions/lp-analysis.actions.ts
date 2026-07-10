@@ -384,7 +384,16 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
 
   // Map audits back to the campaign list
   return mappings.map((m) => {
-    const latestAudit = latestAuditsMap.get(m.campaignId) || null;
+    const campaignAudits = audits.filter((a) => a.campaignId === m.campaignId);
+    const latestAudit = campaignAudits[0]
+      ? {
+          id: campaignAudits[0].id,
+          score: campaignAudits[0].score,
+          auditType: campaignAudits[0].auditType,
+          createdAt: campaignAudits[0].createdAt,
+        }
+      : null;
+
     return {
       id: m.id,
       campaignId: m.campaignId,
@@ -393,6 +402,12 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
       status: m.status,
       updatedAt: m.updatedAt,
       latestAudit,
+      audits: campaignAudits.map((a) => ({
+        id: a.id,
+        score: a.score,
+        auditType: a.auditType,
+        createdAt: a.createdAt,
+      })),
     };
   });
 }

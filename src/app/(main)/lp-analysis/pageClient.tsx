@@ -2,20 +2,27 @@
 
 import {
   AlertTriangle,
+  ArrowLeft,
   ArrowRight,
+  Check,
+  CheckCircle2,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Edit2,
   ExternalLink,
   Globe,
   Loader2,
+  MoreHorizontal,
   Play,
   Plus,
   RefreshCw,
   Save,
   Search,
+  TrendingUp,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   getCampaignLandingPagesAction,
@@ -26,6 +33,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Card,
   CardContent,
@@ -71,6 +84,12 @@ interface CampaignLP {
     auditType: string;
     createdAt: Date;
   } | null;
+  audits?: {
+    id: number;
+    score: number;
+    auditType: string;
+    createdAt: Date | string;
+  }[];
 }
 
 export default function LpAnalysisClientPage({
@@ -90,6 +109,14 @@ export default function LpAnalysisClientPage({
   const [accountSearchQuery, setAccountSearchQuery] = useState("");
   const [campaigns, setCampaigns] = useState<CampaignLP[]>([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [expandedCampaignIds, setExpandedCampaignIds] = useState<Record<string, boolean>>({});
+
+  const toggleExpandRow = (campaignId: string) => {
+    setExpandedCampaignIds((prev) => ({
+      ...prev,
+      [campaignId]: !prev[campaignId],
+    }));
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [syncingLps, setSyncingLps] = useState(false);
 
@@ -389,7 +416,7 @@ export default function LpAnalysisClientPage({
 
         {/* ── CAMPAIGNS AND URL LIST ── */}
         <Card className="col-span-1 md:col-span-3 border-slate-200 shadow-sm">
-          <CardHeader className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center border-b border-slate-100 bg-slate-50/50 py-4 gap-3">
+          <CardHeader className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center border-b border-slate-100 bg-slate-50/50 py-3 [.border-b]:pb-3 px-6 gap-3">
             <div>
               <CardTitle className="text-base font-bold text-slate-800">
                 {selectedAccountName}
@@ -449,142 +476,251 @@ export default function LpAnalysisClientPage({
                 <TableBody>
                   {filteredCampaigns.map((c) => {
                     const isEditing = editingCampaignId === c.campaignId;
+                    const isExpanded = expandedCampaignIds[c.campaignId];
                     return (
-                      <TableRow
-                        key={c.campaignId}
-                        className="hover:bg-slate-50/30 transition-colors"
-                      >
-                        <TableCell className="font-semibold text-slate-900 text-xs pl-6">
-                          <div className="flex items-center gap-2.5">
-                            <span
-                              className={`h-2.5 w-2.5 rounded-full shrink-0 inline-block transition-colors cursor-help ${
-                                c.status === "ENABLED"
-                                  ? "bg-emerald-500 shadow-sm shadow-emerald-500/20"
-                                  : "bg-slate-400 shadow-sm shadow-slate-400/20"
-                              }`}
-                              title={`Status: ${c.status === "ENABLED" ? "Active" : "Paused"}`}
-                            />
-                            <span>{c.campaignName}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {isEditing ? (
-                            <div className="flex items-center gap-2 max-w-lg">
-                              <Input
-                                value={editUrlValue}
-                                onChange={(e) =>
-                                  setEditUrlValue(e.target.value)
-                                }
-                                className="h-8 text-xs bg-white"
-                                placeholder="https://myclient.com/landing-page"
-                              />
-                              <Button
-                                size="icon"
-                                className="h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
-                                onClick={() => saveUrl(c)}
-                                disabled={savingUrl}
-                              >
-                                {savingUrl ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <Save className="h-3.5 w-3.5" />
-                                )}
-                              </Button>
-                            </div>
-                          ) : c.url ? (
-                            <div className="flex items-center gap-1.5 text-slate-600 font-medium">
-                              <a
-                                href={c.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="hover:text-indigo-600 transition-colors flex items-center gap-1 break-all max-w-[320px]"
-                              >
-                                {c.url}{" "}
-                                <ExternalLink className="h-3 w-3 inline opacity-50" />
-                              </a>
-                              <button
-                                onClick={() => startEditing(c)}
-                                className="text-slate-400 hover:text-indigo-600 p-1 rounded transition-colors ml-1"
-                              >
-                                <Edit2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-400 italic">
-                                No URL linked
-                              </span>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 p-1"
-                                onClick={() => startEditing(c)}
-                              >
-                                <Plus className="h-3 w-3 mr-0.5" /> Attach URL
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="align-middle">
-                          {c.latestAudit ? (
-                            <div className="flex flex-col gap-1 items-start">
-                              <Badge
-                                variant="outline"
-                                className={`rounded-md cursor-pointer font-bold border ${getScoreBadgeStyles(
-                                  c.latestAudit.score,
-                                )}`}
-                                onClick={() =>
-                                  router.push(`/lp-analysis/${c.latestAudit!.id}`)
-                                }
-                              >
-                                {c.latestAudit.score} / 100
-                              </Badge>
-                              <span className="text-[9px] text-slate-400 font-semibold pl-0.5 whitespace-nowrap">
-                                {new Date(c.latestAudit.createdAt).toLocaleDateString("en-AU", {
-                                  day: "numeric",
-                                  month: "short",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  hour12: true,
-                                }).toLowerCase()}
-                              </span>
-                              {c.latestAudit.auditType === "VISUAL" ? (
-                                <span className="text-[8px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded px-1 py-0.5 mt-0.5 uppercase tracking-wide">
-                                  Visual
-                                </span>
+                      <React.Fragment key={c.campaignId}>
+                        <TableRow className="hover:bg-slate-50/30 transition-colors">
+                          <TableCell className="font-semibold text-slate-900 text-xs pl-6">
+                            <div className="flex items-center gap-1.5">
+                              {c.audits && c.audits.length > 0 ? (
+                                <button
+                                  onClick={() => toggleExpandRow(c.campaignId)}
+                                  className="text-slate-400 hover:text-indigo-650 transition-colors p-1 -ml-2 rounded-md hover:bg-slate-100"
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-3.5 w-3.5" />
+                                  ) : (
+                                    <ChevronDown className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
                               ) : (
-                                <span className="text-[8px] font-extrabold text-slate-500 bg-slate-50 border border-slate-100 rounded px-1 py-0.5 mt-0.5 uppercase tracking-wide">
-                                  Source
-                                </span>
+                                <div className="w-6 h-6 shrink-0 -ml-2" />
                               )}
+                              <span
+                                className={`h-2.5 w-2.5 rounded-full shrink-0 inline-block transition-colors cursor-help ${
+                                  c.status === "ENABLED"
+                                    ? "bg-emerald-500 shadow-sm shadow-emerald-500/20"
+                                    : "bg-slate-400 shadow-sm shadow-slate-400/20"
+                                }`}
+                                title={`Status: ${c.status === "ENABLED" ? "Active" : "Paused"}`}
+                              />
+                              <span>{c.campaignName}</span>
                             </div>
-                          ) : (
-                            <span className="text-slate-400 text-xs italic">
-                              Not Audited
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right pr-6">
-                          {c.url ? (
-                            <Button
-                              onClick={() => openAuditModal(c)}
-                              size="sm"
-                              className="h-8 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 ml-auto"
-                            >
-                              <Play className="h-3 w-3 fill-current" /> Run
-                              Audit
-                            </Button>
-                          ) : (
-                            <Button
-                              disabled
-                              size="sm"
-                              className="h-8 text-xs font-semibold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed ml-auto"
-                            >
-                              Attach URL first
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {isEditing ? (
+                              <div className="flex items-center gap-2 max-w-lg">
+                                <Input
+                                  value={editUrlValue}
+                                  onChange={(e) =>
+                                    setEditUrlValue(e.target.value)
+                                  }
+                                  className="h-8 text-xs bg-white"
+                                  placeholder="https://myclient.com/landing-page"
+                                />
+                                <Button
+                                  size="icon"
+                                  className="h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+                                  onClick={() => saveUrl(c)}
+                                  disabled={savingUrl}
+                                >
+                                  {savingUrl ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Save className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              </div>
+                            ) : c.url ? (
+                              <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                                <a
+                                  href={c.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="hover:text-indigo-655 transition-colors flex items-center gap-1 break-all max-w-[320px]"
+                                >
+                                  {c.url}{" "}
+                                  <ExternalLink className="h-3 w-3 inline opacity-50" />
+                                </a>
+                                <button
+                                  onClick={() => startEditing(c)}
+                                  className="text-slate-400 hover:text-indigo-600 p-1 rounded transition-colors ml-1"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-400 italic">
+                                  No URL linked
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 p-1"
+                                  onClick={() => startEditing(c)}
+                                >
+                                  <Plus className="h-3 w-3 mr-0.5" /> Attach URL
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="align-middle">
+                            {c.latestAudit ? (
+                              <div className="flex flex-col gap-1 items-start">
+                                <Badge
+                                  variant="outline"
+                                  className={`rounded-md cursor-pointer font-bold border ${getScoreBadgeStyles(
+                                    c.latestAudit.score,
+                                  )}`}
+                                  onClick={() =>
+                                    router.push(`/lp-analysis/${c.latestAudit!.id}`)
+                                  }
+                                >
+                                  {c.latestAudit.score} / 100
+                                </Badge>
+                                <span className="text-[9px] text-slate-400 font-semibold pl-0.5 whitespace-nowrap">
+                                  {new Date(c.latestAudit.createdAt).toLocaleDateString("en-AU", {
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  }).toLowerCase()}
+                                </span>
+                                {c.latestAudit.auditType === "VISUAL" ? (
+                                  <span className="text-[8px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded px-1 py-0.5 mt-0.5 uppercase tracking-wide">
+                                    Visual
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] font-extrabold text-slate-500 bg-slate-50 border border-slate-100 rounded px-1 py-0.5 mt-0.5 uppercase tracking-wide">
+                                    Source
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-xs italic">
+                                Not Audited
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right pr-6 align-middle">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 hover:bg-slate-100 rounded-md border border-slate-200"
+                                >
+                                  <MoreHorizontal className="h-4 w-4 text-slate-500" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-56 bg-white border border-slate-200 shadow-md rounded-lg p-1 z-50">
+                                <DropdownMenuItem
+                                  disabled={!c.url}
+                                  onClick={() => openAuditModal(c)}
+                                  className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer p-2 rounded focus:bg-slate-50 focus:text-slate-800"
+                                >
+                                  <Play className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                                  Run CRO Audit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={!c.latestAudit}
+                                  onClick={() => {
+                                    if (c.latestAudit) {
+                                      router.push(`/lp-analysis/${c.latestAudit.id}`);
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer p-2 rounded focus:bg-slate-50 focus:text-slate-800"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                                  Open Latest Audit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={!c.audits || c.audits.length < 2}
+                                  onClick={() => {
+                                    if (c.audits && c.audits.length >= 2) {
+                                      router.push(
+                                        `/lp-analysis/${c.audits[0].id}?compareId=${c.audits[1].id}`
+                                      );
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer p-2 rounded focus:bg-slate-50 focus:text-slate-800"
+                                >
+                                  <TrendingUp className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                  Compare Last Two Audits
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+
+                        {isExpanded && c.audits && c.audits.length > 0 && (
+                          <TableRow className="bg-slate-50/40 border-t border-slate-150">
+                            <TableCell colSpan={4} className="pl-14 py-3 bg-slate-50/20 pr-6">
+                              <div className="border-l-2 border-indigo-200 pl-4 space-y-2">
+                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                  Audit History Run Log
+                                </div>
+                                <div className="border border-slate-150 rounded-lg overflow-hidden bg-white shadow-sm max-h-[300px] overflow-y-auto">
+                                  <Table>
+                                    <TableHeader className="bg-slate-50/30">
+                                      <TableRow className="h-8 border-b">
+                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 pl-4 h-8 w-[40%]">Execution Time</TableHead>
+                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 h-8 w-[25%] text-center">Score</TableHead>
+                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 h-8 w-[20%] text-center">Audit Type</TableHead>
+                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 pr-4 h-8 w-[15%] text-right">Action</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {c.audits.map((a) => (
+                                        <TableRow key={a.id} className="h-9 hover:bg-slate-50/60 border-b last:border-0">
+                                          <TableCell className="text-xs text-slate-600 py-1.5 pl-4 h-9 font-medium">
+                                            {new Date(a.createdAt).toLocaleDateString("en-AU", {
+                                              day: "numeric",
+                                              month: "short",
+                                              year: "numeric",
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                              hour12: true,
+                                            }).toLowerCase()}
+                                          </TableCell>
+                                          <TableCell className="text-center py-1.5 h-9">
+                                            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border inline-block ${getScoreBadgeStyles(a.score)}`}>
+                                              {a.score} / 100
+                                            </span>
+                                          </TableCell>
+                                          <TableCell className="text-center py-1.5 h-9">
+                                            {a.auditType === "VISUAL" ? (
+                                              <span className="text-[8px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded px-1.5 py-0.5 uppercase tracking-wide">
+                                                Visual
+                                              </span>
+                                            ) : (
+                                              <span className="text-[8px] font-extrabold text-slate-500 bg-slate-50 border border-slate-100 rounded px-1.5 py-0.5 uppercase tracking-wide">
+                                                Source
+                                              </span>
+                                            )}
+                                          </TableCell>
+                                          <TableCell className="text-right py-1.5 pr-4 h-9">
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 text-[10px] font-extrabold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50/50 p-1"
+                                              onClick={() => router.push(`/lp-analysis/${a.id}`)}
+                                            >
+                                              View Report →
+                                            </Button>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </TableBody>
