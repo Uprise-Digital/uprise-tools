@@ -535,44 +535,99 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
             <CardContent className="p-5 bg-slate-50/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {/* Past Screenshot */}
-                <div className="flex flex-col items-center gap-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5 pl-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                     Past Layout ({new Date(compareAuditData.createdAt).toLocaleDateString("en-AU")})
                   </span>
-                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white p-1.5 flex items-center justify-center w-full max-h-[360px] h-[360px]">
-                    {(compareViewportMode === "desktop" ? compareAuditData.screenshotUrl : compareAuditData.screenshotMobileUrl) ? (
-                      <img
-                        src={compareViewportMode === "desktop" ? compareAuditData.screenshotUrl! : compareAuditData.screenshotMobileUrl!}
-                        alt="Past Screenshot"
-                        className="max-h-[340px] w-auto object-contain rounded-lg"
-                      />
-                    ) : (
-                      <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 font-semibold italic">
-                        No snapshot captured
+                  
+                  {compareViewportMode === "desktop" ? (
+                    /* Desktop Browser Frame */
+                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-slate-100 flex flex-col h-[380px]">
+                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center gap-1.5 shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
                       </div>
-                    )}
-                  </div>
+                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                        {compareAuditData.screenshotUrl ? (
+                          <img
+                            src={compareAuditData.screenshotUrl}
+                            alt="Past Desktop"
+                            className="w-full h-auto object-cover"
+                          />
+                        ) : (
+                          <div className="m-auto text-xs text-slate-400 font-semibold italic">No snapshot captured</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Mobile Device Frame */
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-100 flex flex-col h-[380px] max-w-[260px] mx-auto w-full">
+                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center justify-center shrink-0">
+                        <span className="w-6 h-1.5 rounded-full bg-slate-300 inline-block" />
+                      </div>
+                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                        {compareAuditData.screenshotMobileUrl ? (
+                          <img
+                            src={compareAuditData.screenshotMobileUrl}
+                            alt="Past Mobile"
+                            className="w-full h-auto object-cover"
+                          />
+                        ) : (
+                          <div className="m-auto text-xs text-slate-400 font-semibold italic">No snapshot captured</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
+
                 {/* Current Screenshot */}
-                <div className="flex flex-col items-center gap-2">
-                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-1.5 pl-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                     Current Layout ({new Date(audit.createdAt).toLocaleDateString("en-AU")})
                   </span>
-                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white p-1.5 flex items-center justify-center w-full max-h-[360px] h-[360px]">
-                    {(compareViewportMode === "desktop" ? audit.screenshotUrl : audit.screenshotMobileUrl) ? (
-                      <img
-                        src={compareViewportMode === "desktop" ? audit.screenshotUrl! : audit.screenshotMobileUrl!}
-                        alt="Current Screenshot"
-                        className="max-h-[340px] w-auto object-contain rounded-lg"
-                      />
-                    ) : (
-                      <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 font-semibold italic">
-                        No snapshot captured
+                  
+                  {compareViewportMode === "desktop" ? (
+                    /* Desktop Browser Frame */
+                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-slate-100 flex flex-col h-[380px]">
+                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center gap-1.5 shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
                       </div>
-                    )}
-                  </div>
+                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                        {audit.screenshotUrl ? (
+                          <img
+                            src={audit.screenshotUrl}
+                            alt="Current Desktop"
+                            className="w-full h-auto object-cover"
+                          />
+                        ) : (
+                          <div className="m-auto text-xs text-slate-400 font-semibold italic">No snapshot captured</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Mobile Device Frame */
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-100 flex flex-col h-[380px] max-w-[260px] mx-auto w-full">
+                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center justify-center shrink-0">
+                        <span className="w-6 h-1.5 rounded-full bg-slate-300 inline-block" />
+                      </div>
+                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                        {audit.screenshotMobileUrl ? (
+                          <img
+                            src={audit.screenshotMobileUrl}
+                            alt="Current Mobile"
+                            className="w-full h-auto object-cover"
+                          />
+                        ) : (
+                          <div className="m-auto text-xs text-slate-400 font-semibold italic">No snapshot captured</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -584,10 +639,13 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
             <CardHeader className="py-2.5 px-5 bg-slate-50/50 border-b">
               <div>
                 <CardTitle className="text-[11px] uppercase font-extrabold text-slate-400 tracking-wider">
-                  Page Visual Snapshot Viewports
+                  {audit.screenshotMobileUrl ? "Page Visual Snapshot Viewports" : "Page Visual Screenshot"}
                 </CardTitle>
                 <CardDescription className="text-[10px] text-slate-500 mt-0.5">
-                  Captured desktop (1280x800) and mobile (375x812) layouts at execution time
+                  {audit.screenshotMobileUrl 
+                    ? "Captured desktop (1280x800) and mobile (375x812) layouts at execution time"
+                    : "Captured viewport snapshot at execution time"
+                  }
                 </CardDescription>
               </div>
             </CardHeader>
@@ -600,12 +658,20 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                       Desktop Layout (1280px)
                     </div>
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white p-1.5 flex items-center justify-center h-full max-h-[420px] min-h-[320px]">
-                      <img
-                        src={audit.screenshotUrl}
-                        alt="Desktop Screenshot"
-                        className="max-h-[400px] w-auto object-contain rounded-lg"
-                      />
+                    {/* Browser Mockup */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-slate-100 flex flex-col h-full max-h-[420px] min-h-[320px]">
+                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center gap-1.5 shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+                      </div>
+                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                        <img
+                          src={audit.screenshotUrl}
+                          alt="Desktop Screenshot"
+                          className="w-full h-auto object-cover"
+                        />
+                      </div>
                     </div>
                   </div>
                   {/* Mobile Viewport */}
@@ -614,26 +680,41 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       Mobile Layout (375px)
                     </div>
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white p-1.5 flex items-center justify-center h-full max-h-[420px] min-h-[320px]">
-                      <img
-                        src={audit.screenshotMobileUrl}
-                        alt="Mobile Screenshot"
-                        className="max-h-[400px] w-auto object-contain rounded-lg"
-                      />
+                    {/* Mobile Phone Mockup */}
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-100 flex flex-col h-full max-h-[420px] min-h-[320px] max-w-[260px] mx-auto w-full">
+                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center justify-center shrink-0">
+                        <span className="w-6 h-1.5 rounded-full bg-slate-300 inline-block" />
+                      </div>
+                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                        <img
+                          src={audit.screenshotMobileUrl}
+                          alt="Mobile Screenshot"
+                          className="w-full h-auto object-cover"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                <div className="flex flex-col gap-2">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                     Desktop Viewport (1280px)
                   </div>
-                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white p-1.5 flex items-center justify-center max-w-3xl w-full">
-                    <img
-                      src={audit.screenshotUrl}
-                      alt="Desktop Screenshot"
-                      className="max-h-[350px] w-auto object-contain rounded-lg"
-                    />
+                  {/* Browser Mockup */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-slate-100 flex flex-col max-w-4xl mx-auto w-full h-[400px]">
+                    <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex items-center gap-1.5 shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                      <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+                    </div>
+                    <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                      <img
+                        src={audit.screenshotUrl}
+                        alt="Desktop Screenshot"
+                        className="w-full h-auto object-cover"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -904,7 +985,7 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
             <Table>
               <TableHeader className="bg-slate-50/30">
                 <TableRow>
-                  <TableHead className="font-bold text-xs pl-6">
+                  <TableHead className="font-bold text-xs pl-6 w-[20%]">
                     Competitor URL/Domain
                   </TableHead>
                   <TableHead className="font-bold text-xs text-center w-[12%]">
@@ -916,7 +997,7 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                   <TableHead className="font-bold text-xs w-[25%]">
                     Key Flaws
                   </TableHead>
-                  <TableHead className="font-bold text-xs pr-6">
+                  <TableHead className="font-bold text-xs pr-6 w-[18%]">
                     Takeaway for Client
                   </TableHead>
                 </TableRow>
@@ -924,7 +1005,7 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
               <TableBody>
                 {/* Client page as reference */}
                 <TableRow className="bg-indigo-50/10 font-medium">
-                  <TableCell className="pl-6 text-xs text-indigo-700 font-bold">
+                  <TableCell className="pl-6 text-xs text-indigo-700 font-bold whitespace-normal">
                     Client: {new URL(audit.url).hostname}
                   </TableCell>
                   <TableCell className="text-center">
@@ -935,13 +1016,13 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                       {audit.score} / 100
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-xs text-slate-600 italic">
+                  <TableCell className="text-xs text-slate-600 italic whitespace-normal">
                     Reference Client Page
                   </TableCell>
-                  <TableCell className="text-xs text-slate-600 italic">
+                  <TableCell className="text-xs text-slate-600 italic whitespace-normal">
                     Reference Client Page
                   </TableCell>
-                  <TableCell className="text-xs text-slate-600 italic">
+                  <TableCell className="text-xs text-slate-600 italic whitespace-normal">
                     Reference Client Page
                   </TableCell>
                 </TableRow>
@@ -952,7 +1033,7 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                     key={idx}
                     className="hover:bg-slate-50/30 transition-colors"
                   >
-                    <TableCell className="pl-6 text-xs text-slate-900 font-semibold break-all max-w-[200px]">
+                    <TableCell className="pl-6 text-xs text-slate-900 font-semibold break-all max-w-[200px] whitespace-normal">
                       {comp.url ? (
                         <a
                           href={comp.url}
@@ -975,7 +1056,7 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                         {comp.score * 10} / 100
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-600 py-3.5">
+                    <TableCell className="text-xs text-slate-600 py-3.5 whitespace-normal">
                       <ul className="space-y-1">
                         {comp.pros?.map((p: string, pIdx: number) => (
                           <li key={pIdx} className="flex items-start gap-1">
@@ -987,7 +1068,7 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                         ))}
                       </ul>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-600 py-3.5">
+                    <TableCell className="text-xs text-slate-600 py-3.5 whitespace-normal">
                       <ul className="space-y-1">
                         {comp.cons?.map((c: string, cIdx: number) => (
                           <li key={cIdx} className="flex items-start gap-1">
@@ -997,7 +1078,7 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                         ))}
                       </ul>
                     </TableCell>
-                    <TableCell className="text-xs font-bold text-slate-800 pr-6">
+                    <TableCell className="text-xs font-bold text-slate-800 pr-6 whitespace-normal">
                       {comp.takeaway}
                     </TableCell>
                   </TableRow>
@@ -1037,10 +1118,10 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                 <TableHead className="font-bold text-xs pl-6 w-[8%] text-center">
                   #
                 </TableHead>
-                <TableHead className="font-bold text-xs w-[45%]">
+                <TableHead className="font-bold text-xs w-[25%]">
                   Optimisation Idea
                 </TableHead>
-                <TableHead className="font-bold text-xs w-[25%]">
+                <TableHead className="font-bold text-xs w-[45%]">
                   Why It Matters
                 </TableHead>
                 <TableHead className="font-bold text-xs text-center w-[11%]">
@@ -1060,10 +1141,10 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                   <TableCell className="pl-6 text-xs font-bold text-slate-400 text-center">
                     {idx + 1}
                   </TableCell>
-                  <TableCell className="text-xs font-bold text-slate-800 py-3.5 leading-normal">
+                  <TableCell className="text-xs font-bold text-slate-800 py-3.5 leading-normal whitespace-normal">
                     {item.idea}
                   </TableCell>
-                  <TableCell className="text-xs text-slate-600 py-3.5 leading-normal">
+                  <TableCell className="text-xs text-slate-600 py-3.5 leading-normal whitespace-normal">
                     {item.why}
                   </TableCell>
                   <TableCell className="text-center">
