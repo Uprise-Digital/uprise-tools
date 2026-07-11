@@ -572,7 +572,7 @@ export async function getAccountByIdAction(id: number) {
 // HELPER: shared Google Ads POST fetch
 // ---------------------------------------------------------------------------
 async function gaqlFetch(googleAccountId: string, query: string) {
-  const accessToken = await getManagementAccessToken();
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
   const sanitizedId = googleAccountId.replace(/-/g, "");
 
   const response = await fetch(
@@ -583,7 +583,7 @@ async function gaqlFetch(googleAccountId: string, query: string) {
         "Content-Type": "application/json",
         "developer-token": DEVELOPER_TOKEN,
         Authorization: `Bearer ${accessToken}`,
-        "login-customer-id": MANAGER_ID,
+        "login-customer-id": managerCustomerId || MANAGER_ID,
       },
       body: JSON.stringify({ query }),
     },
