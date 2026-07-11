@@ -2,10 +2,7 @@
 
 import {
   AlertTriangle,
-  ArrowLeft,
   ArrowRight,
-  Check,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -32,13 +29,6 @@ import {
 } from "@/actions/lp-analysis.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Card,
   CardContent,
@@ -46,6 +36,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +45,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -103,13 +100,17 @@ export default function LpAnalysisClientPage({
 
   // Selection & Search State
   const [selectedAccountId, setSelectedAccountId] = useState<number>(
-    paramAccountId ? Number(paramAccountId) : (accounts[0]?.id || 0),
+    paramAccountId ? Number(paramAccountId) : accounts[0]?.id || 0,
   );
-  const selectedAccountName = accounts.find((acc) => acc.id === selectedAccountId)?.name || "Campaign Landing Pages";
+  const selectedAccountName =
+    accounts.find((acc) => acc.id === selectedAccountId)?.name ||
+    "Campaign Landing Pages";
   const [accountSearchQuery, setAccountSearchQuery] = useState("");
   const [campaigns, setCampaigns] = useState<CampaignLP[]>([]);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
-  const [expandedCampaignIds, setExpandedCampaignIds] = useState<Record<string, boolean>>({});
+  const [expandedCampaignIds, setExpandedCampaignIds] = useState<
+    Record<string, boolean>
+  >({});
 
   const toggleExpandRow = (campaignId: string) => {
     setExpandedCampaignIds((prev) => ({
@@ -574,19 +575,23 @@ export default function LpAnalysisClientPage({
                                     c.latestAudit.score,
                                   )}`}
                                   onClick={() =>
-                                    router.push(`/lp-analysis/${c.latestAudit!.id}`)
+                                    router.push(
+                                      `/lp-analysis/${c.latestAudit!.id}`,
+                                    )
                                   }
                                 >
                                   {c.latestAudit.score} / 100
                                 </Badge>
                                 <span className="text-[9px] text-slate-400 font-semibold pl-0.5 whitespace-nowrap">
-                                  {new Date(c.latestAudit.createdAt).toLocaleDateString("en-AU", {
-                                    day: "numeric",
-                                    month: "short",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                    hour12: true,
-                                  }).toLowerCase()}
+                                  {new Date(c.latestAudit.createdAt)
+                                    .toLocaleDateString("en-AU", {
+                                      day: "numeric",
+                                      month: "short",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    })
+                                    .toLowerCase()}
                                 </span>
                                 {c.latestAudit.auditType === "VISUAL" ? (
                                   <span className="text-[8px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded px-1 py-0.5 mt-0.5 uppercase tracking-wide">
@@ -615,7 +620,10 @@ export default function LpAnalysisClientPage({
                                   <MoreHorizontal className="h-4 w-4 text-slate-500" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-56 bg-white border border-slate-200 shadow-md rounded-lg p-1 z-50">
+                              <DropdownMenuContent
+                                align="end"
+                                className="w-56 bg-white border border-slate-200 shadow-md rounded-lg p-1 z-50"
+                              >
                                 <DropdownMenuItem
                                   disabled={!c.url}
                                   onClick={() => openAuditModal(c)}
@@ -628,7 +636,9 @@ export default function LpAnalysisClientPage({
                                   disabled={!c.latestAudit}
                                   onClick={() => {
                                     if (c.latestAudit) {
-                                      router.push(`/lp-analysis/${c.latestAudit.id}`);
+                                      router.push(
+                                        `/lp-analysis/${c.latestAudit.id}`,
+                                      );
                                     }
                                   }}
                                   className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer p-2 rounded focus:bg-slate-50 focus:text-slate-800"
@@ -641,7 +651,7 @@ export default function LpAnalysisClientPage({
                                   onClick={() => {
                                     if (c.audits && c.audits.length >= 2) {
                                       router.push(
-                                        `/lp-analysis/${c.audits[0].id}?compareId=${c.audits[1].id}`
+                                        `/lp-analysis/${c.audits[0].id}?compareId=${c.audits[1].id}`,
                                       );
                                     }
                                   }}
@@ -657,33 +667,51 @@ export default function LpAnalysisClientPage({
 
                         {isExpanded && c.audits && c.audits.length > 0 && (
                           <TableRow className="bg-slate-50/40 border-t border-slate-150">
-                            <TableCell colSpan={4} className="pl-14 py-3 bg-slate-50/20 pr-6">
+                            <TableCell
+                              colSpan={4}
+                              className="pl-14 py-3 bg-slate-50/20 pr-6"
+                            >
                               <div className="space-y-2">
                                 <div className="border border-slate-150 rounded-lg overflow-hidden bg-white shadow-sm max-h-[300px] overflow-y-auto">
                                   <Table>
                                     <TableHeader className="bg-slate-50/30">
                                       <TableRow className="h-8 border-b">
-                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 pl-4 h-8 w-[40%]">Execution Time</TableHead>
-                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 h-8 w-[25%] text-center">Score</TableHead>
-                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 h-8 w-[20%] text-center">Audit Type</TableHead>
-                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 pr-4 h-8 w-[15%] text-right">Action</TableHead>
+                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 pl-4 h-8 w-[40%]">
+                                          Execution Time
+                                        </TableHead>
+                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 h-8 w-[25%] text-center">
+                                          Score
+                                        </TableHead>
+                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 h-8 w-[20%] text-center">
+                                          Audit Type
+                                        </TableHead>
+                                        <TableHead className="text-[10px] font-bold text-slate-500 py-1.5 pr-4 h-8 w-[15%] text-right">
+                                          Action
+                                        </TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                       {c.audits.map((a) => (
-                                        <TableRow key={a.id} className="h-9 hover:bg-slate-50/60 border-b last:border-0">
+                                        <TableRow
+                                          key={a.id}
+                                          className="h-9 hover:bg-slate-50/60 border-b last:border-0"
+                                        >
                                           <TableCell className="text-xs text-slate-600 py-1.5 pl-4 h-9 font-medium">
-                                            {new Date(a.createdAt).toLocaleDateString("en-AU", {
-                                              day: "numeric",
-                                              month: "short",
-                                              year: "numeric",
-                                              hour: "2-digit",
-                                              minute: "2-digit",
-                                              hour12: true,
-                                            }).toLowerCase()}
+                                            {new Date(a.createdAt)
+                                              .toLocaleDateString("en-AU", {
+                                                day: "numeric",
+                                                month: "short",
+                                                year: "numeric",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                                hour12: true,
+                                              })
+                                              .toLowerCase()}
                                           </TableCell>
                                           <TableCell className="text-center py-1.5 h-9">
-                                            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border inline-block ${getScoreBadgeStyles(a.score)}`}>
+                                            <span
+                                              className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border inline-block ${getScoreBadgeStyles(a.score)}`}
+                                            >
                                               {a.score} / 100
                                             </span>
                                           </TableCell>
@@ -703,7 +731,11 @@ export default function LpAnalysisClientPage({
                                               size="sm"
                                               variant="ghost"
                                               className="h-6 text-[10px] font-extrabold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50/50 p-1"
-                                              onClick={() => router.push(`/lp-analysis/${a.id}`)}
+                                              onClick={() =>
+                                                router.push(
+                                                  `/lp-analysis/${a.id}`,
+                                                )
+                                              }
                                             >
                                               View Report →
                                             </Button>
@@ -810,7 +842,8 @@ export default function LpAnalysisClientPage({
                     Visual CRO Audit (JavaScript Rendering + Screenshot)
                   </Label>
                   <p className="text-[10px] text-slate-400 leading-tight">
-                    Uses headless Chromium browser to capture layout screenshots and run a visual/layout analysis.
+                    Uses headless Chromium browser to capture layout screenshots
+                    and run a visual/layout analysis.
                   </p>
                 </div>
               </div>

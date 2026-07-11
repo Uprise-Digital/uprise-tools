@@ -1,10 +1,10 @@
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { MainLayout } from "@/components/main-layout";
-import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { member, organization } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 
 export default async function DashboardLayout({
   children,
@@ -31,11 +31,13 @@ export default async function DashboardLayout({
     .where(eq(member.userId, session.user.id));
 
   console.log(
-    `[Layout Check] User: ${session.user.email} (${session.user.id}), Memberships Count: ${userOrgs.length}`
+    `[Layout Check] User: ${session.user.email} (${session.user.id}), Memberships Count: ${userOrgs.length}`,
   );
 
   if (userOrgs.length === 0) {
-    console.log(`[Layout Check] No memberships found. Redirecting user to /onboarding`);
+    console.log(
+      `[Layout Check] No memberships found. Redirecting user to /onboarding`,
+    );
     redirect("/onboarding");
   }
 
@@ -44,7 +46,8 @@ export default async function DashboardLayout({
     activeOrgId = userOrgs[0]?.id;
   }
 
-  const activeOrg = userOrgs.find((org) => org.id === activeOrgId) || userOrgs[0];
+  const activeOrg =
+    userOrgs.find((org) => org.id === activeOrgId) || userOrgs[0];
   const userInitials = session.user.name.substring(0, 2).toUpperCase();
   const userName = session.user.name;
 
@@ -59,4 +62,3 @@ export default async function DashboardLayout({
     </MainLayout>
   );
 }
-

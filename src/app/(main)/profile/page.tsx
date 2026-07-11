@@ -1,5 +1,6 @@
 "use client";
 
+import { KeyRound, Loader2, User as UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
-import { User as UserIcon, KeyRound, Loader2 } from "lucide-react";
 
 export default function ProfilePage() {
   const { data: session, isPending } = authClient.useSession();
@@ -72,7 +72,9 @@ export default function ProfilePage() {
     return (
       <div className="max-w-xl mx-auto py-8 flex flex-col items-center justify-center min-h-[300px] text-slate-400">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
-        <span className="text-xs font-bold tracking-wide">Loading profile...</span>
+        <span className="text-xs font-bold tracking-wide">
+          Loading profile...
+        </span>
       </div>
     );
   }
@@ -102,7 +104,10 @@ export default function ProfilePage() {
         <CardContent className="p-6">
           <form onSubmit={handleUpdateProfile} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs font-bold text-slate-700">
+              <Label
+                htmlFor="email"
+                className="text-xs font-bold text-slate-700"
+              >
                 Email Address
               </Label>
               <Input
@@ -113,7 +118,10 @@ export default function ProfilePage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="name" className="text-xs font-bold text-slate-700">
+              <Label
+                htmlFor="name"
+                className="text-xs font-bold text-slate-700"
+              >
                 Full Name
               </Label>
               <Input
@@ -147,7 +155,10 @@ export default function ProfilePage() {
         <CardContent className="p-6">
           <form onSubmit={handleChangePassword} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="current" className="text-xs font-bold text-slate-700">
+              <Label
+                htmlFor="current"
+                className="text-xs font-bold text-slate-700"
+              >
                 Current Password
               </Label>
               <Input

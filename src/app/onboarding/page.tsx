@@ -1,9 +1,9 @@
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { member, organization } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 import OnboardingClient from "./onboarding-client";
 
 export default async function OnboardingPage() {
@@ -66,7 +66,9 @@ export default async function OnboardingPage() {
       <div className="max-w-md w-full space-y-8 bg-slate-900/40 border border-slate-800/80 backdrop-blur-xl p-8 rounded-2xl shadow-2xl relative">
         <div className="text-center">
           <div className="inline-flex items-center justify-center p-2.5 bg-indigo-600/10 text-indigo-400 rounded-xl border border-indigo-500/20 mb-4">
-            <span className="text-xl font-bold tracking-wider uppercase">Uprise</span>
+            <span className="text-xl font-bold tracking-wider uppercase">
+              Uprise
+            </span>
           </div>
           <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">
             Let's setup your agency

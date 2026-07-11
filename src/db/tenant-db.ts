@@ -7,12 +7,12 @@ import { db } from "./index";
  */
 export async function withTenantContext<T>(
   organizationId: string,
-  callback: (tx: typeof db) => Promise<T>
+  callback: (tx: typeof db) => Promise<T>,
 ): Promise<T> {
   return await db.transaction(async (tx) => {
     // Inject the organization ID context for the duration of this transaction
     await tx.execute(
-      sql`SELECT set_config('app.current_organization_id', ${organizationId}, true)`
+      sql`SELECT set_config('app.current_organization_id', ${organizationId}, true)`,
     );
     return await callback(tx as any);
   });

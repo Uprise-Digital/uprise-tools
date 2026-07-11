@@ -125,11 +125,13 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
   const [expandedDimension, setExpandedDimension] = useState<string | null>(
     "hero",
   );
-  
+
   const [compareAuditId, setCompareAuditId] = useState<number | null>(null);
   const [compareAuditData, setCompareAuditData] = useState<any | null>(null);
   const [loadingCompare, setLoadingCompare] = useState(false);
-  const [compareViewportMode, setCompareViewportMode] = useState<"desktop" | "mobile">("desktop");
+  const [compareViewportMode, setCompareViewportMode] = useState<
+    "desktop" | "mobile"
+  >("desktop");
 
   const handleSelectCompare = async (id: number) => {
     setCompareAuditId(id);
@@ -271,7 +273,9 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => router.push(`/lp-analysis?accountId=${audit.adAccountId}`)}
+            onClick={() =>
+              router.push(`/lp-analysis?accountId=${audit.adAccountId}`)
+            }
             className="border-slate-200 hover:bg-slate-50 bg-white"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -312,9 +316,13 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
           {audit.pastAudits && audit.pastAudits.length > 1 && (
             <div className="flex items-center gap-2 print:hidden">
               {loadingCompare && (
-                <span className="text-[10px] text-slate-400 animate-pulse font-bold">Loading...</span>
+                <span className="text-[10px] text-slate-400 animate-pulse font-bold">
+                  Loading...
+                </span>
               )}
-              <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Compare with:</span>
+              <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
+                Compare with:
+              </span>
               <select
                 value={compareAuditId || ""}
                 disabled={loadingCompare}
@@ -339,7 +347,8 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                         month: "short",
                         year: "numeric",
                       })}{" "}
-                      (Score: {pa.score} - {pa.auditType === "VISUAL" ? "Visual" : "Source"})
+                      (Score: {pa.score} -{" "}
+                      {pa.auditType === "VISUAL" ? "Visual" : "Source"})
                     </option>
                   ))}
               </select>
@@ -419,10 +428,17 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
           <CardHeader className="py-3 border-b border-indigo-100 bg-indigo-50/50 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-sm font-bold text-indigo-900 flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-indigo-600" /> CRO Optimization Delta Comparison
+                <TrendingUp className="w-4 h-4 text-indigo-600" /> CRO
+                Optimization Delta Comparison
               </CardTitle>
               <CardDescription className="text-xs text-indigo-750">
-                Comparing current run ({new Date(audit.createdAt).toLocaleDateString("en-AU")}) against past run ({new Date(compareAuditData.createdAt).toLocaleDateString("en-AU")})
+                Comparing current run (
+                {new Date(audit.createdAt).toLocaleDateString("en-AU")}) against
+                past run (
+                {new Date(compareAuditData.createdAt).toLocaleDateString(
+                  "en-AU",
+                )}
+                )
               </CardDescription>
             </div>
             <Button
@@ -441,10 +457,16 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               {/* Overall Score Delta */}
               <div className="bg-white p-3 rounded-xl border border-indigo-100/50 shadow-sm">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Overall Score</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  Overall Score
+                </span>
                 <div className="flex items-baseline justify-center gap-1.5 mt-1">
-                  <span className="text-2xl font-black text-slate-900">{audit.score}</span>
-                  <span className="text-[10px] text-slate-400">vs {compareAuditData.score}</span>
+                  <span className="text-2xl font-black text-slate-900">
+                    {audit.score}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    vs {compareAuditData.score}
+                  </span>
                 </div>
                 <div className="mt-1.5">
                   {audit.score > compareAuditData.score ? (
@@ -465,10 +487,14 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
 
               {/* Visual Type Transition */}
               <div className="bg-white p-3 rounded-xl border border-indigo-100/50 shadow-sm">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Audit Type</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  Audit Type
+                </span>
                 <div className="mt-2 text-xs font-black text-slate-800 flex items-center justify-center gap-1">
                   <span className="uppercase text-[10px] px-1.5 py-0.5 bg-slate-50 border rounded text-slate-600">
-                    {compareAuditData.auditType === "VISUAL" ? "Visual" : "Source"}
+                    {compareAuditData.auditType === "VISUAL"
+                      ? "Visual"
+                      : "Source"}
                   </span>
                   <span>➜</span>
                   <span className="uppercase text-[10px] px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 rounded text-indigo-700">
@@ -479,14 +505,15 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
 
               {/* Major Wins */}
               <div className="bg-white p-3 rounded-xl border border-indigo-100/50 shadow-sm col-span-2 text-left">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Optimization Delta Summary</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  Optimization Delta Summary
+                </span>
                 <p className="text-xs text-slate-600 mt-1.5 leading-normal font-semibold">
-                  {audit.score > compareAuditData.score 
+                  {audit.score > compareAuditData.score
                     ? `Great job! Your latest page optimizations boosted the overall CRO score by ${audit.score - compareAuditData.score} points. Review the updated week-by-week roadmap below to maintain momentum.`
                     : audit.score === compareAuditData.score
-                    ? "The CRO score remains identical. Ensure you've published all recommended code/copy changes before executing a new audit."
-                    : "The latest score is lower. Double-check that all key trust signals and above-the-fold CTA elements are correctly rendered and visible."
-                  }
+                      ? "The CRO score remains identical. Ensure you've published all recommended code/copy changes before executing a new audit."
+                      : "The latest score is lower. Double-check that all key trust signals and above-the-fold CTA elements are correctly rendered and visible."}
                 </p>
               </div>
             </div>
@@ -495,155 +522,204 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
       )}
 
       {/* ── SCREENSHOT / COMPARISON VIEW ── */}
-      {compareAuditData ? (
-        (audit.screenshotUrl || compareAuditData.screenshotUrl) && (
-          <Card className="border-slate-200 shadow-sm overflow-hidden mb-6 print:hidden bg-white">
-            <CardHeader className="py-2.5 px-5 bg-slate-50/50 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <CardTitle className="text-[11px] uppercase font-extrabold text-slate-400 tracking-wider">
-                  Visual Viewport Snapshot Comparison
-                </CardTitle>
-                <CardDescription className="text-[10px] text-slate-500 mt-0.5">
-                  Compare side-by-side snapshots of the page design changes
-                </CardDescription>
-              </div>
-              {(audit.screenshotMobileUrl || compareAuditData.screenshotMobileUrl) && (
-                <div className="flex bg-slate-200/60 p-0.5 rounded-lg border border-slate-250 shrink-0 self-start sm:self-auto">
-                  <button
-                    onClick={() => setCompareViewportMode("desktop")}
-                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
-                      compareViewportMode === "desktop"
-                        ? "bg-white text-indigo-650 shadow-sm"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    Desktop (1280px)
-                  </button>
-                  <button
-                    onClick={() => setCompareViewportMode("mobile")}
-                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
-                      compareViewportMode === "mobile"
-                        ? "bg-white text-indigo-650 shadow-sm"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    Mobile (375px)
-                  </button>
+      {compareAuditData
+        ? (audit.screenshotUrl || compareAuditData.screenshotUrl) && (
+            <Card className="border-slate-200 shadow-sm overflow-hidden mb-6 print:hidden bg-white">
+              <CardHeader className="py-2.5 px-5 bg-slate-50/50 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle className="text-[11px] uppercase font-extrabold text-slate-400 tracking-wider">
+                    Visual Viewport Snapshot Comparison
+                  </CardTitle>
+                  <CardDescription className="text-[10px] text-slate-500 mt-0.5">
+                    Compare side-by-side snapshots of the page design changes
+                  </CardDescription>
                 </div>
-              )}
-            </CardHeader>
-            <CardContent className="p-5 bg-slate-50/30">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* Past Screenshot */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5 pl-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                    Past Layout ({new Date(compareAuditData.createdAt).toLocaleDateString("en-AU")})
-                  </span>
-                  
-                  {compareViewportMode === "desktop" ? (
-                    /* Desktop Viewport Box */
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-[380px]">
-                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
-                        {compareAuditData.screenshotUrl ? (
-                          <img
-                            src={compareAuditData.screenshotUrl}
-                            alt="Past Desktop"
-                            className="w-full h-auto object-cover"
-                          />
-                        ) : (
-                          <div className="m-auto text-xs text-slate-400 font-semibold italic">No snapshot captured</div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    /* Mobile Viewport Box */
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-[380px] max-w-[260px] mx-auto w-full">
-                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
-                        {compareAuditData.screenshotMobileUrl ? (
-                          <img
-                            src={compareAuditData.screenshotMobileUrl}
-                            alt="Past Mobile"
-                            className="w-full h-auto object-cover"
-                          />
-                        ) : (
-                          <div className="m-auto text-xs text-slate-400 font-semibold italic">No snapshot captured</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {(audit.screenshotMobileUrl ||
+                  compareAuditData.screenshotMobileUrl) && (
+                  <div className="flex bg-slate-200/60 p-0.5 rounded-lg border border-slate-250 shrink-0 self-start sm:self-auto">
+                    <button
+                      onClick={() => setCompareViewportMode("desktop")}
+                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
+                        compareViewportMode === "desktop"
+                          ? "bg-white text-indigo-650 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      Desktop (1280px)
+                    </button>
+                    <button
+                      onClick={() => setCompareViewportMode("mobile")}
+                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${
+                        compareViewportMode === "mobile"
+                          ? "bg-white text-indigo-650 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      Mobile (375px)
+                    </button>
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="p-5 bg-slate-50/30">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Past Screenshot */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5 pl-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                      Past Layout (
+                      {new Date(compareAuditData.createdAt).toLocaleDateString(
+                        "en-AU",
+                      )}
+                      )
+                    </span>
 
-                {/* Current Screenshot */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-1.5 pl-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                    Current Layout ({new Date(audit.createdAt).toLocaleDateString("en-AU")})
-                  </span>
-                  
-                  {compareViewportMode === "desktop" ? (
-                    /* Desktop Viewport Box */
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-[380px]">
-                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
-                        {audit.screenshotUrl ? (
+                    {compareViewportMode === "desktop" ? (
+                      /* Desktop Viewport Box */
+                      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-[380px]">
+                        <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                          {compareAuditData.screenshotUrl ? (
+                            <img
+                              src={compareAuditData.screenshotUrl}
+                              alt="Past Desktop"
+                              className="w-full h-auto object-cover"
+                            />
+                          ) : (
+                            <div className="m-auto text-xs text-slate-400 font-semibold italic">
+                              No snapshot captured
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      /* Mobile Viewport Box */
+                      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-[380px] max-w-[260px] mx-auto w-full">
+                        <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                          {compareAuditData.screenshotMobileUrl ? (
+                            <img
+                              src={compareAuditData.screenshotMobileUrl}
+                              alt="Past Mobile"
+                              className="w-full h-auto object-cover"
+                            />
+                          ) : (
+                            <div className="m-auto text-xs text-slate-400 font-semibold italic">
+                              No snapshot captured
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Current Screenshot */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black text-indigo-500 uppercase tracking-wider flex items-center gap-1.5 pl-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                      Current Layout (
+                      {new Date(audit.createdAt).toLocaleDateString("en-AU")})
+                    </span>
+
+                    {compareViewportMode === "desktop" ? (
+                      /* Desktop Viewport Box */
+                      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-[380px]">
+                        <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                          {audit.screenshotUrl ? (
+                            <img
+                              src={audit.screenshotUrl}
+                              alt="Current Desktop"
+                              className="w-full h-auto object-cover"
+                            />
+                          ) : (
+                            <div className="m-auto text-xs text-slate-400 font-semibold italic">
+                              No snapshot captured
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      /* Mobile Viewport Box */
+                      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-[380px] max-w-[260px] mx-auto w-full">
+                        <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
+                          {audit.screenshotMobileUrl ? (
+                            <img
+                              src={audit.screenshotMobileUrl}
+                              alt="Current Mobile"
+                              className="w-full h-auto object-cover"
+                            />
+                          ) : (
+                            <div className="m-auto text-xs text-slate-400 font-semibold italic">
+                              No snapshot captured
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        : audit.screenshotUrl && (
+            <Card className="border-slate-200 shadow-sm overflow-hidden mb-6 bg-white">
+              <CardHeader className="py-2.5 px-5 bg-slate-50/50 border-b">
+                <div>
+                  <CardTitle className="text-[11px] uppercase font-extrabold text-slate-400 tracking-wider">
+                    {audit.screenshotMobileUrl
+                      ? "Page Visual Snapshot Viewports"
+                      : "Page Visual Screenshot"}
+                  </CardTitle>
+                  <CardDescription className="text-[10px] text-slate-500 mt-0.5">
+                    {audit.screenshotMobileUrl
+                      ? "Captured desktop (1280x800) and mobile (375x812) layouts at execution time"
+                      : "Captured viewport snapshot at execution time"}
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="p-5 bg-slate-50/30">
+                {audit.screenshotMobileUrl ? (
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
+                    {/* Desktop Viewport */}
+                    <div className="md:col-span-8 flex flex-col gap-2">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                        Desktop Layout (1280px)
+                      </div>
+                      {/* Desktop Viewport Box */}
+                      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-full max-h-[420px] min-h-[320px]">
+                        <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
                           <img
                             src={audit.screenshotUrl}
-                            alt="Current Desktop"
+                            alt="Desktop Screenshot"
                             className="w-full h-auto object-cover"
                           />
-                        ) : (
-                          <div className="m-auto text-xs text-slate-400 font-semibold italic">No snapshot captured</div>
-                        )}
+                        </div>
                       </div>
                     </div>
-                  ) : (
-                    /* Mobile Viewport Box */
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-[380px] max-w-[260px] mx-auto w-full">
-                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
-                        {audit.screenshotMobileUrl ? (
+                    {/* Mobile Viewport */}
+                    <div className="md:col-span-4 flex flex-col gap-2">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Mobile Layout (375px)
+                      </div>
+                      {/* Mobile Viewport Box */}
+                      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-full max-h-[420px] min-h-[320px] max-w-[260px] mx-auto w-full">
+                        <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
                           <img
                             src={audit.screenshotMobileUrl}
-                            alt="Current Mobile"
+                            alt="Mobile Screenshot"
                             className="w-full h-auto object-cover"
                           />
-                        ) : (
-                          <div className="m-auto text-xs text-slate-400 font-semibold italic">No snapshot captured</div>
-                        )}
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )
-      ) : (
-        audit.screenshotUrl && (
-          <Card className="border-slate-200 shadow-sm overflow-hidden mb-6 bg-white">
-            <CardHeader className="py-2.5 px-5 bg-slate-50/50 border-b">
-              <div>
-                <CardTitle className="text-[11px] uppercase font-extrabold text-slate-400 tracking-wider">
-                  {audit.screenshotMobileUrl ? "Page Visual Snapshot Viewports" : "Page Visual Screenshot"}
-                </CardTitle>
-                <CardDescription className="text-[10px] text-slate-500 mt-0.5">
-                  {audit.screenshotMobileUrl 
-                    ? "Captured desktop (1280x800) and mobile (375x812) layouts at execution time"
-                    : "Captured viewport snapshot at execution time"
-                  }
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="p-5 bg-slate-50/30">
-              {audit.screenshotMobileUrl ? (
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
-                  {/* Desktop Viewport */}
-                  <div className="md:col-span-8 flex flex-col gap-2">
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                      Desktop Layout (1280px)
+                      Desktop Viewport (1280px)
                     </div>
                     {/* Desktop Viewport Box */}
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-full max-h-[420px] min-h-[320px]">
+                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col max-w-4xl mx-auto w-full h-[400px]">
                       <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
                         <img
                           src={audit.screenshotUrl}
@@ -653,46 +729,10 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                       </div>
                     </div>
                   </div>
-                  {/* Mobile Viewport */}
-                  <div className="md:col-span-4 flex flex-col gap-2">
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Mobile Layout (375px)
-                    </div>
-                    {/* Mobile Viewport Box */}
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col h-full max-h-[420px] min-h-[320px] max-w-[260px] mx-auto w-full">
-                      <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
-                        <img
-                          src={audit.screenshotMobileUrl}
-                          alt="Mobile Screenshot"
-                          className="w-full h-auto object-cover"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                    Desktop Viewport (1280px)
-                  </div>
-                  {/* Desktop Viewport Box */}
-                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white flex flex-col max-w-4xl mx-auto w-full h-[400px]">
-                    <div className="bg-white flex items-start justify-center overflow-y-auto flex-1 p-0 scrollbar-thin">
-                      <img
-                        src={audit.screenshotUrl}
-                        alt="Desktop Screenshot"
-                        className="w-full h-auto object-cover"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )
-      )}
+                )}
+              </CardContent>
+            </Card>
+          )}
 
       {/* ── SECTION 1: DASHBOARD GRID (Radial Score & Category Scores) ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

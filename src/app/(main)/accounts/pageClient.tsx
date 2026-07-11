@@ -180,19 +180,19 @@ export default function AccountsClientPage({
                           acc.googleStatus === "ENABLED"
                             ? "Google Ads: Active"
                             : acc.googleStatus === "CANCELED"
-                            ? "Google Ads: Cancelled"
-                            : acc.googleStatus === "SUSPENDED"
-                            ? "Google Ads: Suspended"
-                            : `Google Ads: ${acc.googleStatus}`
+                              ? "Google Ads: Cancelled"
+                              : acc.googleStatus === "SUSPENDED"
+                                ? "Google Ads: Suspended"
+                                : `Google Ads: ${acc.googleStatus}`
                         }
                         className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
                           acc.googleStatus === "ENABLED"
                             ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
                             : acc.googleStatus === "CANCELED"
-                            ? "bg-slate-400"
-                            : acc.googleStatus === "SUSPENDED"
-                            ? "bg-rose-500 shadow-sm shadow-rose-500/30"
-                            : "bg-amber-500"
+                              ? "bg-slate-400"
+                              : acc.googleStatus === "SUSPENDED"
+                                ? "bg-rose-500 shadow-sm shadow-rose-500/30"
+                                : "bg-amber-500"
                         }`}
                       />
                       <span>{acc.name}</span>

@@ -26,8 +26,12 @@ function isElementHidden(el: any, $: any): boolean {
     const idName = current.attr("id") || "";
     const role = current.attr("role") || "";
     if (
-      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(className) ||
-      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(idName) ||
+      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(
+        className,
+      ) ||
+      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(
+        idName,
+      ) ||
       role === "tabpanel"
     ) {
       isProgressiveDisclosure = true;
@@ -36,7 +40,12 @@ function isElementHidden(el: any, $: any): boolean {
     const parentNode = current.parent();
     if (parentNode && parentNode.length > 0) {
       const pNode = parentNode[0];
-      if (pNode && pNode.type !== "root" && pNode.name !== "body" && pNode.name !== "html") {
+      if (
+        pNode &&
+        pNode.type !== "root" &&
+        pNode.name !== "body" &&
+        pNode.name !== "html"
+      ) {
         current = parentNode;
       } else {
         break;
@@ -74,7 +83,12 @@ function isElementHidden(el: any, $: any): boolean {
   const parent = el.parent();
   if (parent && parent.length > 0) {
     const parentNode = parent[0];
-    if (parentNode && parentNode.type !== "root" && parentNode.name !== "body" && parentNode.name !== "html") {
+    if (
+      parentNode &&
+      parentNode.type !== "root" &&
+      parentNode.name !== "body" &&
+      parentNode.name !== "html"
+    ) {
       return isElementHidden(parent, $);
     }
   }
@@ -84,11 +98,18 @@ function isElementHidden(el: any, $: any): boolean {
 
 export async function scrapeLandingPageExtended(
   targetUrl: string,
-  options?: { render?: boolean; screenshot?: boolean; width?: number; height?: number }
+  options?: {
+    render?: boolean;
+    screenshot?: boolean;
+    width?: number;
+    height?: number;
+  },
 ): Promise<{ markdown: string; screenshotBase64?: string }> {
   try {
-    console.log(`[LP Scraper] Scraping URL: ${targetUrl} (Render: ${!!options?.render}, Screenshot: ${!!options?.screenshot}, Viewport: ${options?.width || "default"}x${options?.height || "default"})`);
-    
+    console.log(
+      `[LP Scraper] Scraping URL: ${targetUrl} (Render: ${!!options?.render}, Screenshot: ${!!options?.screenshot}, Viewport: ${options?.width || "default"}x${options?.height || "default"})`,
+    );
+
     let scrapeDoUrl = `http://api.scrape.do?token=${process.env.SCRAPE_DO_KEY}&url=${encodeURIComponent(targetUrl)}`;
     if (options?.render) scrapeDoUrl += "&render=true";
     if (options?.screenshot) {
@@ -98,7 +119,7 @@ export async function scrapeLandingPageExtended(
     }
 
     const response = await fetch(scrapeDoUrl, { next: { revalidate: 3600 } });
-    
+
     let html = "";
     let screenshotBase64: string | undefined;
 
@@ -581,7 +602,9 @@ export async function runLandingPageAuditInternal(
 
   if (auditType === "VISUAL") {
     // Enable Javascript rendering and screenshot capture in parallel for both Desktop and Mobile viewports
-    console.log(`[Audit] Fetching Desktop and Mobile visual snapshots in parallel...`);
+    console.log(
+      `[Audit] Fetching Desktop and Mobile visual snapshots in parallel...`,
+    );
     const [desktopScrape, mobileScrape] = await Promise.all([
       scrapeLandingPageExtended(url, {
         render: true,
@@ -605,7 +628,7 @@ export async function runLandingPageAuditInternal(
   }
 
   const competitorMarkdowns = await Promise.all(
-    competitorUrls.map((compUrl) => scrapeAndCompressLandingPage(compUrl))
+    competitorUrls.map((compUrl) => scrapeAndCompressLandingPage(compUrl)),
   );
 
   // Upload screenshots to Cloudflare R2 if available
@@ -614,29 +637,33 @@ export async function runLandingPageAuditInternal(
 
   if (auditType === "VISUAL") {
     const uploadPromises: Promise<any>[] = [];
-    
+
     if (screenshotBase64) {
       const filename = `audit-${adAccountId}-${Date.now()}-desktop.png`;
       uploadPromises.push(
         uploadImageToR2(screenshotBase64, filename).then((resUrl) => {
           screenshotUrl = resUrl;
-        })
+        }),
       );
     }
-    
+
     if (screenshotMobileBase64) {
       const filename = `audit-${adAccountId}-${Date.now()}-mobile.png`;
       uploadPromises.push(
         uploadImageToR2(screenshotMobileBase64, filename).then((resUrl) => {
           screenshotMobileUrl = resUrl;
-        })
+        }),
       );
     }
 
     if (uploadPromises.length > 0) {
-      console.log(`[Audit] Uploading desktop & mobile screenshots to Cloudflare R2...`);
+      console.log(
+        `[Audit] Uploading desktop & mobile screenshots to Cloudflare R2...`,
+      );
       await Promise.all(uploadPromises);
-      console.log(`[Audit] Screenshots uploaded successfully: Desktop=${screenshotUrl}, Mobile=${screenshotMobileUrl}`);
+      console.log(
+        `[Audit] Screenshots uploaded successfully: Desktop=${screenshotUrl}, Mobile=${screenshotMobileUrl}`,
+      );
     }
   }
 
@@ -738,7 +765,7 @@ export async function runLandingPageAuditInternal(
       - Be highly constructive, trade-specific, and include actual text recommendations (do not say "make it look better", suggest specific text).
   `;
 
-  let contents: any[] = [prompt];
+  const contents: any[] = [prompt];
   if (auditType === "VISUAL" && screenshotBase64) {
     contents.push({
       inlineData: {
@@ -832,7 +859,7 @@ export async function getAuditDetailInternal(auditId: number) {
   const pastAudits = await db.query.landingPageAudits.findMany({
     where: and(
       eq(landingPageAudits.adAccountId, audit.adAccountId),
-      eq(landingPageAudits.url, audit.url)
+      eq(landingPageAudits.url, audit.url),
     ),
     orderBy: [desc(landingPageAudits.createdAt)],
   });

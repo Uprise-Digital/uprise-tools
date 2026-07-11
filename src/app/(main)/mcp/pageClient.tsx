@@ -30,168 +30,200 @@ const AVAILABLE_TOOLS = [
   {
     name: "get_agency_god_view",
     title: "Agency God View",
-    description: "Fetches macro portfolio performance and identifies critical fires."
+    description:
+      "Fetches macro portfolio performance and identifies critical fires.",
   },
   {
     name: "get_account_metrics",
     title: "Get Account Metrics",
-    description: "Fetches detailed dashboard metrics for a specific ad account by its internal ID."
+    description:
+      "Fetches detailed dashboard metrics for a specific ad account by its internal ID.",
   },
   {
     name: "lookup_account_by_name",
     title: "Lookup Account By Name",
-    description: "Searches for ad accounts by name (partial match). Use this to find an account ID."
+    description:
+      "Searches for ad accounts by name (partial match). Use this to find an account ID.",
   },
   {
     name: "lookup_account_by_id",
     title: "Lookup Account By Id",
-    description: "Fetches account name and details for a given internal account ID."
+    description:
+      "Fetches account name and details for a given internal account ID.",
   },
   {
     name: "list_accounts",
     title: "List Accounts",
-    description: "Returns all ad accounts in the system with their internal IDs, names, Google account IDs, currency, and active status."
+    description:
+      "Returns all ad accounts in the system with their internal IDs, names, Google account IDs, currency, and active status.",
   },
   {
     name: "list_campaign_landing_pages",
     title: "List Campaign Landing Pages",
-    description: "Lists campaign landing pages, URLs, and latest audit scores for an ad account."
+    description:
+      "Lists campaign landing pages, URLs, and latest audit scores for an ad account.",
   },
   {
     name: "sync_campaign_landing_pages",
     title: "Sync Campaign Landing Pages",
-    description: "Syncs campaign landing page URLs from the Google Ads API for an ad account."
+    description:
+      "Syncs campaign landing page URLs from the Google Ads API for an ad account.",
   },
   {
     name: "save_campaign_landing_page_url",
     title: "Save Campaign Landing Page Url",
-    description: "Manually saves/attaches a landing page URL to a specific campaign."
+    description:
+      "Manually saves/attaches a landing page URL to a specific campaign.",
   },
   {
     name: "run_landing_page_cro_audit",
     title: "Run Landing Page Cro Audit",
-    description: "Runs a 10-dimension landing page CRO audit with competitor scanning on a focus keyword using Gemini."
+    description:
+      "Runs a 10-dimension landing page CRO audit with competitor scanning on a focus keyword using Gemini.",
   },
   {
     name: "get_landing_page_audit_details",
     title: "Get Landing Page Audit Details",
-    description: "Retrieves the detailed breakdown, score cards, and AM action plan script for a specific landing page audit by its ID."
+    description:
+      "Retrieves the detailed breakdown, score cards, and AM action plan script for a specific landing page audit by its ID.",
   },
   {
     name: "list_ad_group_ads",
     title: "List Ad Group Ads",
-    description: "Retrieves a list of active ad group ads with latest audit status and parameters."
+    description:
+      "Retrieves a list of active ad group ads with latest audit status and parameters.",
   },
   {
     name: "get_asset_performance_report",
     title: "Get Asset Performance Report",
-    description: "Fetches performance labels and pinning info for RSA assets across campaigns."
+    description:
+      "Fetches performance labels and pinning info for RSA assets across campaigns.",
   },
   {
     name: "run_ad_copy_audit",
     title: "Run Ad Copy Audit",
-    description: "Runs a Google RSA ad copy audit, comparing asset performance, pinning config, and message-match using Gemini."
+    description:
+      "Runs a Google RSA ad copy audit, comparing asset performance, pinning config, and message-match using Gemini.",
   },
   {
     name: "get_ad_copy_audit_details",
     title: "Get Ad Copy Audit Details",
-    description: "Retrieves detailed ad copy audit results by audit ID."
+    description: "Retrieves detailed ad copy audit results by audit ID.",
   },
   {
     name: "get_historical_comparison",
     title: "Get Historical Comparison",
-    description: "Compares current performance against the prior period side-by-side with delta percentages."
+    description:
+      "Compares current performance against the prior period side-by-side with delta percentages.",
   },
   {
     name: "get_search_term_insights",
     title: "Get Search Term Insights",
-    description: "Returns top search terms, converting terms, and wasted spend analysis."
+    description:
+      "Returns top search terms, converting terms, and wasted spend analysis.",
   },
   {
     name: "get_campaign_details",
     title: "Get Campaign Details",
-    description: "Returns campaign configuration details, bidding strategies, budgets, status, and targets set in Google Ads."
+    description:
+      "Returns campaign configuration details, bidding strategies, budgets, status, and targets set in Google Ads.",
   },
   {
     name: "get_account_anomalies",
     title: "Get Account Anomalies",
-    description: "Detects statistically significant deviations in an account's recent performance."
+    description:
+      "Detects statistically significant deviations in an account's recent performance.",
   },
   {
     name: "get_concentration_report",
     title: "Get Concentration Report",
-    description: "Returns a quantified HHI analysis of client concentration risk across the agency portfolio."
+    description:
+      "Returns a quantified HHI analysis of client concentration risk across the agency portfolio.",
   },
   {
     name: "get_account_targets",
     title: "Get Account Targets",
-    description: "Returns agreed client targets, such as target CPA, target ROAS, and budget caps."
+    description:
+      "Returns agreed client targets, such as target CPA, target ROAS, and budget caps.",
   },
   {
     name: "get_org_triage_defaults",
     title: "Get Org Triage Defaults",
-    description: "Fetches the organization-wide defaults for alert and anomaly triage thresholds."
+    description:
+      "Fetches the organization-wide defaults for alert and anomaly triage thresholds.",
   },
   {
     name: "get_account_triage_settings",
     title: "Get Account Triage Settings",
-    description: "Fetches the triage threshold override settings for a specific client account."
+    description:
+      "Fetches the triage threshold override settings for a specific client account.",
   },
   {
     name: "set_org_triage_defaults",
     title: "Set Org Triage Defaults",
-    description: "Sets/updates the organization-wide defaults for alert and anomaly triage thresholds."
+    description:
+      "Sets/updates the organization-wide defaults for alert and anomaly triage thresholds.",
   },
   {
     name: "set_account_triage_settings",
     title: "Set Account Triage Settings",
-    description: "Sets/updates the custom triage threshold override settings for a specific client account."
+    description:
+      "Sets/updates the custom triage threshold override settings for a specific client account.",
   },
   {
     name: "set_account_targets",
     title: "Set Account Targets",
-    description: "Sets or updates the agreed client KPI targets for an account — target CPA, target ROAS, and monthly budget cap."
+    description:
+      "Sets or updates the agreed client KPI targets for an account — target CPA, target ROAS, and monthly budget cap.",
   },
   {
     name: "get_negative_keyword_suggestions",
     title: "Get Negative Keyword Suggestions",
-    description: "Fetches all negative keyword suggestions (pending, approved, denied, archived) for an account."
+    description:
+      "Fetches all negative keyword suggestions (pending, approved, denied, archived) for an account.",
   },
   {
     name: "generate_negative_keyword_suggestions",
     title: "Generate Negative Keyword Suggestions",
-    description: "Pulls search terms and active keywords, runs AI waste analysis via Gemini, and saves pending recommendations."
+    description:
+      "Pulls search terms and active keywords, runs AI waste analysis via Gemini, and saves pending recommendations.",
   },
   {
     name: "add_negative_keyword",
     title: "Add Negative Keyword",
-    description: "Pushes a campaign-level negative keyword directly to Google Ads and marks it as approved."
+    description:
+      "Pushes a campaign-level negative keyword directly to Google Ads and marks it as approved.",
   },
   {
     name: "get_active_negative_keywords",
     title: "Get Active Negative Keywords",
-    description: "Fetches campaign-level negative keywords currently active in Google Ads."
+    description:
+      "Fetches campaign-level negative keywords currently active in Google Ads.",
   },
   {
     name: "get_account_persona",
     title: "Get Account Persona",
-    description: "Fetches the structured buyer persona, targeting intent, and scope defaults for an ad account."
+    description:
+      "Fetches the structured buyer persona, targeting intent, and scope defaults for an ad account.",
   },
   {
     name: "set_account_persona",
     title: "Set Account Persona",
-    description: "Sets or updates the structured buyer persona and targeting intent notes for an ad account."
+    description:
+      "Sets or updates the structured buyer persona and targeting intent notes for an ad account.",
   },
   {
     name: "get_impression_share_report",
     title: "Get Impression Share Report",
-    description: "Fetches search impression share, lost IS due to budget/rank, and constraint flags."
+    description:
+      "Fetches search impression share, lost IS due to budget/rank, and constraint flags.",
   },
   {
     name: "audit_conversion_tracking",
     title: "Audit Conversion Tracking",
-    description: "Audits conversion actions, counting type, and flags issues like inflated goals or broken tags."
-  }
+    description:
+      "Audits conversion actions, counting type, and flags issues like inflated goals or broken tags.",
+  },
 ];
 
 const TOOL_CATEGORIES = [
@@ -205,8 +237,8 @@ const TOOL_CATEGORIES = [
       "lookup_account_by_name",
       "lookup_account_by_id",
       "get_account_metrics",
-      "get_historical_comparison"
-    ]
+      "get_historical_comparison",
+    ],
   },
   {
     id: "campaigns",
@@ -217,8 +249,8 @@ const TOOL_CATEGORIES = [
       "get_impression_share_report",
       "get_account_anomalies",
       "get_concentration_report",
-      "audit_conversion_tracking"
-    ]
+      "audit_conversion_tracking",
+    ],
   },
   {
     id: "keywords",
@@ -229,8 +261,8 @@ const TOOL_CATEGORIES = [
       "get_active_negative_keywords",
       "get_negative_keyword_suggestions",
       "generate_negative_keyword_suggestions",
-      "add_negative_keyword"
-    ]
+      "add_negative_keyword",
+    ],
   },
   {
     id: "cro",
@@ -241,8 +273,8 @@ const TOOL_CATEGORIES = [
       "sync_campaign_landing_pages",
       "save_campaign_landing_page_url",
       "run_landing_page_cro_audit",
-      "get_landing_page_audit_details"
-    ]
+      "get_landing_page_audit_details",
+    ],
   },
   {
     id: "copywriting",
@@ -252,8 +284,8 @@ const TOOL_CATEGORIES = [
       "list_ad_group_ads",
       "get_asset_performance_report",
       "run_ad_copy_audit",
-      "get_ad_copy_audit_details"
-    ]
+      "get_ad_copy_audit_details",
+    ],
   },
   {
     id: "targets",
@@ -267,11 +299,10 @@ const TOOL_CATEGORIES = [
       "get_account_triage_settings",
       "set_account_triage_settings",
       "get_account_persona",
-      "set_account_persona"
-    ]
-  }
+      "set_account_persona",
+    ],
+  },
 ];
-
 
 interface McpSettingsClientProps {
   initialApiKey: string;
@@ -287,7 +318,9 @@ export default function McpSettingsClient({
 
   // Loading states
   const [isRolling, setIsRolling] = useState(false);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>("portfolio");
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(
+    "portfolio",
+  );
 
   const handleCopyConfig = () => {
     const config = `{\n  "mcpServers": {\n    "agency-os": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "@modelcontextprotocol/client-sse",\n        "--url",\n        "https://uprise-tools-production.up.railway.app/api/mcp",\n        "--header",\n        "Authorization: Bearer ${apiKey}"\n      ]\n    }\n  }\n}`;
@@ -518,13 +551,18 @@ export default function McpSettingsClient({
               {TOOL_CATEGORIES.map((cat) => {
                 const isExpanded = expandedCategory === cat.id;
                 const categoryTools = AVAILABLE_TOOLS.filter((tool) =>
-                  cat.tools.includes(tool.name)
+                  cat.tools.includes(tool.name),
                 );
 
                 return (
-                  <div key={cat.id} className="border-b border-slate-100 last:border-b-0">
+                  <div
+                    key={cat.id}
+                    className="border-b border-slate-100 last:border-b-0"
+                  >
                     <button
-                      onClick={() => setExpandedCategory(isExpanded ? null : cat.id)}
+                      onClick={() =>
+                        setExpandedCategory(isExpanded ? null : cat.id)
+                      }
                       className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors text-left"
                     >
                       <div>
@@ -548,7 +586,10 @@ export default function McpSettingsClient({
                     {isExpanded && (
                       <div className="bg-slate-50/50 px-4 pb-4 divide-y divide-slate-100/60 border-t border-slate-100">
                         {categoryTools.map((tool) => (
-                          <div key={tool.name} className="py-3 last:pb-0 first:pt-3">
+                          <div
+                            key={tool.name}
+                            className="py-3 last:pb-0 first:pt-3"
+                          >
                             <div className="space-y-1">
                               <div className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
                                 <ActivitySquare className="w-3 h-3 text-indigo-500 shrink-0" />

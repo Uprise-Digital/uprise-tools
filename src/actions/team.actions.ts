@@ -1,10 +1,10 @@
 "use server";
 
-import { eq, and } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { account, user, member, invitation, auditLogs } from "@/db/schema";
+import { account, auditLogs, invitation, member, user } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 
@@ -62,8 +62,8 @@ export async function getTeamInvitationsAction() {
     .where(
       and(
         eq(invitation.organizationId, orgId),
-        eq(invitation.status, "pending")
-      )
+        eq(invitation.status, "pending"),
+      ),
     );
 }
 
@@ -90,12 +90,17 @@ export async function inviteTeamMemberAction(payload: {
   const callerMember = await db.query.member.findFirst({
     where: and(
       eq(member.userId, session.user.id),
-      eq(member.organizationId, orgId)
+      eq(member.organizationId, orgId),
     ),
   });
 
-  if (!callerMember || (callerMember.role !== "owner" && callerMember.role !== "admin")) {
-    throw new Error("Unauthorized: Only owners or admins can invite team members");
+  if (
+    !callerMember ||
+    (callerMember.role !== "owner" && callerMember.role !== "admin")
+  ) {
+    throw new Error(
+      "Unauthorized: Only owners or admins can invite team members",
+    );
   }
 
   // Create invitation
@@ -115,7 +120,7 @@ export async function inviteTeamMemberAction(payload: {
   // Send email via Resend
   const { Resend } = await import("resend");
   const resend = new Resend(process.env.RESEND_API_KEY!);
-  
+
   // Resolve app URL for accept link
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const inviteLink = `${appUrl}/signup?invite=${inviteId}`;
@@ -155,7 +160,13 @@ export async function cancelTeamInvitationAction(payload: {
 
   await db.delete(invitation).where(eq(invitation.id, payload.invitationId));
 
-  await logAction(session.user.id, "CANCEL_INVITATION", "invitation", payload.invitationId, {});
+  await logAction(
+    session.user.id,
+    "CANCEL_INVITATION",
+    "invitation",
+    payload.invitationId,
+    {},
+  );
 
   revalidatePath("/team");
   return { success: true };
@@ -183,10 +194,13 @@ export async function updateTeamMemberRoleAction(payload: {
   const callerMember = await db.query.member.findFirst({
     where: and(
       eq(member.userId, session.user.id),
-      eq(member.organizationId, orgId)
+      eq(member.organizationId, orgId),
     ),
   });
-  if (!callerMember || (callerMember.role !== "owner" && callerMember.role !== "admin")) {
+  if (
+    !callerMember ||
+    (callerMember.role !== "owner" && callerMember.role !== "admin")
+  ) {
     throw new Error("Unauthorized: Only owners or admins can modify roles");
   }
 
@@ -194,7 +208,7 @@ export async function updateTeamMemberRoleAction(payload: {
   const targetMember = await db.query.member.findFirst({
     where: and(
       eq(member.userId, payload.memberUserId),
-      eq(member.organizationId, orgId)
+      eq(member.organizationId, orgId),
     ),
   });
   if (!targetMember) throw new Error("Target member not found");
@@ -209,14 +223,20 @@ export async function updateTeamMemberRoleAction(payload: {
     .where(
       and(
         eq(member.userId, payload.memberUserId),
-        eq(member.organizationId, orgId)
-      )
+        eq(member.organizationId, orgId),
+      ),
     );
 
-  await logAction(session.user.id, "UPDATE_USER_ROLE", "member", targetMember.id, {
-    targetUserId: payload.memberUserId,
-    newRole: payload.role,
-  });
+  await logAction(
+    session.user.id,
+    "UPDATE_USER_ROLE",
+    "member",
+    targetMember.id,
+    {
+      targetUserId: payload.memberUserId,
+      newRole: payload.role,
+    },
+  );
 
   revalidatePath("/team");
   return { success: true };
@@ -224,7 +244,7 @@ export async function updateTeamMemberRoleAction(payload: {
 
 export async function deleteTeamMember(
   targetUserId: string,
-  targetUserName: string
+  targetUserName: string,
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
@@ -244,17 +264,20 @@ export async function deleteTeamMember(
   const callerMember = await db.query.member.findFirst({
     where: and(
       eq(member.userId, session.user.id),
-      eq(member.organizationId, orgId)
+      eq(member.organizationId, orgId),
     ),
   });
-  if (!callerMember || (callerMember.role !== "owner" && callerMember.role !== "admin")) {
+  if (
+    !callerMember ||
+    (callerMember.role !== "owner" && callerMember.role !== "admin")
+  ) {
     throw new Error("Unauthorized");
   }
 
   const targetMember = await db.query.member.findFirst({
     where: and(
       eq(member.userId, targetUserId),
-      eq(member.organizationId, orgId)
+      eq(member.organizationId, orgId),
     ),
   });
   if (!targetMember) throw new Error("Member not found");
@@ -266,15 +289,18 @@ export async function deleteTeamMember(
   await db
     .delete(member)
     .where(
-      and(
-        eq(member.userId, targetUserId),
-        eq(member.organizationId, orgId)
-      )
+      and(eq(member.userId, targetUserId), eq(member.organizationId, orgId)),
     );
 
-  await logAction(session.user.id, "REMOVE_TEAM_MEMBER", "member", targetMember.id, {
-    removedUserId: targetUserId,
-  });
+  await logAction(
+    session.user.id,
+    "REMOVE_TEAM_MEMBER",
+    "member",
+    targetMember.id,
+    {
+      removedUserId: targetUserId,
+    },
+  );
 
   revalidatePath("/team");
   return { success: true };
@@ -362,7 +388,7 @@ export async function getUserActivityLogsAction(payload: {
   const logs = await db.query.auditLogs.findMany({
     where: and(
       eq(auditLogs.actorId, payload.targetUserId),
-      eq(auditLogs.organizationId, orgId)
+      eq(auditLogs.organizationId, orgId),
     ),
     orderBy: (l, { desc }) => [desc(l.createdAt)],
     limit: 150,

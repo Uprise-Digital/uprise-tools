@@ -334,10 +334,13 @@ export async function getAgencyPortfolioMetricsAction(
     });
 
     // 4.5 Aggregate Daily Totals
-    const dailyTotalsMap: Record<string, { date: string; spend: number; conversions: number }> = {};
-    
+    const dailyTotalsMap: Record<
+      string,
+      { date: string; spend: number; conversions: number }
+    > = {};
+
     // Pre-populate all dates to prevent gaps
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     const lastDate = new Date(endDate);
     while (currentDate <= lastDate) {
       const dateStr = currentDate.toISOString().split("T")[0];
@@ -383,7 +386,9 @@ export async function getAgencyPortfolioMetricsAction(
       }))
       .sort((a, b) => b.spend - a.spend); // Sort by highest spend
 
-    const dailyTotals = Object.values(dailyTotalsMap).sort((a, b) => a.date.localeCompare(b.date));
+    const dailyTotals = Object.values(dailyTotalsMap).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
 
     return {
       success: true,
@@ -415,7 +420,7 @@ export async function syncAgencyPortfolioAction(
   options?: {
     organizationId?: string;
     backgroundTaskId?: number;
-  }
+  },
 ) {
   // Get active organization from session if running in session context
   let orgId: string | null | undefined = options?.organizationId || null;
@@ -504,7 +509,11 @@ export async function syncAgencyPortfolioAction(
     if (taskRecordId) {
       await db
         .update(backgroundTasks)
-        .set({ status: "failed", error: error.message || String(error), updatedAt: new Date() })
+        .set({
+          status: "failed",
+          error: error.message || String(error),
+          updatedAt: new Date(),
+        })
         .where(eq(backgroundTasks.id, taskRecordId));
     }
     return { success: false, error: error.message };

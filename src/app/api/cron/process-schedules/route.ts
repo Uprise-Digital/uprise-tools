@@ -3,7 +3,6 @@ import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import React from "react";
 import { Resend } from "resend";
-import { db } from "@/db";
 import { withBypassTenantDb } from "@/db/db-helper";
 import { adAccounts, reportSchedules } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
@@ -211,8 +210,10 @@ export async function GET(request: Request) {
   // Security Check
   const authHeader = request.headers.get("authorization");
   const isAuthorized =
-    (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) ||
-    (process.env.WORKER_SECRET_KEY && authHeader === `Bearer ${process.env.WORKER_SECRET_KEY}`);
+    (process.env.CRON_SECRET &&
+      authHeader === `Bearer ${process.env.CRON_SECRET}`) ||
+    (process.env.WORKER_SECRET_KEY &&
+      authHeader === `Bearer ${process.env.WORKER_SECRET_KEY}`);
 
   if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -298,8 +299,10 @@ export async function POST(request: Request) {
   // Security Check
   const authHeader = request.headers.get("authorization");
   const isAuthorized =
-    (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) ||
-    (process.env.WORKER_SECRET_KEY && authHeader === `Bearer ${process.env.WORKER_SECRET_KEY}`);
+    (process.env.CRON_SECRET &&
+      authHeader === `Bearer ${process.env.CRON_SECRET}`) ||
+    (process.env.WORKER_SECRET_KEY &&
+      authHeader === `Bearer ${process.env.WORKER_SECRET_KEY}`);
 
   if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

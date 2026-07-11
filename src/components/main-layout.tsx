@@ -18,7 +18,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type React from "react";
 import { useState } from "react";
+import { BackgroundTasksIndicator } from "@/components/background-tasks-indicator";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -26,15 +33,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { UserMenu } from "@/components/user-menu";
-import { cn } from "@/lib/utils";
-import { BackgroundTasksIndicator } from "@/components/background-tasks-indicator";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
@@ -121,11 +121,16 @@ export function MainLayout({
               <DropdownMenuTrigger asChild>
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 hover:text-white cursor-pointer transition-colors text-xs font-semibold select-none">
                   <span className="text-slate-500 font-bold">/</span>
-                  <span className="truncate max-w-[120px]">{activeOrganization.name}</span>
+                  <span className="truncate max-w-[120px]">
+                    {activeOrganization.name}
+                  </span>
                   <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
                 </div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 bg-slate-950 border-slate-800 text-white z-[100] shadow-xl">
+              <DropdownMenuContent
+                align="start"
+                className="w-48 bg-slate-950 border-slate-800 text-white z-[100] shadow-xl"
+              >
                 <div className="px-2 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
                   Switch Organization
                 </div>
@@ -135,7 +140,8 @@ export function MainLayout({
                     onClick={() => handleSwitchOrg(org.id)}
                     className={cn(
                       "cursor-pointer text-xs font-medium px-2 py-1.5 rounded-md hover:bg-slate-900 focus:bg-slate-900 focus:text-white flex items-center justify-between",
-                      org.id === activeOrganization.id && "text-indigo-400 font-bold bg-slate-900/50"
+                      org.id === activeOrganization.id &&
+                        "text-indigo-400 font-bold bg-slate-900/50",
                     )}
                   >
                     <span>{org.name}</span>
@@ -249,7 +255,9 @@ export function MainLayout({
                     {activeOrganization ? (
                       <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-200 text-xs font-semibold select-none">
                         <span className="text-slate-500 font-bold">/</span>
-                        <span className="truncate max-w-[100px]">{activeOrganization.name}</span>
+                        <span className="truncate max-w-[100px]">
+                          {activeOrganization.name}
+                        </span>
                       </div>
                     ) : (
                       <span className="font-extrabold text-[11px] tracking-wider uppercase text-slate-100 flex items-center gap-2">

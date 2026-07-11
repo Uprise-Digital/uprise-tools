@@ -10,10 +10,7 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
-  plugins: [
-    organization(),
-    admin(),
-  ],
+  plugins: [organization(), admin()],
   // ENABLE ACCOUNT MERGING HERE
   account: {
     accountLinking: {
@@ -48,4 +45,3 @@ export const auth = betterAuth({
     },
   },
 });
-

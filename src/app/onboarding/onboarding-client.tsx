@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { createOrganizationAction } from "@/actions/onboarding.actions";
 import { Button } from "@/components/ui/button";
 
@@ -12,7 +12,9 @@ interface OnboardingClientProps {
   };
 }
 
-export default function OnboardingClient({ initialUser }: OnboardingClientProps) {
+export default function OnboardingClient({
+  initialUser,
+}: OnboardingClientProps) {
   const router = useRouter();
   const [agencyName, setAgencyName] = useState("");
   const [description, setDescription] = useState("");
@@ -88,7 +90,10 @@ export default function OnboardingClient({ initialUser }: OnboardingClientProps)
 
         {/* Agency Name */}
         <div>
-          <label htmlFor="agency-name" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+          <label
+            htmlFor="agency-name"
+            className="block text-xs font-semibold text-slate-300 uppercase tracking-wider"
+          >
             Agency Name *
           </label>
           <input
@@ -104,7 +109,10 @@ export default function OnboardingClient({ initialUser }: OnboardingClientProps)
 
         {/* Agency Description */}
         <div>
-          <label htmlFor="agency-desc" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+          <label
+            htmlFor="agency-desc"
+            className="block text-xs font-semibold text-slate-300 uppercase tracking-wider"
+          >
             Agency Description
           </label>
           <textarea
@@ -127,11 +135,16 @@ export default function OnboardingClient({ initialUser }: OnboardingClientProps)
             className="mt-1 h-4 w-4 rounded border-slate-800 text-indigo-600 focus:ring-indigo-500 bg-slate-950"
           />
           <div className="text-sm">
-            <label htmlFor="auto-join" className="font-semibold text-slate-200 cursor-pointer">
+            <label
+              htmlFor="auto-join"
+              className="font-semibold text-slate-200 cursor-pointer"
+            >
               Auto-add team members
             </label>
             <p className="text-xs text-slate-400 mt-0.5">
-              Allow anyone with a <strong className="text-indigo-400">@{domain}</strong> email to join this organization automatically.
+              Allow anyone with a{" "}
+              <strong className="text-indigo-400">@{domain}</strong> email to
+              join this organization automatically.
             </p>
           </div>
         </div>

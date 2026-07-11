@@ -8,7 +8,10 @@ interface ConnectAdsClientProps {
   initialError?: string;
 }
 
-export default function ConnectAdsClient({ orgId, initialError }: ConnectAdsClientProps) {
+export default function ConnectAdsClient({
+  orgId,
+  initialError,
+}: ConnectAdsClientProps) {
   const [showChecklist, setShowChecklist] = useState(false);
 
   const handleConnectOAuth = () => {
@@ -21,7 +24,12 @@ export default function ConnectAdsClient({ orgId, initialError }: ConnectAdsClie
       <div className="space-y-6">
         <div className="text-center">
           <div className="h-12 w-12 bg-indigo-600/10 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-500/20">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -34,13 +42,17 @@ export default function ConnectAdsClient({ orgId, initialError }: ConnectAdsClie
             Connect Google Ads
           </h2>
           <p className="mt-4 text-base text-slate-300 leading-relaxed text-left">
-            To pull performance data and run audits, Uprise needs access to your Google Ads account. We recommend creating a dedicated Google account just for this — it keeps access stable even if staff change, and you can revoke it anytime with one click.
+            To pull performance data and run audits, Uprise needs access to your
+            Google Ads account. We recommend creating a dedicated Google account
+            just for this — it keeps access stable even if staff change, and you
+            can revoke it anytime with one click.
           </p>
         </div>
 
         {initialError && (
           <div className="p-3.5 bg-red-900/30 border border-red-500/20 text-red-200 text-sm rounded-xl">
-            <strong>Connection Failed:</strong> {decodeURIComponent(initialError)}
+            <strong>Connection Failed:</strong>{" "}
+            {decodeURIComponent(initialError)}
           </div>
         )}
 
@@ -99,7 +111,12 @@ export default function ConnectAdsClient({ orgId, initialError }: ConnectAdsClie
             1
           </span>
           <p className="pt-0.5">
-            <strong>Create a new Google account</strong> — don't use a personal or founder email. Something like <code className="text-indigo-300 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-900/30">ads-tools@youragency.com</code> works well.
+            <strong>Create a new Google account</strong> — don't use a personal
+            or founder email. Something like{" "}
+            <code className="text-indigo-300 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-900/30">
+              ads-tools@youragency.com
+            </code>{" "}
+            works well.
           </p>
         </li>
         <li className="flex gap-3 items-start">
@@ -107,7 +124,8 @@ export default function ConnectAdsClient({ orgId, initialError }: ConnectAdsClie
             2
           </span>
           <p className="pt-0.5">
-            Go to your <strong>Google Ads manager account</strong> → <strong>Admin</strong> → <strong>Access and security</strong>.
+            Go to your <strong>Google Ads manager account</strong> →{" "}
+            <strong>Admin</strong> → <strong>Access and security</strong>.
           </p>
         </li>
         <li className="flex gap-3 items-start">
@@ -115,7 +133,8 @@ export default function ConnectAdsClient({ orgId, initialError }: ConnectAdsClie
             3
           </span>
           <p className="pt-0.5">
-            Click <strong>Invite others</strong>, enter the new account's email, and set access level to <strong>Standard</strong>.
+            Click <strong>Invite others</strong>, enter the new account's email,
+            and set access level to <strong>Standard</strong>.
           </p>
         </li>
         <li className="flex gap-3 items-start">
@@ -123,7 +142,8 @@ export default function ConnectAdsClient({ orgId, initialError }: ConnectAdsClie
             4
           </span>
           <p className="pt-0.5">
-            <strong>Accept the invite</strong> by signing into that new account once (check its inbox).
+            <strong>Accept the invite</strong> by signing into that new account
+            once (check its inbox).
           </p>
         </li>
         <li className="flex gap-3 items-start">
@@ -131,7 +151,8 @@ export default function ConnectAdsClient({ orgId, initialError }: ConnectAdsClie
             5
           </span>
           <p className="pt-0.5">
-            <strong>Come back here</strong> and click Connect — you'll sign in with that same account.
+            <strong>Come back here</strong> and click Connect — you'll sign in
+            with that same account.
           </p>
         </li>
       </ol>

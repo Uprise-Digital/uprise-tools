@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { getActiveBackgroundTasksAction } from "@/actions/background-tasks.actions";
 import {
   CheckCircle2,
   ChevronDown,
-  ChevronUp,
   Database,
   Loader2,
   XCircle,
 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { getActiveBackgroundTasksAction } from "@/actions/background-tasks.actions";
 import { cn } from "@/lib/utils";
 
 interface BackgroundTask {
@@ -47,7 +46,9 @@ export function BackgroundTasksIndicator() {
         setTasks(res.tasks);
 
         // Check if any task transitioned to completed/failed
-        const hasCompleted = res.tasks.some((t) => t.status === "completed" || t.status === "failed");
+        const hasCompleted = res.tasks.some(
+          (t) => t.status === "completed" || t.status === "failed",
+        );
         if (hasCompleted) {
           setHasNewCompleted(true);
         } else {
@@ -82,7 +83,9 @@ export function BackgroundTasksIndicator() {
       className={cn(
         "fixed bottom-6 right-6 z-50 transition-all duration-300 transform shadow-2xl",
         "bg-slate-950/90 backdrop-blur-md border border-slate-800 text-white rounded-2xl",
-        isCollapsed ? "w-14 h-14 flex items-center justify-center cursor-pointer hover:bg-slate-900" : "w-80 p-4"
+        isCollapsed
+          ? "w-14 h-14 flex items-center justify-center cursor-pointer hover:bg-slate-900"
+          : "w-80 p-4",
       )}
       onClick={isCollapsed ? toggleCollapse : undefined}
     >
@@ -133,7 +136,9 @@ export function BackgroundTasksIndicator() {
             {tasks.map((task) => (
               <div key={task.id} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-slate-200 truncate pr-2">{task.name}</span>
+                  <span className="text-slate-200 truncate pr-2">
+                    {task.name}
+                  </span>
                   <div className="flex items-center flex-shrink-0">
                     {task.status === "running" && (
                       <span className="text-indigo-400 flex items-center gap-1">
@@ -162,13 +167,17 @@ export function BackgroundTasksIndicator() {
                   <div
                     className={cn(
                       "h-1.5 w-full rounded-full",
-                      task.status === "completed" ? "bg-emerald-500/20" : "bg-rose-500/20"
+                      task.status === "completed"
+                        ? "bg-emerald-500/20"
+                        : "bg-rose-500/20",
                     )}
                   >
                     <div
                       className={cn(
                         "h-full rounded-full w-full",
-                        task.status === "completed" ? "bg-emerald-500" : "bg-rose-500"
+                        task.status === "completed"
+                          ? "bg-emerald-500"
+                          : "bg-rose-500",
                       )}
                     />
                   </div>

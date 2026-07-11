@@ -31,7 +31,6 @@ export const user = pgTable("user", {
   updatedAt: timestamp("updatedAt").notNull(),
 });
 
-
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
   expiresAt: timestamp("expiresAt").notNull(),
@@ -149,11 +148,11 @@ export const usageLogs = pgTable("usage_logs", {
 // --- 3. GOOGLE ADS CORE ---
 export const adAccounts = pgTable("ad_accounts", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
-  connectionId: integer("connection_id")
-    .references(() => googleAdsConnections.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id").notNull().default("default-org"),
+  connectionId: integer("connection_id").references(
+    () => googleAdsConnections.id,
+    { onDelete: "cascade" },
+  ),
   googleAccountId: text("google_account_id").notNull().unique(),
   name: text("name").notNull(),
   websiteUrl: text("website_url"), // <-- NEW: Required for the Threat Matrix
@@ -203,9 +202,7 @@ export const accountMetrics = pgTable(
 // --- 4. ALERT ENGINE ---
 export const alertRules = pgTable("alert_rules", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
+  organizationId: text("organization_id").notNull().default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id)
     .notNull(),
@@ -238,9 +235,7 @@ export const alertLogs = pgTable("alert_logs", {
 // --- 4. AUDIT & LOGGING ---
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
+  organizationId: text("organization_id").notNull().default("default-org"),
   actorId: text("actor_id"),
   action: text("action").notNull(),
   targetTable: text("target_table").notNull(),
@@ -251,9 +246,7 @@ export const auditLogs = pgTable("audit_logs", {
 
 export const emailLogs = pgTable("email_logs", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
+  organizationId: text("organization_id").notNull().default("default-org"),
   adAccountId: integer("ad_account_id").references(() => adAccounts.id, {
     onDelete: "set null",
   }),
@@ -269,9 +262,7 @@ export const emailLogs = pgTable("email_logs", {
 // --- 5. AUTOMATION & REPORTS ---
 export const reportSchedules = pgTable("report_schedules", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
+  organizationId: text("organization_id").notNull().default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id, { onDelete: "cascade" })
     .notNull(),
@@ -434,9 +425,7 @@ export const agencyAiInsightsCache = pgTable(
 // --- 8. COMPETITOR INTELLIGENCE (NEW) ---
 export const threatMatrixAudits = pgTable("threat_matrix_audits", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
+  organizationId: text("organization_id").notNull().default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id, { onDelete: "cascade" })
     .notNull(),
@@ -471,9 +460,7 @@ export const mcpSettings = pgTable("mcp_settings", {
 
 export const briefingSettings = pgTable("briefing_settings", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
+  organizationId: text("organization_id").notNull().default("default-org"),
   recipients: jsonb("recipients").notNull().default([]), // Array of email strings
   sendTime: varchar("send_time", { length: 5 }).notNull().default("07:00"),
   dataPoints: jsonb("data_points").notNull().default({
@@ -493,9 +480,7 @@ export const briefingSettings = pgTable("briefing_settings", {
 
 export const orgTriageDefaults = pgTable("org_triage_defaults", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
+  organizationId: text("organization_id").notNull().default("default-org"),
   criticalSpendThreshold: doublePrecision("critical_spend_threshold")
     .default(70.0)
     .notNull(),
@@ -524,9 +509,7 @@ export const orgTriageDefaults = pgTable("org_triage_defaults", {
 
 export const accountTriageSettings = pgTable("account_triage_settings", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
+  organizationId: text("organization_id").notNull().default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id, { onDelete: "cascade" })
     .unique()
@@ -559,9 +542,7 @@ export const negativeKeywordSuggestions = pgTable(
   "negative_keyword_suggestions",
   {
     id: serial("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .default("default-org"),
+    organizationId: text("organization_id").notNull().default("default-org"),
     adAccountId: integer("ad_account_id")
       .references(() => adAccounts.id, { onDelete: "cascade" })
       .notNull(),
@@ -599,9 +580,7 @@ export const campaignLandingPages = pgTable(
   "campaign_landing_pages",
   {
     id: serial("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .default("default-org"),
+    organizationId: text("organization_id").notNull().default("default-org"),
     adAccountId: integer("ad_account_id")
       .references(() => adAccounts.id, { onDelete: "cascade" })
       .notNull(),
@@ -622,9 +601,7 @@ export const campaignLandingPages = pgTable(
 
 export const landingPageAudits = pgTable("landing_page_audits", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
+  organizationId: text("organization_id").notNull().default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id, { onDelete: "cascade" })
     .notNull(),
@@ -672,9 +649,7 @@ export const landingPageAuditsRelations = relations(
 
 export const adGroupAdAudits = pgTable("ad_group_ad_audits", {
   id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .default("default-org"),
+  organizationId: text("organization_id").notNull().default("default-org"),
   adAccountId: integer("ad_account_id")
     .references(() => adAccounts.id, { onDelete: "cascade" })
     .notNull(),
@@ -713,10 +688,12 @@ export const backgroundTasks = pgTable("background_tasks", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const backgroundTasksRelations = relations(backgroundTasks, ({ one }) => ({
-  organization: one(organization, {
-    fields: [backgroundTasks.organizationId],
-    references: [organization.id],
+export const backgroundTasksRelations = relations(
+  backgroundTasks,
+  ({ one }) => ({
+    organization: one(organization, {
+      fields: [backgroundTasks.organizationId],
+      references: [organization.id],
+    }),
   }),
-}));
-
+);

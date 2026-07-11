@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
@@ -13,7 +13,9 @@ export function encryptToken(token: string): string {
   // keyHex should be a 64-character hex string representing a 32-byte key
   const key = Buffer.from(keyHex, "hex");
   if (key.length !== 32) {
-    throw new Error("ENCRYPTION_KEY must be a 32-byte hex string (64 characters)");
+    throw new Error(
+      "ENCRYPTION_KEY must be a 32-byte hex string (64 characters)",
+    );
   }
 
   const iv = crypto.randomBytes(IV_LENGTH);
@@ -36,7 +38,9 @@ export function decryptToken(encryptedText: string): string {
 
   const key = Buffer.from(keyHex, "hex");
   if (key.length !== 32) {
-    throw new Error("ENCRYPTION_KEY must be a 32-byte hex string (64 characters)");
+    throw new Error(
+      "ENCRYPTION_KEY must be a 32-byte hex string (64 characters)",
+    );
   }
 
   const parts = encryptedText.split(":");

@@ -73,7 +73,9 @@ async function refreshAccessToken(refreshToken: string) {
   });
   const data = await response.json();
   if (data.error) {
-    throw new Error(`Failed to refresh token: ${data.error_description || data.error}`);
+    throw new Error(
+      `Failed to refresh token: ${data.error_description || data.error}`,
+    );
   }
   return data.access_token as string;
 }
@@ -97,7 +99,7 @@ export async function getManagementAccessToken(): Promise<{
 
     if (session) {
       const activeOrgId = session.session.activeOrganizationId;
-      let conn;
+      let conn: any = null;
 
       if (activeOrgId) {
         conn = await db.query.googleAdsConnections.findFirst({
@@ -112,7 +114,10 @@ export async function getManagementAccessToken(): Promise<{
         });
         if (userMember) {
           conn = await db.query.googleAdsConnections.findFirst({
-            where: eq(googleAdsConnections.organizationId, userMember.organizationId),
+            where: eq(
+              googleAdsConnections.organizationId,
+              userMember.organizationId,
+            ),
           });
         }
       }
@@ -133,12 +138,17 @@ export async function getManagementAccessToken(): Promise<{
   // 2. Default fallback to environment variables
   const refreshToken = process.env.GOOGLE_ADS_REFRESH_TOKEN;
   if (!refreshToken) {
-    throw new Error("CRITICAL: Missing GOOGLE_ADS_REFRESH_TOKEN in environment variables.");
+    throw new Error(
+      "CRITICAL: Missing GOOGLE_ADS_REFRESH_TOKEN in environment variables.",
+    );
   }
   const accessToken = await refreshAccessToken(refreshToken);
   return {
     accessToken,
-    managerCustomerId: (process.env.GOOGLE_ADS_MANAGER_ID || "").replace(/-/g, ""),
+    managerCustomerId: (process.env.GOOGLE_ADS_MANAGER_ID || "").replace(
+      /-/g,
+      "",
+    ),
   };
 }
 
@@ -760,7 +770,12 @@ export async function fetchCampaignLandingPages(googleAccountId: string) {
     if (!campaignId) continue;
 
     if (!campaignMap.has(campaignId)) {
-      campaignMap.set(campaignId, { campaignId, campaignName, status, urls: [] });
+      campaignMap.set(campaignId, {
+        campaignId,
+        campaignName,
+        status,
+        urls: [],
+      });
     }
 
     const item = campaignMap.get(campaignId)!;

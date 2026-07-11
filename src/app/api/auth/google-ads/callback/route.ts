@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { googleAdsConnections } from "@/db/schema";
+import { auth } from "@/lib/auth";
 import { encryptToken } from "@/lib/crypto";
 
 export async function GET(request: NextRequest) {
@@ -23,11 +23,15 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("Google OAuth error:", error);
-    return NextResponse.redirect(`${appUrl}/onboarding/connect-ads?orgId=${orgId}&error=${error}`);
+    return NextResponse.redirect(
+      `${appUrl}/onboarding/connect-ads?orgId=${orgId}&error=${error}`,
+    );
   }
 
   if (!code || !orgId) {
-    return new NextResponse("Missing authorization code or state", { status: 400 });
+    return new NextResponse("Missing authorization code or state", {
+      status: 400,
+    });
   }
 
   try {
@@ -50,22 +54,29 @@ export async function GET(request: NextRequest) {
 
     const tokenData = await tokenRes.json();
     if (tokenData.error) {
-      throw new Error(`Token exchange failed: ${tokenData.error_description || tokenData.error}`);
+      throw new Error(
+        `Token exchange failed: ${tokenData.error_description || tokenData.error}`,
+      );
     }
 
     const { access_token, refresh_token } = tokenData;
 
     if (!refresh_token) {
-      console.warn("No refresh token received. Ensure you revoke app access first and retry.");
+      console.warn(
+        "No refresh token received. Ensure you revoke app access first and retry.",
+      );
       // We will still try to proceed, but standard flow requires consent prompt to always get refresh token
     }
 
     // 2. Fetch userinfo to retrieve the connected Google account's email
-    const userinfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
+    const userinfoRes = await fetch(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+        },
       },
-    });
+    );
     const userinfo = await userinfoRes.json();
     const connectedEmail = userinfo.email || "unknown@google.com";
 
@@ -86,11 +97,14 @@ export async function GET(request: NextRequest) {
       })
       .returning({ id: googleAdsConnections.id });
 
-
     // 5. Redirect user to MCC selection screen
-    return NextResponse.redirect(`${appUrl}/onboarding/mcc-select?connectionId=${conn.id}&orgId=${orgId}`);
+    return NextResponse.redirect(
+      `${appUrl}/onboarding/mcc-select?connectionId=${conn.id}&orgId=${orgId}`,
+    );
   } catch (err: any) {
     console.error("Failed to handle Google Ads callback:", err);
-    return NextResponse.redirect(`${appUrl}/onboarding/connect-ads?orgId=${orgId}&error=${encodeURIComponent(err.message)}`);
+    return NextResponse.redirect(
+      `${appUrl}/onboarding/connect-ads?orgId=${orgId}&error=${encodeURIComponent(err.message)}`,
+    );
   }
 }

@@ -1,11 +1,11 @@
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { getAccessibleManagerAccountsAction } from "@/actions/onboarding.actions";
-import MccSelectClient from "./mcc-select-client";
 import { db } from "@/db";
 import { googleAdsConnections } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { auth } from "@/lib/auth";
+import MccSelectClient from "./mcc-select-client";
 
 export default async function MccSelectPage({
   searchParams,

@@ -93,12 +93,8 @@
           "name": "account_userId_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "userId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -217,12 +213,8 @@
           "name": "account_metrics_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "account_metrics",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -312,12 +304,8 @@
           "name": "account_triage_settings_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "account_triage_settings",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -327,9 +315,7 @@
         "account_triage_settings_ad_account_id_unique": {
           "name": "account_triage_settings_ad_account_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "ad_account_id"
-          ]
+          "columns": ["ad_account_id"]
         }
       },
       "policies": {},
@@ -469,12 +455,8 @@
           "name": "ad_accounts_connection_id_google_ads_connections_id_fk",
           "tableFrom": "ad_accounts",
           "tableTo": "google_ads_connections",
-          "columnsFrom": [
-            "connection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["connection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -484,9 +466,7 @@
         "ad_accounts_google_account_id_unique": {
           "name": "ad_accounts_google_account_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "google_account_id"
-          ]
+          "columns": ["google_account_id"]
         }
       },
       "policies": {},
@@ -591,12 +571,8 @@
           "name": "ad_group_ad_audits_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "ad_group_ad_audits",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -717,12 +693,8 @@
           "name": "ad_performance_daily_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "ad_performance_daily",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -875,12 +847,8 @@
           "name": "ai_insights_cache_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "ai_insights_cache",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -927,12 +895,8 @@
           "name": "alert_logs_rule_id_alert_rules_id_fk",
           "tableFrom": "alert_logs",
           "tableTo": "alert_rules",
-          "columnsFrom": [
-            "rule_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1017,12 +981,8 @@
           "name": "alert_rules_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "alert_rules",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1241,12 +1201,8 @@
           "name": "campaign_landing_pages_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "campaign_landing_pages",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1330,12 +1286,8 @@
           "name": "email_logs_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "email_logs",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1414,12 +1366,8 @@
           "name": "google_ads_connections_organization_id_organization_id_fk",
           "tableFrom": "google_ads_connections",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1495,12 +1443,8 @@
           "name": "invitation_organizationId_organization_id_fk",
           "tableFrom": "invitation",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organizationId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organizationId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1508,12 +1452,8 @@
           "name": "invitation_inviterId_user_id_fk",
           "tableFrom": "invitation",
           "tableTo": "user",
-          "columnsFrom": [
-            "inviterId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["inviterId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1667,12 +1607,8 @@
           "name": "landing_page_audits_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "landing_page_audits",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1734,16 +1670,12 @@
         "mcp_settings_agency_id_unique": {
           "name": "mcp_settings_agency_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "agency_id"
-          ]
+          "columns": ["agency_id"]
         },
         "mcp_settings_api_key_unique": {
           "name": "mcp_settings_api_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "api_key"
-          ]
+          "columns": ["api_key"]
         }
       },
       "policies": {},
@@ -1797,12 +1729,8 @@
           "name": "member_organizationId_organization_id_fk",
           "tableFrom": "member",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organizationId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organizationId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1810,12 +1738,8 @@
           "name": "member_userId_user_id_fk",
           "tableFrom": "member",
           "tableTo": "user",
-          "columnsFrom": [
-            "userId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1947,12 +1871,8 @@
           "name": "negative_keyword_suggestions_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "negative_keyword_suggestions",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1992,12 +1912,8 @@
           "name": "notification_routes_rule_id_alert_rules_id_fk",
           "tableFrom": "notification_routes",
           "tableTo": "alert_rules",
-          "columnsFrom": [
-            "rule_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2168,9 +2084,7 @@
         "organization_slug_unique": {
           "name": "organization_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -2289,12 +2203,8 @@
           "name": "report_schedules_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "report_schedules",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2364,12 +2274,8 @@
           "name": "session_userId_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "userId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2379,9 +2285,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -2449,12 +2353,8 @@
           "name": "threat_matrix_audits_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "threat_matrix_audits",
           "tableTo": "ad_accounts",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ad_account_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2527,12 +2427,8 @@
           "name": "usage_logs_organization_id_organization_id_fk",
           "tableFrom": "usage_logs",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2540,12 +2436,8 @@
           "name": "usage_logs_user_id_user_id_fk",
           "tableFrom": "usage_logs",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2610,9 +2502,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},

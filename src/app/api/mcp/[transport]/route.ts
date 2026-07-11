@@ -40,13 +40,13 @@ import {
   saveAccountTriageSettingsInternal,
 } from "@/actions/triage-settings.actions";
 import { db } from "@/db";
-import { withTenantContext } from "@/db/tenant-db";
 import {
   adAccounts,
   mcpSettings,
   negativeKeywordSuggestions,
   orgTriageDefaults,
 } from "@/db/schema";
+import { withTenantContext } from "@/db/tenant-db";
 import { logAction } from "@/lib/audit";
 import {
   addCampaignNegativeKeyword,
@@ -1825,9 +1825,12 @@ const authHandler = async (req: Request) => {
     );
   }
 
-  const response = await withTenantContext(validSettings.organizationId, async () => {
-    return await handler(req);
-  });
+  const response = await withTenantContext(
+    validSettings.organizationId,
+    async () => {
+      return await handler(req);
+    },
+  );
 
   const newHeaders = new Headers(response.headers);
   newHeaders.set("Access-Control-Allow-Origin", "*");

@@ -7,11 +7,13 @@ import { db } from "./index";
  */
 export async function withTenantDb<T>(
   orgId: string,
-  callback: (tx: typeof db) => Promise<T>
+  callback: (tx: typeof db) => Promise<T>,
 ): Promise<T> {
   return await db.transaction(async (tx) => {
     // Set the session variable for the current transaction using set_config programmatically
-    await tx.execute(sql`SELECT set_config('app.current_organization_id', ${orgId}, true)`);
+    await tx.execute(
+      sql`SELECT set_config('app.current_organization_id', ${orgId}, true)`,
+    );
     // Run the callback queries inside the transaction context
     return await callback(tx as any);
   });
@@ -22,7 +24,7 @@ export async function withTenantDb<T>(
  * Useful for global background cron jobs and administration utilities.
  */
 export async function withBypassTenantDb<T>(
-  callback: (tx: typeof db) => Promise<T>
+  callback: (tx: typeof db) => Promise<T>,
 ): Promise<T> {
   return await db.transaction(async (tx) => {
     // Enable RLS bypass in the current session using set_config
@@ -30,4 +32,3 @@ export async function withBypassTenantDb<T>(
     return await callback(tx as any);
   });
 }
-

@@ -1,12 +1,17 @@
 "use server";
 
-import { db } from "@/db";
-import { googleAdsConnections, adAccounts, organization, member } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { db } from "@/db";
+import {
+  adAccounts,
+  googleAdsConnections,
+  member,
+  organization,
+} from "@/db/schema";
 import { withTenantContext } from "@/db/tenant-db";
+import { auth } from "@/lib/auth";
 
 async function getAccessToken(refreshToken: string) {
   const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -21,7 +26,9 @@ async function getAccessToken(refreshToken: string) {
   });
   const data = await response.json();
   if (data.error) {
-    throw new Error(`Failed to refresh access token: ${data.error_description || data.error}`);
+    throw new Error(
+      `Failed to refresh access token: ${data.error_description || data.error}`,
+    );
   }
   return data.access_token as string;
 }
@@ -62,8 +69,8 @@ export async function disconnectGoogleAdsAction(payload: {
           .where(
             and(
               eq(adAccounts.connectionId, payload.connectionId),
-              eq(adAccounts.organizationId, orgId)
-            )
+              eq(adAccounts.organizationId, orgId),
+            ),
           );
       } else {
         // Otherwise, keep the accounts but set connectionId to null so they are orphaned
@@ -73,8 +80,8 @@ export async function disconnectGoogleAdsAction(payload: {
           .where(
             and(
               eq(adAccounts.connectionId, payload.connectionId),
-              eq(adAccounts.organizationId, orgId)
-            )
+              eq(adAccounts.organizationId, orgId),
+            ),
           );
       }
 
@@ -84,8 +91,8 @@ export async function disconnectGoogleAdsAction(payload: {
         .where(
           and(
             eq(googleAdsConnections.id, payload.connectionId),
-            eq(googleAdsConnections.organizationId, orgId)
-          )
+            eq(googleAdsConnections.organizationId, orgId),
+          ),
         );
     });
 
@@ -166,12 +173,14 @@ export async function updateLinkedAccountsAction(payload: {
           "login-customer-id": sanitizedId,
         },
         body: JSON.stringify({ query }),
-      }
+      },
     );
     const searchData = await searchRes.json();
 
     if (searchData.error) {
-      throw new Error(`Failed to fetch client accounts: ${searchData.error.message}`);
+      throw new Error(
+        `Failed to fetch client accounts: ${searchData.error.message}`,
+      );
     }
 
     const results = searchData.results || [];
@@ -209,10 +218,10 @@ export async function updateLinkedAccountsAction(payload: {
             payload.selectedCustomerIds.length > 0
               ? sql`${adAccounts.googleAccountId} NOT IN (${sql.join(
                   payload.selectedCustomerIds.map((id) => sql`${id}`),
-                  sql`, `
+                  sql`, `,
                 )})`
-              : sql`TRUE`
-          )
+              : sql`TRUE`,
+          ),
         );
 
       // Upsert the checked ones (activate or insert)
@@ -235,7 +244,9 @@ export async function updateLinkedAccountsAction(payload: {
 
     // Trigger background sync for newly imported/re-activated accounts
     const endDateStr = new Date().toISOString().split("T")[0];
-    const startDateStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const startDateStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
 
     const { backgroundTasks } = await import("@/db/schema");
     const [taskRecord] = await db
@@ -248,7 +259,9 @@ export async function updateLinkedAccountsAction(payload: {
       .returning({ id: backgroundTasks.id });
 
     if (taskRecord) {
-      const { syncAgencyPortfolioAction } = await import("@/actions/agency.actions");
+      const { syncAgencyPortfolioAction } = await import(
+        "@/actions/agency.actions"
+      );
       syncAgencyPortfolioAction(startDateStr, endDateStr, {
         organizationId: orgId,
         backgroundTaskId: taskRecord.id,
@@ -356,7 +369,9 @@ export async function refreshAdAccountsMetadataAction() {
     });
 
     if (!conn) {
-      throw new Error("Google Ads connection not found. Please connect your manager account first.");
+      throw new Error(
+        "Google Ads connection not found. Please connect your manager account first.",
+      );
     }
 
     const { decryptToken } = await import("@/lib/crypto");
@@ -389,11 +404,13 @@ export async function refreshAdAccountsMetadataAction() {
           "login-customer-id": sanitizedId,
         },
         body: JSON.stringify({ query }),
-      }
+      },
     );
     const searchData = await searchRes.json();
     if (searchData.error) {
-      throw new Error(`Failed to fetch live client accounts: ${searchData.error.message}`);
+      throw new Error(
+        `Failed to fetch live client accounts: ${searchData.error.message}`,
+      );
     }
 
     const results = searchData.results || [];
@@ -404,7 +421,7 @@ export async function refreshAdAccountsMetadataAction() {
         if (client) {
           const clientIdStr = client.id.toString();
           const liveStatus = client.status || "ENABLED";
-          
+
           await tx
             .update(adAccounts)
             .set({
@@ -412,13 +429,13 @@ export async function refreshAdAccountsMetadataAction() {
               currencyCode: client.currencyCode || "AUD",
               timeZone: client.timeZone || "Australia/Melbourne",
               googleStatus: liveStatus,
-              isActive: liveStatus === "ENABLED", 
+              isActive: liveStatus === "ENABLED",
             })
             .where(
               and(
                 eq(adAccounts.googleAccountId, clientIdStr),
-                eq(adAccounts.organizationId, orgId)
-              )
+                eq(adAccounts.organizationId, orgId),
+              ),
             );
         }
       }

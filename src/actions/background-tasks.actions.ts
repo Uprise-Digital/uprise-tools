@@ -1,10 +1,10 @@
 "use server";
 
+import { and, desc, eq, gte, or } from "drizzle-orm";
+import { headers } from "next/headers";
 import { db } from "@/db";
 import { backgroundTasks, member } from "@/db/schema";
-import { and, desc, eq, gte, or } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 
 export async function getActiveBackgroundTasksAction() {
   const session = await auth.api.getSession({
@@ -40,10 +40,13 @@ export async function getActiveBackgroundTasksAction() {
         or(
           eq(backgroundTasks.status, "running"),
           and(
-            or(eq(backgroundTasks.status, "completed"), eq(backgroundTasks.status, "failed")),
-            gte(backgroundTasks.updatedAt, tenSecondsAgo)
-          )
-        )
+            or(
+              eq(backgroundTasks.status, "completed"),
+              eq(backgroundTasks.status, "failed"),
+            ),
+            gte(backgroundTasks.updatedAt, tenSecondsAgo),
+          ),
+        ),
       ),
       orderBy: [desc(backgroundTasks.createdAt)],
     });

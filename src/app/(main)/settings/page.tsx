@@ -1,12 +1,17 @@
-import { eq, and } from "drizzle-orm";
-import { getOrgTriageDefaultsAction } from "@/actions/triage-settings.actions";
-import { db } from "@/db";
-import { adAccounts, googleAdsConnections, organization, member } from "@/db/schema";
-import SettingsClient from "./pageClient";
-import { auth } from "@/lib/auth";
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { getOrgTriageDefaultsAction } from "@/actions/triage-settings.actions";
+import { db } from "@/db";
+import {
+  adAccounts,
+  googleAdsConnections,
+  member,
+  organization,
+} from "@/db/schema";
 import { withTenantContext } from "@/db/tenant-db";
+import { auth } from "@/lib/auth";
+import SettingsClient from "./pageClient";
 
 export default async function SettingsPage() {
   const session = await auth.api.getSession({
@@ -44,7 +49,7 @@ export default async function SettingsPage() {
     withTenantContext(orgId, (tx) =>
       tx.query.adAccounts.findMany({
         where: eq(adAccounts.organizationId, orgId),
-      })
+      }),
     ),
     db.query.auditLogs.findMany({
       with: {
@@ -69,7 +74,7 @@ export default async function SettingsPage() {
     db.query.member.findFirst({
       where: and(
         eq(member.userId, session.user.id),
-        eq(member.organizationId, orgId)
+        eq(member.organizationId, orgId),
       ),
     }),
   ]);

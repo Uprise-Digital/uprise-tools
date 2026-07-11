@@ -1,6 +1,10 @@
+import { and, count, eq, gte } from "drizzle-orm";
 import { db } from "@/db";
-import { and, gte, eq, count } from "drizzle-orm";
-import { landingPageAudits, adGroupAdAudits, threatMatrixAudits } from "@/db/schema";
+import {
+  adGroupAdAudits,
+  landingPageAudits,
+  threatMatrixAudits,
+} from "@/db/schema";
 import { getMelbourneTodayStr, parseUTCDate } from "@/lib/date-utils";
 
 /**
@@ -27,8 +31,8 @@ export async function checkDailyAuditLimit(organizationId: string): Promise<{
     .where(
       and(
         eq(landingPageAudits.organizationId, organizationId),
-        gte(landingPageAudits.createdAt, startOfDay)
-      )
+        gte(landingPageAudits.createdAt, startOfDay),
+      ),
     );
 
   // 2. Count Ad Group Ad Audits today
@@ -38,8 +42,8 @@ export async function checkDailyAuditLimit(organizationId: string): Promise<{
     .where(
       and(
         eq(adGroupAdAudits.organizationId, organizationId),
-        gte(adGroupAdAudits.createdAt, startOfDay)
-      )
+        gte(adGroupAdAudits.createdAt, startOfDay),
+      ),
     );
 
   // 3. Count Competitor Threat Matrix Audits today
@@ -49,8 +53,8 @@ export async function checkDailyAuditLimit(organizationId: string): Promise<{
     .where(
       and(
         eq(threatMatrixAudits.organizationId, organizationId),
-        gte(threatMatrixAudits.createdAt, startOfDay)
-      )
+        gte(threatMatrixAudits.createdAt, startOfDay),
+      ),
     );
 
   const current =

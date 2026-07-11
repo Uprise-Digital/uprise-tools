@@ -1,12 +1,18 @@
 "use server";
 
-import { db } from "@/db";
-import { organization, member, googleAdsConnections, adAccounts, backgroundTasks } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { decryptToken } from "@/lib/crypto";
 import { generateId } from "better-auth";
+import { eq, sql } from "drizzle-orm";
+import { headers } from "next/headers";
+import { db } from "@/db";
+import {
+  adAccounts,
+  backgroundTasks,
+  googleAdsConnections,
+  member,
+  organization,
+} from "@/db/schema";
+import { auth } from "@/lib/auth";
+import { decryptToken } from "@/lib/crypto";
 
 const DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN!;
 
@@ -24,7 +30,9 @@ async function getAccessToken(refreshToken: string) {
   });
   const data = await response.json();
   if (data.error) {
-    throw new Error(`Failed to refresh access token: ${data.error_description || data.error}`);
+    throw new Error(
+      `Failed to refresh access token: ${data.error_description || data.error}`,
+    );
   }
   return data.access_token;
 }
@@ -79,7 +87,10 @@ export async function createOrganizationAction(payload: {
 }
 
 // --- Helper: Fetch Google Ads Customer Details via Search Query ---
-async function fetchCustomerDetailsInternal(accessToken: string, customerId: string) {
+async function fetchCustomerDetailsInternal(
+  accessToken: string,
+  customerId: string,
+) {
   const sanitizedId = customerId.replace(/-/g, "");
   const query = `
     SELECT
@@ -90,18 +101,23 @@ async function fetchCustomerDetailsInternal(accessToken: string, customerId: str
       customer.time_zone
     FROM customer
   `;
-  const response = await fetch(`https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "developer-token": DEVELOPER_TOKEN,
-      Authorization: `Bearer ${accessToken}`,
+  const response = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ query }),
     },
-    body: JSON.stringify({ query }),
-  });
+  );
   const data = await response.json();
   if (data.error) {
-    throw new Error(`Google Ads API error fetching details for ${customerId}: ${data.error.message}`);
+    throw new Error(
+      `Google Ads API error fetching details for ${customerId}: ${data.error.message}`,
+    );
   }
   const customer = data.results?.[0]?.customer;
   if (!customer) {
@@ -140,7 +156,8 @@ export async function getAccessibleManagerAccountsAction(connectionId: number) {
     const accessToken = await getAccessToken(decToken);
 
     // Fetch accessible customer list
-    const listUrl = "https://googleads.googleapis.com/v23/customers:listAccessibleCustomers";
+    const listUrl =
+      "https://googleads.googleapis.com/v23/customers:listAccessibleCustomers";
     const listRes = await fetch(listUrl, {
       headers: {
         "developer-token": DEVELOPER_TOKEN,
@@ -160,7 +177,10 @@ export async function getAccessibleManagerAccountsAction(connectionId: number) {
     for (const resName of resourceNames) {
       try {
         const customerId = resName.split("/")[1];
-        const detail = await fetchCustomerDetailsInternal(accessToken, customerId);
+        const detail = await fetchCustomerDetailsInternal(
+          accessToken,
+          customerId,
+        );
         accounts.push({
           id: customerId,
           name: detail.name,
@@ -242,7 +262,7 @@ export async function fetchSubAccountsForPreviewAction(payload: {
             "login-customer-id": sanitizedId,
           },
           body: JSON.stringify({ query }),
-        }
+        },
       );
 
       const data = await response.json();
@@ -313,10 +333,12 @@ export async function linkManagerAccountAction(payload: {
     const accessToken = await getAccessToken(decToken);
 
     // 1. Fetch descriptive details of the selected customer using search
-    const detail = await fetchCustomerDetailsInternal(accessToken, payload.managerCustomerId);
+    const detail = await fetchCustomerDetailsInternal(
+      accessToken,
+      payload.managerCustomerId,
+    );
     const isManager = detail.manager;
     const sanitizedId = payload.managerCustomerId.replace(/-/g, "");
-
 
     // 2. Import accounts
     const accountsToInsert: {
@@ -344,20 +366,25 @@ export async function linkManagerAccountAction(payload: {
           AND customer_client.manager = false
       `;
 
-      const searchRes = await fetch(`https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "developer-token": DEVELOPER_TOKEN,
-          Authorization: `Bearer ${accessToken}`,
-          "login-customer-id": sanitizedId,
+      const searchRes = await fetch(
+        `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "developer-token": DEVELOPER_TOKEN,
+            Authorization: `Bearer ${accessToken}`,
+            "login-customer-id": sanitizedId,
+          },
+          body: JSON.stringify({ query }),
         },
-        body: JSON.stringify({ query }),
-      });
+      );
       const searchData = await searchRes.json();
 
       if (searchData.error) {
-        throw new Error(`Failed to fetch client accounts under MCC: ${searchData.error.message}`);
+        throw new Error(
+          `Failed to fetch client accounts under MCC: ${searchData.error.message}`,
+        );
       }
 
       const results = searchData.results || [];
@@ -423,8 +450,10 @@ export async function linkManagerAccountAction(payload: {
 
     // 5. Trigger background sync for the newly imported accounts (last 30 days)
     const endDateStr = new Date().toISOString().split("T")[0];
-    const startDateStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    
+    const startDateStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+
     db.insert(backgroundTasks)
       .values({
         organizationId: orgId,
@@ -434,14 +463,18 @@ export async function linkManagerAccountAction(payload: {
       .returning({ id: backgroundTasks.id })
       .then(([taskRecord]) => {
         if (!taskRecord) return;
-        
-        import("@/actions/agency.actions").then(({ syncAgencyPortfolioAction }) => {
-          console.log(`[Onboarding] Triggering background sync for ${accountsToInsert.length} accounts from ${startDateStr} to ${endDateStr}`);
-          syncAgencyPortfolioAction(startDateStr, endDateStr, {
-            organizationId: orgId,
-            backgroundTaskId: taskRecord.id,
-          });
-        });
+
+        import("@/actions/agency.actions").then(
+          ({ syncAgencyPortfolioAction }) => {
+            console.log(
+              `[Onboarding] Triggering background sync for ${accountsToInsert.length} accounts from ${startDateStr} to ${endDateStr}`,
+            );
+            syncAgencyPortfolioAction(startDateStr, endDateStr, {
+              organizationId: orgId,
+              backgroundTaskId: taskRecord.id,
+            });
+          },
+        );
       })
       .catch((err) => {
         console.error("Failed to create background task log:", err);

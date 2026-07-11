@@ -92,13 +92,9 @@
         "account_userId_user_id_fk": {
           "name": "account_userId_user_id_fk",
           "tableFrom": "account",
-          "columnsFrom": [
-            "userId"
-          ],
+          "columnsFrom": ["userId"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -216,13 +212,9 @@
         "account_metrics_ad_account_id_ad_accounts_id_fk": {
           "name": "account_metrics_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "account_metrics",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -311,13 +303,9 @@
         "account_triage_settings_ad_account_id_ad_accounts_id_fk": {
           "name": "account_triage_settings_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "account_triage_settings",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -326,9 +314,7 @@
       "uniqueConstraints": {
         "account_triage_settings_ad_account_id_unique": {
           "name": "account_triage_settings_ad_account_id_unique",
-          "columns": [
-            "ad_account_id"
-          ],
+          "columns": ["ad_account_id"],
           "nullsNotDistinct": false
         }
       },
@@ -468,13 +454,9 @@
         "ad_accounts_connection_id_google_ads_connections_id_fk": {
           "name": "ad_accounts_connection_id_google_ads_connections_id_fk",
           "tableFrom": "ad_accounts",
-          "columnsFrom": [
-            "connection_id"
-          ],
+          "columnsFrom": ["connection_id"],
           "tableTo": "google_ads_connections",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -483,9 +465,7 @@
       "uniqueConstraints": {
         "ad_accounts_google_account_id_unique": {
           "name": "ad_accounts_google_account_id_unique",
-          "columns": [
-            "google_account_id"
-          ],
+          "columns": ["google_account_id"],
           "nullsNotDistinct": false
         }
       },
@@ -590,13 +570,9 @@
         "ad_group_ad_audits_ad_account_id_ad_accounts_id_fk": {
           "name": "ad_group_ad_audits_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "ad_group_ad_audits",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -716,13 +692,9 @@
         "ad_performance_daily_ad_account_id_ad_accounts_id_fk": {
           "name": "ad_performance_daily_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "ad_performance_daily",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -874,13 +846,9 @@
         "ai_insights_cache_ad_account_id_ad_accounts_id_fk": {
           "name": "ai_insights_cache_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "ai_insights_cache",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -926,13 +894,9 @@
         "alert_logs_rule_id_alert_rules_id_fk": {
           "name": "alert_logs_rule_id_alert_rules_id_fk",
           "tableFrom": "alert_logs",
-          "columnsFrom": [
-            "rule_id"
-          ],
+          "columnsFrom": ["rule_id"],
           "tableTo": "alert_rules",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1016,13 +980,9 @@
         "alert_rules_ad_account_id_ad_accounts_id_fk": {
           "name": "alert_rules_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "alert_rules",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1240,13 +1200,9 @@
         "campaign_landing_pages_ad_account_id_ad_accounts_id_fk": {
           "name": "campaign_landing_pages_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "campaign_landing_pages",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1329,13 +1285,9 @@
         "email_logs_ad_account_id_ad_accounts_id_fk": {
           "name": "email_logs_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "email_logs",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -1413,13 +1365,9 @@
         "google_ads_connections_organization_id_organization_id_fk": {
           "name": "google_ads_connections_organization_id_organization_id_fk",
           "tableFrom": "google_ads_connections",
-          "columnsFrom": [
-            "organization_id"
-          ],
+          "columnsFrom": ["organization_id"],
           "tableTo": "organization",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1494,26 +1442,18 @@
         "invitation_organizationId_organization_id_fk": {
           "name": "invitation_organizationId_organization_id_fk",
           "tableFrom": "invitation",
-          "columnsFrom": [
-            "organizationId"
-          ],
+          "columnsFrom": ["organizationId"],
           "tableTo": "organization",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "invitation_inviterId_user_id_fk": {
           "name": "invitation_inviterId_user_id_fk",
           "tableFrom": "invitation",
-          "columnsFrom": [
-            "inviterId"
-          ],
+          "columnsFrom": ["inviterId"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1666,13 +1606,9 @@
         "landing_page_audits_ad_account_id_ad_accounts_id_fk": {
           "name": "landing_page_audits_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "landing_page_audits",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1733,16 +1669,12 @@
       "uniqueConstraints": {
         "mcp_settings_agency_id_unique": {
           "name": "mcp_settings_agency_id_unique",
-          "columns": [
-            "agency_id"
-          ],
+          "columns": ["agency_id"],
           "nullsNotDistinct": false
         },
         "mcp_settings_api_key_unique": {
           "name": "mcp_settings_api_key_unique",
-          "columns": [
-            "api_key"
-          ],
+          "columns": ["api_key"],
           "nullsNotDistinct": false
         }
       },
@@ -1796,26 +1728,18 @@
         "member_organizationId_organization_id_fk": {
           "name": "member_organizationId_organization_id_fk",
           "tableFrom": "member",
-          "columnsFrom": [
-            "organizationId"
-          ],
+          "columnsFrom": ["organizationId"],
           "tableTo": "organization",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "member_userId_user_id_fk": {
           "name": "member_userId_user_id_fk",
           "tableFrom": "member",
-          "columnsFrom": [
-            "userId"
-          ],
+          "columnsFrom": ["userId"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1946,13 +1870,9 @@
         "negative_keyword_suggestions_ad_account_id_ad_accounts_id_fk": {
           "name": "negative_keyword_suggestions_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "negative_keyword_suggestions",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1991,13 +1911,9 @@
         "notification_routes_rule_id_alert_rules_id_fk": {
           "name": "notification_routes_rule_id_alert_rules_id_fk",
           "tableFrom": "notification_routes",
-          "columnsFrom": [
-            "rule_id"
-          ],
+          "columnsFrom": ["rule_id"],
           "tableTo": "alert_rules",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -2167,9 +2083,7 @@
       "uniqueConstraints": {
         "organization_slug_unique": {
           "name": "organization_slug_unique",
-          "columns": [
-            "slug"
-          ],
+          "columns": ["slug"],
           "nullsNotDistinct": false
         }
       },
@@ -2288,13 +2202,9 @@
         "report_schedules_ad_account_id_ad_accounts_id_fk": {
           "name": "report_schedules_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "report_schedules",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -2363,13 +2273,9 @@
         "session_userId_user_id_fk": {
           "name": "session_userId_user_id_fk",
           "tableFrom": "session",
-          "columnsFrom": [
-            "userId"
-          ],
+          "columnsFrom": ["userId"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2378,9 +2284,7 @@
       "uniqueConstraints": {
         "session_token_unique": {
           "name": "session_token_unique",
-          "columns": [
-            "token"
-          ],
+          "columns": ["token"],
           "nullsNotDistinct": false
         }
       },
@@ -2448,13 +2352,9 @@
         "threat_matrix_audits_ad_account_id_ad_accounts_id_fk": {
           "name": "threat_matrix_audits_ad_account_id_ad_accounts_id_fk",
           "tableFrom": "threat_matrix_audits",
-          "columnsFrom": [
-            "ad_account_id"
-          ],
+          "columnsFrom": ["ad_account_id"],
           "tableTo": "ad_accounts",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -2526,26 +2426,18 @@
         "usage_logs_organization_id_organization_id_fk": {
           "name": "usage_logs_organization_id_organization_id_fk",
           "tableFrom": "usage_logs",
-          "columnsFrom": [
-            "organization_id"
-          ],
+          "columnsFrom": ["organization_id"],
           "tableTo": "organization",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "usage_logs_user_id_user_id_fk": {
           "name": "usage_logs_user_id_user_id_fk",
           "tableFrom": "usage_logs",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -2609,9 +2501,7 @@
       "uniqueConstraints": {
         "user_email_unique": {
           "name": "user_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "nullsNotDistinct": false
         }
       },

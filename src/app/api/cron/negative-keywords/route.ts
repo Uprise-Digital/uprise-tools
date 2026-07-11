@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { generateSuggestionsInternal } from "@/actions/negative-keywords.actions";
-import { db } from "@/db";
 import { withBypassTenantDb } from "@/db/db-helper";
 import { adAccounts } from "@/db/schema";
 

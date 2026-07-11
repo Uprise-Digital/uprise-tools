@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 // Configure S3 client for Cloudflare R2
 const r2Endpoint = process.env.CLOUDFLARE_R2_ENDPOINT;
@@ -26,7 +26,7 @@ if (r2Endpoint && accessKeyId && secretAccessKey) {
  */
 export async function uploadImageToR2(
   base64Data: string,
-  fileName: string
+  fileName: string,
 ): Promise<string | null> {
   if (!s3Client || !bucketName || !publicUrl) {
     console.warn("[R2 Storage] R2 Storage is not configured. Skipping upload.");
@@ -42,11 +42,13 @@ export async function uploadImageToR2(
         Key: fileName,
         Body: buffer,
         ContentType: "image/png",
-      })
+      }),
     );
 
     // Build public access URL
-    const cleanPublicUrl = publicUrl.endsWith("/") ? publicUrl.slice(0, -1) : publicUrl;
+    const cleanPublicUrl = publicUrl.endsWith("/")
+      ? publicUrl.slice(0, -1)
+      : publicUrl;
     return `${cleanPublicUrl}/${fileName}`;
   } catch (error) {
     console.error("[R2 Storage Error] Failed to upload image to R2:", error);

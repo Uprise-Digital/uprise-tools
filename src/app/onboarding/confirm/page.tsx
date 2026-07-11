@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import Link from "next/link";
 
 export default async function ConfirmPage({
   searchParams,
@@ -18,7 +18,9 @@ export default async function ConfirmPage({
 
   const { email } = await searchParams;
 
-  const connectedEmail = email ? decodeURIComponent(email) : "ads-tools@youragency.com";
+  const connectedEmail = email
+    ? decodeURIComponent(email)
+    : "ads-tools@youragency.com";
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 text-white relative overflow-hidden">
@@ -28,8 +30,18 @@ export default async function ConfirmPage({
       <div className="max-w-md w-full space-y-8 bg-slate-900/40 border border-slate-800/80 backdrop-blur-xl p-8 rounded-2xl shadow-2xl relative text-center">
         <div className="space-y-6">
           <div className="h-16 w-16 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center mx-auto border border-green-500/20">
-            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="h-8 w-8"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
 
@@ -43,7 +55,8 @@ export default async function ConfirmPage({
           </div>
 
           <p className="text-sm text-slate-300 leading-relaxed text-left">
-            Uprise can now see accounts linked to your Google Ads manager account. You can revoke this anytime from the{" "}
+            Uprise can now see accounts linked to your Google Ads manager
+            account. You can revoke this anytime from the{" "}
             <a
               href="https://myaccount.google.com/permissions"
               target="_blank"

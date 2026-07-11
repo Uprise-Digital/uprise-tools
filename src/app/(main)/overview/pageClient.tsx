@@ -25,19 +25,19 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 import {
-  ResponsiveContainer,
-  AreaChart,
   Area,
+  AreaChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceArea,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  CartesianGrid,
-  LineChart,
-  Line,
-  ReferenceArea,
 } from "recharts";
+import { toast } from "sonner";
 
 import {
   getAgencyPortfolioMetricsAction,
@@ -84,7 +84,9 @@ export default function AgencyReportsClient() {
   const [ledgerLimit, setLedgerLimit] = useState(10);
 
   const router = useRouter();
-  const [expandedFires, setExpandedFires] = useState<Record<number, boolean>>({ 0: true });
+  const [expandedFires, setExpandedFires] = useState<Record<number, boolean>>({
+    0: true,
+  });
 
   useEffect(() => {
     setLedgerPage(1);
@@ -348,14 +350,21 @@ export default function AgencyReportsClient() {
       (acc: any) =>
         acc.name.toLowerCase() === fire?.account_name?.toLowerCase() ||
         fire?.account_name?.toLowerCase().includes(acc.name.toLowerCase()) ||
-        acc.name.toLowerCase().includes(fire?.account_name?.toLowerCase())
+        acc.name.toLowerCase().includes(fire?.account_name?.toLowerCase()),
     );
 
     if (!matchedAcc) return null;
 
-    const probAndAction = `${fire?.the_problem || ""} ${fire?.recommended_action || ""}`.toLowerCase();
-    const isKeywordIssue = /keyword|search[- ]term|search[- ]query|broad[- ]match|negative/i.test(probAndAction);
-    const isCopyIssue = /copy|headline|description|pinned|ad[- ]text|creative|cta/i.test(probAndAction);
+    const probAndAction =
+      `${fire?.the_problem || ""} ${fire?.recommended_action || ""}`.toLowerCase();
+    const isKeywordIssue =
+      /keyword|search[- ]term|search[- ]query|broad[- ]match|negative/i.test(
+        probAndAction,
+      );
+    const isCopyIssue =
+      /copy|headline|description|pinned|ad[- ]text|creative|cta/i.test(
+        probAndAction,
+      );
 
     return (
       <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100 mt-3">
@@ -405,12 +414,12 @@ export default function AgencyReportsClient() {
 
   const getWeekendReferenceAreas = (dailyTotals: any[]) => {
     if (!dailyTotals || dailyTotals.length === 0) return [];
-    
+
     const areas: Array<{ x1: string; x2: string; id: string }> = [];
     let currentWeekend: { x1: string; x2: string } | null = null;
 
     dailyTotals.forEach((d) => {
-      const dateObj = new Date(d.date + "T00:00:00");
+      const dateObj = new Date(`${d.date}T00:00:00`);
       const day = dateObj.getDay(); // 0 = Sunday, 6 = Saturday
       const isWeekend = day === 0 || day === 6;
 
@@ -644,11 +653,15 @@ export default function AgencyReportsClient() {
                 <AreaChart data={portfolio.dailyTotals}>
                   <defs>
                     <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#f1f5f9"
+                    vertical={false}
+                  />
                   {weekendAreas.map((area) => (
                     <ReferenceArea
                       key={area.id}
@@ -659,14 +672,39 @@ export default function AgencyReportsClient() {
                       ifOverflow="extendDomain"
                     />
                   ))}
-                  <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} stroke="#94a3b8" fontSize={10} tickLine={false} />
-                  <YAxis tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                  <Tooltip formatter={(value) => [fCur(Number(value)), "Spend"]} labelFormatter={(d) => `Date: ${d}`} contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
-                  <Area type="monotone" dataKey="spend" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#spendGrad)" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(d) => d.slice(5)}
+                    stroke="#94a3b8"
+                    fontSize={10}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tickFormatter={(v) => `$${v}`}
+                    stroke="#94a3b8"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value) => [fCur(Number(value)), "Spend"]}
+                    labelFormatter={(d) => `Date: ${d}`}
+                    contentStyle={{ fontSize: "11px", borderRadius: "8px" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="spend"
+                    stroke="#4f46e5"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#spendGrad)"
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-slate-400 text-xs">No daily metrics found</div>
+              <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                No daily metrics found
+              </div>
             )}
           </CardContent>
         </Card>
@@ -685,7 +723,11 @@ export default function AgencyReportsClient() {
             {portfolio?.dailyTotals && portfolio.dailyTotals.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={portfolio.dailyTotals}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#f1f5f9"
+                    vertical={false}
+                  />
                   {weekendAreas.map((area) => (
                     <ReferenceArea
                       key={area.id}
@@ -696,14 +738,38 @@ export default function AgencyReportsClient() {
                       ifOverflow="extendDomain"
                     />
                   ))}
-                  <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} stroke="#94a3b8" fontSize={10} tickLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
-                  <Tooltip formatter={(value) => [fNum(Number(value)), "Conversions"]} labelFormatter={(d) => `Date: ${d}`} contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
-                  <Line type="monotone" dataKey="conversions" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(d) => d.slice(5)}
+                    stroke="#94a3b8"
+                    fontSize={10}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    stroke="#94a3b8"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value) => [fNum(Number(value)), "Conversions"]}
+                    labelFormatter={(d) => `Date: ${d}`}
+                    contentStyle={{ fontSize: "11px", borderRadius: "8px" }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="conversions"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-slate-400 text-xs">No daily metrics found</div>
+              <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                No daily metrics found
+              </div>
             )}
           </CardContent>
         </Card>
@@ -765,7 +831,8 @@ export default function AgencyReportsClient() {
               <div className="p-6 lg:col-span-1 space-y-6 bg-white">
                 <div>
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <Target className="h-3.5 w-3.5 text-indigo-500" /> Macro Summary
+                    <Target className="h-3.5 w-3.5 text-indigo-500" /> Macro
+                    Summary
                   </h4>
                   <p className="text-sm leading-relaxed text-slate-700 font-medium">
                     {insights?.macro_summary || "No summary available."}
@@ -774,8 +841,8 @@ export default function AgencyReportsClient() {
                 <div className="h-px bg-slate-100 w-full" />
                 <div>
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <Activity className="h-3.5 w-3.5 text-emerald-500" /> Blended
-                    Efficiency
+                    <Activity className="h-3.5 w-3.5 text-emerald-500" />{" "}
+                    Blended Efficiency
                   </h4>
                   <p className="text-sm leading-relaxed text-slate-700 font-medium">
                     {insights?.blended_efficiency ||
@@ -790,7 +857,8 @@ export default function AgencyReportsClient() {
                 <div className="p-6 flex-1">
                   <div className="flex items-center justify-between mb-5">
                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                      <Flame className="h-4 w-4 text-red-500" /> Critical Fires Queue
+                      <Flame className="h-4 w-4 text-red-500" /> Critical Fires
+                      Queue
                     </h4>
                     <span className="bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold px-2.5 py-1 rounded-full">
                       {insights?.critical_fires?.length || 0} Alerts
@@ -817,12 +885,17 @@ export default function AgencyReportsClient() {
                             <button
                               type="button"
                               onClick={() => {
-                                setExpandedFires(prev => ({ ...prev, [i]: !prev[i] }));
+                                setExpandedFires((prev) => ({
+                                  ...prev,
+                                  [i]: !prev[i],
+                                }));
                               }}
                               className="w-full flex justify-between items-center px-5 py-4 hover:bg-slate-50/60 cursor-pointer text-left focus:outline-none"
                             >
                               <div className="flex items-center gap-3">
-                                <span className={`transition-transform duration-200 transform ${isExpanded ? 'rotate-90' : ''}`}>
+                                <span
+                                  className={`transition-transform duration-200 transform ${isExpanded ? "rotate-90" : ""}`}
+                                >
                                   <ChevronRight className="w-4 h-4 text-slate-400" />
                                 </span>
                                 <span className="font-bold text-base text-slate-900">
@@ -844,7 +917,9 @@ export default function AgencyReportsClient() {
 
                             <div
                               className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                                isExpanded ? "max-h-[800px] border-t border-slate-100" : "max-h-0"
+                                isExpanded
+                                  ? "max-h-[800px] border-t border-slate-100"
+                                  : "max-h-0"
                               }`}
                             >
                               <div className="p-5 space-y-4">
@@ -881,7 +956,8 @@ export default function AgencyReportsClient() {
                 {/* Growth Opportunities */}
                 <div className="p-6 border-t border-slate-150 bg-slate-50/40">
                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-emerald-500" /> Scale Opportunities
+                    <TrendingUp className="h-4 w-4 text-emerald-500" /> Scale
+                    Opportunities
                   </h4>
 
                   {!insights?.growth_opportunities ||
@@ -1006,19 +1082,19 @@ export default function AgencyReportsClient() {
                             acc.googleStatus === "ENABLED"
                               ? "Status: Active"
                               : acc.googleStatus === "CANCELED"
-                              ? "Status: Cancelled"
-                              : acc.googleStatus === "SUSPENDED"
-                              ? "Status: Suspended"
-                              : `Status: ${acc.googleStatus}`
+                                ? "Status: Cancelled"
+                                : acc.googleStatus === "SUSPENDED"
+                                  ? "Status: Suspended"
+                                  : `Status: ${acc.googleStatus}`
                           }
                           className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
                             acc.googleStatus === "ENABLED"
                               ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
                               : acc.googleStatus === "CANCELED"
-                              ? "bg-slate-400"
-                              : acc.googleStatus === "SUSPENDED"
-                              ? "bg-rose-500 shadow-sm shadow-rose-500/30"
-                              : "bg-amber-500"
+                                ? "bg-slate-400"
+                                : acc.googleStatus === "SUSPENDED"
+                                  ? "bg-rose-500 shadow-sm shadow-rose-500/30"
+                                  : "bg-amber-500"
                           }`}
                         />
                         <span className="font-semibold text-slate-900">

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
-  linkManagerAccountAction,
   fetchSubAccountsForPreviewAction,
+  linkManagerAccountAction,
 } from "@/actions/onboarding.actions";
 import { Button } from "@/components/ui/button";
 
@@ -42,10 +42,12 @@ export default function MccSelectClient({
 }: MccSelectClientProps) {
   const router = useRouter();
   const [selectedMccId, setSelectedMccId] = useState(
-    initialAccounts.length > 0 ? initialAccounts[0].id : ""
+    initialAccounts.length > 0 ? initialAccounts[0].id : "",
   );
   const [customMccId, setCustomMccId] = useState("");
-  const [useCustomInput, setUseCustomInput] = useState(initialAccounts.length === 0);
+  const [useCustomInput, setUseCustomInput] = useState(
+    initialAccounts.length === 0,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(fetchError);
 
@@ -113,7 +115,7 @@ export default function MccSelectClient({
 
       if (res.success) {
         router.push(
-          `/onboarding/confirm?orgId=${orgId}&email=${encodeURIComponent(connectedEmail)}`
+          `/onboarding/confirm?orgId=${orgId}&email=${encodeURIComponent(connectedEmail)}`,
         );
       } else {
         setError(res.error || "Failed to import selected accounts.");
@@ -183,7 +185,9 @@ export default function MccSelectClient({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
-              Selected: <span className="text-indigo-400">{selectedIds.size}</span> / {subAccounts.length}
+              Selected:{" "}
+              <span className="text-indigo-400">{selectedIds.size}</span> /{" "}
+              {subAccounts.length}
             </span>
           </div>
         </div>
@@ -223,7 +227,10 @@ export default function MccSelectClient({
                   <th className="p-3.5 w-10 text-center">
                     <input
                       type="checkbox"
-                      checked={filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id))}
+                      checked={
+                        filteredIds.length > 0 &&
+                        filteredIds.every((id) => selectedIds.has(id))
+                      }
                       onChange={() => handleToggleSelectAll(filteredIds)}
                       className="h-3.5 w-3.5 rounded border-slate-850 text-indigo-650 focus:ring-indigo-500 cursor-pointer"
                     />
@@ -237,7 +244,10 @@ export default function MccSelectClient({
               <tbody className="divide-y divide-slate-850">
                 {filteredAccounts.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-slate-505 font-medium">
+                    <td
+                      colSpan={5}
+                      className="p-8 text-center text-slate-505 font-medium"
+                    >
                       No accounts match the filters.
                     </td>
                   </tr>
@@ -252,7 +262,10 @@ export default function MccSelectClient({
                         }`}
                         onClick={() => handleToggleRow(acc.id)}
                       >
-                        <td className="p-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="p-3.5 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <input
                             type="checkbox"
                             checked={isChecked}
@@ -267,10 +280,10 @@ export default function MccSelectClient({
                                 acc.status === "ENABLED"
                                   ? "bg-emerald-500"
                                   : acc.status === "CANCELED"
-                                  ? "bg-slate-400"
-                                  : acc.status === "SUSPENDED"
-                                  ? "bg-rose-500"
-                                  : "bg-amber-500"
+                                    ? "bg-slate-400"
+                                    : acc.status === "SUSPENDED"
+                                      ? "bg-rose-500"
+                                      : "bg-amber-500"
                               }`}
                             />
                             <span
@@ -278,15 +291,15 @@ export default function MccSelectClient({
                                 acc.status === "ENABLED"
                                   ? "text-emerald-400"
                                   : acc.status === "CANCELED"
-                                  ? "text-slate-400"
-                                  : "text-amber-400"
+                                    ? "text-slate-400"
+                                    : "text-amber-400"
                               }
                             >
                               {acc.status === "ENABLED"
                                 ? "Active"
                                 : acc.status === "CANCELED"
-                                ? "Cancelled"
-                                : acc.status}
+                                  ? "Cancelled"
+                                  : acc.status}
                             </span>
                           </span>
                         </td>
@@ -307,8 +320,12 @@ export default function MccSelectClient({
                         </td>
                         <td className="p-3.5 text-slate-400 leading-normal">
                           <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-slate-500">{acc.currencyCode}</span>
-                            <span className="text-[10px] truncate max-w-xs">{acc.timeZone}</span>
+                            <span className="text-[10px] font-bold text-slate-500">
+                              {acc.currencyCode}
+                            </span>
+                            <span className="text-[10px] truncate max-w-xs">
+                              {acc.timeZone}
+                            </span>
                           </div>
                         </td>
                       </tr>
@@ -355,7 +372,12 @@ export default function MccSelectClient({
     <div className="max-w-md mx-auto space-y-6">
       <div className="text-center">
         <div className="inline-flex items-center justify-center p-2 bg-indigo-600/10 text-indigo-400 rounded-xl mb-4 border border-indigo-500/20">
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg
+            className="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -368,7 +390,10 @@ export default function MccSelectClient({
           Select Google Ads Account
         </h2>
         <p className="mt-2 text-sm text-slate-400">
-          Connected as <span className="text-indigo-400 font-semibold">{connectedEmail}</span>
+          Connected as{" "}
+          <span className="text-indigo-400 font-semibold">
+            {connectedEmail}
+          </span>
         </p>
       </div>
 
@@ -391,7 +416,8 @@ export default function MccSelectClient({
             >
               {initialAccounts.map((acc) => (
                 <option key={acc.id} value={acc.id} className="bg-slate-950">
-                  {acc.name} ({formatCustomerId(acc.id)}) {acc.manager ? "[Manager]" : ""}
+                  {acc.name} ({formatCustomerId(acc.id)}){" "}
+                  {acc.manager ? "[Manager]" : ""}
                 </option>
               ))}
             </select>
@@ -406,7 +432,10 @@ export default function MccSelectClient({
           </div>
         ) : (
           <div>
-            <label htmlFor="custom-mcc" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+            <label
+              htmlFor="custom-mcc"
+              className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2"
+            >
               Enter Google Ads Customer ID (10-digit)
             </label>
             <input

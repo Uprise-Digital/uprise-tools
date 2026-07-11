@@ -1,56 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { toast } from "sonner";
 import {
+  ChevronRight,
+  Clock,
+  Loader2,
   Mail,
   Shield,
   Trash2,
   UserPlus,
-  Loader2,
-  Clock,
-  ChevronRight,
-  Database,
-  Award,
-  KeyRound,
-  ShieldAlert,
-  Info,
 } from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  addTeamMember,
+  cancelTeamInvitationAction,
+  deleteTeamMember,
+  getUserActivityLogsAction,
+  inviteTeamMemberAction,
+  updateTeamMemberRoleAction,
+} from "@/actions/team.actions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,16 +31,48 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  addTeamMember,
-  deleteTeamMember,
-  inviteTeamMemberAction,
-  cancelTeamInvitationAction,
-  updateTeamMemberRoleAction,
-  getUserActivityLogsAction,
-} from "@/actions/team.actions";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface TeamMember {
   id: string;
@@ -122,7 +123,8 @@ export function TeamClient({
 }: TeamClientProps) {
   // Member States
   const [members, setMembers] = useState<TeamMember[]>(initialMembers);
-  const [invitations, setInvitations] = useState<TeamInvitation[]>(initialInvitations);
+  const [invitations, setInvitations] =
+    useState<TeamInvitation[]>(initialInvitations);
 
   // Add Member Dialog/Sheet States
   const [openAddSheet, setOpenAddSheet] = useState(false);
@@ -224,7 +226,9 @@ export function TeamClient({
         toast.success("Invitation cancelled successfully", { id: toastId });
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to cancel invitation", { id: toastId });
+      toast.error(err.message || "Failed to cancel invitation", {
+        id: toastId,
+      });
     }
   };
 
@@ -268,9 +272,15 @@ export function TeamClient({
     for (const log of activityLogs) {
       const action = log.action.toUpperCase();
       if (action.includes("NEGATIVE") || action.includes("KEYWORD")) kws++;
-      else if (action.includes("REPORT") || action.includes("BRIEFING")) reports++;
-      else if (action.includes("THRESHOLD") || action.includes("TRIAGE")) thresholds++;
-      else if (action.includes("LINK_ACCOUNT") || action.includes("SYNC_PORTFOLIO")) accounts++;
+      else if (action.includes("REPORT") || action.includes("BRIEFING"))
+        reports++;
+      else if (action.includes("THRESHOLD") || action.includes("TRIAGE"))
+        thresholds++;
+      else if (
+        action.includes("LINK_ACCOUNT") ||
+        action.includes("SYNC_PORTFOLIO")
+      )
+        accounts++;
       else generic++;
     }
 
@@ -304,11 +314,13 @@ export function TeamClient({
     const concentricLevels = [0.33, 0.66, 1.0];
     const referenceLines = concentricLevels.map((lvl) => {
       const r = maxR * lvl;
-      const points = angles.map((a) => {
-        const x = center + r * Math.cos(a);
-        const y = center + r * Math.sin(a);
-        return `${x},${y}`;
-      }).join(" ");
+      const points = angles
+        .map((a) => {
+          const x = center + r * Math.cos(a);
+          const y = center + r * Math.sin(a);
+          return `${x},${y}`;
+        })
+        .join(" ");
       return (
         <polygon
           key={`ref-${lvl}`}
@@ -339,13 +351,15 @@ export function TeamClient({
     });
 
     // User Data Polygon
-    const dataPoints = angles.map((a, i) => {
-      const val = counts[i];
-      const r = (val / maxVal) * maxR;
-      const x = center + r * Math.cos(a);
-      const y = center + r * Math.sin(a);
-      return `${x},${y}`;
-    }).join(" ");
+    const dataPoints = angles
+      .map((a, i) => {
+        const val = counts[i];
+        const r = (val / maxVal) * maxR;
+        const x = center + r * Math.cos(a);
+        const y = center + r * Math.sin(a);
+        return `${x},${y}`;
+      })
+      .join(" ");
 
     return (
       <div className="flex flex-col items-center bg-slate-50 border border-slate-100 rounded-xl p-4 shadow-sm">
@@ -443,9 +457,12 @@ export function TeamClient({
         const count = logsByDate.get(dateStr) || 0;
 
         let bg = "bg-slate-100 hover:bg-slate-200 border-slate-200/50";
-        if (count > 0 && count <= 2) bg = "bg-indigo-100 hover:bg-indigo-200 border-indigo-200";
-        else if (count > 2 && count <= 4) bg = "bg-indigo-400 hover:bg-indigo-500 border-indigo-500";
-        else if (count > 4) bg = "bg-indigo-700 hover:bg-indigo-800 border-indigo-800";
+        if (count > 0 && count <= 2)
+          bg = "bg-indigo-100 hover:bg-indigo-200 border-indigo-200";
+        else if (count > 2 && count <= 4)
+          bg = "bg-indigo-400 hover:bg-indigo-500 border-indigo-500";
+        else if (count > 4)
+          bg = "bg-indigo-700 hover:bg-indigo-800 border-indigo-800";
 
         weekDays.push({ dateStr, count, bg });
       }
@@ -460,19 +477,30 @@ export function TeamClient({
         <TooltipProvider>
           <div className="flex gap-[3px] overflow-x-auto pb-1 select-none">
             {weeks.map((week, wIdx) => (
-              <div key={`wk-${wIdx}`} className="flex flex-col gap-[3px] shrink-0">
+              <div
+                key={`wk-${wIdx}`}
+                className="flex flex-col gap-[3px] shrink-0"
+              >
                 {week.map((day, dIdx) => (
                   <Tooltip key={`day-${wIdx}-${dIdx}`}>
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
                           "w-[9px] h-[9px] rounded-[1.5px] border cursor-crosshair transition-all",
-                          day.bg
+                          day.bg,
                         )}
                       />
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-slate-900 text-white text-[9px] px-2 py-1 border border-slate-800 shadow-xl">
-                      <strong>{day.count} actions</strong> on {new Date(day.dateStr).toLocaleDateString("en-AU", { month: "short", day: "numeric", year: "numeric" })}
+                    <TooltipContent
+                      side="top"
+                      className="bg-slate-900 text-white text-[9px] px-2 py-1 border border-slate-800 shadow-xl"
+                    >
+                      <strong>{day.count} actions</strong> on{" "}
+                      {new Date(day.dateStr).toLocaleDateString("en-AU", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
                     </TooltipContent>
                   </Tooltip>
                 ))}
@@ -501,7 +529,8 @@ export function TeamClient({
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Team Management</h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Manage your agency staff, access roles, and monitor dashboard activity logs.
+            Manage your agency staff, access roles, and monitor dashboard
+            activity logs.
           </p>
         </div>
 
@@ -530,7 +559,9 @@ export function TeamClient({
                   onClick={() => setAddMode("invite")}
                   className={cn(
                     "py-2 rounded-lg cursor-pointer transition-all",
-                    addMode === "invite" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                    addMode === "invite"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-800",
                   )}
                 >
                   Send Email Invite
@@ -540,7 +571,9 @@ export function TeamClient({
                   onClick={() => setAddMode("direct")}
                   className={cn(
                     "py-2 rounded-lg cursor-pointer transition-all",
-                    addMode === "direct" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                    addMode === "direct"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-800",
                   )}
                 >
                   Create Account Directly
@@ -550,7 +583,10 @@ export function TeamClient({
               {addMode === "invite" ? (
                 <form onSubmit={handleInvite} className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="invite-email" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <Label
+                      htmlFor="invite-email"
+                      className="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                    >
                       Email Address
                     </Label>
                     <Input
@@ -564,7 +600,10 @@ export function TeamClient({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="invite-role" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <Label
+                      htmlFor="invite-role"
+                      className="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                    >
                       Access Role
                     </Label>
                     <select
@@ -600,7 +639,10 @@ export function TeamClient({
               ) : (
                 <form onSubmit={handleDirectAdd} className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="direct-name" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <Label
+                      htmlFor="direct-name"
+                      className="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                    >
                       Full Name
                     </Label>
                     <Input
@@ -613,7 +655,10 @@ export function TeamClient({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="direct-email" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <Label
+                      htmlFor="direct-email"
+                      className="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                    >
                       Email Address
                     </Label>
                     <Input
@@ -627,7 +672,10 @@ export function TeamClient({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="direct-pass" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <Label
+                      htmlFor="direct-pass"
+                      className="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                    >
                       Temporary Password
                     </Label>
                     <Input
@@ -640,7 +688,10 @@ export function TeamClient({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="direct-role" className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <Label
+                      htmlFor="direct-role"
+                      className="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                    >
                       Access Role
                     </Label>
                     <select
@@ -686,7 +737,8 @@ export function TeamClient({
             Active Users
           </CardTitle>
           <CardDescription className="text-xs text-slate-500">
-            Personnel with active organization access. Click any user row to inspect history & details.
+            Personnel with active organization access. Click any user row to
+            inspect history & details.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -724,9 +776,10 @@ export function TeamClient({
                 const targetIsOwner = member.role === "owner";
                 const isSelf = member.id === currentUserId;
                 const canChangeRole =
-                  canManage && !targetIsOwner && (!isSelf || currentUserRole === "owner");
-                const canRemove =
-                  canManage && !targetIsOwner && !isSelf;
+                  canManage &&
+                  !targetIsOwner &&
+                  (!isSelf || currentUserRole === "owner");
+                const canRemove = canManage && !targetIsOwner && !isSelf;
 
                 return (
                   <TableRow
@@ -739,7 +792,7 @@ export function TeamClient({
                         <div
                           className={cn(
                             "h-8 w-8 rounded-full border flex items-center justify-center font-bold text-xs shrink-0 select-none",
-                            avatarClass
+                            avatarClass,
                           )}
                         >
                           {initials}
@@ -755,7 +808,10 @@ export function TeamClient({
                         {member.email}
                       </div>
                     </TableCell>
-                    <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
+                    <TableCell
+                      className="py-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {canChangeRole ? (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -767,17 +823,33 @@ export function TeamClient({
                               <ChevronRight className="w-3.5 h-3.5 rotate-90" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="bg-white border text-xs">
-                            <DropdownMenuItem onClick={() => handleUpdateRole(member.id, "member")} className="cursor-pointer">
+                          <DropdownMenuContent
+                            align="start"
+                            className="bg-white border text-xs"
+                          >
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleUpdateRole(member.id, "member")
+                              }
+                              className="cursor-pointer"
+                            >
                               Member
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleUpdateRole(member.id, "admin")} className="cursor-pointer">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleUpdateRole(member.id, "admin")
+                              }
+                              className="cursor-pointer"
+                            >
                               Admin
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       ) : (
-                        <Badge variant="secondary" className="capitalize text-[10px] font-bold px-2 py-0.5 border-slate-100 border text-slate-600">
+                        <Badge
+                          variant="secondary"
+                          className="capitalize text-[10px] font-bold px-2 py-0.5 border-slate-100 border text-slate-600"
+                        >
                           {member.role}
                         </Badge>
                       )}
@@ -788,7 +860,10 @@ export function TeamClient({
                         Active Access
                       </span>
                     </TableCell>
-                    <TableCell className="py-4 text-right pr-6" onClick={(e) => e.stopPropagation()}>
+                    <TableCell
+                      className="py-4 text-right pr-6"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {canRemove ? (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -810,7 +885,8 @@ export function TeamClient({
                                 <span className="font-bold text-slate-800">
                                   {member.name}
                                 </span>{" "}
-                                from this organization and revoke their access to Uprise Tools dashboard.
+                                from this organization and revoke their access
+                                to Uprise Tools dashboard.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter className="pt-4 flex gap-3 justify-end">
@@ -818,7 +894,9 @@ export function TeamClient({
                                 Cancel
                               </AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => handleRemoveMember(member.id, member.name)}
+                                onClick={() =>
+                                  handleRemoveMember(member.id, member.name)
+                                }
                                 className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl h-10 px-4 shadow-sm cursor-pointer"
                               >
                                 Revoke Access
@@ -884,7 +962,10 @@ export function TeamClient({
                     </div>
                   </TableCell>
                   <TableCell className="py-4">
-                    <Badge variant="secondary" className="capitalize text-[10px] font-bold px-2 py-0.5 border-slate-100 border text-slate-600">
+                    <Badge
+                      variant="secondary"
+                      className="capitalize text-[10px] font-bold px-2 py-0.5 border-slate-100 border text-slate-600"
+                    >
                       {invite.role}
                     </Badge>
                   </TableCell>
@@ -919,7 +1000,10 @@ export function TeamClient({
               ))}
               {invitations.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-400 font-semibold text-xs py-10">
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-slate-400 font-semibold text-xs py-10"
+                  >
                     No pending invitations.
                   </TableCell>
                 </TableRow>
@@ -930,7 +1014,10 @@ export function TeamClient({
       </Card>
 
       {/* 4. USER DETAILS SLIDE-OVER SHEET */}
-      <Sheet open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
+      <Sheet
+        open={!!selectedUser}
+        onOpenChange={(open) => !open && setSelectedUser(null)}
+      >
         <SheetContent className="px-5 rounded-l-2xl border-slate-200 gap-0 w-full max-w-lg bg-white overflow-y-auto">
           {selectedUser && (
             <>
@@ -970,7 +1057,9 @@ export function TeamClient({
                 {loadingActivity ? (
                   <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                     <Loader2 className="w-7 h-7 animate-spin text-indigo-500 mb-2" />
-                    <span className="text-[10px] font-bold tracking-wide">Loading activity logs...</span>
+                    <span className="text-[10px] font-bold tracking-wide">
+                      Loading activity logs...
+                    </span>
                   </div>
                 ) : (
                   <>
@@ -987,7 +1076,10 @@ export function TeamClient({
                       </span>
                       <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
                         {activityLogs.map((log) => (
-                          <div key={log.id} className="flex gap-3 text-xs leading-normal">
+                          <div
+                            key={log.id}
+                            className="flex gap-3 text-xs leading-normal"
+                          >
                             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="font-bold text-slate-800 capitalize">
@@ -1003,7 +1095,10 @@ export function TeamClient({
                               )}
                             </div>
                             <span className="text-[9px] text-slate-400 font-bold shrink-0 self-start">
-                              {new Date(log.createdAt).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}
+                              {new Date(log.createdAt).toLocaleDateString(
+                                "en-AU",
+                                { month: "short", day: "numeric" },
+                              )}
                             </span>
                           </div>
                         ))}

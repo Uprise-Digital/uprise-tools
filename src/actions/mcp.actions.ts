@@ -82,13 +82,10 @@ export async function rollMcpApiKeyAction() {
       .returning();
 
     // Log the roll key security event
-    await logAction(
-      userId,
-      "ROLL_MCP_API_KEY",
-      "mcp_settings",
-      orgId,
-      { organizationId: orgId, action: "rolled_apiKey" },
-    );
+    await logAction(userId, "ROLL_MCP_API_KEY", "mcp_settings", orgId, {
+      organizationId: orgId,
+      action: "rolled_apiKey",
+    });
 
     return { success: true, apiKey: updated.apiKey };
   } catch (error) {
