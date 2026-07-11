@@ -1,4 +1,22 @@
-name: Process Report Schedules
+name: Process Scheduled Reports
+
+# ==============================================================================
+# DESCRIPTION:
+# This workflow runs daily to check and generate performance report PDFs for clients.
+# It queries active report schedules from the database that are due on today's date,
+# fetches metrics from the Google Ads API, uses AI to generate insights, renders the PDF,
+# and emails the report to configured client recipients via the Resend API.
+#
+# RUNS ONCE DAILY:
+# Midnight UTC (10:00 AM AEST / 11:00 AM AEDT Melbourne time).
+#
+# ENDPOINT:
+# GET /api/cron/process-schedules
+#
+# AUTHORIZATION:
+# Requires Bearer Token validation. Uses secrets.CRON_SECRET (primary) or
+# falls back to secrets.WORKER_SECRET_KEY.
+# ==============================================================================
 
 on:
   schedule:
@@ -12,5 +30,11 @@ jobs:
     steps:
       - name: Trigger Daily Schedules Check
         run: |
+          # Resolve the authentication bearer key (prefers CRON_SECRET, falls back to WORKER_SECRET_KEY)
+          AUTH_KEY="${{ secrets.CRON_SECRET }}"
+          if [ -z "$AUTH_KEY" ]; then
+            AUTH_KEY="${{ secrets.WORKER_SECRET_KEY }}"
+          fi
+
           curl -f -s -S -X GET "${{ secrets.PRODUCTION_APP_URL }}/api/cron/process-schedules" \
-            -H "Authorization: Bearer ${{ secrets.WORKER_SECRET_KEY }}"
+            -H "Authorization: Bearer $AUTH_KEY"

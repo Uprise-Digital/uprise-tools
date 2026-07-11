@@ -3,6 +3,7 @@
 import { and, eq, gte, lte, ne } from "drizzle-orm";
 import { Resend } from "resend";
 import { db } from "@/db";
+import { withBypassTenantDb } from "@/db/db-helper";
 import { adAccounts, adPerformanceDaily, user } from "@/db/schema";
 import { generateMorningBriefingText } from "@/lib/ai-service";
 import { logAction, logEmail } from "@/lib/audit";
@@ -26,12 +27,14 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
     getMelbourneDateStrings();
   const activeDateStr = yesterdayStrOverride || yesterdayStr;
 
-  // 2. Fetch all active accounts
-  const activeAccountsList = await db.query.adAccounts.findMany({
-    where: and(
-      eq(adAccounts.isActive, true),
-      eq(adAccounts.includeInBriefing, true),
-    ),
+  // 2. Fetch all active accounts (bypass RLS since this is a system-wide briefing generation across all tenants)
+  const activeAccountsList = await withBypassTenantDb(async (tx) => {
+    return await tx.query.adAccounts.findMany({
+      where: and(
+        eq(adAccounts.isActive, true),
+        eq(adAccounts.includeInBriefing, true),
+      ),
+    });
   });
 
   if (activeAccountsList.length === 0) {
@@ -53,7 +56,9 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
           anomalyConversionsChangeThreshold: -25.0,
         };
 
-  const overridesList = await db.query.accountTriageSettings.findMany();
+  const overridesList = await withBypassTenantDb(async (tx) => {
+    return await tx.query.accountTriageSettings.findMany();
+  });
   const overridesMap = new Map(overridesList.map((o) => [o.adAccountId, o]));
 
   const accountMap = new Map(activeAccountsList.map((a) => [a.id, a]));

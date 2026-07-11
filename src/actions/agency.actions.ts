@@ -5,6 +5,7 @@ import { and, eq, gte, ilike, lte } from "drizzle-orm";
 import { headers } from "next/headers";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { db } from "@/db";
+import { withBypassTenantDb } from "@/db/db-helper";
 import {
   adAccounts,
   adPerformanceDaily,
@@ -453,9 +454,11 @@ export async function syncAgencyPortfolioAction(
   }
 
   try {
-    // 1. Get all active accounts
-    const activeAccounts = await db.query.adAccounts.findMany({
-      where: eq(adAccounts.isActive, true),
+    // 1. Get all active accounts (bypass RLS since this is a system sync running across all tenants)
+    const activeAccounts = await withBypassTenantDb(async (tx) => {
+      return await tx.query.adAccounts.findMany({
+        where: eq(adAccounts.isActive, true),
+      });
     });
 
     if (activeAccounts.length === 0) {

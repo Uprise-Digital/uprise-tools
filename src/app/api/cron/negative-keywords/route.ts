@@ -2,13 +2,16 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { generateSuggestionsInternal } from "@/actions/negative-keywords.actions";
 import { db } from "@/db";
+import { withBypassTenantDb } from "@/db/db-helper";
 import { adAccounts } from "@/db/schema";
 
 export const maxDuration = 300; // 5 minutes
 
 async function processAllActiveAccounts() {
-  const activeAccounts = await db.query.adAccounts.findMany({
-    where: eq(adAccounts.isActive, true),
+  const activeAccounts = await withBypassTenantDb(async (tx) => {
+    return await tx.query.adAccounts.findMany({
+      where: eq(adAccounts.isActive, true),
+    });
   });
 
   const results: any[] = [];

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import React from "react";
 import { Resend } from "resend";
 import { db } from "@/db";
+import { withBypassTenantDb } from "@/db/db-helper";
 import { adAccounts, reportSchedules } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
 import { logAction, logEmail } from "@/lib/audit";
@@ -45,8 +46,10 @@ async function processReportPayload(payload: {
   let schedule: any = null;
   try {
     // 1. Fetch the schedule configuration
-    schedule = await db.query.reportSchedules.findFirst({
-      where: eq(reportSchedules.id, scheduleId),
+    schedule = await withBypassTenantDb(async (tx) => {
+      return await tx.query.reportSchedules.findFirst({
+        where: eq(reportSchedules.id, scheduleId),
+      });
     });
     if (!schedule) throw new Error(`Schedule ${scheduleId} not found`);
 
@@ -124,10 +127,12 @@ async function processReportPayload(payload: {
     });
 
     // 7. Success: Update the schedule's last run timestamp
-    await db
-      .update(reportSchedules)
-      .set({ lastRunAt: new Date() })
-      .where(eq(reportSchedules.id, scheduleId));
+    await withBypassTenantDb(async (tx) => {
+      await tx
+        .update(reportSchedules)
+        .set({ lastRunAt: new Date() })
+        .where(eq(reportSchedules.id, scheduleId));
+    });
 
     // 8. Audit Log
     try {
@@ -205,7 +210,11 @@ async function processReportPayload(payload: {
 export async function GET(request: Request) {
   // Security Check
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.WORKER_SECRET_KEY}`) {
+  const isAuthorized =
+    (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) ||
+    (process.env.WORKER_SECRET_KEY && authHeader === `Bearer ${process.env.WORKER_SECRET_KEY}`);
+
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -216,32 +225,34 @@ export async function GET(request: Request) {
       `[Cron] Checking scheduled reports due today (day ${today})...`,
     );
 
-    // Fetch schedules that are active, due today, and not run in the last 20 hours
-    const dueSchedules = await db
-      .select({
-        id: reportSchedules.id,
-        adAccountId: reportSchedules.adAccountId,
-        recipientEmail: reportSchedules.recipientEmail,
-        dayOfMonth: reportSchedules.dayOfMonth,
-        lastRunAt: reportSchedules.lastRunAt,
-        googleAccountId: adAccounts.googleAccountId,
-        clientName: adAccounts.name,
-      })
-      .from(reportSchedules)
-      .innerJoin(adAccounts, eq(reportSchedules.adAccountId, adAccounts.id))
-      .where(
-        and(
-          eq(reportSchedules.isActive, true),
-          eq(reportSchedules.dayOfMonth, today),
-          or(
-            isNull(reportSchedules.lastRunAt),
-            lt(
-              reportSchedules.lastRunAt,
-              new Date(Date.now() - 20 * 60 * 60 * 1000),
+    // Fetch schedules using withBypassTenantDb to bypass RLS since this is a system cron job querying across all tenants
+    const dueSchedules = await withBypassTenantDb(async (tx) => {
+      return await tx
+        .select({
+          id: reportSchedules.id,
+          adAccountId: reportSchedules.adAccountId,
+          recipientEmail: reportSchedules.recipientEmail,
+          dayOfMonth: reportSchedules.dayOfMonth,
+          lastRunAt: reportSchedules.lastRunAt,
+          googleAccountId: adAccounts.googleAccountId,
+          clientName: adAccounts.name,
+        })
+        .from(reportSchedules)
+        .innerJoin(adAccounts, eq(reportSchedules.adAccountId, adAccounts.id))
+        .where(
+          and(
+            eq(reportSchedules.isActive, true),
+            eq(reportSchedules.dayOfMonth, today),
+            or(
+              isNull(reportSchedules.lastRunAt),
+              lt(
+                reportSchedules.lastRunAt,
+                new Date(Date.now() - 20 * 60 * 60 * 1000),
+              ),
             ),
           ),
-        ),
-      );
+        );
+    });
 
     console.log(`[Cron] Found ${dueSchedules.length} schedules to process.`);
     const results: any[] = [];
@@ -286,7 +297,11 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   // Security Check
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.WORKER_SECRET_KEY}`) {
+  const isAuthorized =
+    (process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) ||
+    (process.env.WORKER_SECRET_KEY && authHeader === `Bearer ${process.env.WORKER_SECRET_KEY}`);
+
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
