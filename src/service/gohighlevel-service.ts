@@ -81,12 +81,13 @@ export async function searchGhlContacts(query: string): Promise<GhlContact[]> {
   }
 
   try {
-    const res = await fetch(
-      `${GHL_API_BASE}/contacts/?query=${encodeURIComponent(query)}`,
-      {
-        headers: getGhlHeaders(),
-      },
-    );
+    const locationId = process.env.GHL_LOCATION_ID;
+    const url = locationId
+      ? `${GHL_API_BASE}/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(query)}`
+      : `${GHL_API_BASE}/contacts/?query=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      headers: getGhlHeaders(),
+    });
     if (!res.ok) {
       throw new Error(
         `GHL Contacts Search failed with status ${res.status}: ${res.statusText}`,
