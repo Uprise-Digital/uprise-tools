@@ -64,6 +64,13 @@ export async function searchGhlContacts(query: string): Promise<GhlContact[]> {
         companyName: "Globex Industries",
         phone: "+61 433 333 333",
       },
+      {
+        id: "ct_mock_paul_5",
+        name: "Paul Abbott",
+        email: "paul@uprisedigital.com.au",
+        companyName: "Paul's Bakery",
+        phone: "+61 444 444 444",
+      },
     ];
     return mockContacts.filter(
       (c) =>
