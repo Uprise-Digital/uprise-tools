@@ -130,7 +130,6 @@ export async function syncAdAccountsAction() {
       },
     );
 
-    revalidatePath("/admin/accounts");
     revalidatePath("/accounts");
     return { success: true, count: syncCount };
   } catch (error: any) {

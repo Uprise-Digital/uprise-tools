@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { reportSchedules } from "@/db/schema";
+import { member, reportSchedules } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 
@@ -24,8 +24,23 @@ export async function saveReportScheduleAction(data: {
   customMessage: string;
 }) {
   try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    if (!session) throw new Error("Unauthorized");
+
+    let orgId = session.session?.activeOrganizationId;
+    if (!orgId) {
+      const userMember = await db.query.member.findFirst({
+        where: eq(member.userId, session.user.id),
+      });
+      orgId = userMember?.organizationId;
+    }
+    if (!orgId) throw new Error("No active organization found");
+
     const payload = {
       adAccountId: data.adAccountId,
+      organizationId: orgId,
       frequency: data.frequency,
       dayOfMonth: data.dayOfMonth,
       recipientEmail: data.recipientEmail,
@@ -48,7 +63,7 @@ export async function saveReportScheduleAction(data: {
       await db.insert(reportSchedules).values(payload);
     }
 
-    revalidatePath("/admin/accounts");
+    revalidatePath("/accounts");
     return { success: true };
   } catch (error) {
     console.error("Failed to save schedule:", error);
@@ -63,7 +78,7 @@ export async function deleteReportScheduleAction(id: number) {
   try {
     await db.delete(reportSchedules).where(eq(reportSchedules.id, id));
 
-    revalidatePath("/admin/accounts");
+    revalidatePath("/accounts");
     return { success: true };
   } catch (error) {
     console.error("Failed to delete schedule:", error);
