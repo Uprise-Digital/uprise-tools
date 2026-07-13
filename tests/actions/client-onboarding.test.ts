@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   associateAdAccountAction,
-  compileOnboardingEmail,
   createClientOnboardingAction,
   deleteClientOnboardingAction,
   updateClientOnboardingAction,
 } from "@/actions/client-onboarding.actions";
 import { db } from "@/db";
 import { auth } from "@/lib/auth";
+import { compileOnboardingEmail } from "@/lib/onboarding-email";
 
 describe("Client Onboarding Actions", () => {
   beforeEach(() => {

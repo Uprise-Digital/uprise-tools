@@ -21,7 +21,6 @@ import { toast } from "sonner";
 import { listAccountsAction } from "@/actions/agency.actions";
 import {
   associateAdAccountAction,
-  compileOnboardingEmail,
   createClientOnboardingAction,
   deleteClientOnboardingAction,
   finalizeOnboardingAction,
@@ -40,6 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { compileOnboardingEmail } from "@/lib/onboarding-email";
 
 interface ClientRecord {
   id: number;
