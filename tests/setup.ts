@@ -236,6 +236,7 @@ vi.mock("@/db", () => {
   const mockExecutor = {
     execute: vi.fn().mockResolvedValue(true),
     query: mockDbQuery,
+    select: vi.fn(),
     insert: vi.fn(() => ({
       values: vi.fn(() => ({
         returning: vi.fn().mockResolvedValue([{ id: 1 }]),
