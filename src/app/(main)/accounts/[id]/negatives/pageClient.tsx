@@ -48,6 +48,8 @@ interface NegativesClientWorkspaceProps {
     name: string;
     negativeKeywordTurboMode: boolean;
     targetNotes?: string | null;
+    isActive: boolean;
+    googleStatus: string;
   };
 }
 
@@ -176,8 +178,10 @@ export default function NegativesClientWorkspace({
 
   useEffect(() => {
     loadDBSuggestions();
-    loadLiveActiveNegatives();
-  }, [loadDBSuggestions, loadLiveActiveNegatives]);
+    if (account.isActive) {
+      loadLiveActiveNegatives();
+    }
+  }, [loadDBSuggestions, loadLiveActiveNegatives, account.isActive]);
 
   // Handle Toggle Turbo Mode
   const handleTurboToggleClick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -363,6 +367,18 @@ export default function NegativesClientWorkspace({
 
   return (
     <div className="space-y-6 p-4 max-w-7xl mx-auto min-h-screen">
+      {!account.isActive && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-3 shadow-sm">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-bold text-sm">Archived Account</p>
+            <p className="text-amber-700 leading-relaxed">
+              This account has been delinked from Google Ads or deactivated. Suggestion generation, Turbo Mode, and live mutations are disabled. You can still view historical database records and suggestions.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 1. HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div className="flex items-center gap-4">
@@ -403,7 +419,7 @@ export default function NegativesClientWorkspace({
                 type="checkbox"
                 checked={turboMode}
                 onChange={handleTurboToggleClick}
-                disabled={isUpdatingTurbo}
+                disabled={isUpdatingTurbo || !account.isActive}
                 className="sr-only peer"
               />
               <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
@@ -430,7 +446,7 @@ export default function NegativesClientWorkspace({
           <Button
             type="button"
             onClick={handleOpenAddModal}
-            disabled={isGenerating || isDeduplicating}
+            disabled={isGenerating || isDeduplicating || !account.isActive}
             variant="outline"
             className="rounded-xl shadow-sm text-xs px-3 h-10 flex items-center gap-1 font-bold transition-all border-slate-200 hover:bg-slate-50 text-slate-700 bg-white shrink-0"
           >
@@ -441,7 +457,7 @@ export default function NegativesClientWorkspace({
           <Button
             type="button"
             onClick={handleDeduplicate}
-            disabled={isDeduplicating || isGenerating}
+            disabled={isDeduplicating || isGenerating || !account.isActive}
             variant="outline"
             className="rounded-xl shadow-sm text-xs px-3 h-10 flex items-center gap-1 font-bold transition-all border-slate-200 hover:bg-slate-50 text-slate-700 bg-white shrink-0"
           >
@@ -461,7 +477,7 @@ export default function NegativesClientWorkspace({
           <Button
             type="button"
             onClick={handleGenerateSuggestions}
-            disabled={isGenerating || isDeduplicating}
+            disabled={isGenerating || isDeduplicating || !account.isActive}
             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm text-xs px-3 h-10 flex items-center gap-1 font-bold transition-all shrink-0"
           >
             {isGenerating ? (
@@ -703,7 +719,7 @@ export default function NegativesClientWorkspace({
                         </Button>
                         <Button
                           size="sm"
-                          disabled={loader}
+                          disabled={loader || !account.isActive}
                           onClick={() =>
                             handleUpdateStatus(
                               item.id,

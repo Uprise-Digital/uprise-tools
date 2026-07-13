@@ -130,24 +130,76 @@ export async function getDashboardMetricsAction(
   startDate: string,
   endDate: string,
 ) {
+  let syncFailed = false;
+  let syncErrorMsg: string | null = null;
+
   try {
-    await syncGoogleAdsDataToDb(
-      adAccountId,
-      googleAccountId,
-      startDate,
-      endDate,
-    );
+    const account = await db.query.adAccounts.findFirst({
+      where: eq(adAccounts.id, adAccountId),
+    });
 
-    // Save sync success status
-    await db
-      .update(adAccounts)
-      .set({
-        lastSyncedAt: new Date(),
-        syncStatus: "success",
-        syncError: null,
-      })
-      .where(eq(adAccounts.id, adAccountId));
+    if (account && !account.isActive) {
+      console.log(
+        `[JIT Sync] Account ${adAccountId} is inactive/archived. Skipping JIT sync.`,
+      );
+    } else {
+      await syncGoogleAdsDataToDb(
+        adAccountId,
+        googleAccountId,
+        startDate,
+        endDate,
+      );
 
+      // Save sync success status
+      await db
+        .update(adAccounts)
+        .set({
+          lastSyncedAt: new Date(),
+          syncStatus: "success",
+          syncError: null,
+        })
+        .where(eq(adAccounts.id, adAccountId));
+    }
+  } catch (error: any) {
+    console.error("Failed to load dashboard metrics sync:", error);
+    syncFailed = true;
+    const errMsg = error.message || "Unknown error during sync";
+    syncErrorMsg = errMsg;
+
+    const isDelinked =
+      errMsg.includes("PERMISSION_DENIED") ||
+      errMsg.includes("USER_PERMISSION_DENIED") ||
+      errMsg.includes("CUSTOMER_NOT_FOUND") ||
+      errMsg.includes("does not have permission") ||
+      errMsg.includes("Customer was not found") ||
+      errMsg.includes("NOT_MUTABLE");
+
+    try {
+      if (isDelinked) {
+        await db
+          .update(adAccounts)
+          .set({
+            isActive: false,
+            googleStatus: "DELINKED",
+            syncStatus: "failed",
+            syncError: `Account has been delinked from Google Ads MCC: ${syncErrorMsg}`,
+          })
+          .where(eq(adAccounts.id, adAccountId));
+      } else {
+        await db
+          .update(adAccounts)
+          .set({
+            syncStatus: "failed",
+            syncError: syncErrorMsg,
+          })
+          .where(eq(adAccounts.id, adAccountId));
+      }
+    } catch (dbErr) {
+      console.error("Failed to write sync failure to database:", dbErr);
+    }
+  }
+
+  try {
     // FIX: Bulletproof number parser that converts null/undefined/NaN into 0
     const pNum = (val: any) => {
       const num = Number(val);
@@ -269,24 +321,16 @@ export async function getDashboardMetricsAction(
 
     return {
       success: true,
-      data: { totals, timeSeries, campaigns },
+      data: {
+        totals,
+        timeSeries,
+        campaigns,
+        syncFailed,
+        syncError: syncErrorMsg,
+      },
     };
   } catch (error: any) {
-    console.error("Failed to load dashboard metrics:", error);
-
-    // Save sync failure status
-    try {
-      await db
-        .update(adAccounts)
-        .set({
-          syncStatus: "failed",
-          syncError: error.message || "Unknown error during sync",
-        })
-        .where(eq(adAccounts.id, adAccountId));
-    } catch (dbErr) {
-      console.error("Failed to write sync failure to database:", dbErr);
-    }
-
+    console.error("Failed to load dashboard metrics from local DB:", error);
     return { success: false, error: error.message };
   }
 }

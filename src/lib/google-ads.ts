@@ -376,10 +376,12 @@ export async function fetchDailyCampaignData(
   const data = await response.json();
 
   // DEBUG: Look at this in your terminal output
-  console.log(
-    "DEBUG Google Ads Raw Response:",
-    JSON.stringify(data.results[0], null, 2),
-  );
+  if (data.results && data.results.length > 0) {
+    console.log(
+      "DEBUG Google Ads Raw Response:",
+      JSON.stringify(data.results[0], null, 2),
+    );
+  }
 
   if (data.error) throw new Error(`Query Failed: ${data.error.message}`);
 

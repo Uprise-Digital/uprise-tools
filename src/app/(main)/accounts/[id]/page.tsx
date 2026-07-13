@@ -47,6 +47,10 @@ export default async function AccountDetailPage({ params }: PageProps) {
     name: account.name,
     currencyCode: account.currencyCode,
     includeInBriefing: account.includeInBriefing,
+    isActive: account.isActive,
+    googleStatus: account.googleStatus,
+    syncStatus: account.syncStatus,
+    syncError: account.syncError,
   };
 
   return (

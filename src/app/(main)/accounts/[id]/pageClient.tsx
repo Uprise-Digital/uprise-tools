@@ -75,6 +75,10 @@ interface ClientDashboardProps {
     name: string;
     currencyCode: string | null;
     includeInBriefing: boolean;
+    isActive: boolean;
+    googleStatus: string;
+    syncStatus: string | null;
+    syncError: string | null;
   };
   orgDefaults: {
     criticalSpendThreshold: number;
@@ -196,7 +200,7 @@ export default function ClientDashboard({
 
   // Fetch Impression Share on tab change or date change
   useEffect(() => {
-    if (activeTab !== "impression_share") return;
+    if (activeTab !== "impression_share" || !account.isActive) return;
 
     let isMounted = true;
     async function loadIS() {
@@ -226,11 +230,11 @@ export default function ClientDashboard({
     return () => {
       isMounted = false;
     };
-  }, [activeTab, account.id, startDate, endDate]);
+  }, [activeTab, account.id, startDate, endDate, account.isActive]);
 
   // Fetch Conversion tracking audit on tab change
   useEffect(() => {
-    if (activeTab !== "conversion_health") return;
+    if (activeTab !== "conversion_health" || !account.isActive) return;
 
     let isMounted = true;
     async function loadConv() {
@@ -258,7 +262,7 @@ export default function ClientDashboard({
     return () => {
       isMounted = false;
     };
-  }, [activeTab, account.id]);
+  }, [activeTab, account.id, account.isActive]);
 
   // Filtered Campaigns
   const filteredCampaigns = (data?.campaigns || []).filter((c: any) => {
@@ -426,14 +430,21 @@ export default function ClientDashboard({
       .finally(() => setIsLoading(false));
   }, [account.id, account.googleAccountId, startDate, endDate]);
 
-  const fCur = (v: number) =>
-    new Intl.NumberFormat("en-US", {
+  const fCur = (v: any) => {
+    const num = Number(v);
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: account.currencyCode || "AUD",
-    }).format(Number.isNaN(v) ? 0 : v);
-  const fNum = (v: number) =>
-    new Intl.NumberFormat("en-US").format(Number.isNaN(v) ? 0 : v);
-  const fPct = (v: number) => `${(Number.isNaN(v) ? 0 : v).toFixed(2)}%`;
+    }).format(Number.isNaN(num) ? 0 : num);
+  };
+  const fNum = (v: any) => {
+    const num = Number(v);
+    return new Intl.NumberFormat("en-US").format(Number.isNaN(num) ? 0 : num);
+  };
+  const fPct = (v: any) => {
+    const num = Number(v);
+    return `${(Number.isNaN(num) ? 0 : num).toFixed(2)}%`;
+  };
   const sortedData = [...(isData || [])].sort((a, b) => {
     let valA = a[isSortBy];
     let valB = b[isSortBy];
@@ -462,6 +473,40 @@ export default function ClientDashboard({
 
   return (
     <div className="space-y-6 p-4 mt-0 pt-0 max-w-400 mx-auto">
+      {!account.isActive && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-3 shadow-sm">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-bold text-sm">Archived Account</p>
+            <p className="text-amber-700 leading-relaxed">
+              This account has been delinked from Google Ads or deactivated. Live syncing is suspended, and the dashboard is displaying the last cached historical data.
+            </p>
+            {account.syncError && (
+              <p className="font-mono bg-amber-100/50 p-1.5 rounded mt-2 border border-amber-200/50 text-[10px]">
+                Reason: {account.syncError}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {account.isActive && data?.syncFailed && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 text-xs flex items-start gap-3 shadow-sm">
+          <AlertCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-bold text-sm">Sync Warning</p>
+            <p className="text-rose-700 leading-relaxed">
+              The latest sync with Google Ads failed. Displaying cached data.
+            </p>
+            {data.syncError && (
+              <p className="font-mono bg-rose-100/50 p-1.5 rounded mt-2 border border-rose-200/50 text-[10px]">
+                Error: {data.syncError}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button
@@ -556,7 +601,7 @@ export default function ClientDashboard({
                             id="criticalSpend"
                             type="number"
                             step="0.01"
-                            placeholder={`${resolvedDefaults.criticalSpendThreshold.toFixed(2)} (Global Default)`}
+                            placeholder={`${(Number(resolvedDefaults?.criticalSpendThreshold) || DEFAULT_THRESHOLDS.criticalSpendThreshold).toFixed(2)} (Global Default)`}
                             value={formState.criticalSpendThreshold}
                             onChange={(e) =>
                               handleInputChange(
@@ -582,7 +627,7 @@ export default function ClientDashboard({
                             id="criticalConversions"
                             type="number"
                             step="1"
-                            placeholder={`${resolvedDefaults.criticalConversionsThreshold} (Global Default)`}
+                            placeholder={`${resolvedDefaults?.criticalConversionsThreshold ?? DEFAULT_THRESHOLDS.criticalConversionsThreshold} (Global Default)`}
                             value={formState.criticalConversionsThreshold}
                             onChange={(e) =>
                               handleInputChange(
@@ -615,7 +660,7 @@ export default function ClientDashboard({
                             id="ctrHigh"
                             type="number"
                             step="0.1"
-                            placeholder={`${resolvedDefaults.ctrHighThreshold}% (Global Default)`}
+                            placeholder={`${resolvedDefaults?.ctrHighThreshold ?? DEFAULT_THRESHOLDS.ctrHighThreshold}% (Global Default)`}
                             value={formState.ctrHighThreshold}
                             onChange={(e) =>
                               handleInputChange(
@@ -634,7 +679,7 @@ export default function ClientDashboard({
                             id="ctrHighSpend"
                             type="number"
                             step="0.01"
-                            placeholder={`${resolvedDefaults.ctrHighSpendThreshold.toFixed(2)} (Global Default)`}
+                            placeholder={`${(Number(resolvedDefaults?.ctrHighSpendThreshold) || DEFAULT_THRESHOLDS.ctrHighSpendThreshold).toFixed(2)} (Global Default)`}
                             value={formState.ctrHighSpendThreshold}
                             onChange={(e) =>
                               handleInputChange(
@@ -653,7 +698,7 @@ export default function ClientDashboard({
                             id="cpcHigh"
                             type="number"
                             step="0.01"
-                            placeholder={`${resolvedDefaults.cpcHighThreshold.toFixed(2)} (Global Default)`}
+                            placeholder={`${(Number(resolvedDefaults?.cpcHighThreshold) || DEFAULT_THRESHOLDS.cpcHighThreshold).toFixed(2)} (Global Default)`}
                             value={formState.cpcHighThreshold}
                             onChange={(e) =>
                               handleInputChange(
@@ -681,7 +726,7 @@ export default function ClientDashboard({
                             id="anomalySpend"
                             type="number"
                             step="0.1"
-                            placeholder={`${resolvedDefaults.anomalySpendChangeThreshold}% (Global Default)`}
+                            placeholder={`${resolvedDefaults?.anomalySpendChangeThreshold ?? DEFAULT_THRESHOLDS.anomalySpendChangeThreshold}% (Global Default)`}
                             value={formState.anomalySpendChangeThreshold}
                             onChange={(e) =>
                               handleInputChange(
@@ -707,7 +752,7 @@ export default function ClientDashboard({
                             id="anomalyConversions"
                             type="number"
                             step="0.1"
-                            placeholder={`${resolvedDefaults.anomalyConversionsChangeThreshold}% (Global Default)`}
+                            placeholder={`${resolvedDefaults?.anomalyConversionsChangeThreshold ?? DEFAULT_THRESHOLDS.anomalyConversionsChangeThreshold}% (Global Default)`}
                             value={formState.anomalyConversionsChangeThreshold}
                             onChange={(e) =>
                               handleInputChange(

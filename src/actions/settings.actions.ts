@@ -414,8 +414,33 @@ export async function refreshAdAccountsMetadataAction() {
     }
 
     const results = searchData.results || [];
+    const googleIdsInApi = results
+      .map((row: any) => row.customerClient?.id?.toString())
+      .filter(Boolean) as string[];
 
     await withTenantContext(orgId, async (tx) => {
+      // Deactivate/archive accounts in our database that are NOT in Google Ads API response (delinked)
+      if (googleIdsInApi.length > 0) {
+        await tx
+          .update(adAccounts)
+          .set({
+            isActive: false,
+            googleStatus: "DELINKED",
+            syncStatus: "failed",
+            syncError: "Account delinked from Google Ads MCC connection",
+          })
+          .where(
+            and(
+              eq(adAccounts.connectionId, conn.id),
+              eq(adAccounts.organizationId, orgId),
+              sql`${adAccounts.googleAccountId} NOT IN (${sql.join(
+                googleIdsInApi.map((id) => sql`${id}`),
+                sql`, `,
+              )})`,
+            ),
+          );
+      }
+
       for (const row of results) {
         const client = row.customerClient;
         if (client) {
