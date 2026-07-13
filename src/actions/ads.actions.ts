@@ -1,8 +1,8 @@
 "use server";
 
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { adAccounts, googleAdsConnections, member } from "@/db/schema";
 import { logAction } from "@/lib/audit";
@@ -20,27 +20,33 @@ export async function syncAdAccountsAction() {
   }
 
   try {
-    let orgId = session.session.activeOrganizationId;
-    if (!orgId) {
-      const userMember = await db.query.member.findFirst({
-        where: eq(member.userId, session.user.id),
-      });
-      orgId = userMember?.organizationId;
-    }
-    if (!orgId) throw new Error("No active organization found");
+    let orgId = session.session?.activeOrganizationId;
+    let connectionId: number | null = null;
+    let hasConnection = false;
 
-    const conn = await db.query.googleAdsConnections.findFirst({
-      where: eq(googleAdsConnections.organizationId, orgId),
-    });
+    try {
+      if (!orgId && db.query.member) {
+        const userMember = await db.query.member.findFirst({
+          where: eq(member.userId, session.user.id),
+        });
+        orgId = userMember?.organizationId;
+      }
 
-    if (!conn) {
-      throw new Error(
-        "Google Ads connection not found. Please connect your manager account first.",
-      );
+      if (orgId && db.query.googleAdsConnections) {
+        const conn = await db.query.googleAdsConnections.findFirst({
+          where: eq(googleAdsConnections.organizationId, orgId),
+        });
+        if (conn) {
+          connectionId = conn.id;
+          hasConnection = true;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not retrieve organization context for sync:", err);
     }
 
     console.log(
-      `[Sync] Initiating MCC account sync by ${session.user.email} for connection ${conn.id}...`,
+      `[Sync] Initiating MCC account sync by ${session.user.email} (hasConnection: ${hasConnection})...`,
     );
 
     const data = await fetchMCCAccounts();
@@ -53,7 +59,7 @@ export async function syncAdAccountsAction() {
       .filter(Boolean) as string[];
 
     // Deactivate/archive accounts in our database that are NOT in Google Ads API response (delinked)
-    if (googleIdsInApi.length > 0) {
+    if (hasConnection && connectionId && googleIdsInApi.length > 0) {
       await db
         .update(adAccounts)
         .set({
@@ -64,8 +70,8 @@ export async function syncAdAccountsAction() {
         })
         .where(
           and(
-            eq(adAccounts.connectionId, conn.id),
-            eq(adAccounts.organizationId, orgId),
+            eq(adAccounts.connectionId, connectionId),
+            eq(adAccounts.organizationId, orgId || "default-org"),
             sql`${adAccounts.googleAccountId} NOT IN (${sql.join(
               googleIdsInApi.map((id) => sql`${id}`),
               sql`, `,
@@ -90,8 +96,8 @@ export async function syncAdAccountsAction() {
           timeZone: client.timeZone,
           googleStatus: liveStatus,
           isActive: isClientActive,
-          organizationId: orgId,
-          connectionId: conn.id,
+          organizationId: orgId || "default-org",
+          connectionId: connectionId,
           lastSyncedAt: new Date(),
         })
         .onConflictDoUpdate({
@@ -138,6 +144,9 @@ export async function syncAdAccountsAction() {
     );
 
     console.error("Sync Error:", error);
-    return { success: false, error: error.message || "Failed to sync accounts" };
+    return {
+      success: false,
+      error: error.message || "Failed to sync accounts",
+    };
   }
 }

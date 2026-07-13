@@ -232,8 +232,9 @@ const mockDbQuery = {
   },
 };
 
-vi.mock("@/db", () => ({
-  db: {
+vi.mock("@/db", () => {
+  const mockExecutor = {
+    execute: vi.fn().mockResolvedValue(true),
     query: mockDbQuery,
     insert: vi.fn(() => ({
       values: vi.fn(() => ({
@@ -254,8 +255,17 @@ vi.mock("@/db", () => ({
     delete: vi.fn(() => ({
       where: vi.fn().mockResolvedValue(true),
     })),
-  },
-}));
+  };
+
+  return {
+    db: {
+      ...mockExecutor,
+      transaction: vi.fn(async (cb) => {
+        return await cb(mockExecutor);
+      }),
+    },
+  };
+});
 
 // ============================================================================
 // 3. MOCK GEMINI GOOGLE GENAI CLIENT

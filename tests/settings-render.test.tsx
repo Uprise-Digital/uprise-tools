@@ -1,6 +1,6 @@
-import { describe, it } from "vitest";
-import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, it } from "vitest";
 import SettingsClient from "../src/app/(main)/settings/pageClient";
 
 describe("SettingsClient Rendering", () => {
@@ -25,9 +25,12 @@ describe("SettingsClient Rendering", () => {
         userEmail: "user@test.com",
         userRole: "admin",
         initialAutoJoinDomainEnabled: false,
-      })
+      }),
     );
-    console.log("HTML (null connection) generated successfully, length:", html.length);
+    console.log(
+      "HTML (null connection) generated successfully, length:",
+      html.length,
+    );
   });
 
   it("renders without crashing with active connection", () => {
@@ -53,7 +56,7 @@ describe("SettingsClient Rendering", () => {
             syncStatus: null,
             syncError: null,
             includeInBriefing: true,
-          }
+          },
         ],
         auditLogs: [],
         emailLogs: [],
@@ -69,8 +72,11 @@ describe("SettingsClient Rendering", () => {
         userEmail: "user@test.com",
         userRole: "admin",
         initialAutoJoinDomainEnabled: false,
-      })
+      }),
     );
-    console.log("HTML (active connection) generated successfully, length:", html.length);
+    console.log(
+      "HTML (active connection) generated successfully, length:",
+      html.length,
+    );
   });
 });

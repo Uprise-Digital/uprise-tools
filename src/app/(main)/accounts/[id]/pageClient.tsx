@@ -479,7 +479,9 @@ export default function ClientDashboard({
           <div className="space-y-1">
             <p className="font-bold text-sm">Archived Account</p>
             <p className="text-amber-700 leading-relaxed">
-              This account has been delinked from Google Ads or deactivated. Live syncing is suspended, and the dashboard is displaying the last cached historical data.
+              This account has been delinked from Google Ads or deactivated.
+              Live syncing is suspended, and the dashboard is displaying the
+              last cached historical data.
             </p>
             {account.syncError && (
               <p className="font-mono bg-amber-100/50 p-1.5 rounded mt-2 border border-amber-200/50 text-[10px]">

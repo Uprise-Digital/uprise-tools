@@ -1,11 +1,17 @@
 import dotenv from "dotenv";
 import path from "path";
+
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
-import { db } from "../src/db";
-import { adAccounts, googleAdsConnections, organization, member } from "../src/db/schema";
-import { eq, and } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getOrgTriageDefaultsAction } from "../src/actions/triage-settings.actions";
+import { db } from "../src/db";
+import {
+  adAccounts,
+  googleAdsConnections,
+  member,
+  organization,
+} from "../src/db/schema";
 
 async function main() {
   console.log("Checking DB connection and running queries...");
@@ -21,7 +27,7 @@ async function main() {
 
     // Get first member to use for test
     const firstMember = await db.query.member.findFirst({
-      where: eq(member.organizationId, orgId)
+      where: eq(member.organizationId, orgId),
     });
     const userId = firstMember?.userId || "test-user";
     console.log(`Using User ID: ${userId}`);
@@ -58,10 +64,7 @@ async function main() {
 
     console.log("6. Querying member...");
     const memberRecord = await db.query.member.findFirst({
-      where: and(
-        eq(member.userId, userId),
-        eq(member.organizationId, orgId)
-      ),
+      where: and(eq(member.userId, userId), eq(member.organizationId, orgId)),
     });
     console.log("Member role:", memberRecord?.role || "none");
 

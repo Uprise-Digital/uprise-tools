@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import * as cheerio from "cheerio";
+import { describe, expect, it } from "vitest";
 import {
   getAuditDetailAction,
   getCampaignLandingPagesAction,
@@ -16,8 +16,12 @@ function isElementHidden(el: any, $: any): boolean {
     const idName = current.attr("id") || "";
     const role = current.attr("role") || "";
     if (
-      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(className) ||
-      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(idName) ||
+      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(
+        className,
+      ) ||
+      /(?:^|[^a-zA-Z0-9])(accordion|tab|tabs|collapse|collapsed|faq|faqs|dropdown)(?:$|[^a-zA-Z0-9])/i.test(
+        idName,
+      ) ||
       role === "tabpanel"
     ) {
       isProgressiveDisclosure = true;
@@ -26,7 +30,12 @@ function isElementHidden(el: any, $: any): boolean {
     const parentNode = current.parent();
     if (parentNode && parentNode.length > 0) {
       const pNode = parentNode[0];
-      if (pNode && pNode.type !== "root" && pNode.name !== "body" && pNode.name !== "html") {
+      if (
+        pNode &&
+        pNode.type !== "root" &&
+        pNode.name !== "body" &&
+        pNode.name !== "html"
+      ) {
         current = parentNode;
       } else {
         break;
@@ -62,7 +71,12 @@ function isElementHidden(el: any, $: any): boolean {
   const parent = el.parent();
   if (parent && parent.length > 0) {
     const parentNode = parent[0];
-    if (parentNode && parentNode.type !== "root" && parentNode.name !== "body" && parentNode.name !== "html") {
+    if (
+      parentNode &&
+      parentNode.type !== "root" &&
+      parentNode.name !== "body" &&
+      parentNode.name !== "html"
+    ) {
       return isElementHidden(parent, $);
     }
   }

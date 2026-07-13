@@ -1,8 +1,7 @@
-import { expect, test, describe, beforeAll, afterAll, vi } from "vitest";
-import { checkDailyAuditLimit } from "../src/lib/limits";
-import { landingPageAudits, adAccounts } from "../src/db/schema";
 import { eq } from "drizzle-orm";
-
+import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
+import { adAccounts, landingPageAudits } from "../src/db/schema";
+import { checkDailyAuditLimit } from "../src/lib/limits";
 
 // Disable global db mock for this test
 vi.unmock("@/db");
@@ -14,29 +13,34 @@ describe("Daily Audit Limits Tests", () => {
 
   beforeAll(async () => {
     // Cleanup
-    await db.delete(landingPageAudits).where(eq(landingPageAudits.organizationId, TEST_ORG));
+    await db
+      .delete(landingPageAudits)
+      .where(eq(landingPageAudits.organizationId, TEST_ORG));
     await db.delete(adAccounts).where(eq(adAccounts.organizationId, TEST_ORG));
   });
 
   afterAll(async () => {
     // Cleanup
-    await db.delete(landingPageAudits).where(eq(landingPageAudits.organizationId, TEST_ORG));
+    await db
+      .delete(landingPageAudits)
+      .where(eq(landingPageAudits.organizationId, TEST_ORG));
     await db.delete(adAccounts).where(eq(adAccounts.organizationId, TEST_ORG));
   });
 
-
   test("should enforce the daily limit correctly", async () => {
-
     // Set a small limit for testing
     process.env.DAILY_AUDIT_LIMIT = "2";
 
     // 1. Create a dummy ad account first to avoid foreign key violation
-    const [testAccount] = await db.insert(adAccounts).values({
-      organizationId: TEST_ORG,
-      googleAccountId: "limits-test-google-id",
-      name: "Limits Test Ad Account",
-      isActive: true,
-    }).returning({ id: adAccounts.id });
+    const [testAccount] = await db
+      .insert(adAccounts)
+      .values({
+        organizationId: TEST_ORG,
+        googleAccountId: "limits-test-google-id",
+        name: "Limits Test Ad Account",
+        isActive: true,
+      })
+      .returning({ id: adAccounts.id });
 
     const adAccountId = testAccount.id;
 
@@ -77,4 +81,3 @@ describe("Daily Audit Limits Tests", () => {
     await db.delete(adAccounts).where(eq(adAccounts.id, adAccountId));
   }, 30000);
 });
-

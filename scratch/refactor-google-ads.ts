@@ -123,7 +123,9 @@ export async function getManagementAccessToken(): Promise<{
 
 if (content.includes(oldAuthFunction)) {
   content = content.replace(oldAuthFunction, newAuthFunction);
-  console.log("Successfully replaced getManagementAccessToken helper function.");
+  console.log(
+    "Successfully replaced getManagementAccessToken helper function.",
+  );
 } else {
   // Try replacement by regex if formatting slightly changed
   console.log("Old signature match failed, trying fallback replacements...");
@@ -132,13 +134,22 @@ if (content.includes(oldAuthFunction)) {
 // 2. Replace calls to getManagementAccessToken
 content = content.replace(
   /const accessToken = await getManagementAccessToken\(\);/g,
-  "const { accessToken, managerCustomerId } = await getManagementAccessToken();"
+  "const { accessToken, managerCustomerId } = await getManagementAccessToken();",
 );
 
 // 3. Replace header manager customer id references
-content = content.replace(/"login-customer-id": process\.env\.GOOGLE_ADS_MANAGER_ID!,/g, '"login-customer-id": managerCustomerId,');
-content = content.replace(/"login-customer-id": MANAGER_ID!,/g, '"login-customer-id": managerCustomerId,');
-content = content.replace(/"login-customer-id": sanitizedManagerId!,/g, '"login-customer-id": managerCustomerId,');
+content = content.replace(
+  /"login-customer-id": process\.env\.GOOGLE_ADS_MANAGER_ID!,/g,
+  '"login-customer-id": managerCustomerId,',
+);
+content = content.replace(
+  /"login-customer-id": MANAGER_ID!,/g,
+  '"login-customer-id": managerCustomerId,',
+);
+content = content.replace(
+  /"login-customer-id": sanitizedManagerId!,/g,
+  '"login-customer-id": managerCustomerId,',
+);
 
 // Save changes
 fs.writeFileSync(filePath, content, "utf8");

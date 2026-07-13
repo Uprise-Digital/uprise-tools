@@ -1,15 +1,13 @@
-import { expect, test, describe, beforeAll, afterAll, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 
 // Disable global db mock for this database integration test
 vi.unmock("@/db");
 
-import { sql } from "drizzle-orm";
-import { withTenantDb, withBypassTenantDb } from "../src/db/db-helper";
+import { eq, sql } from "drizzle-orm";
+import { withBypassTenantDb, withTenantDb } from "../src/db/db-helper";
 import { adAccounts, organization } from "../src/db/schema";
-import { eq } from "drizzle-orm";
 
 const db = (await import("../src/db/index")).db;
-
 
 describe("Database RLS Scoping Tests", () => {
   beforeAll(async () => {
@@ -23,15 +21,27 @@ describe("Database RLS Scoping Tests", () => {
       END
       $$;
     `);
-    await db.execute(sql`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rls_test_role`);
-    await db.execute(sql`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rls_test_role`);
+    await db.execute(
+      sql`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rls_test_role`,
+    );
+    await db.execute(
+      sql`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rls_test_role`,
+    );
 
     // 2. Clean up any leftover test data
     await withBypassTenantDb(async (tx) => {
-      await tx.delete(adAccounts).where(eq(adAccounts.name, "RLS Test Account 1"));
-      await tx.delete(adAccounts).where(eq(adAccounts.name, "RLS Test Account 2"));
-      await tx.delete(organization).where(eq(organization.id, "org-rls-test-1"));
-      await tx.delete(organization).where(eq(organization.id, "org-rls-test-2"));
+      await tx
+        .delete(adAccounts)
+        .where(eq(adAccounts.name, "RLS Test Account 1"));
+      await tx
+        .delete(adAccounts)
+        .where(eq(adAccounts.name, "RLS Test Account 2"));
+      await tx
+        .delete(organization)
+        .where(eq(organization.id, "org-rls-test-1"));
+      await tx
+        .delete(organization)
+        .where(eq(organization.id, "org-rls-test-2"));
 
       // 3. Insert test organizations
       await tx.insert(organization).values([
@@ -72,20 +82,31 @@ describe("Database RLS Scoping Tests", () => {
   afterAll(async () => {
     // Clean up test data and role
     await withBypassTenantDb(async (tx) => {
-      await tx.delete(adAccounts).where(eq(adAccounts.name, "RLS Test Account 1"));
-      await tx.delete(adAccounts).where(eq(adAccounts.name, "RLS Test Account 2"));
-      await tx.delete(organization).where(eq(organization.id, "org-rls-test-1"));
-      await tx.delete(organization).where(eq(organization.id, "org-rls-test-2"));
+      await tx
+        .delete(adAccounts)
+        .where(eq(adAccounts.name, "RLS Test Account 1"));
+      await tx
+        .delete(adAccounts)
+        .where(eq(adAccounts.name, "RLS Test Account 2"));
+      await tx
+        .delete(organization)
+        .where(eq(organization.id, "org-rls-test-1"));
+      await tx
+        .delete(organization)
+        .where(eq(organization.id, "org-rls-test-2"));
     });
     try {
-      await db.execute(sql`REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM rls_test_role`);
-      await db.execute(sql`REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM rls_test_role`);
+      await db.execute(
+        sql`REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM rls_test_role`,
+      );
+      await db.execute(
+        sql`REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM rls_test_role`,
+      );
       await db.execute(sql`DROP ROLE IF EXISTS rls_test_role`);
     } catch (e) {
       console.warn("Could not drop rls_test_role:", e);
     }
   });
-
 
   test("should enforce RLS and only return Org 1 accounts when scoped to Org 1", async () => {
     const results = await withTenantDb("org-rls-test-1", async (tx) => {
@@ -116,9 +137,10 @@ describe("Database RLS Scoping Tests", () => {
 
   test("should return all accounts when RLS is bypassed", async () => {
     const results = await withBypassTenantDb(async (tx) => {
-      return await tx.select().from(adAccounts).where(
-        sql`name IN ('RLS Test Account 1', 'RLS Test Account 2')`
-      );
+      return await tx
+        .select()
+        .from(adAccounts)
+        .where(sql`name IN ('RLS Test Account 1', 'RLS Test Account 2')`);
     });
 
     expect(results.length).toBe(2);

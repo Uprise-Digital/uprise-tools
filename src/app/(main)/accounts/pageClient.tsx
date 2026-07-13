@@ -190,7 +190,8 @@ export default function AccountsClientPage({
                         className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
                           acc.googleStatus === "ENABLED"
                             ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
-                            : acc.googleStatus === "CANCELED" || acc.googleStatus === "DELINKED"
+                            : acc.googleStatus === "CANCELED" ||
+                                acc.googleStatus === "DELINKED"
                               ? "bg-slate-400"
                               : acc.googleStatus === "SUSPENDED"
                                 ? "bg-rose-500 shadow-sm shadow-rose-500/30"

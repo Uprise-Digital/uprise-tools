@@ -373,7 +373,10 @@ export default function NegativesClientWorkspace({
           <div className="space-y-1">
             <p className="font-bold text-sm">Archived Account</p>
             <p className="text-amber-700 leading-relaxed">
-              This account has been delinked from Google Ads or deactivated. Suggestion generation, Turbo Mode, and live mutations are disabled. You can still view historical database records and suggestions.
+              This account has been delinked from Google Ads or deactivated.
+              Suggestion generation, Turbo Mode, and live mutations are
+              disabled. You can still view historical database records and
+              suggestions.
             </p>
           </div>
         </div>

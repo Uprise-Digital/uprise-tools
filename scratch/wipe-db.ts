@@ -1,5 +1,5 @@
-import { db } from "../src/db";
 import { sql } from "drizzle-orm";
+import { db } from "../src/db";
 
 async function main() {
   console.log("Wiping database tables...");
@@ -24,7 +24,7 @@ async function main() {
   console.log("Database wiped successfully!");
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("Failed to wipe database:", err);
   process.exit(1);
 });
