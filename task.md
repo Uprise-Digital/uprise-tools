@@ -1,0 +1,56 @@
+# Task List - Handling Delinked Accounts & Performance Ledger Improvements
+
+- [x] Modify backend server actions and utilities
+  - [x] Modify `src/actions/dashboard.actions.ts` to skip sync for inactive accounts, catch delinking errors, and return cached data on failure.
+  - [x] Modify `src/lib/google-ads.ts` to protect debug logs.
+  - [x] Modify `src/actions/ads.actions.ts` to sync status correctly, deactivate missing accounts, and fix path revalidation.
+  - [x] Modify `src/actions/settings.actions.ts` to deactivate missing accounts during metadata refresh.
+- [x] Modify account details page (`/accounts/[id]`)
+  - [x] Update server component `src/app/(main)/accounts/[id]/page.tsx` to pass active/sync status.
+  - [x] Update client component `src/app/(main)/accounts/[id]/pageClient.tsx` with defensive formatting, warning banners, and conditional sync requests.
+- [x] Modify negative keywords page (`/accounts/[id]/negatives`)
+  - [x] Update server component `src/app/(main)/accounts/[id]/negatives/page.tsx` to pass status.
+  - [x] Update client component `src/app/(main)/accounts/[id]/negatives/pageClient.tsx` to show warning and disable mutations.
+- [x] Modify accounts list page (`/accounts`)
+  - [x] Update client component `src/app/(main)/accounts/pageClient.tsx` to integrate performance ledger metrics columns (`Spend`, `Conv.`, `Blended CPA`, `CTR`, `CPC`, `Churn Risk`).
+  - [x] Add a date range picker that updates the fetched metrics.
+  - [x] Implement detailed sorting on every column.
+  - [x] Implement detailed filtering (by search, status, churn risk, and Google Ads status).
+  - [x] Remove the non-functional "Alerts" action button.
+- [x] Secure and audit report automation features
+  - [x] Update `saveReportScheduleAction` in `src/actions/automation.actions.ts` to resolve and store the session's active `organizationId` for proper multitenancy scoping.
+  - [x] Fix revalidation paths to `/accounts` for automation actions.
+- [x] Update DB Schema in `src/db/schema.ts`
+  - [x] Add `clientOnboardings` table
+  - [x] Add `clientOnboardingId` reference column to `adAccounts` table
+  - [x] Update types/imports in `src/lib/audit.ts` to support onboarding emails
+- [x] Run database migration/push
+  - [x] Run `npx drizzle-kit push` or generate migration
+- [x] Implement GoHighLevel sync service and API webhook
+  - [x] Create `src/service/gohighlevel-service.ts` for GHL api operations (search, update stage, create contact)
+  - [x] Implement `src/app/api/webhooks/gohighlevel/route.ts` webhook handler
+  - [x] Implement secure proxy `/api/gohighlevel/search/route.ts` for autocomplete search
+- [x] Implement Onboarding server actions in `src/actions/client-onboarding.actions.ts`
+  - [x] Create actions to CRUD client onboarding records
+  - [x] Implement mock Google Drive duplication / Notion & Signal link generator
+  - [x] Implement dynamic Resend email dispatch with template
+- [x] Implement Markdown-driven Knowledge Base `/docs`
+  - [x] Set up structure in `src/content/docs/client-guides/` for access guides
+  - [x] Create `google-ads-access.md` and `meta-ads-access.md` files
+  - [x] Implement dynamic routing and rendering in `src/app/docs/[category]/[slug]/page.tsx`
+  - [x] Build interactive elements: `<GoogleAdsIdForm />` and `<CopyMetaIdButton />`
+- [x] Create unified Client Directory and Onboarding Queue UI under `/clients`
+  - [x] Add "Clients" tab to sidebar in `src/components/main-layout.tsx`
+  - [x] Create `/clients/page.tsx` server route
+  - [x] Create `/clients/pageClient.tsx` directory dashboard with drawer detail views
+- [x] Add detailed unit and integration tests
+  - [x] Create `tests/actions/automation.test.ts` to test rule creation, updates, deletions, and queue testing.
+  - [x] Create `tests/cron.test.ts` to test GET/POST cron handlers, authentication, Resend email dispatch, and React-PDF streaming mocks.
+  - [x] Add dynamic database schema selects mock in `tests/setup.ts`.
+- [x] Verification and Testing
+  - [x] Create `tests/actions/client-onboarding.test.ts` and execute tests with vitest
+  - [x] Run Next.js build to verify typescript compilation
+- [x] Verification & Deployment
+  - [x] Verify compiling and styling.
+  - [x] Resolve linter warnings and mock database test issues.
+  - [x] Commit locally.

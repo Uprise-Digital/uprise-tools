@@ -30,6 +30,44 @@ vi.mock("@/lib/auth", () => ({
 // 2. MOCK DRIZZLE DATABASE INSTANCE
 // ============================================================================
 const mockDbQuery = {
+  clientOnboardings: {
+    findFirst: vi.fn().mockResolvedValue({
+      id: 101,
+      organizationId: "org-test-uprise",
+      clientName: "KGN Homes",
+      primaryContactName: "Sultan",
+      contactEmail: "sultan@kgnhomes.com.au",
+      googleAdsAccess: true,
+      metaAdsAccess: true,
+      driveFolderLink: "https://drive.mock/folder",
+      notionDashboardLink: "https://notion.mock/dashboard",
+      signalGroupLink: "https://signal.mock/chat",
+      status: "ready_to_review",
+      googleAdsStatus: "pending",
+      metaAdsStatus: "pending",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+    findMany: vi.fn().mockResolvedValue([
+      {
+        id: 101,
+        organizationId: "org-test-uprise",
+        clientName: "KGN Homes",
+        primaryContactName: "Sultan",
+        contactEmail: "sultan@kgnhomes.com.au",
+        googleAdsAccess: true,
+        metaAdsAccess: true,
+        driveFolderLink: "https://drive.mock/folder",
+        notionDashboardLink: "https://notion.mock/dashboard",
+        signalGroupLink: "https://signal.mock/chat",
+        status: "ready_to_review",
+        googleAdsStatus: "pending",
+        metaAdsStatus: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]),
+  },
   adAccounts: {
     findFirst: vi.fn().mockResolvedValue({
       id: 1,

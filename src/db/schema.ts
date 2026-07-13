@@ -145,6 +145,29 @@ export const usageLogs = pgTable("usage_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const clientOnboardings = pgTable("client_onboardings", {
+  id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  ghlContactId: text("ghl_contact_id"),
+  ghlOpportunityId: text("ghl_opportunity_id"),
+  clientName: text("client_name").notNull(),
+  primaryContactName: text("primary_contact_name").notNull(),
+  contactEmail: text("contact_email").notNull(),
+  googleAdsAccess: boolean("google_ads_access").default(true).notNull(),
+  metaAdsAccess: boolean("meta_ads_access").default(true).notNull(),
+  driveFolderLink: text("drive_folder_link"),
+  notionDashboardLink: text("notion_dashboard_link"),
+  signalGroupLink: text("signal_group_link"),
+  status: text("status").default("draft").notNull(),
+  googleAdsStatus: text("google_ads_status").default("pending").notNull(),
+  metaAdsStatus: text("meta_ads_status").default("pending").notNull(),
+  emailSentAt: timestamp("email_sent_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // --- 3. GOOGLE ADS CORE ---
 export const adAccounts = pgTable("ad_accounts", {
   id: serial("id").primaryKey(),
@@ -173,6 +196,10 @@ export const adAccounts = pgTable("ad_accounts", {
   targetRoas: decimal("target_roas", { precision: 5, scale: 2 }),
   monthlyBudgetCap: decimal("monthly_budget_cap", { precision: 10, scale: 2 }),
   targetNotes: text("target_notes"),
+  clientOnboardingId: integer("client_onboarding_id").references(
+    () => clientOnboardings.id,
+    { onDelete: "set null" },
+  ),
 });
 
 export const accountMetrics = pgTable(
@@ -333,6 +360,17 @@ export const aiInsightsCache = pgTable(
 );
 
 // --- 7. RELATIONS ---
+export const clientOnboardingRelations = relations(
+  clientOnboardings,
+  ({ one, many }) => ({
+    organization: one(organization, {
+      fields: [clientOnboardings.organizationId],
+      references: [organization.id],
+    }),
+    adAccounts: many(adAccounts),
+  }),
+);
+
 export const adAccountRelations = relations(adAccounts, ({ many, one }) => ({
   rules: many(alertRules),
   metrics: many(accountMetrics),
@@ -344,6 +382,10 @@ export const adAccountRelations = relations(adAccounts, ({ many, one }) => ({
   negativeKeywordSuggestions: many(negativeKeywordSuggestions),
   campaignLandingPages: many(campaignLandingPages),
   landingPageAudits: many(landingPageAudits),
+  clientOnboarding: one(clientOnboardings, {
+    fields: [adAccounts.clientOnboardingId],
+    references: [clientOnboardings.id],
+  }),
 }));
 
 export const alertRuleRelations = relations(alertRules, ({ one, many }) => ({

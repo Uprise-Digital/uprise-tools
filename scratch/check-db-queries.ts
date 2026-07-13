@@ -1,17 +1,12 @@
+import path from "node:path";
 import dotenv from "dotenv";
-import path from "path";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
 import { and, eq } from "drizzle-orm";
 import { getOrgTriageDefaultsAction } from "../src/actions/triage-settings.actions";
 import { db } from "../src/db";
-import {
-  adAccounts,
-  googleAdsConnections,
-  member,
-  organization,
-} from "../src/db/schema";
+import { adAccounts, googleAdsConnections, member } from "../src/db/schema";
 
 async function main() {
   console.log("Checking DB connection and running queries...");

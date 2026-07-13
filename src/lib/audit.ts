@@ -21,7 +21,11 @@ export async function logEmail(data: {
   adAccountId?: number | null;
   recipient: string;
   subject: string;
-  emailType: "morning_briefing" | "scheduled_report" | "on_demand_report";
+  emailType:
+    | "morning_briefing"
+    | "scheduled_report"
+    | "on_demand_report"
+    | "client_onboarding";
   status: "success" | "failed";
   error?: string | null;
   resendId?: string | null;

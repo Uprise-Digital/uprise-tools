@@ -11,6 +11,7 @@ import {
   ScrollText,
   Settings,
   Sparkles,
+  UserPlus,
   Users,
 } from "lucide-react";
 import Image from "next/image";
@@ -38,6 +39,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
+  { href: "/clients", label: "Clients", icon: UserPlus },
   { href: "/accounts", label: "Ad Accounts", icon: BarChart3 },
   { href: "/lp-analysis", label: "LP Analysis", icon: Globe },
   { href: "/ad-audit", label: "Ad Copy", icon: Sparkles },
@@ -217,6 +219,7 @@ export function MainLayout({
         <header className="hidden md:flex h-14 bg-white border-b border-slate-200 px-6 items-center justify-between flex-shrink-0 z-20 shadow-sm">
           <div className="text-xs font-semibold text-slate-400">
             {pathname === "/overview" && "Dashboard / Overview"}
+            {pathname?.startsWith("/clients") && "Dashboard / Clients"}
             {pathname?.startsWith("/accounts") && "Dashboard / Ad Accounts"}
             {pathname?.startsWith("/lp-analysis") && "Dashboard / LP Analysis"}
             {pathname?.startsWith("/ad-audit") &&
