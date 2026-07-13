@@ -21,6 +21,9 @@ const GHL_API_BASE = "https://services.leadconnectorhq.com";
 
 function getGhlHeaders() {
   const apiKey = process.env.GHL_API_KEY;
+  if (!apiKey) {
+    throw new Error("GoHighLevel API Key (GHL_API_KEY) is not configured.");
+  }
   return {
     Authorization: `Bearer ${apiKey}`,
     Version: "2021-04-15",
@@ -33,51 +36,8 @@ function getGhlHeaders() {
  */
 export async function searchGhlContacts(query: string): Promise<GhlContact[]> {
   const apiKey = process.env.GHL_API_KEY;
-  if (!apiKey || apiKey === "mock") {
-    // Return mock data for testing/fallback
-    const mockContacts: GhlContact[] = [
-      {
-        id: "ct_kgn_homes_1",
-        name: "Sultan",
-        email: "sultan@kgnhomes.com.au",
-        companyName: "KGN Homes",
-        phone: "+61 426 759 756",
-      },
-      {
-        id: "ct_acme_corp_2",
-        name: "John Doe",
-        email: "john@acme.com",
-        companyName: "Acme Corp",
-        phone: "+61 411 111 111",
-      },
-      {
-        id: "ct_uprise_test_3",
-        name: "Sarah Tester",
-        email: "sarah@tester.com",
-        companyName: "Tester & Co",
-        phone: "+61 422 222 222",
-      },
-      {
-        id: "ct_globex_4",
-        name: "Hank Scorpio",
-        email: "hank@globex.com",
-        companyName: "Globex Industries",
-        phone: "+61 433 333 333",
-      },
-      {
-        id: "ct_mock_paul_5",
-        name: "Paul Abbott",
-        email: "paul@uprisedigital.com.au",
-        companyName: "Paul's Bakery",
-        phone: "+61 444 444 444",
-      },
-    ];
-    return mockContacts.filter(
-      (c) =>
-        c.name.toLowerCase().includes(query.toLowerCase()) ||
-        c.companyName?.toLowerCase().includes(query.toLowerCase()) ||
-        c.email.toLowerCase().includes(query.toLowerCase()),
-    );
+  if (!apiKey) {
+    throw new Error("GoHighLevel API Key (GHL_API_KEY) is not configured.");
   }
 
   try {
@@ -89,8 +49,9 @@ export async function searchGhlContacts(query: string): Promise<GhlContact[]> {
       headers: getGhlHeaders(),
     });
     if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
       throw new Error(
-        `GHL Contacts Search failed with status ${res.status}: ${res.statusText}`,
+        `GHL Contacts Search failed with status ${res.status}: ${res.statusText || errorText}`,
       );
     }
     const data = await res.json();
@@ -115,11 +76,8 @@ export async function updateGhlOpportunityStage(
   stageId: string,
 ): Promise<boolean> {
   const apiKey = process.env.GHL_API_KEY;
-  if (!apiKey || apiKey === "mock") {
-    console.log(
-      `[MOCK GHL] Updated Opportunity ${opportunityId} to Stage ${stageId}`,
-    );
-    return true;
+  if (!apiKey) {
+    throw new Error("GoHighLevel API Key (GHL_API_KEY) is not configured.");
   }
 
   try {
@@ -131,8 +89,9 @@ export async function updateGhlOpportunityStage(
       },
     );
     if (!getRes.ok) {
+      const errorText = await getRes.text().catch(() => "");
       throw new Error(
-        `Failed to fetch GHL opportunity details: ${getRes.statusText}`,
+        `Failed to fetch GHL opportunity details: ${getRes.statusText || errorText}`,
       );
     }
     const data = await getRes.json();
@@ -150,7 +109,10 @@ export async function updateGhlOpportunityStage(
       }),
     });
     if (!res.ok) {
-      throw new Error(`GHL Opportunity update failed: ${res.statusText}`);
+      const errorText = await res.text().catch(() => "");
+      throw new Error(
+        `GHL Opportunity update failed: ${res.statusText || errorText}`,
+      );
     }
     return true;
   } catch (error) {

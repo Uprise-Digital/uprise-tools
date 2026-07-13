@@ -156,9 +156,17 @@ export default function ClientsDirectoryClient() {
           const data = await res.json();
           if (res.ok && data.success) {
             setGhlResults(data.contacts || []);
+          } else {
+            const errMsg = data.error || `Status code ${res.status}`;
+            toast.error(`GoHighLevel Search Error: ${errMsg}`);
+            setGhlResults([]);
           }
-        } catch (err) {
+        } catch (err: any) {
           console.error("GHL Autocomplete fetch failed", err);
+          toast.error(
+            `GoHighLevel Connection Error: ${err.message || String(err)}`,
+          );
+          setGhlResults([]);
         } finally {
           setLoadingGhl(false);
         }
