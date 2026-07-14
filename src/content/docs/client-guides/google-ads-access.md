@@ -19,6 +19,8 @@ To let us create, monitor, and optimize your Google Ads campaigns, please follow
 
 <GoogleAdsIdForm />
 
+![Google Ads Customer ID Location](/images/docs/google-ads/media__1783932034420.png)
+
 <div class="my-6 p-5 bg-slate-900/40 border border-slate-800 rounded-2xl flex items-start gap-4">
   <div class="flex-shrink-0 text-indigo-400 mt-0.5">
     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -41,10 +43,15 @@ Before you can accept our connection request, Google Ads security policies requi
 2. In the left-side navigation menu, click on **Admin** (gear icon) and select **Access and security**.
 3. Click on the **Security** tab from the top navigation bar.
 4. Scroll down to the **Allowed Domains** section, then click on the drop-down arrow to expand it.
+
+![Google Ads Security Allowed Domains settings](/images/docs/google-ads/media__1783934356839.png)
+
 5. Click **Add Domain**.
 6. In the blank field (where it displays `example.com`), type:
    **`uprisedigital.com.au`**
 7. Click **Save** to apply the security update.
+
+![Add uprisedigital.com.au to Allowed Domains list](/images/docs/google-ads/media__1783935684866.png)
 
 <div class="my-6 p-5 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex items-start gap-4">
   <div class="flex-shrink-0 text-amber-500 mt-0.5">
