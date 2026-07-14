@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import ClientsDirectoryClient from "./pageClient";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Clients Directory | Uprise Tools",
   description:
