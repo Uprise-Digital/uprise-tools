@@ -57,50 +57,58 @@ export function parseMarkdown(filePath: string): ParsedDoc {
   // Simple Markdown to HTML Parser
   let html = markdownContent;
 
+  // Convert images
+  html = html.replace(
+    /!\[(.*?)\]\((.*?)\)/g,
+    '<img src="$2" alt="$1" class="w-full h-auto rounded-2xl border border-slate-200 my-6 shadow-sm object-cover" />',
+  );
+
   // Convert headers (h1, h2, h3)
-  html = html.replace(
-    /^### (.*$)/gim,
-    '<h3 class="text-base font-bold text-slate-100 mt-6 mb-3">$1</h3>',
-  );
-  html = html.replace(
-    /^## (.*$)/gim,
-    '<h2 class="text-lg font-extrabold text-slate-100 mt-8 mb-4 border-b border-slate-800 pb-2">$1</h2>',
-  );
+  html = html.replace(/^### (.*$)/gim, (match, p1) => {
+    const cleanText = p1.trim();
+    const id = cleanText.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `<h3 id="${id}" class="text-base font-bold text-slate-800 mt-6 mb-3 scroll-mt-20">${cleanText}</h3>`;
+  });
+  html = html.replace(/^## (.*$)/gim, (match, p1) => {
+    const cleanText = p1.trim();
+    const id = cleanText.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    return `<h2 id="${id}" class="text-lg font-bold text-slate-900 mt-8 mb-4 border-b border-slate-200 pb-2 scroll-mt-20">${cleanText}</h2>`;
+  });
   html = html.replace(
     /^# (.*$)/gim,
-    '<h1 class="text-2xl font-black text-white mb-6">$1</h1>',
+    '<h1 class="text-2xl font-black text-slate-900 mb-6">$1</h1>',
   );
 
   // Convert bold / italic
   html = html.replace(
     /\*\*(.*?)\*\*/g,
-    '<strong class="font-semibold text-slate-100">$1</strong>',
+    '<strong class="font-semibold text-slate-900">$1</strong>',
   );
   html = html.replace(
     /\*(.*?)\*/g,
-    '<em class="italic text-slate-300">$1</em>',
+    '<em class="italic text-slate-600">$1</em>',
   );
 
   // Convert code tags
   html = html.replace(
     /`(.*?)`/g,
-    '<code class="px-1.5 py-0.5 bg-slate-950 border border-slate-850 rounded text-indigo-400 font-mono text-xs font-medium">$1</code>',
+    '<code class="px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-indigo-600 font-mono text-xs font-semibold">$1</code>',
   );
 
   // Convert links
   html = html.replace(
     /\[(.*?)\]\((.*?)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:text-indigo-300 underline font-semibold transition-colors">$1</a>',
+    '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-800 underline font-semibold transition-colors">$1</a>',
   );
 
   // Convert list items
   html = html.replace(
     /^\s*-\s+(.*$)/gim,
-    '<li class="ml-4 list-disc text-slate-300 mb-1.5">$1</li>',
+    '<li class="ml-4 list-disc text-slate-600 mb-1.5">$1</li>',
   );
   html = html.replace(
     /^\s*\d+\.\s+(.*$)/gim,
-    '<li class="ml-4 list-decimal text-slate-300 mb-1.5">$1</li>',
+    '<li class="ml-4 list-decimal text-slate-600 mb-1.5">$1</li>',
   );
 
   // Split into block paragraphs and wrap non-element blocks in <p>
@@ -112,6 +120,7 @@ export function parseMarkdown(filePath: string): ParsedDoc {
     if (
       trimmed.startsWith("<h") ||
       trimmed.startsWith("<li") ||
+      trimmed.startsWith("<img") ||
       trimmed.startsWith("<GoogleAdsIdForm") ||
       trimmed.startsWith("<CopyMetaIdButton") ||
       trimmed.startsWith("<div")
@@ -119,7 +128,7 @@ export function parseMarkdown(filePath: string): ParsedDoc {
       return trimmed;
     }
 
-    return `<p class="text-sm text-slate-300 mb-4 leading-relaxed">${trimmed}</p>`;
+    return `<p class="text-sm text-slate-650 mb-4 leading-relaxed">${trimmed}</p>`;
   });
 
   html = parsedBlocks.join("\n");

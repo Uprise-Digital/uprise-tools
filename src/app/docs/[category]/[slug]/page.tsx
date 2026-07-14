@@ -51,6 +51,22 @@ export default async function DocDetailPage({ params }: DocPageProps) {
     /(<GoogleAdsIdForm \/>|<CopyMetaIdButton \/>)/,
   );
 
+  // Extract Headings for TOC
+  let toc: { text: string; id: string }[] = [];
+  try {
+    const rawContent = fs.readFileSync(filePath, "utf-8");
+    const headingLines = rawContent.split("\n");
+    for (const line of headingLines) {
+      if (line.startsWith("## ")) {
+        const cleanText = line.replace("## ", "").trim();
+        const id = cleanText.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        toc.push({ text: cleanText, id });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to parse TOC:", err);
+  }
+
   const categoryTitles: Record<string, string> = {
     "client-guides": "Client Guides",
     "user-manual": "User Manuals",
@@ -58,32 +74,29 @@ export default async function DocDetailPage({ params }: DocPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background gradients */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-900/10 rounded-full blur-3xl -z-10" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-violet-900/10 rounded-full blur-3xl -z-10" />
-
-      <div className="max-w-3xl mx-auto space-y-8 relative">
+    <div className="flex gap-8 items-start relative w-full">
+      {/* Article Content */}
+      <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-sm">
         {/* Navigation Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 border-b border-slate-900 pb-4 mb-4">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 border-b border-slate-100 pb-4 mb-6">
           <Link
             href="/docs"
-            className="hover:text-indigo-400 flex items-center gap-1 transition-colors"
+            className="hover:text-indigo-600 flex items-center gap-1 transition-colors"
           >
             <BookOpen className="h-3.5 w-3.5" /> Docs
           </Link>
           <ChevronRight className="h-3 w-3" />
-          <span className="text-slate-400">
+          <span className="text-slate-500">
             {categoryTitles[category] || category}
           </span>
           <ChevronRight className="h-3 w-3" />
-          <span className="text-slate-200 truncate max-w-[200px]">
+          <span className="text-slate-700 truncate max-w-[200px]">
             {metadata.title}
           </span>
         </div>
 
         {/* Dynamic Document Content */}
-        <article className="prose prose-invert prose-indigo max-w-none">
+        <article className="prose prose-slate prose-indigo max-w-none">
           {parts.map((part, index) => {
             if (part === "<GoogleAdsIdForm />") {
               return <GoogleAdsIdForm key={index} />;
@@ -99,18 +112,41 @@ export default async function DocDetailPage({ params }: DocPageProps) {
         </article>
 
         {/* Footer Actions */}
-        <div className="border-t border-slate-900 pt-6 mt-12 flex justify-between items-center">
+        <div className="border-t border-slate-100 pt-6 mt-12 flex justify-between items-center">
           <Link
             href="/docs"
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Back to Knowledge Base
           </Link>
-          <p className="text-[10px] text-slate-600 font-medium">
-            © {new Date().getFullYear()} Uprise Digital. Internal Systems.
+          <p className="text-[10px] text-slate-400 font-medium">
+            © {new Date().getFullYear()} Uprise Digital. Client Guide.
           </p>
         </div>
       </div>
+
+      {/* Right Table of Contents (TOC) Sidebar */}
+      {toc.length > 0 && (
+        <aside className="w-52 sticky top-20 hidden lg:block shrink-0 pl-2">
+          <div className="space-y-4">
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              On this page
+            </h4>
+            <ul className="space-y-2 border-l border-slate-200 pl-3.5">
+              {toc.map((item) => (
+                <li key={item.id}>
+                  <a
+                    href={`#${item.id}`}
+                    className="block text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors py-0.5 line-clamp-2"
+                  >
+                    {item.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+      )}
     </div>
   );
 }
