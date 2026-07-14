@@ -128,7 +128,7 @@ export const googleAdsConnections = pgTable("google_ads_connections", {
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const usageLogs = pgTable("usage_logs", {
   id: serial("id").primaryKey(),
@@ -143,7 +143,7 @@ export const usageLogs = pgTable("usage_logs", {
     .notNull(),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const clientOnboardings = pgTable("client_onboardings", {
   id: serial("id").primaryKey(),
@@ -166,7 +166,7 @@ export const clientOnboardings = pgTable("client_onboardings", {
   emailSentAt: timestamp("email_sent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 // --- 3. GOOGLE ADS CORE ---
 export const adAccounts = pgTable("ad_accounts", {
@@ -200,7 +200,7 @@ export const adAccounts = pgTable("ad_accounts", {
     () => clientOnboardings.id,
     { onDelete: "set null" },
   ),
-});
+}).enableRLS();
 
 export const accountMetrics = pgTable(
   "account_metrics",
@@ -240,7 +240,7 @@ export const alertRules = pgTable("alert_rules", {
   frequency: text("frequency").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const notificationRoutes = pgTable("notification_routes", {
   id: serial("id").primaryKey(),
@@ -269,7 +269,7 @@ export const auditLogs = pgTable("audit_logs", {
   targetId: text("target_id").notNull(),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const emailLogs = pgTable("email_logs", {
   id: serial("id").primaryKey(),
@@ -284,7 +284,7 @@ export const emailLogs = pgTable("email_logs", {
   error: text("error"),
   resendId: text("resend_id"),
   sentAt: timestamp("sent_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 // --- 5. AUTOMATION & REPORTS ---
 export const reportSchedules = pgTable("report_schedules", {
@@ -306,7 +306,7 @@ export const reportSchedules = pgTable("report_schedules", {
   isActive: boolean("is_active").default(true).notNull(),
   lastRunAt: timestamp("last_run_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const adPerformanceDaily = pgTable(
   "ad_performance_daily",
@@ -476,7 +476,7 @@ export const threatMatrixAudits = pgTable("threat_matrix_audits", {
   competitorUrlsScraped: jsonb("competitor_urls_scraped").notNull(), // Array of URLs
   aiAnalysis: jsonb("ai_analysis").notNull(), // Stores the full Gemini JSON response
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const threatMatrixAuditRelations = relations(
   threatMatrixAudits,
@@ -518,7 +518,7 @@ export const briefingSettings = pgTable("briefing_settings", {
   }),
   isActive: boolean("is_active").default(true).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const orgTriageDefaults = pgTable("org_triage_defaults", {
   id: serial("id").primaryKey(),
@@ -547,7 +547,7 @@ export const orgTriageDefaults = pgTable("org_triage_defaults", {
     .default(-25.0)
     .notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const accountTriageSettings = pgTable("account_triage_settings", {
   id: serial("id").primaryKey(),
@@ -568,7 +568,7 @@ export const accountTriageSettings = pgTable("account_triage_settings", {
     "anomaly_conversions_change_threshold",
   ),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const accountTriageSettingsRelations = relations(
   accountTriageSettings,
@@ -605,7 +605,7 @@ export const negativeKeywordSuggestions = pgTable(
     processedAt: timestamp(),
     error: text("error"),
   },
-);
+).enableRLS();
 
 export const negativeKeywordSuggestionsRelations = relations(
   negativeKeywordSuggestions,
@@ -639,7 +639,7 @@ export const campaignLandingPages = pgTable(
       table.campaignId,
     ),
   }),
-);
+).enableRLS();
 
 export const landingPageAudits = pgTable("landing_page_audits", {
   id: serial("id").primaryKey(),
@@ -667,7 +667,7 @@ export const landingPageAudits = pgTable("landing_page_audits", {
   screenshotUrl: text("screenshot_url"),
   screenshotMobileUrl: text("screenshot_mobile_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const campaignLandingPagesRelations = relations(
   campaignLandingPages,
@@ -706,7 +706,7 @@ export const adGroupAdAudits = pgTable("ad_group_ad_audits", {
   messageMatchScore: integer("message_match_score").default(0).notNull(),
   aiAnalysis: jsonb("ai_analysis").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const adGroupAdAuditsRelations = relations(
   adGroupAdAudits,
@@ -728,7 +728,7 @@ export const backgroundTasks = pgTable("background_tasks", {
   error: text("error"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}).enableRLS();
 
 export const backgroundTasksRelations = relations(
   backgroundTasks,
