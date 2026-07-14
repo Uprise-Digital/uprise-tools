@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { BookOpen, Folder, FileText, ArrowLeft } from "lucide-react";
+import { ArrowLeft, BookOpen, FileText, Folder } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
+import { DocsSearch, type SearchableDoc } from "@/components/docs-search";
 import { auth } from "@/lib/auth";
 import { parseMarkdown } from "@/lib/docs-parser";
-import { DocsSearch, type SearchableDoc } from "@/components/docs-search";
 
 interface DocsLayoutProps {
   children: React.ReactNode;
@@ -18,14 +18,17 @@ export default async function DocsLayout({ children }: DocsLayoutProps) {
 
   const docsDir = path.join(process.cwd(), "src/content/docs");
   const categories = ["client-guides", "user-manual", "developer-docs"];
-  
+
   const searchDocs: SearchableDoc[] = [];
-  const sidebarTree: Record<string, { title: string; category: string; slug: string }[]> = {};
+  const sidebarTree: Record<
+    string,
+    { title: string; category: string; slug: string }[]
+  > = {};
 
   for (const cat of categories) {
     sidebarTree[cat] = [];
     const catDir = path.join(docsDir, cat);
-    
+
     if (fs.existsSync(catDir)) {
       const files = fs.readdirSync(catDir).filter((f) => f.endsWith(".md"));
       for (const file of files) {

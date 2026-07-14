@@ -19,7 +19,9 @@ function getDriveClient() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   // Fall back to GOOGLE_ADS_REFRESH_TOKEN if GOOGLE_DRIVE_REFRESH_TOKEN is not defined
-  const refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN || process.env.GOOGLE_ADS_REFRESH_TOKEN;
+  const refreshToken =
+    process.env.GOOGLE_DRIVE_REFRESH_TOKEN ||
+    process.env.GOOGLE_ADS_REFRESH_TOKEN;
 
   if (clientId && clientSecret && refreshToken) {
     const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
@@ -27,7 +29,9 @@ function getDriveClient() {
     return google.drive({ version: "v3", auth: oauth2Client });
   }
 
-  throw new Error("Missing Google Drive API credentials. Set GOOGLE_SERVICE_ACCOUNT_EMAIL/KEY or GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN in env.");
+  throw new Error(
+    "Missing Google Drive API credentials. Set GOOGLE_SERVICE_ACCOUNT_EMAIL/KEY or GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN in env.",
+  );
 }
 
 /**
@@ -37,7 +41,7 @@ async function copyFolderRecursive(
   drive: ReturnType<typeof google.drive>,
   sourceFolderId: string,
   targetParentFolderId: string | undefined,
-  newFolderName: string
+  newFolderName: string,
 ): Promise<string> {
   // 1. Create target folder
   const metadata: any = {
@@ -87,19 +91,32 @@ async function copyFolderRecursive(
  * Creates a client folder. If a template ID is configured, it duplicates the template.
  * Otherwise, it creates a fresh empty client folder.
  */
-export async function createClientDriveFolder(clientName: string): Promise<string> {
+export async function createClientDriveFolder(
+  clientName: string,
+): Promise<string> {
   const drive = getDriveClient();
   const templateFolderId = process.env.GOOGLE_DRIVE_TEMPLATE_FOLDER_ID;
   const parentFolderId = process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID; // Optional root client folder
 
-  console.log(`Google Drive Service: Creating folder for client '${clientName}'...`);
+  console.log(
+    `Google Drive Service: Creating folder for client '${clientName}'...`,
+  );
 
   if (templateFolderId) {
-    console.log(`Google Drive Service: Duplicating template folder: ${templateFolderId}`);
-    const folderId = await copyFolderRecursive(drive, templateFolderId, parentFolderId, clientName);
+    console.log(
+      `Google Drive Service: Duplicating template folder: ${templateFolderId}`,
+    );
+    const folderId = await copyFolderRecursive(
+      drive,
+      templateFolderId,
+      parentFolderId,
+      clientName,
+    );
     return `https://drive.google.com/drive/folders/${folderId}`;
   } else {
-    console.log("Google Drive Service: No template ID configured. Creating empty folder...");
+    console.log(
+      "Google Drive Service: No template ID configured. Creating empty folder...",
+    );
     const metadata: any = {
       name: clientName,
       mimeType: "application/vnd.google-apps.folder",

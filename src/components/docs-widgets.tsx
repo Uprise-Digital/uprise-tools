@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 export function CopyMetaIdButton() {
-  const metaId = "283748293748923";
+  const metaId = "2448649278688629";
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {

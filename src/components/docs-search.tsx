@@ -1,9 +1,9 @@
 "use client";
 
-import { Search, FileText, X } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { FileText, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 export interface SearchableDoc {
   title: string;
@@ -65,7 +65,7 @@ export function DocsSearch({ docs }: DocsSearchProps) {
       (doc) =>
         doc.title.toLowerCase().includes(cleanQuery) ||
         doc.description.toLowerCase().includes(cleanQuery) ||
-        doc.plainText.toLowerCase().includes(cleanQuery)
+        doc.plainText.toLowerCase().includes(cleanQuery),
     );
     setResults(filtered.slice(0, 5));
     setSelectedIndex(0);
@@ -156,9 +156,13 @@ export function DocsSearch({ docs }: DocsSearchProps) {
                             : "hover:bg-slate-50 border border-transparent"
                         }`}
                       >
-                        <FileText className={`h-4.5 w-4.5 shrink-0 mt-0.5 ${
-                          idx === selectedIndex ? "text-indigo-600" : "text-slate-400"
-                        }`} />
+                        <FileText
+                          className={`h-4.5 w-4.5 shrink-0 mt-0.5 ${
+                            idx === selectedIndex
+                              ? "text-indigo-600"
+                              : "text-slate-400"
+                          }`}
+                        />
                         <div className="space-y-0.5">
                           <p className="text-sm font-bold text-slate-800">
                             {doc.title}
@@ -180,7 +184,11 @@ export function DocsSearch({ docs }: DocsSearchProps) {
                 </div>
               ) : (
                 <div className="p-6 text-center text-xs text-slate-400 font-semibold leading-relaxed">
-                  Type a search query or press <kbd className="px-1 py-0.5 font-bold bg-slate-50 border border-slate-200 rounded font-mono shadow-sm">Esc</kbd> to close.
+                  Type a search query or press{" "}
+                  <kbd className="px-1 py-0.5 font-bold bg-slate-50 border border-slate-200 rounded font-mono shadow-sm">
+                    Esc
+                  </kbd>{" "}
+                  to close.
                 </div>
               )}
             </div>

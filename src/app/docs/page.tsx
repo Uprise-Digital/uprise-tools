@@ -1,12 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import {
-  ArrowLeft,
-  BookOpen,
-  FileText,
-  Folder,
-  ShieldAlert,
-} from "lucide-react";
+import { FileText, Folder, ShieldAlert } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
@@ -69,7 +63,9 @@ export default async function DocsIndexPage() {
           Uprise Tools Knowledge Base
         </h1>
         <p className="text-sm text-slate-500 leading-relaxed max-w-2xl">
-          Everything you need to onboard clients, configure Google and Meta Ads integrations, and manage internal system tools. Select a category below or use the search bar above to get started.
+          Everything you need to onboard clients, configure Google and Meta Ads
+          integrations, and manage internal system tools. Select a category
+          below or use the search bar above to get started.
         </p>
       </div>
 

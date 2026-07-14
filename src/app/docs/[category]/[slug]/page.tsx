@@ -52,7 +52,7 @@ export default async function DocDetailPage({ params }: DocPageProps) {
   );
 
   // Extract Headings for TOC
-  let toc: { text: string; id: string }[] = [];
+  const toc: { text: string; id: string }[] = [];
   try {
     const rawContent = fs.readFileSync(filePath, "utf-8");
     const headingLines = rawContent.split("\n");

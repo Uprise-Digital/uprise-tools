@@ -236,15 +236,21 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
       try {
         driveFolderLink = await createClientDriveFolder(record.clientName);
       } catch (err: any) {
-        console.warn(`[Onboarding Automation] Live Google Drive folder creation failed: ${err.message}. Falling back to mock link.`);
+        console.warn(
+          `[Onboarding Automation] Live Google Drive folder creation failed: ${err.message}. Falling back to mock link.`,
+        );
       }
 
       // Notion Link: Attempt to create live Notion client page, fall back to mock link on failure
       let notionDashboardLink = `https://notion.so/uprisedigital/Uprise-Digital-x-${slug}-mock-dashboard`;
       try {
-        notionDashboardLink = await createClientNotionDashboard(record.clientName);
+        notionDashboardLink = await createClientNotionDashboard(
+          record.clientName,
+        );
       } catch (err: any) {
-        console.warn(`[Onboarding Automation] Live Notion page creation failed: ${err.message}. Falling back to mock link.`);
+        console.warn(
+          `[Onboarding Automation] Live Notion page creation failed: ${err.message}. Falling back to mock link.`,
+        );
       }
 
       // Signal Link (Mock invite code generation)
