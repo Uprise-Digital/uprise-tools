@@ -14,6 +14,8 @@ import { logAction, logEmail } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import { compileOnboardingEmail } from "@/lib/onboarding-email";
 import { updateGhlOpportunityStage } from "@/service/gohighlevel-service";
+import { createClientDriveFolder } from "@/service/google-drive-service";
+import { createClientNotionDashboard } from "@/service/notion-service";
 
 /**
  * Retrieves the active organization context for the current session.
@@ -229,11 +231,21 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
 
       const slug = record.clientName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-      // Drive Link (Mocking duplication of the parent template folder)
-      const driveFolderLink = `https://drive.google.com/drive/folders/mock-folder-${slug}`;
+      // Drive Link: Attempt to create live Google Drive folder, fall back to mock link on failure
+      let driveFolderLink = `https://drive.google.com/drive/folders/mock-folder-${slug}`;
+      try {
+        driveFolderLink = await createClientDriveFolder(record.clientName);
+      } catch (err: any) {
+        console.warn(`[Onboarding Automation] Live Google Drive folder creation failed: ${err.message}. Falling back to mock link.`);
+      }
 
-      // Notion Link (Mocking template clone)
-      const notionDashboardLink = `https://notion.so/uprisedigital/Uprise-Digital-x-${slug}-mock-dashboard`;
+      // Notion Link: Attempt to create live Notion client page, fall back to mock link on failure
+      let notionDashboardLink = `https://notion.so/uprisedigital/Uprise-Digital-x-${slug}-mock-dashboard`;
+      try {
+        notionDashboardLink = await createClientNotionDashboard(record.clientName);
+      } catch (err: any) {
+        console.warn(`[Onboarding Automation] Live Notion page creation failed: ${err.message}. Falling back to mock link.`);
+      }
 
       // Signal Link (Mock invite code generation)
       const signalGroupLink = `https://signal.group/#CjVKB-${slug}-mock-chat`;
