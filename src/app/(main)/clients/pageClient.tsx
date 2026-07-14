@@ -214,7 +214,7 @@ export default function ClientsDirectoryClient() {
         contactEmail: formEmail,
         googleAdsAccess: formGoogleAds,
         metaAdsAccess: formMetaAds,
-        ghlContactId: selectedGhlContact?.id || undefined,
+        ghlContactId: selectedGhlContact?.id || "",
       });
 
       if (res.success) {
@@ -231,7 +231,10 @@ export default function ClientsDirectoryClient() {
         toast.error(res.error || "Failed to create client.");
       }
     } catch (err: any) {
-      toast.error("Error creating client record.");
+      console.error("Client Onboarding submit error:", err);
+      toast.error(
+        `Error creating client record: ${err.message || String(err)}`,
+      );
     } finally {
       setIsSubmitting(false);
     }
