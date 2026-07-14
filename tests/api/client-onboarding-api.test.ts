@@ -4,10 +4,16 @@ import { POST as handleSubmitAdsId } from "@/app/api/onboard/submit-ads-id/route
 import { POST as handleGhlWebhook } from "@/app/api/webhooks/gohighlevel/route";
 import { db } from "@/db";
 import { auth } from "@/lib/auth";
+import { searchGhlContacts } from "@/service/gohighlevel-service";
 
 // Mock onboarding automation action to prevent background timeout during tests
 vi.mock("@/actions/client-onboarding.actions", () => ({
   triggerOnboardingAutomation: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/service/gohighlevel-service", () => ({
+  searchGhlContacts: vi.fn(),
+  updateGhlOpportunityStage: vi.fn(),
 }));
 
 describe("Client Onboarding API Routes", () => {
@@ -152,6 +158,53 @@ describe("Client Onboarding API Routes", () => {
 
       const body = await response.json();
       expect(body.contacts).toEqual([]);
+    });
+
+    it("should return 200 and mapped contacts list on a successful search", async () => {
+      const mockContacts = [
+        {
+          id: "ct_test_101",
+          name: "Paul Cassidy",
+          email: "paul@cassidy.com",
+          companyName: "Cassidy Corp",
+          phone: "+61412345678",
+        },
+      ];
+      vi.mocked(searchGhlContacts).mockResolvedValueOnce(mockContacts);
+
+      const req = new Request(
+        "http://localhost/api/gohighlevel/search?query=paul",
+        {
+          method: "GET",
+        },
+      );
+
+      const response = await handleGhlSearchProxy(req as any);
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.success).toBe(true);
+      expect(body.contacts).toEqual(mockContacts);
+    });
+
+    it("should return 500 and the error description if the GHL search service fails", async () => {
+      vi.mocked(searchGhlContacts).mockRejectedValueOnce(
+        new Error("GHL API is currently offline"),
+      );
+
+      const req = new Request(
+        "http://localhost/api/gohighlevel/search?query=paul",
+        {
+          method: "GET",
+        },
+      );
+
+      const response = await handleGhlSearchProxy(req as any);
+      expect(response.status).toBe(500);
+
+      const body = await response.json();
+      expect(body.success).toBe(false);
+      expect(body.error).toContain("GHL API is currently offline");
     });
   });
 
