@@ -1213,10 +1213,31 @@ Founder | ${orgName}`;
         {/* DRIVE AUTOMATION CARD */}
         <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50 border-b border-slate-100 p-5 flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-sm font-bold flex flex-wrap items-center gap-2 text-slate-800">
                 <Database className="w-4 h-4 text-blue-500" />
                 Google Drive Onboarding Integration
+                {googleDriveStatus === "valid" && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                    </span>
+                    Connected & Active
+                  </span>
+                )}
+                {googleDriveStatus === "failed" && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    Verification Failed
+                  </span>
+                )}
+                {googleDriveStatus === "unconfigured" && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-650 border border-slate-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    Unconfigured
+                  </span>
+                )}
               </CardTitle>
               <CardDescription className="text-xs">
                 Automatically provisions secure shared folders on Google Drive.
@@ -1236,7 +1257,7 @@ Founder | ${orgName}`;
           </CardHeader>
           <CardContent
             className={cn(
-              "p-6 space-y-4 transition-opacity duration-200",
+              "p-4 space-y-4 transition-opacity duration-200",
               !googleDriveEnabled && "opacity-60",
             )}
           >
@@ -1293,10 +1314,31 @@ Founder | ${orgName}`;
         {/* NOTION INTEGRATION CARD */}
         <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50 border-b border-slate-100 p-5 flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-sm font-bold flex flex-wrap items-center gap-2 text-slate-800">
                 <Database className="w-4 h-4 text-slate-900" />
                 Notion Dashboard Onboarding Integration
+                {notionStatus === "valid" && (
+                  <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                    </span>
+                    Connected & Verified
+                  </span>
+                )}
+                {notionStatus === "failed" && (
+                  <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    Verification Failed
+                  </span>
+                )}
+                {notionStatus === "unconfigured" && (
+                  <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-650 border border-slate-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    Unconfigured
+                  </span>
+                )}
               </CardTitle>
               <CardDescription className="text-xs">
                 Creates a collaborative client dashboard in Notion based on your
@@ -1315,7 +1357,7 @@ Founder | ${orgName}`;
           </CardHeader>
           <CardContent
             className={cn(
-              "p-6 space-y-4 transition-opacity duration-200",
+              "p-4 space-y-4 transition-opacity duration-200",
               !notionEnabled && "opacity-60",
             )}
           >
