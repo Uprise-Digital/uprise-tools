@@ -9,6 +9,7 @@ export function compileOnboardingEmail(params: {
   signalGroupLink: string;
   googleAdsAccess: boolean;
   metaAdsAccess: boolean;
+  orgName?: string;
 }) {
   const {
     primaryContactName,
@@ -18,6 +19,7 @@ export function compileOnboardingEmail(params: {
     signalGroupLink,
     googleAdsAccess,
     metaAdsAccess,
+    orgName = "Uprise Digital",
   } = params;
 
   let adsInstructionsText = "";
@@ -43,15 +45,15 @@ To help us hit the ground running, we'd really appreciate it if you could comple
 To help us with creating your ad assets, I've created your Google Drive Folder: Media Assets (Images and Videos) (${driveFolderLink}).
 Please upload all your media assets like photos, videos, and logos (preferably in high-quality PNG format) inside the Media Assets (Images and Videos) folder.
 
-You can access the Uprise Digital x ${clientName} (${notionDashboardLink}) dashboard here. We'll use this dashboard to record all details discussed during the onboarding call for your reference.
+You can access the ${orgName} x ${clientName} (${notionDashboardLink}) dashboard here. We'll use this dashboard to record all details discussed during the onboarding call for your reference.
 
 Here's a link to your Signal Group. Here, we can communicate instantly to provide you updates or requests immediately. Please click on the hyperlinks below for your reference:
 
     Download Signal on your mobile device
         Apple: https://apps.apple.com/us/app/signal-private-messenger/id874139669
         Android: https://play.google.com/store/apps/details?id=org.thoughtcrime.secureshare
-    Click on the hyperlink below to join the Uprise Digital group chat
-    Uprise x ${clientName} (${signalGroupLink})
+    Click on the hyperlink below to join the ${orgName} group chat
+    ${orgName} x ${clientName} (${signalGroupLink})
 
 ${adsInstructionsText}
 Feel free to reach out if you have any questions or concerns. Don't hesitate to reach out; we're here to help.
@@ -59,7 +61,7 @@ Feel free to reach out if you have any questions or concerns. Don't hesitate to 
 Thank you and have a great day!
 
 Lakshane Fonseka
-Founder | Uprise Digital
+Founder | ${orgName}
 +61 426 759 756
 www.uprisedigital.com.au`;
 
@@ -78,11 +80,11 @@ www.uprisedigital.com.au`;
       Please upload all your media assets like photos, videos, and logos (preferably in high-quality PNG format) inside the folder.
     </p>
   </div>
-
+ 
   <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; padding: 16px; margin-bottom: 24px; border-radius: 0 8px 8px 0;">
     <p style="margin: 0 0 8px 0; font-weight: 600; color: #0f172a;">2. Client Dashboard</p>
     <p style="margin: 0; font-size: 14px; color: #475569;">You can access the 
-      <a href="${notionDashboardLink}" style="color: #4f46e5; text-decoration: underline; font-weight: 600;">Uprise Digital x ${clientName}</a> 
+      <a href="${notionDashboardLink}" style="color: #4f46e5; text-decoration: underline; font-weight: 600;">${orgName} x ${clientName}</a> 
       dashboard here. We'll use this dashboard to record all details discussed during the onboarding call for your reference.
     </p>
   </div>
@@ -96,7 +98,7 @@ www.uprisedigital.com.au`;
         <a href="https://play.google.com/store/apps/details?id=org.thoughtcrime.secureshare" style="color: #4f46e5; text-decoration: none;">Android</a>
       </li>
       <li>Join group chat: 
-        <a href="${signalGroupLink}" style="color: #4f46e5; text-decoration: underline; font-weight: 600;">Uprise x ${clientName}</a>
+        <a href="${signalGroupLink}" style="color: #4f46e5; text-decoration: underline; font-weight: 600;">${orgName} x ${clientName}</a>
       </li>
     </ul>
   </div>
@@ -119,7 +121,7 @@ www.uprisedigital.com.au`;
   <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
 
   <p style="font-size: 14px; font-weight: bold; margin: 0 0 4px 0; color: #0f172a;">Lakshane Fonseka</p>
-  <p style="font-size: 12px; color: #64748b; margin: 0 0 4px 0;">Founder | Uprise Digital</p>
+  <p style="font-size: 12px; color: #64748b; margin: 0 0 4px 0;">Founder | ${orgName}</p>
   <p style="font-size: 12px; color: #64748b; margin: 0 0 4px 0;">+61 426 759 756</p>
   <p style="font-size: 12px; color: #64748b; margin: 0;"><a href="https://www.uprisedigital.com.au" style="color: #4f46e5; text-decoration: none;">www.uprisedigital.com.au</a></p>
 </div>`;

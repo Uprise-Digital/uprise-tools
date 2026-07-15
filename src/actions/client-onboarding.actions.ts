@@ -9,6 +9,7 @@ import {
   backgroundTasks,
   clientOnboardings,
   member,
+  organization,
   organizationOnboardingSettings,
 } from "@/db/schema";
 import { logAction, logEmail } from "@/lib/audit";
@@ -430,6 +431,11 @@ export async function sendOnboardingEmailAction(
           .replace(/>/g, "&gt;")
           .replace(/\n/g, "<br />");
       } else {
+        const orgRecord = await db.query.organization.findFirst({
+          where: eq(organization.id, record.organizationId),
+        });
+        const orgName = orgRecord?.name || "Uprise Digital";
+
         const generated = compileOnboardingEmail({
           primaryContactName: record.primaryContactName,
           clientName: record.clientName,
@@ -438,6 +444,7 @@ export async function sendOnboardingEmailAction(
           signalGroupLink: record.signalGroupLink || "",
           googleAdsAccess: record.googleAdsAccess,
           metaAdsAccess: record.metaAdsAccess,
+          orgName,
         });
         html = html || generated.html;
         text = text || generated.text;

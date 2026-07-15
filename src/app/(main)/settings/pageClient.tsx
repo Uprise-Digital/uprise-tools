@@ -582,11 +582,36 @@ export default function SettingsClient({
     onboardingSettings?.notionError ?? "",
   );
 
+  const defaultSubject = `Welcome to ${orgName} - Let's get started!`;
+  const defaultBody = `Hi {{primary_contact_name}},
+
+Great to have you on board!
+Firstly, thank you for booking your onboarding call - we're looking forward to it.
+
+To help us hit the ground running, we'd really appreciate it if you could complete the steps below before your onboarding call:
+
+1. Upload Media Assets
+To help us with creating your ad assets, I've created your Google Drive Folder: {{drive_link}}.
+Please upload all your media assets like photos, videos, and logos (preferably in high-quality PNG format) inside the folder.
+
+2. Client Dashboard
+You can access the {{notion_link}} dashboard here. We'll use this dashboard to record all details discussed during the onboarding call for your reference.
+
+3. Join Signal Group
+Here's a link to your Signal Group so we can communicate instantly. Please click the links below:
+- Download Signal: [Apple](https://apps.apple.com/us/app/signal-private-messenger/id874139669) | [Android](https://play.google.com/store/apps/details?id=org.thoughtcrime.secureshare)
+- Join group chat: {{signal_link}}
+
+Feel free to reach out if you have any questions or concerns. We are here to help!
+
+Best,
+Founder | ${orgName}`;
+
   const [welcomeEmailSubject, setWelcomeEmailSubject] = useState(
-    onboardingSettings?.welcomeEmailSubject ?? "",
+    onboardingSettings?.welcomeEmailSubject || defaultSubject,
   );
   const [welcomeEmailTemplate, setWelcomeEmailTemplate] = useState(
-    onboardingSettings?.welcomeEmailTemplate ?? "",
+    onboardingSettings?.welcomeEmailTemplate || defaultBody,
   );
 
   const [isOnboardingSaving, setIsOnboardingSaving] = useState(false);
@@ -663,8 +688,12 @@ export default function SettingsClient({
   const rawEdges = onboardingSettings?.workflowConfig?.edges;
   // Detect if the existing configuration contains the old parallel branching edges
   const isOldParallelLayout =
-    rawEdges?.some((e: any) => e.source === "trigger" && e.target === "notion") &&
-    rawEdges.some((e: any) => e.source === "trigger" && e.target === "google-drive");
+    rawEdges?.some(
+      (e: any) => e.source === "trigger" && e.target === "notion",
+    ) &&
+    rawEdges.some(
+      (e: any) => e.source === "trigger" && e.target === "google-drive",
+    );
 
   const initialEdges =
     rawEdges && !isOldParallelLayout
