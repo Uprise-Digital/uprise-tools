@@ -10,6 +10,7 @@ export function compileOnboardingEmail(params: {
   googleAdsAccess: boolean;
   metaAdsAccess: boolean;
   orgName?: string;
+  customTemplate?: string;
 }) {
   const {
     primaryContactName,
@@ -20,22 +21,48 @@ export function compileOnboardingEmail(params: {
     googleAdsAccess,
     metaAdsAccess,
     orgName = "Uprise Digital",
+    customTemplate,
   } = params;
 
-  let adsInstructionsText = "";
-  let adsInstructionsHtml = "";
+  let textBody = "";
+  let htmlBody = "";
 
-  if (googleAdsAccess) {
-    adsInstructionsText += `To grant us access to your Google Ads account, please follow the steps here: https://tools.uprisedigital.com.au/docs/client-guides/google-ads-access\n\n`;
-    adsInstructionsHtml += `<p style="margin-bottom: 12px;">To grant us access to your Google Ads account, please follow the steps here: <a href="https://tools.uprisedigital.com.au/docs/client-guides/google-ads-access" style="color: #4f46e5; text-decoration: underline; font-weight: 600;">Google Ads Account Access Instructions</a></p>`;
-  }
+  if (customTemplate) {
+    const variables: Record<string, string> = {
+      primary_contact_name: primaryContactName,
+      client_name: clientName,
+      drive_link: driveFolderLink || "",
+      notion_link: notionDashboardLink || "",
+      signal_link: signalGroupLink || "",
+    };
 
-  if (metaAdsAccess) {
-    adsInstructionsText += `To grant us access to your Meta Ads account, please follow the steps here: https://tools.uprisedigital.com.au/docs/client-guides/meta-ads-access\n\n`;
-    adsInstructionsHtml += `<p style="margin-bottom: 12px;">To grant us access to your Meta Ads account, please follow the steps here: <a href="https://tools.uprisedigital.com.au/docs/client-guides/meta-ads-access" style="color: #4f46e5; text-decoration: underline; font-weight: 600;">Meta Ads Account Access Instructions</a></p>`;
-  }
+    let parsedBody = customTemplate;
+    for (const [key, val] of Object.entries(variables)) {
+      const regex = new RegExp(`{{\\s*${key}\\s*}}`, "g");
+      parsedBody = parsedBody.replace(regex, val);
+    }
+    textBody = parsedBody;
+    // Map custom email body to HTML with line breaks and entities preserved
+    const escaped = parsedBody
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    htmlBody = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; white-space: pre-line;">${escaped}</div>`;
+  } else {
+    let adsInstructionsText = "";
+    let adsInstructionsHtml = "";
 
-  const textBody = `Hi ${primaryContactName},
+    if (googleAdsAccess) {
+      adsInstructionsText += `To grant us access to your Google Ads account, please follow the steps here: https://tools.uprisedigital.com.au/docs/client-guides/google-ads-access\n\n`;
+      adsInstructionsHtml += `<p style="margin-bottom: 12px;">To grant us access to your Google Ads account, please follow the steps here: <a href="https://tools.uprisedigital.com.au/docs/client-guides/google-ads-access" style="color: #4f46e5; text-decoration: underline; font-weight: 600;">Google Ads Account Access Instructions</a></p>`;
+    }
+
+    if (metaAdsAccess) {
+      adsInstructionsText += `To grant us access to your Meta Ads account, please follow the steps here: https://tools.uprisedigital.com.au/docs/client-guides/meta-ads-access\n\n`;
+      adsInstructionsHtml += `<p style="margin-bottom: 12px;">To grant us access to your Meta Ads account, please follow the steps here: <a href="https://tools.uprisedigital.com.au/docs/client-guides/meta-ads-access" style="color: #4f46e5; text-decoration: underline; font-weight: 600;">Meta Ads Account Access Instructions</a></p>`;
+    }
+
+    textBody = `Hi ${primaryContactName},
 
 Great to have you on board!
 Firstly, thank you for booking your onboarding call - we're looking forward to it.
@@ -65,7 +92,7 @@ Founder | ${orgName}
 +61 426 759 756
 www.uprisedigital.com.au`;
 
-  const htmlBody = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
+    htmlBody = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
   <p style="font-size: 16px; margin-bottom: 16px;">Hi ${primaryContactName},</p>
   
   <p style="font-size: 16px; margin-bottom: 16px;">Great to have you on board!</p>
@@ -119,12 +146,13 @@ www.uprisedigital.com.au`;
   <p style="font-size: 15px; margin-top: 24px; margin-bottom: 24px; color: #475569;">Feel free to reach out if you have any questions or concerns. We are here to help!</p>
   
   <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-
+  
   <p style="font-size: 14px; font-weight: bold; margin: 0 0 4px 0; color: #0f172a;">Lakshane Fonseka</p>
   <p style="font-size: 12px; color: #64748b; margin: 0 0 4px 0;">Founder | ${orgName}</p>
   <p style="font-size: 12px; color: #64748b; margin: 0 0 4px 0;">+61 426 759 756</p>
   <p style="font-size: 12px; color: #64748b; margin: 0;"><a href="https://www.uprisedigital.com.au" style="color: #4f46e5; text-decoration: none;">www.uprisedigital.com.au</a></p>
 </div>`;
+  }
 
   return { text: textBody, html: htmlBody };
 }

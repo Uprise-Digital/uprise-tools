@@ -28,6 +28,7 @@ import {
   sendOnboardingEmailAction,
   updateClientOnboardingAction,
 } from "@/actions/client-onboarding.actions";
+import { getOnboardingSettingsAction } from "@/actions/onboarding-settings.actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -104,6 +105,8 @@ export default function ClientsDirectoryClient() {
   const [editNotion, setEditNotion] = useState("");
   const [editSignal, setEditSignal] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [onboardingSettings, setOnboardingSettings] = useState<any>(null);
   const [isUpdatingLinks, setIsUpdatingLinks] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
@@ -131,6 +134,11 @@ export default function ClientsDirectoryClient() {
       const accountsRes = await listAccountsAction();
       if (accountsRes.success && accountsRes.data) {
         setAdAccountsList(accountsRes.data);
+      }
+
+      const settingsRes = await getOnboardingSettingsAction();
+      if (settingsRes.success && settingsRes.data) {
+        setOnboardingSettings(settingsRes.data);
       }
     } catch (err: any) {
       console.error(err);
@@ -184,7 +192,14 @@ export default function ClientsDirectoryClient() {
     setEditDrive(client.driveFolderLink || "");
     setEditNotion(client.notionDashboardLink || "");
     setEditSignal(client.signalGroupLink || "");
-    setEmailSubject("Welcome to Uprise Digital - Let's get started!");
+
+    const subject =
+      onboardingSettings?.welcomeEmailSubject ||
+      "Welcome to Uprise Digital - Let's get started!";
+    setEmailSubject(subject);
+
+    const bodyTemplate = onboardingSettings?.welcomeEmailTemplate || "";
+    setEmailBody(bodyTemplate);
 
     const linkedAcc = client.adAccounts?.[0];
     setSelectedAdAccountId(linkedAcc ? String(linkedAcc.id) : "");
@@ -281,6 +296,7 @@ export default function ClientsDirectoryClient() {
         signalGroupLink: editSignal,
         googleAdsAccess: selectedClient.googleAdsAccess,
         metaAdsAccess: selectedClient.metaAdsAccess,
+        customTemplate: emailBody || undefined,
       });
 
       const res = await sendOnboardingEmailAction(
@@ -858,6 +874,17 @@ export default function ClientsDirectoryClient() {
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                      Email Body Template
+                    </label>
+                    <textarea
+                      value={emailBody}
+                      onChange={(e) => setEmailBody(e.target.value)}
+                      className="w-full min-h-[160px] text-xs font-mono p-3 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 outline-none leading-relaxed text-slate-700 resize-y"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
                       Dynamic Template Preview
                     </label>
                     <div className="border border-slate-200 rounded-xl bg-slate-50 p-4 h-64 overflow-y-auto text-xs text-slate-800 space-y-3 select-none">
@@ -881,6 +908,7 @@ export default function ClientsDirectoryClient() {
                             signalGroupLink: editSignal || "#",
                             googleAdsAccess: selectedClient.googleAdsAccess,
                             metaAdsAccess: selectedClient.metaAdsAccess,
+                            customTemplate: emailBody || undefined,
                           }).html,
                         }}
                         className="bg-white text-slate-800 p-4 rounded-lg shadow scale-[0.95] origin-top border border-slate-200"
