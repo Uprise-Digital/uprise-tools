@@ -604,9 +604,32 @@ export default function SettingsClient({
         else if (n.id === "google-drive") type = "customDrive";
         else if (n.id === "notion") type = "customNotion";
         else if (type === "output" || n.id === "email") type = "customEmail";
+
+        let position = n.position;
+        // Migrate old default diamond coordinates to the new linear chain sequence layout
+        if (n.id === "trigger" && position.y === 150) {
+          position = { x: 50, y: 120 };
+        } else if (
+          n.id === "google-drive" &&
+          (position.y === 50 || position.x === 280)
+        ) {
+          position = { x: 300, y: 120 };
+        } else if (
+          n.id === "notion" &&
+          (position.y === 250 || position.x === 280)
+        ) {
+          position = { x: 580, y: 120 };
+        } else if (
+          n.id === "email" &&
+          (position.x === 520 || position.x === 550)
+        ) {
+          position = { x: 860, y: 120 };
+        }
+
         return {
           ...n,
           type,
+          position,
           style: undefined,
         };
       })
@@ -638,28 +661,34 @@ export default function SettingsClient({
       ];
 
   const rawEdges = onboardingSettings?.workflowConfig?.edges;
-  const initialEdges = rawEdges
-    ? rawEdges.map((e: any) => ({ ...e, animated: true }))
-    : [
-        {
-          id: "e-trig-drive",
-          source: "trigger",
-          target: "google-drive",
-          animated: true,
-        },
-        {
-          id: "e-drive-notion",
-          source: "google-drive",
-          target: "notion",
-          animated: true,
-        },
-        {
-          id: "e-notion-email",
-          source: "notion",
-          target: "email",
-          animated: true,
-        },
-      ];
+  // Detect if the existing configuration contains the old parallel branching edges
+  const isOldParallelLayout =
+    rawEdges?.some((e: any) => e.source === "trigger" && e.target === "notion") &&
+    rawEdges.some((e: any) => e.source === "trigger" && e.target === "google-drive");
+
+  const initialEdges =
+    rawEdges && !isOldParallelLayout
+      ? rawEdges.map((e: any) => ({ ...e, animated: true }))
+      : [
+          {
+            id: "e-trig-drive",
+            source: "trigger",
+            target: "google-drive",
+            animated: true,
+          },
+          {
+            id: "e-drive-notion",
+            source: "google-drive",
+            target: "notion",
+            animated: true,
+          },
+          {
+            id: "e-notion-email",
+            source: "notion",
+            target: "email",
+            animated: true,
+          },
+        ];
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
