@@ -7,6 +7,7 @@ import {
   Link as LinkIcon,
   Loader2,
   Mail,
+  Play,
   Search,
   Send,
   SlidersHorizontal,
@@ -25,6 +26,7 @@ import {
   deleteClientOnboardingAction,
   finalizeOnboardingAction,
   getClientOnboardingsAction,
+  runOnboardingPipelineAction,
   sendOnboardingEmailAction,
   updateClientOnboardingAction,
 } from "@/actions/client-onboarding.actions";
@@ -110,6 +112,7 @@ export default function ClientsDirectoryClient() {
   const [isUpdatingLinks, setIsUpdatingLinks] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isRunningPipeline, setIsRunningPipeline] = useState(false);
 
   // Link ad account modal state
   const [selectedAdAccountId, setSelectedAdAccountId] = useState<string>("");
@@ -320,6 +323,38 @@ export default function ClientsDirectoryClient() {
       toast.error("Error sending onboarding email.");
     } finally {
       setIsSendingEmail(false);
+    }
+  };
+
+  const handleRunPipeline = async () => {
+    if (!selectedClient) return;
+    setIsRunningPipeline(true);
+    const toastId = toast.loading("Executing onboarding pipeline...");
+    try {
+      const res = await runOnboardingPipelineAction(selectedClient.id);
+      if (res.success) {
+        toast.success("Onboarding pipeline executed successfully!", {
+          id: toastId,
+        });
+        setEditDrive(res.driveFolderLink || "");
+        setEditNotion(res.notionDashboardLink || "");
+        setEditSignal(res.signalGroupLink || "");
+
+        setSelectedClient({
+          ...selectedClient,
+          driveFolderLink: res.driveFolderLink || null,
+          notionDashboardLink: res.notionDashboardLink || null,
+          signalGroupLink: res.signalGroupLink || null,
+          status: res.status || selectedClient.status,
+        });
+        loadData();
+      } else {
+        toast.error(res.error || "Failed to run pipeline.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error("Error executing pipeline.", { id: toastId });
+    } finally {
+      setIsRunningPipeline(false);
     }
   };
 
@@ -731,10 +766,29 @@ export default function ClientsDirectoryClient() {
 
               {/* Resource Links Section */}
               <div className="space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <SlidersHorizontal className="h-3.5 w-3.5" /> Workspace
-                  Connections (Generated)
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <SlidersHorizontal className="h-3.5 w-3.5" /> Workspace
+                    Connections (Generated)
+                  </h3>
+                  <Button
+                    onClick={handleRunPipeline}
+                    disabled={isRunningPipeline}
+                    className="bg-emerald-650 hover:bg-emerald-600 disabled:bg-emerald-450 text-white font-bold text-xs h-8 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    {isRunningPipeline ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Running Pipeline...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3.5 w-3.5 fill-white" />
+                        Run Pipeline
+                      </>
+                    )}
+                  </Button>
+                </div>
 
                 <div className="grid gap-3">
                   <div>

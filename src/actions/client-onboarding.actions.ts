@@ -232,6 +232,211 @@ export async function associateAdAccountAction(
 /**
  * Simulates duplicating templates and setting up directories in the background.
  */
+/**
+ * Shared engine that executes the onboarding pipeline steps synchronously.
+ */
+async function executeOnboardingPipeline(
+  onboardingId: number,
+  taskRecordId?: number,
+) {
+  const record = await db.query.clientOnboardings.findFirst({
+    where: eq(clientOnboardings.id, onboardingId),
+  });
+  if (!record) throw new Error("Onboarding record not found.");
+
+  try {
+    // Simulate creation logs and API delays
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    const slug = record.clientName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+    // 1. Fetch organization onboarding settings
+    const settings = await db.query.organizationOnboardingSettings.findFirst({
+      where: eq(
+        organizationOnboardingSettings.organizationId,
+        record.organizationId,
+      ),
+    });
+
+    let driveFolderLink = `https://drive.google.com/drive/folders/mock-folder-${slug}`;
+    let notionDashboardLink = `https://notion.so/uprisedigital/Uprise-Digital-x-${slug}-mock-dashboard`;
+
+    const rawEdges = (settings?.workflowConfig as any)?.edges || [];
+    const activeChain = getActiveWorkflowChain(rawEdges);
+
+    // 2. Google Drive folder duplication/creation
+    const driveEnabled = settings?.workflowConfig
+      ? activeChain.includes("google-drive")
+      : settings
+        ? settings.googleDriveEnabled
+        : true;
+    if (driveEnabled) {
+      if (settings?.googleDriveStatus === "invalid") {
+        throw new Error(
+          `Google Drive integration has invalid credentials: ${settings.googleDriveError}`,
+        );
+      }
+
+      const driveNode = (settings?.workflowConfig as any)?.nodes?.find(
+        (n: any) => n.id === "google-drive",
+      );
+      const driveData = driveNode?.data || {};
+
+      const mode = driveData.mode || "empty-folder";
+      const parentFolderId =
+        driveData.parentFolderId ||
+        settings?.googleDriveParentFolderId ||
+        undefined;
+      const templateFolderId =
+        driveData.templateFolderId ||
+        settings?.googleDriveTemplateFolderId ||
+        undefined;
+
+      const options = {
+        mode,
+        folderNamePattern: driveData.folderNamePattern,
+        subfolders: driveData.subfolders,
+        shareEmails: driveData.shareEmails,
+        shareRole: driveData.shareRole,
+        docRules: driveData.docRules,
+        clientEmail: record.contactEmail,
+      };
+
+      try {
+        driveFolderLink = await createClientDriveFolder(
+          record.clientName,
+          parentFolderId,
+          templateFolderId,
+          record.organizationId,
+          options,
+        );
+      } catch (err: any) {
+        console.warn(
+          `[Onboarding Automation] Live Google Drive folder creation failed: ${err.message}`,
+        );
+        if (settings) {
+          throw new Error(
+            `Google Drive folder creation failed: ${err.message}`,
+          );
+        }
+      }
+    } else {
+      driveFolderLink = "";
+    }
+
+    // 3. Notion dashboard creation
+    const notionEnabled = settings?.workflowConfig
+      ? activeChain.includes("notion")
+      : settings
+        ? settings.notionEnabled
+        : true;
+    if (notionEnabled) {
+      if (settings?.notionStatus === "invalid") {
+        throw new Error(
+          `Notion integration has invalid credentials: ${settings.notionError}`,
+        );
+      }
+      let decryptedKey: string | undefined;
+      if (settings?.notionApiKey) {
+        try {
+          decryptedKey = decryptToken(settings.notionApiKey);
+        } catch (err) {
+          console.error("Failed to decrypt Notion API key:", err);
+        }
+      }
+
+      const notionNode = (settings?.workflowConfig as any)?.nodes?.find(
+        (n: any) => n.id === "notion",
+      );
+      const notionData = notionNode?.data || {};
+
+      const mode = notionData.mode || "create-blank-page";
+      const parentPageId =
+        notionData.parentPageId || settings?.notionParentPageId || undefined;
+      const templatePageId =
+        notionData.templatePageId ||
+        settings?.notionTemplatePageId ||
+        undefined;
+
+      const options = {
+        mode,
+        pageNamePattern: notionData.pageNamePattern,
+        pageIcon: notionData.pageIcon,
+      };
+
+      try {
+        notionDashboardLink = await createClientNotionDashboard(
+          record.clientName,
+          decryptedKey,
+          parentPageId,
+          templatePageId,
+          options,
+        );
+      } catch (err: any) {
+        console.warn(
+          `[Onboarding Automation] Live Notion dashboard creation failed: ${err.message}`,
+        );
+        if (settings) {
+          throw new Error(`Notion dashboard creation failed: ${err.message}`);
+        }
+      }
+    } else {
+      notionDashboardLink = "";
+    }
+
+    // 4. Signal Link
+    const signalGroupLink = `https://signal.group/#CjVKB-${slug}-mock-chat`;
+
+    await db
+      .update(clientOnboardings)
+      .set({
+        driveFolderLink,
+        notionDashboardLink,
+        signalGroupLink,
+        status: "ready_to_review",
+        updatedAt: new Date(),
+      })
+      .where(eq(clientOnboardings.id, onboardingId));
+
+    if (taskRecordId) {
+      await db
+        .update(backgroundTasks)
+        .set({ status: "completed", updatedAt: new Date() })
+        .where(eq(backgroundTasks.id, taskRecordId));
+    }
+  } catch (err: any) {
+    console.error("Onboarding automation error:", err);
+    try {
+      await db
+        .update(clientOnboardings)
+        .set({
+          status: "failed",
+          updatedAt: new Date(),
+        })
+        .where(eq(clientOnboardings.id, onboardingId));
+    } catch (dbErr) {
+      console.error(
+        "Failed to update client onboarding status to failed:",
+        dbErr,
+      );
+    }
+    if (taskRecordId) {
+      await db
+        .update(backgroundTasks)
+        .set({
+          status: "failed",
+          error: err.message || String(err),
+          updatedAt: new Date(),
+        })
+        .where(eq(backgroundTasks.id, taskRecordId));
+    }
+    throw err;
+  }
+}
+
+/**
+ * Simulates duplicating templates and setting up directories in the background.
+ */
 export async function triggerOnboardingAutomation(onboardingId: number) {
   const record = await db.query.clientOnboardings.findFirst({
     where: eq(clientOnboardings.id, onboardingId),
@@ -248,198 +453,51 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
     })
     .returning({ id: backgroundTasks.id });
 
-  const runTask = async () => {
-    try {
-      // Simulate creation logs and API delays
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      const slug = record.clientName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-
-      // 1. Fetch organization onboarding settings
-      const settings = await db.query.organizationOnboardingSettings.findFirst({
-        where: eq(
-          organizationOnboardingSettings.organizationId,
-          record.organizationId,
-        ),
-      });
-
-      let driveFolderLink = `https://drive.google.com/drive/folders/mock-folder-${slug}`;
-      let notionDashboardLink = `https://notion.so/uprisedigital/Uprise-Digital-x-${slug}-mock-dashboard`;
-
-      const rawEdges = (settings?.workflowConfig as any)?.edges || [];
-      const activeChain = getActiveWorkflowChain(rawEdges);
-
-      // 2. Google Drive folder duplication/creation
-      const driveEnabled = settings?.workflowConfig
-        ? activeChain.includes("google-drive")
-        : settings
-          ? settings.googleDriveEnabled
-          : true;
-      if (driveEnabled) {
-        if (settings?.googleDriveStatus === "invalid") {
-          throw new Error(
-            `Google Drive integration has invalid credentials: ${settings.googleDriveError}`,
-          );
-        }
-
-        const driveNode = (settings?.workflowConfig as any)?.nodes?.find(
-          (n: any) => n.id === "google-drive",
-        );
-        const driveData = driveNode?.data || {};
-
-        const mode = driveData.mode || "empty-folder";
-        const parentFolderId =
-          driveData.parentFolderId ||
-          settings?.googleDriveParentFolderId ||
-          undefined;
-        const templateFolderId =
-          driveData.templateFolderId ||
-          settings?.googleDriveTemplateFolderId ||
-          undefined;
-
-        const options = {
-          mode,
-          folderNamePattern: driveData.folderNamePattern,
-          subfolders: driveData.subfolders,
-          shareEmails: driveData.shareEmails,
-          shareRole: driveData.shareRole,
-          docRules: driveData.docRules,
-          clientEmail: record.contactEmail,
-        };
-
-        try {
-          driveFolderLink = await createClientDriveFolder(
-            record.clientName,
-            parentFolderId,
-            templateFolderId,
-            record.organizationId,
-            options,
-          );
-        } catch (err: any) {
-          console.warn(
-            `[Onboarding Automation] Live Google Drive folder creation failed: ${err.message}`,
-          );
-          if (settings) {
-            throw new Error(
-              `Google Drive folder creation failed: ${err.message}`,
-            );
-          }
-        }
-      } else {
-        driveFolderLink = "";
-      }
-
-      // 3. Notion dashboard creation
-      const notionEnabled = settings?.workflowConfig
-        ? activeChain.includes("notion")
-        : settings
-          ? settings.notionEnabled
-          : true;
-      if (notionEnabled) {
-        if (settings?.notionStatus === "invalid") {
-          throw new Error(
-            `Notion integration has invalid credentials: ${settings.notionError}`,
-          );
-        }
-        let decryptedKey: string | undefined;
-        if (settings?.notionApiKey) {
-          try {
-            decryptedKey = decryptToken(settings.notionApiKey);
-          } catch (err) {
-            console.error("Failed to decrypt Notion API key:", err);
-          }
-        }
-
-        const notionNode = (settings?.workflowConfig as any)?.nodes?.find(
-          (n: any) => n.id === "notion",
-        );
-        const notionData = notionNode?.data || {};
-
-        const mode = notionData.mode || "create-blank-page";
-        const parentPageId =
-          notionData.parentPageId || settings?.notionParentPageId || undefined;
-        const templatePageId =
-          notionData.templatePageId ||
-          settings?.notionTemplatePageId ||
-          undefined;
-
-        const options = {
-          mode,
-          pageNamePattern: notionData.pageNamePattern,
-          pageIcon: notionData.pageIcon,
-        };
-
-        try {
-          notionDashboardLink = await createClientNotionDashboard(
-            record.clientName,
-            decryptedKey,
-            parentPageId,
-            templatePageId,
-            options,
-          );
-        } catch (err: any) {
-          console.warn(
-            `[Onboarding Automation] Live Notion dashboard creation failed: ${err.message}`,
-          );
-          if (settings) {
-            throw new Error(`Notion dashboard creation failed: ${err.message}`);
-          }
-        }
-      } else {
-        notionDashboardLink = "";
-      }
-
-      // 4. Signal Link
-      const signalGroupLink = `https://signal.group/#CjVKB-${slug}-mock-chat`;
-
-      await db
-        .update(clientOnboardings)
-        .set({
-          driveFolderLink,
-          notionDashboardLink,
-          signalGroupLink,
-          status: "ready_to_review",
-          updatedAt: new Date(),
-        })
-        .where(eq(clientOnboardings.id, onboardingId));
-
-      if (taskRecord) {
-        await db
-          .update(backgroundTasks)
-          .set({ status: "completed", updatedAt: new Date() })
-          .where(eq(backgroundTasks.id, taskRecord.id));
-      }
-    } catch (err: any) {
-      console.error("Onboarding automation error:", err);
-      try {
-        await db
-          .update(clientOnboardings)
-          .set({
-            status: "failed",
-            updatedAt: new Date(),
-          })
-          .where(eq(clientOnboardings.id, onboardingId));
-      } catch (dbErr) {
-        console.error(
-          "Failed to update client onboarding status to failed:",
-          dbErr,
-        );
-      }
-      if (taskRecord) {
-        await db
-          .update(backgroundTasks)
-          .set({
-            status: "failed",
-            error: err.message || String(err),
-            updatedAt: new Date(),
-          })
-          .where(eq(backgroundTasks.id, taskRecord.id));
-      }
-    }
-  };
-
   // Run in background unawaited
-  runTask();
+  executeOnboardingPipeline(onboardingId, taskRecord.id).catch((err) => {
+    console.error("Pipeline background execution failed:", err);
+  });
+}
+
+/**
+ * Manually executes the onboarding pipeline synchronously.
+ */
+export async function runOnboardingPipelineAction(onboardingId: number) {
+  try {
+    const { orgId } = await getSessionOrgId();
+    if (!orgId) return { success: false, error: "No active organization" };
+
+    const record = await db.query.clientOnboardings.findFirst({
+      where: eq(clientOnboardings.id, onboardingId),
+    });
+    if (!record)
+      return { success: false, error: "Onboarding record not found." };
+
+    // Update status to "generating"
+    await db
+      .update(clientOnboardings)
+      .set({ status: "generating", updatedAt: new Date() })
+      .where(eq(clientOnboardings.id, onboardingId));
+
+    // Execute synchronously
+    await executeOnboardingPipeline(onboardingId);
+
+    // Fetch the updated record
+    const updated = await db.query.clientOnboardings.findFirst({
+      where: eq(clientOnboardings.id, onboardingId),
+    });
+
+    return {
+      success: true,
+      driveFolderLink: updated?.driveFolderLink || "",
+      notionDashboardLink: updated?.notionDashboardLink || "",
+      signalGroupLink: updated?.signalGroupLink || "",
+      status: updated?.status || "ready_to_review",
+    };
+  } catch (err: any) {
+    console.error("runOnboardingPipelineAction error:", err);
+    return { success: false, error: err.message || "Failed to run pipeline." };
+  }
 }
 
 /**
