@@ -155,8 +155,8 @@ export async function saveOnboardingSettingsAction(data: {
   googleDriveTemplateFolderId?: string;
   notionEnabled: boolean;
   notionApiKey: string;
-  notionParentPageId: string;
-  notionTemplatePageId: string;
+  notionParentPageId?: string;
+  notionTemplatePageId?: string;
   welcomeEmailSubject: string;
   welcomeEmailTemplate: string;
   workflowConfig?: any;
@@ -183,23 +183,32 @@ export async function saveOnboardingSettingsAction(data: {
       }
     }
 
+    const notionNode = data.workflowConfig?.nodes?.find(
+      (n: any) => n.id === "notion",
+    );
+    const notionData = notionNode?.data || {};
+    const parentPageId =
+      notionData.parentPageId || data.notionParentPageId || "";
+    const templatePageId =
+      notionData.templatePageId || data.notionTemplatePageId || "";
+    const notionMode = notionData.mode || "create-blank-page";
+
     let notionStatus = "unconfigured";
     let notionError = null;
     if (data.notionEnabled) {
-      if (!actualNotionKey || !data.notionParentPageId) {
+      if (!actualNotionKey || !parentPageId) {
         notionStatus = "invalid";
-        notionError = "Missing Notion API Token or Parent Page ID.";
+        notionError =
+          "Missing Notion API Token or Parent Page ID in flowchart node configurations.";
       } else {
         try {
-          await verifyNotionConnection(
-            actualNotionKey,
-            data.notionParentPageId,
-          );
-          if (data.notionTemplatePageId) {
-            await verifyNotionConnection(
-              actualNotionKey,
-              data.notionTemplatePageId,
-            );
+          await verifyNotionConnection(actualNotionKey, parentPageId);
+          if (
+            (notionMode === "copy-page" ||
+              notionMode === "copy-page-with-subpages") &&
+            templatePageId
+          ) {
+            await verifyNotionConnection(actualNotionKey, templatePageId);
           }
           notionStatus = "valid";
         } catch (err: any) {
@@ -251,8 +260,8 @@ export async function saveOnboardingSettingsAction(data: {
           googleDriveError,
           notionEnabled: data.notionEnabled,
           notionApiKey: encryptedNotionKey,
-          notionParentPageId: data.notionParentPageId || null,
-          notionTemplatePageId: data.notionTemplatePageId || null,
+          notionParentPageId: parentPageId || null,
+          notionTemplatePageId: templatePageId || null,
           notionStatus,
           notionError,
           welcomeEmailSubject: data.welcomeEmailSubject || null,
@@ -271,8 +280,8 @@ export async function saveOnboardingSettingsAction(data: {
         googleDriveError,
         notionEnabled: data.notionEnabled,
         notionApiKey: encryptedNotionKey,
-        notionParentPageId: data.notionParentPageId || null,
-        notionTemplatePageId: data.notionTemplatePageId || null,
+        notionParentPageId: parentPageId || null,
+        notionTemplatePageId: templatePageId || null,
         notionStatus,
         notionError,
         welcomeEmailSubject: data.welcomeEmailSubject || null,

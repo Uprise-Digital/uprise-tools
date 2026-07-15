@@ -14,12 +14,29 @@ function getNotionClient() {
 }
 
 /**
+ * Replaces variables inside double curly braces (e.g. {{client_name}}).
+ */
+function replaceVariables(
+  pattern: string,
+  variables: Record<string, string>,
+): string {
+  let result = pattern;
+  for (const [key, val] of Object.entries(variables)) {
+    const regex = new RegExp(`{{\\s*${key}\\s*}}`, "g");
+    result = result.replace(regex, val);
+  }
+  return result;
+}
+
+/**
  * Recursively fetches all blocks from a source page and appends them to a target page.
+ * If recursive is true, it also duplicates nested child pages.
  */
 async function duplicateNotionPageBlocks(
   notion: Client,
   sourcePageId: string,
   targetPageId: string,
+  recursive = false,
 ) {
   let hasMore = true;
   let startCursor: string | undefined;
@@ -45,7 +62,47 @@ async function duplicateNotionPageBlocks(
         last_edited_by,
         ...appendableBlock
       } = block;
-      blocksToAppend.push(appendableBlock);
+
+      if (recursive && block.type === "child_page") {
+        try {
+          console.log(
+            `Notion Service: Duplicating nested subpage '${block.child_page.title}' under parent ${targetPageId}...`,
+          );
+          // Create the subpage under target page
+          const newSubpage = await notion.pages.create({
+            parent: { page_id: targetPageId },
+            properties: {
+              title: {
+                title: [
+                  {
+                    text: {
+                      content: block.child_page.title,
+                    },
+                  },
+                ],
+              },
+            },
+            icon: {
+              type: "emoji",
+              emoji: "📄",
+            },
+          });
+          // Recursively duplicate blocks from old child page to new child page
+          await duplicateNotionPageBlocks(
+            notion,
+            block.id,
+            newSubpage.id,
+            true,
+          );
+        } catch (err: any) {
+          console.warn(
+            `Failed to duplicate nested subpage ${block.id}:`,
+            err.message,
+          );
+        }
+      } else {
+        blocksToAppend.push(appendableBlock);
+      }
     }
 
     hasMore = res.has_more;
@@ -67,10 +124,16 @@ export async function createClientNotionDashboard(
   customApiKey?: string,
   customParentPageId?: string,
   customTemplatePageId?: string,
+  options?: {
+    mode?: "copy-page" | "copy-page-with-subpages" | "create-blank-page";
+    pageNamePattern?: string;
+    pageIcon?: string;
+  },
 ): Promise<string> {
   const notion = customApiKey
     ? new Client({ auth: customApiKey })
     : getNotionClient();
+
   const parentPageId = customParentPageId || process.env.NOTION_PARENT_PAGE_ID;
   const templatePageId =
     customTemplatePageId || process.env.NOTION_TEMPLATE_PAGE_ID;
@@ -81,11 +144,23 @@ export async function createClientNotionDashboard(
     );
   }
 
+  // 1. Resolve naming pattern
+  const pattern =
+    options?.pageNamePattern ||
+    "Uprise Digital x {{client_name}} - Client Dashboard";
+  const resolvedPageName = replaceVariables(pattern, {
+    client_name: clientName,
+  });
+
+  const pageIcon = options?.pageIcon || "🚀";
+  const mode =
+    options?.mode || (templatePageId ? "copy-page" : "create-blank-page");
+
   console.log(
-    `Notion Service: Creating dashboard for client '${clientName}'...`,
+    `Notion Service: Creating dashboard '${resolvedPageName}' (mode: ${mode})...`,
   );
 
-  // 1. Create a blank page under the parent page
+  // 2. Create the parent page
   const newPage = await notion.pages.create({
     parent: { page_id: parentPageId },
     properties: {
@@ -93,7 +168,7 @@ export async function createClientNotionDashboard(
         title: [
           {
             text: {
-              content: `Uprise Digital x ${clientName} - Client Dashboard`,
+              content: resolvedPageName,
             },
           },
         ],
@@ -101,20 +176,29 @@ export async function createClientNotionDashboard(
     },
     icon: {
       type: "emoji",
-      emoji: "🚀",
+      emoji: pageIcon as any,
     },
   });
 
   const pageId = newPage.id.replace(/-/g, "");
 
-  // 2. If a template page is configured, copy its blocks
-  if (templatePageId) {
+  // 3. Populate blocks based on mode
+  if (mode === "copy-page" || mode === "copy-page-with-subpages") {
+    if (!templatePageId) {
+      throw new Error(`Template Page ID is required for mode ${mode}`);
+    }
     console.log(
       `Notion Service: Duplicating template page blocks from: ${templatePageId}`,
     );
     try {
-      await duplicateNotionPageBlocks(notion, templatePageId, newPage.id);
-    } catch (err) {
+      const recursive = mode === "copy-page-with-subpages";
+      await duplicateNotionPageBlocks(
+        notion,
+        templatePageId,
+        newPage.id,
+        recursive,
+      );
+    } catch (err: any) {
       console.error(
         "Failed to copy template blocks, falling back to basic workspace...",
         err,
@@ -122,10 +206,8 @@ export async function createClientNotionDashboard(
       await appendDefaultWorkspaceBlocks(notion, newPage.id, clientName);
     }
   } else {
-    // 3. Otherwise, append standard Uprise onboarding blocks
-    console.log(
-      "Notion Service: No template page configured. Appending default workspace blocks...",
-    );
+    // create-blank-page
+    console.log("Notion Service: Appending default workspace blocks...");
     await appendDefaultWorkspaceBlocks(notion, newPage.id, clientName);
   }
 
@@ -249,11 +331,11 @@ async function appendDefaultWorkspaceBlocks(
         type: "bulleted_list_item",
         bulleted_list_item: {
           rich_text: [
-            { text: { content: "Meta Business Manager: " } },
+            { text: { content: "Uprise Tools Overview: " } },
             {
               text: {
-                content: "https://business.facebook.com",
-                link: { url: "https://business.facebook.com" },
+                content: "https://tools.uprisedigital.com.au",
+                link: { url: "https://tools.uprisedigital.com.au" },
               },
             },
           ],
@@ -264,27 +346,20 @@ async function appendDefaultWorkspaceBlocks(
 }
 
 /**
- * Verifies if a Notion API Key and Parent Page ID are valid and connected.
+ * Verifies if a Notion page is accessible.
  */
 export async function verifyNotionConnection(
   apiKey: string,
-  parentPageId: string,
+  pageId: string,
 ): Promise<boolean> {
   const notion = new Client({ auth: apiKey });
   try {
-    // 1. Try to retrieve parent page
-    await notion.pages.retrieve({ page_id: parentPageId });
+    const res = await notion.pages.retrieve({ page_id: pageId });
+    if (!res || !res.id) {
+      throw new Error("Specified Notion page was not found.");
+    }
     return true;
   } catch (err: any) {
-    // 2. If it's a database, retrieve database
-    try {
-      await notion.databases.retrieve({ database_id: parentPageId });
-      return true;
-    } catch (dbErr: any) {
-      throw new Error(
-        err.message ||
-          "Failed to access Notion parent page/database. Ensure the connection has access to the page.",
-      );
-    }
+    throw new Error(err.message || "Failed to verify Notion connection.");
   }
 }

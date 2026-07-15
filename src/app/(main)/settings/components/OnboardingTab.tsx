@@ -16,6 +16,8 @@ import {
 import {
   AlertTriangle,
   Database,
+  Eye,
+  EyeOff,
   Mail,
   RefreshCw,
   Save,
@@ -258,13 +260,34 @@ function CustomNotionNode({ id, data }: any) {
           className="w-5.5 h-5.5 select-none"
         />
       </div>
-      <div className="text-left flex-1">
+      <div className="text-left flex-1 min-w-0">
         <p className="text-[9px] font-extrabold text-slate-800 uppercase tracking-wider">
           Notion Portal
         </p>
-        <p className="text-[11px] font-bold text-slate-800 leading-tight">
+        <p className="text-[11px] font-bold text-slate-800 leading-tight truncate">
           {data.label}
         </p>
+        <div className="text-[8px] text-slate-500 font-medium mt-1 leading-relaxed border-t pt-1 border-slate-100 space-y-0.5">
+          <div>
+            Mode:{" "}
+            <span className="font-bold text-slate-700 capitalize">
+              {data.mode?.replace(/-/g, " ") || "blank page"}
+            </span>
+          </div>
+          {data.parentPageId && (
+            <div className="truncate">
+              Parent:{" "}
+              <span className="font-mono text-slate-600">
+                {data.parentPageId}
+              </span>
+            </div>
+          )}
+          {data.pageIcon && (
+            <div>
+              Icon: <span>{data.pageIcon}</span>
+            </div>
+          )}
+        </div>
       </div>
       <button
         type="button"
@@ -378,12 +401,6 @@ function OnboardingTabContent({
   const [notionApiKey, setNotionApiKey] = useState(
     onboardingSettings?.notionApiKey ?? "",
   );
-  const [notionParentPageId, setNotionParentPageId] = useState(
-    onboardingSettings?.notionParentPageId ?? "",
-  );
-  const [notionTemplatePageId, setNotionTemplatePageId] = useState(
-    onboardingSettings?.notionTemplatePageId ?? "",
-  );
   const [notionStatus, setNotionStatus] = useState(
     onboardingSettings?.notionStatus ?? "unconfigured",
   );
@@ -428,6 +445,7 @@ Founder | ${orgName}`;
     useState(false);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [showNotionKey, setShowNotionKey] = useState(false);
 
   // Flowchart Nodes & Edges Load Migration
   const rawNodes = onboardingSettings?.workflowConfig?.nodes;
@@ -437,7 +455,6 @@ Founder | ${orgName}`;
         if (type === "input" || n.id === "trigger") type = "customTrigger";
         else if (n.id === "google-drive") {
           type = "customDrive";
-          // Inject node data defaults or load settings legacy fallback properties
           n.data = {
             label: "Google Drive Automation",
             mode:
@@ -465,8 +482,30 @@ Founder | ${orgName}`;
             docRules: n.data?.docRules || [],
             ...n.data,
           };
-        } else if (n.id === "notion") type = "customNotion";
-        else if (type === "output" || n.id === "email") type = "customEmail";
+        } else if (n.id === "notion") {
+          type = "customNotion";
+          n.data = {
+            label: "Notion Dashboard Automation",
+            mode:
+              n.data?.mode ||
+              (onboardingSettings?.notionTemplatePageId
+                ? "copy-page"
+                : "create-blank-page"),
+            parentPageId:
+              n.data?.parentPageId ||
+              onboardingSettings?.notionParentPageId ||
+              "",
+            templatePageId:
+              n.data?.templatePageId ||
+              onboardingSettings?.notionTemplatePageId ||
+              "",
+            pageNamePattern:
+              n.data?.pageNamePattern ||
+              "Uprise Digital x {{client_name}} - Client Dashboard",
+            pageIcon: n.data?.pageIcon || "🚀",
+            ...n.data,
+          };
+        } else if (type === "output" || n.id === "email") type = "customEmail";
 
         let position = n.position;
         if (n.id === "trigger" && position.y === 150) {
@@ -524,7 +563,17 @@ Founder | ${orgName}`;
         {
           id: "notion",
           type: "customNotion",
-          data: { label: "Notion Dashboard Automation" },
+          data: {
+            label: "Notion Dashboard Automation",
+            mode: onboardingSettings?.notionTemplatePageId
+              ? "copy-page"
+              : "create-blank-page",
+            parentPageId: onboardingSettings?.notionParentPageId || "",
+            templatePageId: onboardingSettings?.notionTemplatePageId || "",
+            pageNamePattern:
+              "Uprise Digital x {{client_name}} - Client Dashboard",
+            pageIcon: "🚀",
+          },
           position: { x: 580, y: 120 },
         },
         {
@@ -577,10 +626,10 @@ Founder | ${orgName}`;
     [setEdges],
   );
 
-  const updateDriveNodeData = (key: string, value: any) => {
+  const updateNodeData = (nodeId: string, key: string, value: any) => {
     setNodes((nds) =>
       nds.map((node) => {
-        if (node.id === "google-drive") {
+        if (node.id === nodeId) {
           return {
             ...node,
             data: {
@@ -626,6 +675,14 @@ Founder | ${orgName}`;
       type = "customNotion";
       label = "Notion Dashboard Automation";
       x = 580;
+      data = {
+        label,
+        mode: "create-blank-page",
+        parentPageId: "",
+        templatePageId: "",
+        pageNamePattern: "Uprise Digital x {{client_name}} - Client Dashboard",
+        pageIcon: "🚀",
+      };
     } else if (nodeType === "email") {
       type = "customEmail";
       label = "Send Welcome Email";
@@ -670,7 +727,15 @@ Founder | ${orgName}`;
       {
         id: "notion",
         type: "customNotion",
-        data: { label: "Notion Dashboard Automation" },
+        data: {
+          label: "Notion Dashboard Automation",
+          mode: "create-blank-page",
+          parentPageId: "",
+          templatePageId: "",
+          pageNamePattern:
+            "Uprise Digital x {{client_name}} - Client Dashboard",
+          pageIcon: "🚀",
+        },
         position: { x: 580, y: 120 },
       },
       {
@@ -743,8 +808,6 @@ Founder | ${orgName}`;
         googleDriveEnabled,
         notionEnabled,
         notionApiKey,
-        notionParentPageId,
-        notionTemplatePageId,
         welcomeEmailSubject,
         welcomeEmailTemplate,
         workflowConfig: {
@@ -929,7 +992,11 @@ Founder | ${orgName}`;
                         <select
                           value={mode}
                           onChange={(e) =>
-                            updateDriveNodeData("mode", e.target.value)
+                            updateNodeData(
+                              "google-drive",
+                              "mode",
+                              e.target.value,
+                            )
                           }
                           className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
                         >
@@ -953,7 +1020,8 @@ Founder | ${orgName}`;
                         <Input
                           value={parentFolderId}
                           onChange={(e) =>
-                            updateDriveNodeData(
+                            updateNodeData(
+                              "google-drive",
                               "parentFolderId",
                               e.target.value,
                             )
@@ -972,7 +1040,8 @@ Founder | ${orgName}`;
                           <Input
                             value={templateFolderId}
                             onChange={(e) =>
-                              updateDriveNodeData(
+                              updateNodeData(
+                                "google-drive",
                                 "templateFolderId",
                                 e.target.value,
                               )
@@ -1004,7 +1073,11 @@ Founder | ${orgName}`;
                                     const nextSub = subfolders.filter(
                                       (_: any, idx: number) => idx !== index,
                                     );
-                                    updateDriveNodeData("subfolders", nextSub);
+                                    updateNodeData(
+                                      "google-drive",
+                                      "subfolders",
+                                      nextSub,
+                                    );
                                   }}
                                   className="p-1 -m-1 text-slate-400 hover:text-red-500 shrink-0 cursor-pointer"
                                 >
@@ -1026,7 +1099,11 @@ Founder | ${orgName}`;
                                   const val = input?.value.trim();
                                   if (val) {
                                     const nextSub = [...subfolders, val];
-                                    updateDriveNodeData("subfolders", nextSub);
+                                    updateNodeData(
+                                      "google-drive",
+                                      "subfolders",
+                                      nextSub,
+                                    );
                                     input.value = "";
                                   }
                                 }
@@ -1040,7 +1117,11 @@ Founder | ${orgName}`;
                                 const val = input?.value.trim();
                                 if (val) {
                                   const nextSub = [...subfolders, val];
-                                  updateDriveNodeData("subfolders", nextSub);
+                                  updateNodeData(
+                                    "google-drive",
+                                    "subfolders",
+                                    nextSub,
+                                  );
                                   input.value = "";
                                 }
                               }}
@@ -1062,7 +1143,8 @@ Founder | ${orgName}`;
                         <Input
                           value={folderNamePattern}
                           onChange={(e) =>
-                            updateDriveNodeData(
+                            updateNodeData(
+                              "google-drive",
                               "folderNamePattern",
                               e.target.value,
                             )
@@ -1088,7 +1170,11 @@ Founder | ${orgName}`;
                           <Input
                             value={shareEmails}
                             onChange={(e) =>
-                              updateDriveNodeData("shareEmails", e.target.value)
+                              updateNodeData(
+                                "google-drive",
+                                "shareEmails",
+                                e.target.value,
+                              )
                             }
                             placeholder="e.g. {{contact_email}}, team@agency.com"
                             className="text-xs bg-white"
@@ -1101,7 +1187,11 @@ Founder | ${orgName}`;
                           <select
                             value={shareRole}
                             onChange={(e) =>
-                              updateDriveNodeData("shareRole", e.target.value)
+                              updateNodeData(
+                                "google-drive",
+                                "shareRole",
+                                e.target.value,
+                              )
                             }
                             className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
                           >
@@ -1129,7 +1219,11 @@ Founder | ${orgName}`;
                                   namePattern: "{{client_name}} Strategy",
                                 },
                               ];
-                              updateDriveNodeData("docRules", nextRules);
+                              updateNodeData(
+                                "google-drive",
+                                "docRules",
+                                nextRules,
+                              );
                             }}
                             className="h-6 px-1.5 text-[10px] text-indigo-650 hover:text-indigo-800 cursor-pointer"
                           >
@@ -1148,7 +1242,11 @@ Founder | ${orgName}`;
                                   const nextRules = docRules.filter(
                                     (_: any, idx: number) => idx !== index,
                                   );
-                                  updateDriveNodeData("docRules", nextRules);
+                                  updateNodeData(
+                                    "google-drive",
+                                    "docRules",
+                                    nextRules,
+                                  );
                                 }}
                                 className="absolute top-2 right-2 text-slate-400 hover:text-red-500 text-[10px] cursor-pointer"
                               >
@@ -1170,7 +1268,11 @@ Founder | ${orgName}`;
                                             }
                                           : r,
                                     );
-                                    updateDriveNodeData("docRules", nextRules);
+                                    updateNodeData(
+                                      "google-drive",
+                                      "docRules",
+                                      nextRules,
+                                    );
                                   }}
                                   placeholder="Template File ID"
                                   className="text-[10px] h-7 bg-white font-mono"
@@ -1192,7 +1294,11 @@ Founder | ${orgName}`;
                                             }
                                           : r,
                                     );
-                                    updateDriveNodeData("docRules", nextRules);
+                                    updateNodeData(
+                                      "google-drive",
+                                      "docRules",
+                                      nextRules,
+                                    );
                                   }}
                                   placeholder="{{client_name}} Strat"
                                   className="text-[10px] h-7 bg-white"
@@ -1207,13 +1313,157 @@ Founder | ${orgName}`;
                 })()}
               </div>
             )}
+
+            {/* DOCKED SIDEBAR FOR NOTION NODE */}
+            {selectedNodeId === "notion" && (
+              <div className="w-80 border-l border-slate-200 p-5 overflow-y-auto bg-white flex flex-col h-[450px] shrink-0 font-sans text-xs">
+                <div className="flex items-center justify-between pb-3 border-b mb-4">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <Database className="w-4 h-4 text-slate-900" />
+                    Notion Node Settings
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedNodeId(null)}
+                    className="h-6 w-6 p-0 text-slate-400 hover:text-slate-650 rounded-full"
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                {(() => {
+                  const notionNode = nodes.find((n) => n.id === "notion");
+                  if (!notionNode) {
+                    return (
+                      <p className="text-slate-400 text-center py-6">
+                        Node not found.
+                      </p>
+                    );
+                  }
+                  const notionData = (notionNode.data || {}) as any;
+
+                  const mode = notionData.mode || "create-blank-page";
+                  const parentPageId = notionData.parentPageId || "";
+                  const templatePageId = notionData.templatePageId || "";
+                  const pageNamePattern =
+                    notionData.pageNamePattern ||
+                    "Uprise Digital x {{client_name}} - Client Dashboard";
+                  const pageIcon = notionData.pageIcon || "🚀";
+
+                  return (
+                    <div className="space-y-4 flex-1">
+                      {/* NOTION MODE SELECT */}
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Automation Mode
+                        </Label>
+                        <select
+                          value={mode}
+                          onChange={(e) =>
+                            updateNodeData("notion", "mode", e.target.value)
+                          }
+                          className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
+                        >
+                          <option value="copy-page">Copy Template Page</option>
+                          <option value="copy-page-with-subpages">
+                            Copy Page with all Subpages
+                          </option>
+                          <option value="create-blank-page">
+                            Create Blank Page Only
+                          </option>
+                        </select>
+                      </div>
+
+                      {/* PARENT PAGE ID */}
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Parent Page ID (Destination)
+                        </Label>
+                        <Input
+                          value={parentPageId}
+                          onChange={(e) =>
+                            updateNodeData(
+                              "notion",
+                              "parentPageId",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="Notion Parent Page ID"
+                          className="text-xs bg-white font-mono"
+                        />
+                      </div>
+
+                      {/* TEMPLATE PAGE ID (IF COPY) */}
+                      {(mode === "copy-page" ||
+                        mode === "copy-page-with-subpages") && (
+                        <div className="space-y-1.5">
+                          <Label className="text-slate-700 font-bold">
+                            Template Page ID (Source)
+                          </Label>
+                          <Input
+                            value={templatePageId}
+                            onChange={(e) =>
+                              updateNodeData(
+                                "notion",
+                                "templatePageId",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="Notion Template Page ID"
+                            className="text-xs bg-white font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* PAGE NAMING PATTERN */}
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Page Naming Pattern
+                        </Label>
+                        <Input
+                          value={pageNamePattern}
+                          onChange={(e) =>
+                            updateNodeData(
+                              "notion",
+                              "pageNamePattern",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="e.g. {{client_name}} Dashboard"
+                          className="text-xs bg-white"
+                        />
+                        <p className="text-[9px] text-slate-400">
+                          Supports: <code>{"{{client_name}}"}</code>
+                        </p>
+                      </div>
+
+                      {/* PAGE ICON */}
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Page Icon (Emoji)
+                        </Label>
+                        <Input
+                          value={pageIcon}
+                          onChange={(e) =>
+                            updateNodeData("notion", "pageIcon", e.target.value)
+                          }
+                          placeholder="e.g. 🚀"
+                          className="text-xs bg-white"
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* DRIVE AUTOMATION CARD */}
         <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50 border-b border-slate-100 p-5 flex flex-row items-center justify-between">
-            <div className="flex-1 min-w-0">
+            <div>
               <CardTitle className="text-sm font-bold flex flex-wrap items-center gap-2 text-slate-800">
                 <Database className="w-4 h-4 text-blue-500" />
                 Google Drive Onboarding Integration
@@ -1227,13 +1477,13 @@ Founder | ${orgName}`;
                   </span>
                 )}
                 {googleDriveStatus === "failed" && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                     Verification Failed
                   </span>
                 )}
                 {googleDriveStatus === "unconfigured" && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-650 border border-slate-200">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-650 border border-slate-200">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                     Unconfigured
                   </span>
@@ -1342,7 +1592,8 @@ Founder | ${orgName}`;
               </CardTitle>
               <CardDescription className="text-xs">
                 Creates a collaborative client dashboard in Notion based on your
-                agency templates.
+                agency templates. Configure dashboard name patterns, emojis, and
+                clone modes on the node settings panel.
               </CardDescription>
             </div>
             <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -1378,62 +1629,33 @@ Founder | ${orgName}`;
                 >
                   Notion Internal Integration Token (API Key)
                 </Label>
-                <Input
-                  id="notionApiKey"
-                  type="password"
-                  value={notionApiKey}
-                  onChange={(e) => setNotionApiKey(e.target.value)}
-                  disabled={!notionEnabled}
-                  className="text-xs bg-white font-mono"
-                  placeholder="secret_..."
-                />
+                <div className="relative flex items-center">
+                  <Input
+                    id="notionApiKey"
+                    type={showNotionKey ? "text" : "password"}
+                    value={notionApiKey}
+                    onChange={(e) => setNotionApiKey(e.target.value)}
+                    disabled={!notionEnabled}
+                    className="text-xs bg-white font-mono pr-10"
+                    placeholder="secret_..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNotionKey(!showNotionKey)}
+                    disabled={!notionEnabled}
+                    className="absolute right-3 text-slate-400 hover:text-slate-650 cursor-pointer"
+                  >
+                    {showNotionKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
                 <p className="text-[10px] text-slate-455 leading-normal">
                   Your Notion integration secret key. Make sure the parent page
                   is shared with this integration.
                 </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="notionParentPage"
-                    className="text-xs font-bold text-slate-700"
-                  >
-                    Parent Dashboard Page ID
-                  </Label>
-                  <Input
-                    id="notionParentPage"
-                    value={notionParentPageId}
-                    onChange={(e) => setNotionParentPageId(e.target.value)}
-                    disabled={!notionEnabled}
-                    className="text-xs bg-white"
-                    placeholder="e.g. c3f4b5d6e7f8..."
-                  />
-                  <p className="text-[10px] text-slate-450 leading-normal">
-                    The ID of the parent database or page where new client
-                    dashboards will be created.
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="notionTemplatePage"
-                    className="text-xs font-bold text-slate-700"
-                  >
-                    Template Page ID
-                  </Label>
-                  <Input
-                    id="notionTemplatePage"
-                    value={notionTemplatePageId}
-                    onChange={(e) => setNotionTemplatePageId(e.target.value)}
-                    disabled={!notionEnabled}
-                    className="text-xs bg-white"
-                    placeholder="e.g. 5a4b3c2d1e0f..."
-                  />
-                  <p className="text-[10px] text-slate-455 leading-normal">
-                    The ID of the template page inside your workspace. New
-                    client dashboards will copy this block structure.
-                  </p>
-                </div>
               </div>
             </div>
           </CardContent>

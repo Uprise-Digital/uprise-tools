@@ -349,12 +349,33 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
             console.error("Failed to decrypt Notion API key:", err);
           }
         }
+
+        const notionNode = (settings?.workflowConfig as any)?.nodes?.find(
+          (n: any) => n.id === "notion",
+        );
+        const notionData = notionNode?.data || {};
+
+        const mode = notionData.mode || "create-blank-page";
+        const parentPageId =
+          notionData.parentPageId || settings?.notionParentPageId || undefined;
+        const templatePageId =
+          notionData.templatePageId ||
+          settings?.notionTemplatePageId ||
+          undefined;
+
+        const options = {
+          mode,
+          pageNamePattern: notionData.pageNamePattern,
+          pageIcon: notionData.pageIcon,
+        };
+
         try {
           notionDashboardLink = await createClientNotionDashboard(
             record.clientName,
             decryptedKey,
-            settings?.notionParentPageId || undefined,
-            settings?.notionTemplatePageId || undefined,
+            parentPageId,
+            templatePageId,
+            options,
           );
         } catch (err: any) {
           console.warn(
