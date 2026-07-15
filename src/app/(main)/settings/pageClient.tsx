@@ -3,6 +3,7 @@
 import {
   Activity,
   AlertTriangle,
+  BookOpen,
   Building,
   Check,
   CheckCircle2,
@@ -2239,394 +2240,478 @@ export default function SettingsClient({
           )}
 
           {activeTab === "onboarding" && (
-            <div className="space-y-6 max-w-4xl animate-in fade-in duration-200">
-              {/* GOOGLE DRIVE INTEGRATION CARD */}
-              <Card className="border-slate-200 shadow-sm overflow-hidden">
-                <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
-                      <Building className="w-4 h-4 text-indigo-500" />
-                      Google Drive Folder Automation
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                      {googleDriveEnabled && (
-                        <>
-                          {googleDriveStatus === "valid" && (
-                            <Badge className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center gap-1">
-                              <Check className="w-3 h-3" /> Connection Valid
-                            </Badge>
-                          )}
-                          {googleDriveStatus === "invalid" && (
-                            <Badge
-                              variant="destructive"
-                              className="flex items-center gap-1"
-                            >
-                              <AlertTriangle className="w-3 h-3" /> Connection
-                              Failed
-                            </Badge>
-                          )}
-                          {googleDriveStatus === "unconfigured" && (
-                            <Badge
-                              variant="outline"
-                              className="text-amber-600 border-amber-200 bg-amber-50/50 hover:bg-amber-50/50 flex items-center gap-1"
-                            >
-                              <Clock className="w-3 h-3" /> Untested
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={googleDriveEnabled}
-                          onChange={(e) =>
-                            setGoogleDriveEnabled(e.target.checked)
-                          }
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600" />
-                      </label>
-                    </div>
-                  </div>
-                  <CardDescription className="text-xs">
-                    Toggles whether client onboarding automatically duplicates
-                    folder directories in Google Drive.
-                  </CardDescription>
-                </CardHeader>
-                {googleDriveEnabled && (
-                  <CardContent className="p-6 space-y-4">
-                    {googleDriveStatus === "invalid" && googleDriveError && (
-                      <div className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs">
-                        <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold">
-                            Google Drive Connection Error
-                          </p>
-                          <p className="text-rose-700 mt-0.5 leading-relaxed font-mono text-[10px]">
-                            {googleDriveError}
-                          </p>
-                        </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start animate-in fade-in duration-200">
+              <div className="lg:col-span-2 space-y-6">
+                {/* GOOGLE DRIVE INTEGRATION CARD */}
+                <Card className="border-slate-200 shadow-sm overflow-hidden">
+                  <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                        <Building className="w-4 h-4 text-indigo-500" />
+                        Google Drive Folder Automation
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        {googleDriveEnabled && (
+                          <>
+                            {googleDriveStatus === "valid" && (
+                              <Badge className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Connection Valid
+                              </Badge>
+                            )}
+                            {googleDriveStatus === "invalid" && (
+                              <Badge
+                                variant="destructive"
+                                className="flex items-center gap-1"
+                              >
+                                <AlertTriangle className="w-3 h-3" /> Connection
+                                Failed
+                              </Badge>
+                            )}
+                            {googleDriveStatus === "unconfigured" && (
+                              <Badge
+                                variant="outline"
+                                className="text-amber-600 border-amber-200 bg-amber-50/50 hover:bg-amber-50/50 flex items-center gap-1"
+                              >
+                                <Clock className="w-3 h-3" /> Untested
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={googleDriveEnabled}
+                            onChange={(e) =>
+                              setGoogleDriveEnabled(e.target.checked)
+                            }
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600" />
+                        </label>
                       </div>
-                    )}
-
-                    {googleDriveEmail ? (
-                      <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
-                            <Building className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    <CardDescription className="text-xs">
+                      Toggles whether client onboarding automatically duplicates
+                      folder directories in Google Drive.
+                    </CardDescription>
+                  </CardHeader>
+                  {googleDriveEnabled && (
+                    <CardContent className="p-6 space-y-4">
+                      {googleDriveStatus === "invalid" && googleDriveError && (
+                        <div className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs">
+                          <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold">
+                              Google Drive Connection Error
+                            </p>
+                            <p className="text-rose-700 mt-0.5 leading-relaxed font-mono text-[10px]">
+                              {googleDriveError}
+                            </p>
                           </div>
+                        </div>
+                      )}
+
+                      {googleDriveEmail ? (
+                        <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
+                              <Building className="w-4 h-4 text-indigo-600" />
+                            </div>
+                            <div className="text-xs">
+                              <p className="font-semibold text-slate-700">
+                                Connected to Google Drive
+                              </p>
+                              <p className="text-slate-500 mt-0.5">
+                                {googleDriveEmail}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isGoogleDriveDisconnecting}
+                            onClick={handleDisconnectGoogleDrive}
+                            className="text-rose-600 hover:text-rose-750 hover:bg-rose-50 border-rose-200 hover:border-rose-350 font-semibold"
+                          >
+                            Disconnect
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-indigo-50/30 border border-indigo-100 rounded-xl">
                           <div className="text-xs">
-                            <p className="font-semibold text-slate-700">
-                              Connected to Google Drive
+                            <p className="font-bold text-slate-800">
+                              Google Drive Account Link Required
                             </p>
                             <p className="text-slate-500 mt-0.5">
-                              {googleDriveEmail}
+                              Link your Google Account to authorize client
+                              folder creation automation.
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={handleConnectGoogleDrive}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2 shrink-0 rounded-lg flex items-center gap-1.5 h-9"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Connect Google Drive
+                          </Button>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Parent Directory Folder ID (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={googleDriveParentFolderId}
+                            onChange={(e) =>
+                              setGoogleDriveParentFolderId(e.target.value)
+                            }
+                            placeholder="e.g. 1a2b3c4d5e6f7g8h9i0j..."
+                            className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                          <span className="text-[10px] text-slate-400 leading-normal block">
+                            The folder ID where the client's onboarding folder
+                            should be created. If left blank, defaults to system
+                            root.
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Template Folder ID (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={googleDriveTemplateFolderId}
+                            onChange={(e) =>
+                              setGoogleDriveTemplateFolderId(e.target.value)
+                            }
+                            placeholder="e.g. 0z9y8x7w6v5u4t3s2r1q..."
+                            className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                          <span className="text-[10px] text-slate-400 leading-normal block">
+                            If provided, this folder's subdirectories and files
+                            will be recursively copied for the new client.
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+
+                {/* NOTION INTEGRATION CARD */}
+                <Card className="border-slate-200 shadow-sm overflow-hidden">
+                  <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                        <Database className="w-4 h-4 text-indigo-500" />
+                        Notion Client Dashboard Automation
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        {notionEnabled && (
+                          <>
+                            {notionStatus === "valid" && (
+                              <Badge className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Connection Valid
+                              </Badge>
+                            )}
+                            {notionStatus === "invalid" && (
+                              <Badge
+                                variant="destructive"
+                                className="flex items-center gap-1"
+                              >
+                                <AlertTriangle className="w-3 h-3" /> Connection
+                                Failed
+                              </Badge>
+                            )}
+                            {notionStatus === "unconfigured" && (
+                              <Badge
+                                variant="outline"
+                                className="text-amber-600 border-amber-200 bg-amber-50/50 hover:bg-amber-50/50 flex items-center gap-1"
+                              >
+                                <Clock className="w-3 h-3" /> Untested
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={notionEnabled}
+                            onChange={(e) => setNotionEnabled(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600" />
+                        </label>
+                      </div>
+                    </div>
+                    <CardDescription className="text-xs">
+                      Toggles whether client onboarding automatically provisions
+                      a live Notion client dashboard.
+                    </CardDescription>
+                  </CardHeader>
+                  {notionEnabled && (
+                    <CardContent className="p-6 space-y-4">
+                      {notionStatus === "invalid" && notionError && (
+                        <div className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs">
+                          <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold">Notion Connection Error</p>
+                            <p className="text-rose-700 mt-0.5 leading-relaxed font-mono text-[10px]">
+                              {notionError}
                             </p>
                           </div>
                         </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={isGoogleDriveDisconnecting}
-                          onClick={handleDisconnectGoogleDrive}
-                          className="text-rose-600 hover:text-rose-750 hover:bg-rose-50 border-rose-200 hover:border-rose-350 font-semibold"
-                        >
-                          Disconnect
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-indigo-50/30 border border-indigo-100 rounded-xl">
-                        <div className="text-xs">
-                          <p className="font-bold text-slate-800">
-                            Google Drive Account Link Required
-                          </p>
-                          <p className="text-slate-500 mt-0.5">
-                            Link your Google Account to authorize client folder
-                            creation automation.
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={handleConnectGoogleDrive}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2 shrink-0 rounded-lg flex items-center gap-1.5 h-9"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          Connect Google Drive
-                        </Button>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                          Parent Directory Folder ID (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={googleDriveParentFolderId}
-                          onChange={(e) =>
-                            setGoogleDriveParentFolderId(e.target.value)
-                          }
-                          placeholder="e.g. 1a2b3c4d5e6f7g8h9i0j..."
-                          className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        />
-                        <span className="text-[10px] text-slate-400 leading-normal block">
-                          The folder ID where the client's onboarding folder
-                          should be created. If left blank, defaults to system
-                          root.
-                        </span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                          Template Folder ID (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={googleDriveTemplateFolderId}
-                          onChange={(e) =>
-                            setGoogleDriveTemplateFolderId(e.target.value)
-                          }
-                          placeholder="e.g. 0z9y8x7w6v5u4t3s2r1q..."
-                          className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        />
-                        <span className="text-[10px] text-slate-400 leading-normal block">
-                          If provided, this folder's subdirectories and files
-                          will be recursively copied for the new client.
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-
-              {/* NOTION INTEGRATION CARD */}
-              <Card className="border-slate-200 shadow-sm overflow-hidden">
-                <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
-                      <Database className="w-4 h-4 text-indigo-500" />
-                      Notion Client Dashboard Automation
-                    </CardTitle>
-                    <div className="flex items-center gap-2">
-                      {notionEnabled && (
-                        <>
-                          {notionStatus === "valid" && (
-                            <Badge className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center gap-1">
-                              <Check className="w-3 h-3" /> Connection Valid
-                            </Badge>
-                          )}
-                          {notionStatus === "invalid" && (
-                            <Badge
-                              variant="destructive"
-                              className="flex items-center gap-1"
-                            >
-                              <AlertTriangle className="w-3 h-3" /> Connection
-                              Failed
-                            </Badge>
-                          )}
-                          {notionStatus === "unconfigured" && (
-                            <Badge
-                              variant="outline"
-                              className="text-amber-600 border-amber-200 bg-amber-50/50 hover:bg-amber-50/50 flex items-center gap-1"
-                            >
-                              <Clock className="w-3 h-3" /> Untested
-                            </Badge>
-                          )}
-                        </>
                       )}
-                      <label className="relative inline-flex items-center cursor-pointer">
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                          Notion API Access Token
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={notionEnabled}
-                          onChange={(e) => setNotionEnabled(e.target.checked)}
-                          className="sr-only peer"
+                          type="password"
+                          value={notionApiKey}
+                          onChange={(e) => setNotionApiKey(e.target.value)}
+                          placeholder={
+                            onboardingSettings?.notionApiKey
+                              ? "••••••••••••••••"
+                              : "secret_..."
+                          }
+                          className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         />
-                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600" />
-                      </label>
-                    </div>
-                  </div>
-                  <CardDescription className="text-xs">
-                    Toggles whether client onboarding automatically provisions a
-                    live Notion client dashboard.
-                  </CardDescription>
-                </CardHeader>
-                {notionEnabled && (
-                  <CardContent className="p-6 space-y-4">
-                    {notionStatus === "invalid" && notionError && (
-                      <div className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs">
-                        <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold">Notion Connection Error</p>
-                          <p className="text-rose-700 mt-0.5 leading-relaxed font-mono text-[10px]">
-                            {notionError}
-                          </p>
+                        <span className="text-[10px] text-slate-400 leading-normal block">
+                          Your Notion Internal Integration Token (Access Token).
+                          Starts with `secret_`. You can create one at{" "}
+                          <a
+                            href="https://notion.so/my-integrations"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-indigo-600 hover:underline"
+                          >
+                            notion.so/my-integrations
+                          </a>
+                          .
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Parent Page or Database ID
+                          </label>
+                          <input
+                            type="text"
+                            value={notionParentPageId}
+                            onChange={(e) =>
+                              setNotionParentPageId(e.target.value)
+                            }
+                            placeholder="e.g. c1d2e3f4g5h6i7j8k9l0..."
+                            className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                          <span className="text-[10px] text-slate-400 leading-normal block">
+                            The 32-character ID of the page where client
+                            workspaces are created. **You must share your parent
+                            page with your integration connection in Notion!**
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Template Page ID (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={notionTemplatePageId}
+                            onChange={(e) =>
+                              setNotionTemplatePageId(e.target.value)
+                            }
+                            placeholder="e.g. z9y8x7w6v5u4t3s2r1q0..."
+                            className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                          <span className="text-[10px] text-slate-400 leading-normal block">
+                            If set, the system will copy this template page's
+                            blocks for the new workspace. Ensure this template
+                            page is also shared with the integration.
+                          </span>
                         </div>
                       </div>
-                    )}
+                    </CardContent>
+                  )}
+                </Card>
+
+                {/* WELCOME EMAIL CUSTOMIZATION */}
+                <Card className="border-slate-200 shadow-sm overflow-hidden">
+                  <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                      <Mail className="w-4 h-4 text-indigo-500" />
+                      Custom Welcome Email Template
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Customize the onboarding email message sent to new
+                      clients.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Email Subject
+                      </label>
+                      <input
+                        type="text"
+                        value={welcomeEmailSubject}
+                        onChange={(e) => setWelcomeEmailSubject(e.target.value)}
+                        placeholder="Welcome to Uprise Digital - Let's get started!"
+                        className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                      />
+                    </div>
 
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                        Notion API Access Token
+                        Email Body Template (Plain Text or Markdown)
                       </label>
-                      <input
-                        type="password"
-                        value={notionApiKey}
-                        onChange={(e) => setNotionApiKey(e.target.value)}
-                        placeholder={
-                          onboardingSettings?.notionApiKey
-                            ? "••••••••••••••••"
-                            : "secret_..."
+                      <textarea
+                        rows={10}
+                        value={welcomeEmailTemplate}
+                        onChange={(e) =>
+                          setWelcomeEmailTemplate(e.target.value)
                         }
-                        className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        placeholder={`Hello {{primary_contact_name}},\n\nWelcome to {{client_name}}! We are thrilled to partner with you.\n\nHere are your onboarding workspaces:\n- Notion Dashboard: {{notion_link}}\n- Google Drive Folder: {{drive_link}}\n\nLet's get started!\n\nBest,\nUprise Team`}
+                        className="w-full text-xs border border-slate-200 rounded-lg p-3 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-mono"
                       />
-                      <span className="text-[10px] text-slate-400 leading-normal block">
-                        Your Notion Internal Integration Token (Access Token).
-                        Starts with `secret_`. You can create one at{" "}
-                        <a
-                          href="https://notion.so/my-integrations"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-indigo-600 hover:underline"
-                        >
-                          notion.so/my-integrations
-                        </a>
-                        .
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                          Parent Page or Database ID
-                        </label>
-                        <input
-                          type="text"
-                          value={notionParentPageId}
-                          onChange={(e) =>
-                            setNotionParentPageId(e.target.value)
-                          }
-                          placeholder="e.g. c1d2e3f4g5h6i7j8k9l0..."
-                          className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        />
-                        <span className="text-[10px] text-slate-400 leading-normal block">
-                          The 32-character ID of the page where client
-                          workspaces are created. **You must share your parent
-                          page with your integration connection in Notion!**
-                        </span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                          Template Page ID (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={notionTemplatePageId}
-                          onChange={(e) =>
-                            setNotionTemplatePageId(e.target.value)
-                          }
-                          placeholder="e.g. z9y8x7w6v5u4t3s2r1q0..."
-                          className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        />
-                        <span className="text-[10px] text-slate-400 leading-normal block">
-                          If set, the system will copy this template page's
-                          blocks for the new workspace. Ensure this template
-                          page is also shared with the integration.
-                        </span>
+                      <div className="bg-slate-50 border border-slate-150 rounded-lg p-3.5 mt-2 text-[10px] text-slate-500 space-y-1 leading-relaxed">
+                        <p className="font-bold text-slate-700">
+                          Supported Template Variables:
+                        </p>
+                        <ul className="list-disc pl-4 space-y-0.5">
+                          <li>
+                            <code>{"{{primary_contact_name}}"}</code> - The
+                            contact person's name
+                          </li>
+                          <li>
+                            <code>{"{{client_name}}"}</code> - The client
+                            company's name
+                          </li>
+                          <li>
+                            <code>{"{{drive_link}}"}</code> - The generated
+                            Google Drive folder link
+                          </li>
+                          <li>
+                            <code>{"{{notion_link}}"}</code> - The generated
+                            Notion client dashboard link
+                          </li>
+                          <li>
+                            <code>{"{{signal_link}}"}</code> - The generated
+                            Signal group invite link
+                          </li>
+                        </ul>
                       </div>
                     </div>
                   </CardContent>
-                )}
-              </Card>
+                </Card>
 
-              {/* WELCOME EMAIL CUSTOMIZATION */}
-              <Card className="border-slate-200 shadow-sm overflow-hidden">
-                <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
-                    <Mail className="w-4 h-4 text-indigo-500" />
-                    Custom Welcome Email Template
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Customize the onboarding email message sent to new clients.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Email Subject
-                    </label>
-                    <input
-                      type="text"
-                      value={welcomeEmailSubject}
-                      onChange={(e) => setWelcomeEmailSubject(e.target.value)}
-                      placeholder="Welcome to Uprise Digital - Let's get started!"
-                      className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    />
-                  </div>
+                {/* SAVE ACTION BAR */}
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button
+                    disabled={isOnboardingSaving}
+                    onClick={handleSaveOnboardingSettings}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-5 py-2.5 h-10 shadow-sm flex items-center gap-2 rounded-lg"
+                  >
+                    {isOnboardingSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Verifying & Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save Configuration
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Email Body Template (Plain Text or Markdown)
-                    </label>
-                    <textarea
-                      rows={10}
-                      value={welcomeEmailTemplate}
-                      onChange={(e) => setWelcomeEmailTemplate(e.target.value)}
-                      placeholder={`Hello {{primary_contact_name}},\n\nWelcome to {{client_name}}! We are thrilled to partner with you.\n\nHere are your onboarding workspaces:\n- Notion Dashboard: {{notion_link}}\n- Google Drive Folder: {{drive_link}}\n\nLet's get started!\n\nBest,\nUprise Team`}
-                      className="w-full text-xs border border-slate-200 rounded-lg p-3 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-mono"
-                    />
-                    <div className="bg-slate-50 border border-slate-150 rounded-lg p-3.5 mt-2 text-[10px] text-slate-500 space-y-1 leading-relaxed">
-                      <p className="font-bold text-slate-700">
-                        Supported Template Variables:
-                      </p>
-                      <ul className="list-disc pl-4 space-y-0.5">
-                        <li>
-                          <code>{"{{primary_contact_name}}"}</code> - The
-                          contact person's name
-                        </li>
-                        <li>
-                          <code>{"{{client_name}}"}</code> - The client
-                          company's name
-                        </li>
-                        <li>
-                          <code>{"{{drive_link}}"}</code> - The generated Google
-                          Drive folder link
-                        </li>
-                        <li>
-                          <code>{"{{notion_link}}"}</code> - The generated
-                          Notion client dashboard link
-                        </li>
-                        <li>
-                          <code>{"{{signal_link}}"}</code> - The generated
-                          Signal group invite link
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* SIDEBAR FOR DOCUMENTATION */}
+              <div className="space-y-6">
+                <Card className="border-slate-200 shadow-sm overflow-hidden bg-gradient-to-br from-indigo-50/30 to-white">
+                  <CardHeader className="p-5 border-b border-slate-100">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                      <BookOpen className="w-4 h-4 text-indigo-500" />
+                      Configuration Guides
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Step-by-step setup documentation.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-5 space-y-4">
+                    <a
+                      href="/docs/client-guides/google-drive-integration"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block p-3.5 border border-slate-200/60 rounded-2xl bg-white hover:bg-slate-50 transition-colors shadow-sm hover:shadow"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Building className="w-4.5 h-4.5 text-slate-400 mt-0.5 group-hover:text-indigo-600 transition-colors shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-700 group-hover:text-indigo-600 transition-colors flex items-center gap-1">
+                            Google Drive Setup
+                            <ExternalLink className="w-3 h-3 text-slate-350" />
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                            Learn how to set up folder generation, template
+                            directories, and permissions.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
 
-              {/* SAVE ACTION BAR */}
-              <div className="flex justify-end gap-3 pt-2">
-                <Button
-                  disabled={isOnboardingSaving}
-                  onClick={handleSaveOnboardingSettings}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-5 py-2.5 h-10 shadow-sm flex items-center gap-2 rounded-lg"
-                >
-                  {isOnboardingSaving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Verifying & Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      Save Configuration
-                    </>
-                  )}
-                </Button>
+                    <a
+                      href="/docs/client-guides/notion-integration"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block p-3.5 border border-slate-200/60 rounded-2xl bg-white hover:bg-slate-50 transition-colors shadow-sm hover:shadow"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Database className="w-4.5 h-4.5 text-slate-400 mt-0.5 group-hover:text-indigo-600 transition-colors shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-700 group-hover:text-indigo-600 transition-colors flex items-center gap-1">
+                            Notion Dashboard Setup
+                            <ExternalLink className="w-3 h-3 text-slate-350" />
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                            Learn how to authorize the connection and configure
+                            templates.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
+
+                    <a
+                      href="/docs/client-guides/configure-onboarding"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block p-3.5 border border-slate-200/60 rounded-2xl bg-white hover:bg-slate-50 transition-colors shadow-sm hover:shadow"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Mail className="w-4.5 h-4.5 text-slate-400 mt-0.5 group-hover:text-indigo-600 transition-colors shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-700 group-hover:text-indigo-600 transition-colors flex items-center gap-1">
+                            Onboarding Automation
+                            <ExternalLink className="w-3 h-3 text-slate-350" />
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                            Learn how to configure workflows and edit welcome
+                            email templates.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           )}
