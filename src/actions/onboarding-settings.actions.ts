@@ -26,6 +26,41 @@ async function getSessionOrgId() {
   return { orgId, userId: session.user.id };
 }
 
+const defaultWorkflow = {
+  nodes: [
+    {
+      id: "trigger",
+      type: "input",
+      data: { label: "Client Onboarded (Start)" },
+      position: { x: 50, y: 150 },
+    },
+    {
+      id: "google-drive",
+      type: "default",
+      data: { label: "Google Drive Automation" },
+      position: { x: 300, y: 50 },
+    },
+    {
+      id: "notion",
+      type: "default",
+      data: { label: "Notion Dashboard Automation" },
+      position: { x: 300, y: 250 },
+    },
+    {
+      id: "email",
+      type: "output",
+      data: { label: "Send Welcome Email" },
+      position: { x: 550, y: 150 },
+    },
+  ],
+  edges: [
+    { id: "e-trig-drive", source: "trigger", target: "google-drive" },
+    { id: "e-trig-notion", source: "trigger", target: "notion" },
+    { id: "e-drive-email", source: "google-drive", target: "email" },
+    { id: "e-notion-email", source: "notion", target: "email" },
+  ],
+};
+
 export async function getOnboardingSettingsAction() {
   try {
     const { orgId } = await getSessionOrgId();
@@ -44,6 +79,7 @@ export async function getOnboardingSettingsAction() {
           notionEnabled: false,
           googleDriveStatus: "unconfigured",
           notionStatus: "unconfigured",
+          workflowConfig: defaultWorkflow,
         })
         .returning();
       record = newRecord;
@@ -77,6 +113,7 @@ export async function getOnboardingSettingsAction() {
         notionError: record.notionError || "",
         welcomeEmailSubject: record.welcomeEmailSubject || "",
         welcomeEmailTemplate: record.welcomeEmailTemplate || "",
+        workflowConfig: record.workflowConfig || defaultWorkflow,
       },
     };
   } catch (err: any) {
@@ -122,6 +159,7 @@ export async function saveOnboardingSettingsAction(data: {
   notionTemplatePageId: string;
   welcomeEmailSubject: string;
   welcomeEmailTemplate: string;
+  workflowConfig?: any;
 }) {
   try {
     const { orgId } = await getSessionOrgId();
@@ -211,6 +249,7 @@ export async function saveOnboardingSettingsAction(data: {
           notionError,
           welcomeEmailSubject: data.welcomeEmailSubject || null,
           welcomeEmailTemplate: data.welcomeEmailTemplate || null,
+          workflowConfig: data.workflowConfig || null,
           updatedAt: new Date(),
         })
         .where(eq(organizationOnboardingSettings.organizationId, orgId));
@@ -230,6 +269,7 @@ export async function saveOnboardingSettingsAction(data: {
         notionError,
         welcomeEmailSubject: data.welcomeEmailSubject || null,
         welcomeEmailTemplate: data.welcomeEmailTemplate || null,
+        workflowConfig: data.workflowConfig || defaultWorkflow,
       });
     }
 

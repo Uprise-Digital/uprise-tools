@@ -1,6 +1,15 @@
 "use client";
 
 import {
+  addEdge,
+  Background,
+  Controls,
+  Panel,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+} from "@xyflow/react";
+import {
   Activity,
   AlertTriangle,
   BookOpen,
@@ -26,7 +35,8 @@ import {
   User as UserIcon,
   XCircle,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
 import { syncAgencyPortfolioAction } from "@/actions/agency.actions";
 import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
@@ -172,6 +182,7 @@ interface SettingsClientProps {
     notionError: string;
     welcomeEmailSubject: string;
     welcomeEmailTemplate: string;
+    workflowConfig: any;
   } | null;
 }
 
@@ -247,6 +258,113 @@ class SettingsErrorBoundary extends React.Component<
   }
 }
 
+function EmailPreview({ subject, body }: { subject: string; body: string }) {
+  const variables: Record<string, string> = {
+    primary_contact_name: "Seyone",
+    client_name: "Uprise Digital Agency",
+    drive_link:
+      '<a href="#" class="text-indigo-600 hover:text-indigo-800 underline font-semibold transition-colors">Media Assets (Images and Videos)</a>',
+    notion_link:
+      '<a href="#" class="text-indigo-600 hover:text-indigo-800 underline font-semibold transition-colors">Uprise Client Dashboard</a>',
+    signal_link:
+      '<a href="#" class="text-indigo-600 hover:text-indigo-800 underline font-semibold transition-colors">Uprise Onboarding Chat</a>',
+  };
+
+  let parsed = body;
+  for (const [key, val] of Object.entries(variables)) {
+    const regex = new RegExp(`{{\\s*${key}\\s*}}`, "g");
+    parsed = parsed.replace(regex, val);
+  }
+
+  // Parse lines starting with "1. ", "2. " etc. as left-bordered steps
+  const lines = parsed.split("\n");
+  let insideStep = false;
+  const renderedLines = [];
+
+  for (const line of lines) {
+    const stepMatch = line.match(/^(\d+)\.\s+(.*)/);
+    if (stepMatch) {
+      if (insideStep) {
+        renderedLines.push("</div>");
+      }
+      insideStep = true;
+      renderedLines.push(
+        `<div class="border-l-4 border-indigo-600 bg-slate-50/50 p-4 rounded-r-xl my-4 space-y-1.5"><p class="text-xs font-bold text-slate-800">${stepMatch[1]}. ${stepMatch[2]}</p>`,
+      );
+    } else if (line.trim() === "" && insideStep) {
+      // blank line
+    } else {
+      if (insideStep) {
+        // Parse simple markdown links in step details
+        const processedLine = line.replace(
+          /\[(.*?)\]\((.*?)\)/g,
+          '<a href="$2" class="text-indigo-600 hover:text-indigo-800 underline font-semibold">$1</a>',
+        );
+        renderedLines.push(
+          `<p class="text-[11px] text-slate-500 leading-normal">${processedLine}</p>`,
+        );
+      } else {
+        // Standard markdown headers/paragraphs
+        if (line.startsWith("# ")) {
+          renderedLines.push(
+            `<h1 class="text-sm font-black text-slate-900 mb-2 uppercase tracking-wide">${line.substring(2)}</h1>`,
+          );
+        } else if (line.trim() !== "") {
+          const processedLine = line.replace(
+            /\[(.*?)\]\((.*?)\)/g,
+            '<a href="$2" class="text-indigo-600 hover:text-indigo-800 underline font-semibold">$1</a>',
+          );
+          renderedLines.push(
+            `<p class="text-xs text-slate-650 leading-relaxed mb-3">${processedLine}</p>`,
+          );
+        }
+      }
+    }
+  }
+  if (insideStep) {
+    renderedLines.push("</div>");
+  }
+
+  const finalHtml = renderedLines.join("\n");
+
+  return (
+    <div className="border border-slate-200 rounded-2xl shadow-sm bg-white overflow-hidden flex flex-col h-full min-h-[380px]">
+      <div className="bg-slate-50 border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex gap-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+          </div>
+          <span className="text-[10px] font-bold text-slate-400 select-none ml-2">
+            Dynamic Template Preview
+          </span>
+        </div>
+        <div className="flex items-center gap-1 bg-slate-200/50 px-2 py-0.5 rounded text-[9px] font-bold text-slate-500 select-none">
+          Live
+        </div>
+      </div>
+      <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/20">
+        <div className="flex items-start gap-1.5 text-xs">
+          <span className="font-bold text-slate-400 shrink-0 select-none">
+            Subject:
+          </span>
+          <span className="text-slate-700 font-semibold">
+            {subject || "Welcome to Uprise Digital - Let's get started!"}
+          </span>
+        </div>
+      </div>
+      <div className="p-6 overflow-y-auto flex-1 font-sans max-h-[380px] scrollbar-thin">
+        <div
+          className="prose-sm leading-relaxed text-slate-600"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: rendering parsed markdown blocks
+          dangerouslySetInnerHTML={{ __html: finalHtml }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsClient({
   initialDefaults,
   accounts,
@@ -316,6 +434,146 @@ export default function SettingsClient({
 
   const [isOnboardingSaving, setIsOnboardingSaving] = useState(false);
 
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const initialNodes = onboardingSettings?.workflowConfig?.nodes ?? [
+    {
+      id: "trigger",
+      type: "input",
+      data: { label: "Client Onboarded (Start)" },
+      position: { x: 50, y: 150 },
+      style: {
+        background: "#f8fafc",
+        border: "2px solid #10b981",
+        borderRadius: "12px",
+        color: "#0f172a",
+        fontWeight: "bold",
+        fontSize: "11px",
+        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+      },
+    },
+    {
+      id: "google-drive",
+      type: "default",
+      data: { label: "Google Drive Automation" },
+      position: { x: 280, y: 50 },
+      style: {
+        background: "#ffffff",
+        border: "2px solid #6366f1",
+        borderRadius: "12px",
+        color: "#0f172a",
+        fontWeight: "600",
+        fontSize: "11px",
+        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+      },
+    },
+    {
+      id: "notion",
+      type: "default",
+      data: { label: "Notion Dashboard Automation" },
+      position: { x: 280, y: 250 },
+      style: {
+        background: "#ffffff",
+        border: "2px solid #6366f1",
+        borderRadius: "12px",
+        color: "#0f172a",
+        fontWeight: "600",
+        fontSize: "11px",
+        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+      },
+    },
+    {
+      id: "email",
+      type: "output",
+      data: { label: "Send Welcome Email" },
+      position: { x: 520, y: 150 },
+      style: {
+        background: "#f8fafc",
+        border: "2px solid #4f46e5",
+        borderRadius: "12px",
+        color: "#0f172a",
+        fontWeight: "bold",
+        fontSize: "11px",
+        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+      },
+    },
+  ];
+
+  const initialEdges = onboardingSettings?.workflowConfig?.edges ?? [
+    {
+      id: "e-trig-drive",
+      source: "trigger",
+      target: "google-drive",
+      animated: true,
+    },
+    {
+      id: "e-trig-notion",
+      source: "trigger",
+      target: "notion",
+      animated: true,
+    },
+    {
+      id: "e-drive-email",
+      source: "google-drive",
+      target: "email",
+      animated: true,
+    },
+    { id: "e-notion-email", source: "notion", target: "email", animated: true },
+  ];
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  const onConnect = useCallback(
+    (params: any) =>
+      setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+    [setEdges],
+  );
+
+  const handleAddNode = (type: "google-drive" | "notion" | "email") => {
+    const labelMap = {
+      "google-drive": "Google Drive Automation",
+      notion: "Notion Dashboard Automation",
+      email: "Send Welcome Email",
+    };
+
+    if (nodes.some((n) => n.id === type)) {
+      toast.error(`${labelMap[type]} node already exists in your workflow!`);
+      return;
+    }
+
+    const newNode = {
+      id: type,
+      type: type === "email" ? "output" : "default",
+      data: { label: labelMap[type] },
+      position: {
+        x: 280,
+        y: type === "google-drive" ? 50 : type === "notion" ? 250 : 150,
+      },
+      style: {
+        background: type === "email" ? "#f8fafc" : "#ffffff",
+        border: `2px solid ${type === "email" ? "#4f46e5" : "#6366f1"}`,
+        borderRadius: "12px",
+        color: "#0f172a",
+        fontWeight: "600",
+        fontSize: "11px",
+        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+      },
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+    toast.success(`Added ${labelMap[type]} node. Drag edges to connect it.`);
+  };
+
+  const handleResetWorkflow = () => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+    toast.success("Workflow reset to default onboarding sequence.");
+  };
+
   const handleSaveOnboardingSettings = async () => {
     setIsOnboardingSaving(true);
     const toastId = toast.loading(
@@ -332,6 +590,10 @@ export default function SettingsClient({
         notionTemplatePageId,
         welcomeEmailSubject,
         welcomeEmailTemplate,
+        workflowConfig: {
+          nodes,
+          edges,
+        },
       });
 
       if (res.success && res.validation) {
@@ -2242,6 +2504,74 @@ export default function SettingsClient({
           {activeTab === "onboarding" && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start animate-in fade-in duration-200">
               <div className="lg:col-span-2 space-y-6">
+                {/* FLOWCHART BUILDER CARD */}
+                <Card className="border-slate-200 shadow-sm overflow-hidden">
+                  <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                      <SlidersHorizontal className="w-4 h-4 text-indigo-500" />
+                      Visual Onboarding Pipeline Configurator
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Drag and connect onboarding steps to design your
+                      automation workflow. Link handles to establish step
+                      sequence dependencies.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="h-[400px] w-full relative">
+                      {isMounted ? (
+                        <ReactFlow
+                          nodes={nodes}
+                          edges={edges}
+                          onNodesChange={onNodesChange}
+                          onEdgesChange={onEdgesChange}
+                          onConnect={onConnect}
+                          fitView
+                          className="bg-slate-50"
+                        >
+                          <Controls />
+                          <Background color="#cbd5e1" gap={16} size={1} />
+                          <Panel
+                            position="top-right"
+                            className="bg-white/95 backdrop-blur border border-slate-200 p-2.5 rounded-xl shadow-sm space-y-1.5 max-w-[200px] z-50"
+                          >
+                            <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                              Add Connector Node
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => handleAddNode("google-drive")}
+                              className="w-full text-left text-[10px] font-semibold px-2 py-1.5 hover:bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 text-slate-700 transition-colors cursor-pointer"
+                            >
+                              <Building className="w-3.5 h-3.5 text-indigo-500" />
+                              Google Drive
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAddNode("notion")}
+                              className="w-full text-left text-[10px] font-semibold px-2 py-1.5 hover:bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-1.5 text-slate-700 transition-colors cursor-pointer"
+                            >
+                              <Database className="w-3.5 h-3.5 text-indigo-500" />
+                              Notion Dashboard
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleResetWorkflow}
+                              className="w-full text-center text-[10px] font-bold px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-650 rounded-lg transition-colors border border-slate-200 mt-2 cursor-pointer"
+                            >
+                              Reset Flowchart
+                            </button>
+                          </Panel>
+                        </ReactFlow>
+                      ) : (
+                        <div className="w-full h-full bg-slate-50 flex items-center justify-center text-xs text-slate-400 font-semibold italic animate-pulse">
+                          Loading Flowchart Workspace...
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* GOOGLE DRIVE INTEGRATION CARD */}
                 <Card className="border-slate-200 shadow-sm overflow-hidden">
                   <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
@@ -2555,59 +2885,73 @@ export default function SettingsClient({
                       clients.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="p-6 space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                        Email Subject
-                      </label>
-                      <input
-                        type="text"
-                        value={welcomeEmailSubject}
-                        onChange={(e) => setWelcomeEmailSubject(e.target.value)}
-                        placeholder="Welcome to Uprise Digital - Let's get started!"
-                        className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      />
-                    </div>
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                      <div className="space-y-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Email Subject
+                          </label>
+                          <input
+                            type="text"
+                            value={welcomeEmailSubject}
+                            onChange={(e) =>
+                              setWelcomeEmailSubject(e.target.value)
+                            }
+                            placeholder="Welcome to Uprise Digital - Let's get started!"
+                            className="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                        </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                        Email Body Template (Plain Text or Markdown)
-                      </label>
-                      <textarea
-                        rows={10}
-                        value={welcomeEmailTemplate}
-                        onChange={(e) =>
-                          setWelcomeEmailTemplate(e.target.value)
-                        }
-                        placeholder={`Hello {{primary_contact_name}},\n\nWelcome to {{client_name}}! We are thrilled to partner with you.\n\nHere are your onboarding workspaces:\n- Notion Dashboard: {{notion_link}}\n- Google Drive Folder: {{drive_link}}\n\nLet's get started!\n\nBest,\nUprise Team`}
-                        className="w-full text-xs border border-slate-200 rounded-lg p-3 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-mono"
-                      />
-                      <div className="bg-slate-50 border border-slate-150 rounded-lg p-3.5 mt-2 text-[10px] text-slate-500 space-y-1 leading-relaxed">
-                        <p className="font-bold text-slate-700">
-                          Supported Template Variables:
-                        </p>
-                        <ul className="list-disc pl-4 space-y-0.5">
-                          <li>
-                            <code>{"{{primary_contact_name}}"}</code> - The
-                            contact person's name
-                          </li>
-                          <li>
-                            <code>{"{{client_name}}"}</code> - The client
-                            company's name
-                          </li>
-                          <li>
-                            <code>{"{{drive_link}}"}</code> - The generated
-                            Google Drive folder link
-                          </li>
-                          <li>
-                            <code>{"{{notion_link}}"}</code> - The generated
-                            Notion client dashboard link
-                          </li>
-                          <li>
-                            <code>{"{{signal_link}}"}</code> - The generated
-                            Signal group invite link
-                          </li>
-                        </ul>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Email Body Template (Plain Text or Markdown)
+                          </label>
+                          <textarea
+                            rows={12}
+                            value={welcomeEmailTemplate}
+                            onChange={(e) =>
+                              setWelcomeEmailTemplate(e.target.value)
+                            }
+                            placeholder={`Hello {{primary_contact_name}},\n\nWelcome to {{client_name}}! We are thrilled to partner with you.\n\nHere are your onboarding workspaces:\n- Notion Dashboard: {{notion_link}}\n- Google Drive Folder: {{drive_link}}\n\nLet's get started!\n\nBest,\nUprise Team`}
+                            className="w-full text-xs border border-slate-200 rounded-lg p-3 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-mono"
+                          />
+                          <div className="bg-slate-50 border border-slate-150 rounded-lg p-3.5 mt-2 text-[10px] text-slate-500 space-y-1 leading-relaxed">
+                            <p className="font-bold text-slate-700">
+                              Supported Template Variables:
+                            </p>
+                            <ul className="list-disc pl-4 space-y-0.5">
+                              <li>
+                                <code>{"{{primary_contact_name}}"}</code> - The
+                                contact person's name
+                              </li>
+                              <li>
+                                <code>{"{{client_name}}"}</code> - The client
+                                company's name
+                              </li>
+                              <li>
+                                <code>{"{{drive_link}}"}</code> - The generated
+                                Google Drive folder link
+                              </li>
+                              <li>
+                                <code>{"{{notion_link}}"}</code> - The generated
+                                Notion client dashboard link
+                              </li>
+                              <li>
+                                <code>{"{{signal_link}}"}</code> - The generated
+                                Signal group invite link
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* DYNAMIC EMAIL CLIENT PREVIEW */}
+                      <div className="flex flex-col h-full lg:sticky lg:top-4">
+                        <EmailPreview
+                          subject={welcomeEmailSubject}
+                          body={welcomeEmailTemplate}
+                        />
                       </div>
                     </div>
                   </CardContent>

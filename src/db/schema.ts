@@ -767,6 +767,7 @@ export const organizationOnboardingSettings = pgTable(
     notionError: text("notion_error"),
     welcomeEmailSubject: text("welcome_email_subject"),
     welcomeEmailTemplate: text("welcome_email_template"),
+    workflowConfig: jsonb("workflow_config"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

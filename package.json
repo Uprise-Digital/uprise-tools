@@ -22,6 +22,7 @@
     "@react-pdf/renderer": "^4.3.2",
     "@vercel/kv": "^3.0.0",
     "@vercel/queue": "^0.1.4",
+    "@xyflow/react": "^12.11.2",
     "better-auth": "^1.5.4",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",

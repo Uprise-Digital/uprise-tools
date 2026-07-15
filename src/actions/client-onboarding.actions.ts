@@ -245,7 +245,13 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
       let notionDashboardLink = `https://notion.so/uprisedigital/Uprise-Digital-x-${slug}-mock-dashboard`;
 
       // 2. Google Drive folder duplication/creation
-      const driveEnabled = settings ? settings.googleDriveEnabled : true;
+      const driveEnabled = settings?.workflowConfig
+        ? (settings.workflowConfig as any).nodes?.some(
+            (n: any) => n.id === "google-drive",
+          )
+        : settings
+          ? settings.googleDriveEnabled
+          : true;
       if (driveEnabled) {
         if (settings?.googleDriveStatus === "invalid") {
           throw new Error(
@@ -274,7 +280,13 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
       }
 
       // 3. Notion dashboard creation
-      const notionEnabled = settings ? settings.notionEnabled : true;
+      const notionEnabled = settings?.workflowConfig
+        ? (settings.workflowConfig as any).nodes?.some(
+            (n: any) => n.id === "notion",
+          )
+        : settings
+          ? settings.notionEnabled
+          : true;
       if (notionEnabled) {
         if (settings?.notionStatus === "invalid") {
           throw new Error(
