@@ -4,7 +4,9 @@ import {
   addEdge,
   Background,
   Controls,
+  Handle,
   Panel,
+  Position,
   ReactFlow,
   useEdgesState,
   useNodesState,
@@ -258,6 +260,152 @@ class SettingsErrorBoundary extends React.Component<
   }
 }
 
+function CustomTriggerNode({ id, data }: any) {
+  return (
+    <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[200px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+      <div className="w-10 h-10 shrink-0 bg-emerald-50 rounded-lg flex items-center justify-center border border-emerald-100/50">
+        <img
+          src="/images/logos/trigger.svg"
+          alt="Start"
+          className="w-5.5 h-5.5 select-none"
+        />
+      </div>
+      <div className="text-left">
+        <p className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider">
+          Trigger Event
+        </p>
+        <p className="text-[11px] font-bold text-slate-800 leading-tight">
+          {data.label}
+        </p>
+      </div>
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full !right-[-5px]"
+      />
+    </div>
+  );
+}
+
+function CustomDriveNode({ id, data }: any) {
+  return (
+    <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-blue-500 group">
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="w-2.5 h-2.5 bg-blue-500 border-2 border-white rounded-full !left-[-5px]"
+      />
+      <div className="w-10 h-10 shrink-0 bg-blue-50 rounded-lg flex items-center justify-center border border-blue-100/50">
+        <img
+          src="/images/logos/google-drive.svg"
+          alt="Google Drive"
+          className="w-5.5 h-5.5 select-none"
+        />
+      </div>
+      <div className="text-left flex-1">
+        <p className="text-[9px] font-extrabold text-blue-600 uppercase tracking-wider">
+          Google Workspace
+        </p>
+        <p className="text-[11px] font-bold text-slate-800 leading-tight">
+          {data.label}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => data.onDeleteNode?.(id)}
+        className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold"
+      >
+        ✕
+      </button>
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="w-2.5 h-2.5 bg-blue-500 border-2 border-white rounded-full !right-[-5px]"
+      />
+    </div>
+  );
+}
+
+function CustomNotionNode({ id, data }: any) {
+  return (
+    <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-slate-900 group">
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="w-2.5 h-2.5 bg-slate-900 border-2 border-white rounded-full !left-[-5px]"
+      />
+      <div className="w-10 h-10 shrink-0 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200">
+        <img
+          src="/images/logos/notion.svg"
+          alt="Notion"
+          className="w-5.5 h-5.5 select-none"
+        />
+      </div>
+      <div className="text-left flex-1">
+        <p className="text-[9px] font-extrabold text-slate-850 uppercase tracking-wider">
+          Notion Portal
+        </p>
+        <p className="text-[11px] font-bold text-slate-800 leading-tight">
+          {data.label}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => data.onDeleteNode?.(id)}
+        className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold"
+      >
+        ✕
+      </button>
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="w-2.5 h-2.5 bg-slate-900 border-2 border-white rounded-full !right-[-5px]"
+      />
+    </div>
+  );
+}
+
+function CustomEmailNode({ id, data }: any) {
+  return (
+    <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[200px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-indigo-600 group">
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="w-2.5 h-2.5 bg-indigo-650 border-2 border-white rounded-full !left-[-5px]"
+      />
+      <div className="w-10 h-10 shrink-0 bg-indigo-50 rounded-lg flex items-center justify-center border border-indigo-100/50">
+        <img
+          src="/images/logos/email.svg"
+          alt="Welcome Email"
+          className="w-5.5 h-5.5 select-none"
+        />
+      </div>
+      <div className="text-left flex-1">
+        <p className="text-[9px] font-extrabold text-indigo-600 uppercase tracking-wider">
+          Email Delivery
+        </p>
+        <p className="text-[11px] font-bold text-slate-800 leading-tight">
+          {data.label}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => data.onDeleteNode?.(id)}
+        className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+const nodeTypes = {
+  customTrigger: CustomTriggerNode,
+  customDrive: CustomDriveNode,
+  customNotion: CustomNotionNode,
+  customEmail: CustomEmailNode,
+};
+
 function EmailPreview({ subject, body }: { subject: string; body: string }) {
   const variables: Record<string, string> = {
     primary_contact_name: "Seyone",
@@ -442,63 +590,27 @@ export default function SettingsClient({
   const initialNodes = onboardingSettings?.workflowConfig?.nodes ?? [
     {
       id: "trigger",
-      type: "input",
+      type: "customTrigger",
       data: { label: "Client Onboarded (Start)" },
-      position: { x: 50, y: 150 },
-      style: {
-        background: "#f8fafc",
-        border: "2px solid #10b981",
-        borderRadius: "12px",
-        color: "#0f172a",
-        fontWeight: "bold",
-        fontSize: "11px",
-        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
-      },
+      position: { x: 50, y: 120 },
     },
     {
       id: "google-drive",
-      type: "default",
+      type: "customDrive",
       data: { label: "Google Drive Automation" },
-      position: { x: 280, y: 50 },
-      style: {
-        background: "#ffffff",
-        border: "2px solid #6366f1",
-        borderRadius: "12px",
-        color: "#0f172a",
-        fontWeight: "600",
-        fontSize: "11px",
-        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
-      },
+      position: { x: 300, y: 120 },
     },
     {
       id: "notion",
-      type: "default",
+      type: "customNotion",
       data: { label: "Notion Dashboard Automation" },
-      position: { x: 280, y: 250 },
-      style: {
-        background: "#ffffff",
-        border: "2px solid #6366f1",
-        borderRadius: "12px",
-        color: "#0f172a",
-        fontWeight: "600",
-        fontSize: "11px",
-        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
-      },
+      position: { x: 580, y: 120 },
     },
     {
       id: "email",
-      type: "output",
+      type: "customEmail",
       data: { label: "Send Welcome Email" },
-      position: { x: 520, y: 150 },
-      style: {
-        background: "#f8fafc",
-        border: "2px solid #4f46e5",
-        borderRadius: "12px",
-        color: "#0f172a",
-        fontWeight: "bold",
-        fontSize: "11px",
-        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
-      },
+      position: { x: 860, y: 120 },
     },
   ];
 
@@ -510,22 +622,48 @@ export default function SettingsClient({
       animated: true,
     },
     {
-      id: "e-trig-notion",
-      source: "trigger",
+      id: "e-drive-notion",
+      source: "google-drive",
       target: "notion",
       animated: true,
     },
     {
-      id: "e-drive-email",
-      source: "google-drive",
+      id: "e-notion-email",
+      source: "notion",
       target: "email",
       animated: true,
     },
-    { id: "e-notion-email", source: "notion", target: "email", animated: true },
   ];
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  const handleDeleteNodeById = useCallback(
+    (nodeId: string) => {
+      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+      setEdges((eds) =>
+        eds.filter((e) => e.source !== nodeId && e.target !== nodeId),
+      );
+      toast.success("Removed step from onboarding workflow.");
+    },
+    [setNodes, setEdges],
+  );
+
+  // Inject delete handler on mount and updates
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.data.onDeleteNode) return node;
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onDeleteNode: handleDeleteNodeById,
+          },
+        };
+      }),
+    );
+  }, [handleDeleteNodeById, setNodes]);
 
   const onConnect = useCallback(
     (params: any) =>
@@ -540,6 +678,12 @@ export default function SettingsClient({
       email: "Send Welcome Email",
     };
 
+    const typeMap = {
+      "google-drive": "customDrive",
+      notion: "customNotion",
+      email: "customEmail",
+    };
+
     if (nodes.some((n) => n.id === type)) {
       toast.error(`${labelMap[type]} node already exists in your workflow!`);
       return;
@@ -547,20 +691,14 @@ export default function SettingsClient({
 
     const newNode = {
       id: type,
-      type: type === "email" ? "output" : "default",
-      data: { label: labelMap[type] },
-      position: {
-        x: 280,
-        y: type === "google-drive" ? 50 : type === "notion" ? 250 : 150,
+      type: typeMap[type],
+      data: {
+        label: labelMap[type],
+        onDeleteNode: handleDeleteNodeById,
       },
-      style: {
-        background: type === "email" ? "#f8fafc" : "#ffffff",
-        border: `2px solid ${type === "email" ? "#4f46e5" : "#6366f1"}`,
-        borderRadius: "12px",
-        color: "#0f172a",
-        fontWeight: "600",
-        fontSize: "11px",
-        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+      position: {
+        x: type === "google-drive" ? 300 : type === "notion" ? 580 : 860,
+        y: 120,
       },
     };
 
@@ -569,8 +707,54 @@ export default function SettingsClient({
   };
 
   const handleResetWorkflow = () => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
+    const resetNodes = [
+      {
+        id: "trigger",
+        type: "customTrigger",
+        data: { label: "Client Onboarded (Start)" },
+        position: { x: 50, y: 120 },
+      },
+      {
+        id: "google-drive",
+        type: "customDrive",
+        data: { label: "Google Drive Automation" },
+        position: { x: 300, y: 120 },
+      },
+      {
+        id: "notion",
+        type: "customNotion",
+        data: { label: "Notion Dashboard Automation" },
+        position: { x: 580, y: 120 },
+      },
+      {
+        id: "email",
+        type: "customEmail",
+        data: { label: "Send Welcome Email" },
+        position: { x: 860, y: 120 },
+      },
+    ];
+    const resetEdges = [
+      {
+        id: "e-trig-drive",
+        source: "trigger",
+        target: "google-drive",
+        animated: true,
+      },
+      {
+        id: "e-drive-notion",
+        source: "google-drive",
+        target: "notion",
+        animated: true,
+      },
+      {
+        id: "e-notion-email",
+        source: "notion",
+        target: "email",
+        animated: true,
+      },
+    ];
+    setNodes(resetNodes);
+    setEdges(resetEdges);
     toast.success("Workflow reset to default onboarding sequence.");
   };
 
@@ -2526,6 +2710,7 @@ export default function SettingsClient({
                           onNodesChange={onNodesChange}
                           onEdgesChange={onEdgesChange}
                           onConnect={onConnect}
+                          nodeTypes={nodeTypes}
                           fitView
                           className="bg-slate-50"
                         >
