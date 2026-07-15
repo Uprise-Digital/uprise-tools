@@ -29,7 +29,10 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import { syncAgencyPortfolioAction } from "@/actions/agency.actions";
 import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
-import { saveOnboardingSettingsAction } from "@/actions/onboarding-settings.actions";
+import {
+  disconnectGoogleDriveAction,
+  saveOnboardingSettingsAction,
+} from "@/actions/onboarding-settings.actions";
 import {
   disconnectGoogleAdsAction,
   refreshAdAccountsMetadataAction,
@@ -151,11 +154,13 @@ interface SettingsClientProps {
   userEmail: string;
   userRole: string;
   initialAutoJoinDomainEnabled: boolean;
+  orgId: string;
   onboardingSettings: {
     id: number;
     googleDriveEnabled: boolean;
     googleDriveParentFolderId: string;
     googleDriveTemplateFolderId: string;
+    googleDriveEmail: string;
     googleDriveStatus: string;
     googleDriveError: string;
     notionEnabled: boolean;
@@ -251,6 +256,7 @@ export default function SettingsClient({
   userEmail,
   userRole,
   initialAutoJoinDomainEnabled,
+  orgId,
   onboardingSettings,
 }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<
@@ -276,6 +282,9 @@ export default function SettingsClient({
   );
   const [googleDriveError, setGoogleDriveError] = useState(
     onboardingSettings?.googleDriveError ?? "",
+  );
+  const [googleDriveEmail, setGoogleDriveEmail] = useState(
+    onboardingSettings?.googleDriveEmail ?? "",
   );
 
   const [notionEnabled, setNotionEnabled] = useState(
@@ -357,6 +366,37 @@ export default function SettingsClient({
       toast.error(err.message || "An error occurred.", { id: toastId });
     } finally {
       setIsOnboardingSaving(false);
+    }
+  };
+
+  const [isGoogleDriveDisconnecting, setIsGoogleDriveDisconnecting] =
+    useState(false);
+
+  const handleConnectGoogleDrive = () => {
+    window.location.href = `/api/auth/google-drive/connect?orgId=${orgId}`;
+  };
+
+  const handleDisconnectGoogleDrive = async () => {
+    setIsGoogleDriveDisconnecting(true);
+    const toastId = toast.loading("Disconnecting Google Drive connection...");
+    try {
+      const res = await disconnectGoogleDriveAction();
+      if (res.success) {
+        setGoogleDriveEmail("");
+        setGoogleDriveStatus("unconfigured");
+        setGoogleDriveError("");
+        toast.success("Google Drive disconnected successfully!", {
+          id: toastId,
+        });
+      } else {
+        toast.error(res.error || "Failed to disconnect Google Drive.", {
+          id: toastId,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.", { id: toastId });
+    } finally {
+      setIsGoogleDriveDisconnecting(false);
     }
   };
 
@@ -2266,6 +2306,54 @@ export default function SettingsClient({
                             {googleDriveError}
                           </p>
                         </div>
+                      </div>
+                    )}
+
+                    {googleDriveEmail ? (
+                      <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
+                            <Building className="w-4 h-4 text-indigo-600" />
+                          </div>
+                          <div className="text-xs">
+                            <p className="font-semibold text-slate-700">
+                              Connected to Google Drive
+                            </p>
+                            <p className="text-slate-500 mt-0.5">
+                              {googleDriveEmail}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isGoogleDriveDisconnecting}
+                          onClick={handleDisconnectGoogleDrive}
+                          className="text-rose-600 hover:text-rose-750 hover:bg-rose-50 border-rose-200 hover:border-rose-350 font-semibold"
+                        >
+                          Disconnect
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-indigo-50/30 border border-indigo-100 rounded-xl">
+                        <div className="text-xs">
+                          <p className="font-bold text-slate-800">
+                            Google Drive Account Link Required
+                          </p>
+                          <p className="text-slate-500 mt-0.5">
+                            Link your Google Account to authorize client folder
+                            creation automation.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={handleConnectGoogleDrive}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2 shrink-0 rounded-lg flex items-center gap-1.5 h-9"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Connect Google Drive
+                        </Button>
                       </div>
                     )}
 

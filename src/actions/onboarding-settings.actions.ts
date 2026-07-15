@@ -65,6 +65,8 @@ export async function getOnboardingSettingsAction() {
         googleDriveEnabled: record.googleDriveEnabled,
         googleDriveParentFolderId: record.googleDriveParentFolderId || "",
         googleDriveTemplateFolderId: record.googleDriveTemplateFolderId || "",
+        googleDriveRefreshToken: record.googleDriveRefreshToken || "",
+        googleDriveEmail: record.googleDriveEmail || "",
         googleDriveStatus: record.googleDriveStatus,
         googleDriveError: record.googleDriveError || "",
         notionEnabled: record.notionEnabled,
@@ -81,6 +83,31 @@ export async function getOnboardingSettingsAction() {
     return {
       success: false,
       error: err.message || "Failed to load onboarding settings",
+    };
+  }
+}
+
+export async function disconnectGoogleDriveAction() {
+  try {
+    const { orgId } = await getSessionOrgId();
+    if (!orgId) return { success: false, error: "No active organization" };
+
+    await db
+      .update(organizationOnboardingSettings)
+      .set({
+        googleDriveEmail: null,
+        googleDriveRefreshToken: null,
+        googleDriveStatus: "unconfigured",
+        googleDriveError: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(organizationOnboardingSettings.organizationId, orgId));
+
+    return { success: true };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || "Failed to disconnect Google Drive",
     };
   }
 }

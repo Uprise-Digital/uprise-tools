@@ -167,6 +167,7 @@ export default async function SettingsPage() {
       userEmail={session.user.email}
       userRole={memberRecord?.role || "member"}
       initialAutoJoinDomainEnabled={initialAutoJoinDomainEnabled}
+      orgId={orgId}
       onboardingSettings={
         onboardingSettingsRes.success && onboardingSettingsRes.data
           ? onboardingSettingsRes.data

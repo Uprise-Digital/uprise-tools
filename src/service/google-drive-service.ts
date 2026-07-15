@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { google } from "googleapis";
 import { db } from "@/db";
-import { googleAdsConnections } from "@/db/schema";
+import { organizationOnboardingSettings } from "@/db/schema";
 
 /**
  * Initializes a Google Drive API client using either Service Account or OAuth2 credentials.
@@ -27,11 +27,16 @@ async function getDriveClient(organizationId?: string) {
     process.env.GOOGLE_ADS_REFRESH_TOKEN;
 
   if (organizationId) {
-    const connection = await db.query.googleAdsConnections.findFirst({
-      where: eq(googleAdsConnections.organizationId, organizationId),
+    const settings = await db.query.organizationOnboardingSettings.findFirst({
+      where: eq(organizationOnboardingSettings.organizationId, organizationId),
     });
-    if (connection?.refreshToken) {
-      refreshToken = connection.refreshToken;
+    if (settings?.googleDriveRefreshToken) {
+      try {
+        const { decryptToken } = await import("@/lib/crypto");
+        refreshToken = decryptToken(settings.googleDriveRefreshToken);
+      } catch (err) {
+        console.error("Failed to decrypt Google Drive token:", err);
+      }
     }
   }
 

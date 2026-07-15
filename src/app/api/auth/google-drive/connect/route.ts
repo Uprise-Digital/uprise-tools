@@ -20,15 +20,13 @@ export async function GET(request: NextRequest) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const redirectUri = `${appUrl}/api/auth/google-ads/callback`;
+  const redirectUri = `${appUrl}/api/auth/google-drive/callback`;
 
-  // We need offline access to obtain a refresh token.
-  // The 'adwords' scope is required to query the Google Ads API.
   const scopes = [
     "openid",
     "email",
     "profile",
-    "https://www.googleapis.com/auth/adwords",
+    "https://www.googleapis.com/auth/drive",
   ];
 
   const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");

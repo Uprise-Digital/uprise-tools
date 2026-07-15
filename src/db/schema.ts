@@ -753,6 +753,8 @@ export const organizationOnboardingSettings = pgTable(
       .notNull(),
     googleDriveParentFolderId: text("google_drive_parent_folder_id"),
     googleDriveTemplateFolderId: text("google_drive_template_folder_id"),
+    googleDriveRefreshToken: text("google_drive_refresh_token"),
+    googleDriveEmail: text("google_drive_email"),
     googleDriveStatus: text("google_drive_status")
       .default("unconfigured")
       .notNull(),
