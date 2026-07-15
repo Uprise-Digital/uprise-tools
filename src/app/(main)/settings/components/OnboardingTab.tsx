@@ -64,43 +64,100 @@ interface OnboardingTabProps {
   orgId: string;
 }
 
+// Global path reachability helper for linear traversal
+export function getActiveWorkflowChain(edges: any[]): string[] {
+  const activeIds: string[] = ["trigger"];
+  let currentId = "trigger";
+  const visited = new Set<string>([currentId]);
+
+  while (true) {
+    const outgoing = edges.filter((e: any) => e.source === currentId);
+    if (outgoing.length !== 1) {
+      break;
+    }
+    const nextId = outgoing[0].target;
+    if (visited.has(nextId)) {
+      break;
+    }
+    visited.add(nextId);
+    activeIds.push(nextId);
+    currentId = nextId;
+  }
+  return activeIds;
+}
+
 // React Flow Custom Node Definitions
 function CustomTriggerNode({ id, data }: any) {
+  const { getEdges } = useReactFlow();
+  const edges = getEdges();
+  const activeChain = getActiveWorkflowChain(edges);
+  const isActive = activeChain.includes(id);
+
   return (
-    <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[200px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-      <div className="w-10 h-10 shrink-0 bg-emerald-50 rounded-lg flex items-center justify-center border border-emerald-100/50">
+    <div
+      className={cn(
+        "relative w-28 h-28 rounded-full bg-white border-2 flex flex-col items-center justify-center p-3 text-center shadow-sm font-sans transition-all hover:shadow-md",
+        isActive
+          ? "border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+          : "border-slate-200 opacity-60",
+      )}
+    >
+      <div
+        className={cn(
+          "w-10 h-10 rounded-full flex items-center justify-center mb-1 border shrink-0",
+          isActive
+            ? "bg-emerald-50 border-emerald-100"
+            : "bg-slate-50 border-slate-100",
+        )}
+      >
         <img
           src="/images/logos/trigger.svg"
           alt="Start"
-          className="w-5.5 h-5.5 select-none"
+          className="w-5 h-5 select-none"
         />
       </div>
-      <div className="text-left">
-        <p className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider">
-          Trigger Event
+      <div className="leading-tight flex flex-col items-center">
+        <p className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-wider">
+          Start
         </p>
-        <p className="text-[11px] font-bold text-slate-800 leading-tight">
+        <p className="text-[9.5px] font-bold text-slate-800 line-clamp-2">
           {data.label}
         </p>
       </div>
       <Handle
         type="source"
         position={Position.Right}
-        className="w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full !right-[-5px]"
+        className={cn(
+          "w-2.5 h-2.5 border-2 border-white rounded-full !right-[-5px]",
+          isActive ? "bg-emerald-500" : "bg-slate-300",
+        )}
       />
     </div>
   );
 }
 
 function CustomDriveNode({ id, data }: any) {
-  const { deleteElements } = useReactFlow();
+  const { deleteElements, getEdges } = useReactFlow();
+  const edges = getEdges();
+  const activeChain = getActiveWorkflowChain(edges);
+  const isActive = activeChain.includes(id);
 
   return (
-    <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-blue-500 group">
+    <div
+      className={cn(
+        "relative bg-white border rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 group",
+        isActive
+          ? "border-l-blue-500 border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+          : "border-l-slate-400 border-slate-200 opacity-60 grayscale",
+      )}
+    >
       <Handle
         type="target"
         position={Position.Left}
-        className="w-2.5 h-2.5 bg-blue-500 border-2 border-white rounded-full !left-[-5px]"
+        className={cn(
+          "w-2.5 h-2.5 border-2 border-white rounded-full !left-[-5px]",
+          isActive ? "bg-emerald-500" : "bg-slate-300",
+        )}
       />
       <div className="w-10 h-10 shrink-0 bg-blue-50 rounded-lg flex items-center justify-center border border-blue-100/50">
         <img
@@ -130,21 +187,37 @@ function CustomDriveNode({ id, data }: any) {
       <Handle
         type="source"
         position={Position.Right}
-        className="w-2.5 h-2.5 bg-blue-500 border-2 border-white rounded-full !right-[-5px]"
+        className={cn(
+          "w-2.5 h-2.5 border-2 border-white rounded-full !right-[-5px]",
+          isActive ? "bg-emerald-500" : "bg-slate-300",
+        )}
       />
     </div>
   );
 }
 
 function CustomNotionNode({ id, data }: any) {
-  const { deleteElements } = useReactFlow();
+  const { deleteElements, getEdges } = useReactFlow();
+  const edges = getEdges();
+  const activeChain = getActiveWorkflowChain(edges);
+  const isActive = activeChain.includes(id);
 
   return (
-    <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-slate-900 group">
+    <div
+      className={cn(
+        "relative bg-white border rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 group",
+        isActive
+          ? "border-l-slate-900 border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+          : "border-l-slate-400 border-slate-200 opacity-60 grayscale",
+      )}
+    >
       <Handle
         type="target"
         position={Position.Left}
-        className="w-2.5 h-2.5 bg-slate-900 border-2 border-white rounded-full !left-[-5px]"
+        className={cn(
+          "w-2.5 h-2.5 border-2 border-white rounded-full !left-[-5px]",
+          isActive ? "bg-emerald-500" : "bg-slate-300",
+        )}
       />
       <div className="w-10 h-10 shrink-0 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200">
         <img
@@ -174,34 +247,57 @@ function CustomNotionNode({ id, data }: any) {
       <Handle
         type="source"
         position={Position.Right}
-        className="w-2.5 h-2.5 bg-slate-900 border-2 border-white rounded-full !right-[-5px]"
+        className={cn(
+          "w-2.5 h-2.5 border-2 border-white rounded-full !right-[-5px]",
+          isActive ? "bg-emerald-500" : "bg-slate-300",
+        )}
       />
     </div>
   );
 }
 
 function CustomEmailNode({ id, data }: any) {
-  const { deleteElements } = useReactFlow();
+  const { deleteElements, getEdges } = useReactFlow();
+  const edges = getEdges();
+  const activeChain = getActiveWorkflowChain(edges);
+  const isActive = activeChain.includes(id);
 
   return (
-    <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[200px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-indigo-600 group">
+    <div
+      className={cn(
+        "relative w-28 h-28 rounded-full bg-white border-2 flex flex-col items-center justify-center p-3 text-center shadow-sm font-sans transition-all hover:shadow-md group",
+        isActive
+          ? "border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+          : "border-slate-200 opacity-60",
+      )}
+    >
       <Handle
         type="target"
         position={Position.Left}
-        className="w-2.5 h-2.5 bg-indigo-650 border-2 border-white rounded-full !left-[-5px]"
+        className={cn(
+          "w-2.5 h-2.5 border-2 border-white rounded-full !left-[-5px]",
+          isActive ? "bg-emerald-500" : "bg-slate-300",
+        )}
       />
-      <div className="w-10 h-10 shrink-0 bg-indigo-50 rounded-lg flex items-center justify-center border border-indigo-100/50">
+      <div
+        className={cn(
+          "w-10 h-10 rounded-full flex items-center justify-center mb-1 border shrink-0",
+          isActive
+            ? "bg-indigo-50 border-indigo-100"
+            : "bg-slate-50 border-slate-100",
+        )}
+      >
         <img
           src="/images/logos/email.svg"
           alt="Welcome Email"
-          className="w-5.5 h-5.5 select-none"
+          className="w-5 h-5 select-none"
         />
       </div>
-      <div className="text-left flex-1">
-        <p className="text-[9px] font-extrabold text-indigo-600 uppercase tracking-wider">
-          Email Delivery
+      <div className="leading-tight flex-1 flex flex-col justify-center items-center">
+        <p className="text-[7.5px] font-extrabold text-slate-400 uppercase tracking-wider">
+          End
         </p>
-        <p className="text-[11px] font-bold text-slate-800 leading-tight">
+        <p className="text-[9.5px] font-bold text-slate-800 line-clamp-2">
           {data.label}
         </p>
       </div>
@@ -211,7 +307,7 @@ function CustomEmailNode({ id, data }: any) {
           e.stopPropagation();
           deleteElements({ nodes: [{ id }] });
         }}
-        className="nodrag absolute -top-2 -right-2 w-5.5 h-5.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold transition-transform transform hover:scale-110"
+        className="nodrag absolute -top-1 -right-1 w-5.5 h-5.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold transition-transform transform hover:scale-110"
       >
         ✕
       </button>
@@ -585,6 +681,20 @@ Founder | ${orgName}`;
     }
   };
 
+  // Compute active chain state dynamically for styled connections representation
+  const activeChain = getActiveWorkflowChain(edges);
+  const styledEdges = edges.map((edge) => {
+    const isActive =
+      activeChain.includes(edge.source) && activeChain.includes(edge.target);
+    return {
+      ...edge,
+      animated: isActive,
+      style: isActive
+        ? { stroke: "#10b981", strokeWidth: 2 }
+        : { stroke: "#cbd5e1", strokeWidth: 1.5 },
+    };
+  });
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start animate-in fade-in duration-200">
       <div className="lg:col-span-2 space-y-6">
@@ -603,7 +713,7 @@ Founder | ${orgName}`;
           <CardContent className="p-0 h-[450px] relative bg-slate-50/50">
             <ReactFlow
               nodes={nodes}
-              edges={edges}
+              edges={styledEdges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
@@ -752,7 +862,7 @@ Founder | ${orgName}`;
                   className="text-xs bg-white"
                   placeholder="e.g. 1a2b3c4d5e..."
                 />
-                <p className="text-[10px] text-slate-450 leading-normal">
+                <p className="text-[10px] text-slate-455 leading-normal">
                   The Google Drive folder ID where all newly created client
                   directories will be stored.
                 </p>
@@ -880,7 +990,7 @@ Founder | ${orgName}`;
                     className="text-xs bg-white"
                     placeholder="e.g. 5a4b3c2d1e0f..."
                   />
-                  <p className="text-[10px] text-slate-450 leading-normal">
+                  <p className="text-[10px] text-slate-455 leading-normal">
                     The ID of the template page inside your workspace. New
                     client dashboards will copy this block structure.
                   </p>

@@ -20,6 +20,27 @@ import { updateGhlOpportunityStage } from "@/service/gohighlevel-service";
 import { createClientDriveFolder } from "@/service/google-drive-service";
 import { createClientNotionDashboard } from "@/service/notion-service";
 
+function getActiveWorkflowChain(edges: any[]): string[] {
+  const activeIds: string[] = ["trigger"];
+  let currentId = "trigger";
+  const visited = new Set<string>([currentId]);
+
+  while (true) {
+    const outgoing = edges.filter((e: any) => e.source === currentId);
+    if (outgoing.length !== 1) {
+      break;
+    }
+    const nextId = outgoing[0].target;
+    if (visited.has(nextId)) {
+      break;
+    }
+    visited.add(nextId);
+    activeIds.push(nextId);
+    currentId = nextId;
+  }
+  return activeIds;
+}
+
 /**
  * Retrieves the active organization context for the current session.
  */
@@ -245,11 +266,12 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
       let driveFolderLink = `https://drive.google.com/drive/folders/mock-folder-${slug}`;
       let notionDashboardLink = `https://notion.so/uprisedigital/Uprise-Digital-x-${slug}-mock-dashboard`;
 
+      const rawEdges = (settings?.workflowConfig as any)?.edges || [];
+      const activeChain = getActiveWorkflowChain(rawEdges);
+
       // 2. Google Drive folder duplication/creation
       const driveEnabled = settings?.workflowConfig
-        ? (settings.workflowConfig as any).nodes?.some(
-            (n: any) => n.id === "google-drive",
-          )
+        ? activeChain.includes("google-drive")
         : settings
           ? settings.googleDriveEnabled
           : true;
@@ -282,9 +304,7 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
 
       // 3. Notion dashboard creation
       const notionEnabled = settings?.workflowConfig
-        ? (settings.workflowConfig as any).nodes?.some(
-            (n: any) => n.id === "notion",
-          )
+        ? activeChain.includes("notion")
         : settings
           ? settings.notionEnabled
           : true;
