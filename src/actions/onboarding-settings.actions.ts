@@ -151,8 +151,8 @@ export async function disconnectGoogleDriveAction() {
 
 export async function saveOnboardingSettingsAction(data: {
   googleDriveEnabled: boolean;
-  googleDriveParentFolderId: string;
-  googleDriveTemplateFolderId: string;
+  googleDriveParentFolderId?: string;
+  googleDriveTemplateFolderId?: string;
   notionEnabled: boolean;
   notionApiKey: string;
   notionParentPageId: string;
@@ -209,20 +209,28 @@ export async function saveOnboardingSettingsAction(data: {
       }
     }
 
+    const driveNode = data.workflowConfig?.nodes?.find(
+      (n: any) => n.id === "google-drive",
+    );
+    const driveData = driveNode?.data || {};
+    const parentFolderId =
+      driveData.parentFolderId || data.googleDriveParentFolderId || "";
+    const templateFolderId =
+      driveData.templateFolderId || data.googleDriveTemplateFolderId || "";
+    const driveMode = driveData.mode || "empty-folder";
+
     let googleDriveStatus = "unconfigured";
     let googleDriveError = null;
     if (data.googleDriveEnabled) {
-      if (!data.googleDriveParentFolderId) {
+      if (!parentFolderId) {
         googleDriveStatus = "invalid";
-        googleDriveError = "Missing Google Drive Parent Folder ID.";
+        googleDriveError =
+          "Missing Google Drive Parent Folder ID in flowchart node configurations.";
       } else {
         try {
-          await verifyDriveFolderAccess(data.googleDriveParentFolderId, orgId);
-          if (data.googleDriveTemplateFolderId) {
-            await verifyDriveFolderAccess(
-              data.googleDriveTemplateFolderId,
-              orgId,
-            );
+          await verifyDriveFolderAccess(parentFolderId, orgId);
+          if (driveMode === "copy-template" && templateFolderId) {
+            await verifyDriveFolderAccess(templateFolderId, orgId);
           }
           googleDriveStatus = "valid";
         } catch (err: any) {
@@ -237,8 +245,8 @@ export async function saveOnboardingSettingsAction(data: {
         .update(organizationOnboardingSettings)
         .set({
           googleDriveEnabled: data.googleDriveEnabled,
-          googleDriveParentFolderId: data.googleDriveParentFolderId || null,
-          googleDriveTemplateFolderId: data.googleDriveTemplateFolderId || null,
+          googleDriveParentFolderId: parentFolderId || null,
+          googleDriveTemplateFolderId: templateFolderId || null,
           googleDriveStatus,
           googleDriveError,
           notionEnabled: data.notionEnabled,
@@ -257,8 +265,8 @@ export async function saveOnboardingSettingsAction(data: {
       await db.insert(organizationOnboardingSettings).values({
         organizationId: orgId,
         googleDriveEnabled: data.googleDriveEnabled,
-        googleDriveParentFolderId: data.googleDriveParentFolderId || null,
-        googleDriveTemplateFolderId: data.googleDriveTemplateFolderId || null,
+        googleDriveParentFolderId: parentFolderId || null,
+        googleDriveTemplateFolderId: templateFolderId || null,
         googleDriveStatus,
         googleDriveError,
         notionEnabled: data.notionEnabled,

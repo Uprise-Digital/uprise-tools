@@ -96,7 +96,7 @@ function CustomTriggerNode({ id, data }: any) {
   return (
     <div
       className={cn(
-        "relative w-28 h-28 rounded-full bg-white border-2 flex flex-col items-center justify-center p-3 text-center shadow-sm font-sans transition-all hover:shadow-md",
+        "relative w-28 h-28 rounded-full bg-white border-2 flex flex-col items-center justify-center p-3 text-center shadow-sm font-sans transition-all hover:shadow-md cursor-pointer",
         isActive
           ? "border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
           : "border-slate-200 opacity-60",
@@ -145,7 +145,7 @@ function CustomDriveNode({ id, data }: any) {
   return (
     <div
       className={cn(
-        "relative bg-white border rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 group",
+        "relative bg-white border rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 group cursor-pointer",
         isActive
           ? "border-l-blue-500 border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
           : "border-l-slate-400 border-slate-200 opacity-60 grayscale",
@@ -166,13 +166,45 @@ function CustomDriveNode({ id, data }: any) {
           className="w-5.5 h-5.5 select-none"
         />
       </div>
-      <div className="text-left flex-1">
+      <div className="text-left flex-1 min-w-0">
         <p className="text-[9px] font-extrabold text-blue-600 uppercase tracking-wider">
           Google Workspace
         </p>
-        <p className="text-[11px] font-bold text-slate-800 leading-tight">
+        <p className="text-[11px] font-bold text-slate-800 leading-tight truncate">
           {data.label}
         </p>
+        <div className="text-[8px] text-slate-500 font-medium mt-1 leading-relaxed border-t pt-1 border-slate-100 space-y-0.5">
+          <div>
+            Mode:{" "}
+            <span className="font-bold text-slate-700 capitalize">
+              {data.mode?.replace("-", " ") || "empty folder"}
+            </span>
+          </div>
+          {data.parentFolderId && (
+            <div className="truncate">
+              Root:{" "}
+              <span className="font-mono text-slate-600">
+                {data.parentFolderId}
+              </span>
+            </div>
+          )}
+          {data.shareEmails && (
+            <div className="truncate">
+              Share:{" "}
+              <span className="text-indigo-600 font-bold">
+                {data.shareEmails}
+              </span>
+            </div>
+          )}
+          {data.docRules && data.docRules.length > 0 && (
+            <div>
+              Docs:{" "}
+              <span className="text-indigo-600 font-bold">
+                {data.docRules.length} rules
+              </span>
+            </div>
+          )}
+        </div>
       </div>
       <button
         type="button"
@@ -205,7 +237,7 @@ function CustomNotionNode({ id, data }: any) {
   return (
     <div
       className={cn(
-        "relative bg-white border rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 group",
+        "relative bg-white border rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 group cursor-pointer",
         isActive
           ? "border-l-slate-900 border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
           : "border-l-slate-400 border-slate-200 opacity-60 grayscale",
@@ -265,7 +297,7 @@ function CustomEmailNode({ id, data }: any) {
   return (
     <div
       className={cn(
-        "relative w-28 h-28 rounded-full bg-white border-2 flex flex-col items-center justify-center p-3 text-center shadow-sm font-sans transition-all hover:shadow-md group",
+        "relative w-28 h-28 rounded-full bg-white border-2 flex flex-col items-center justify-center p-3 text-center shadow-sm font-sans transition-all hover:shadow-md group cursor-pointer",
         isActive
           ? "border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
           : "border-slate-200 opacity-60",
@@ -330,11 +362,6 @@ function OnboardingTabContent({
   const [googleDriveEnabled, setGoogleDriveEnabled] = useState(
     onboardingSettings?.googleDriveEnabled ?? false,
   );
-  const [googleDriveParentFolderId, setGoogleDriveParentFolderId] = useState(
-    onboardingSettings?.googleDriveParentFolderId ?? "",
-  );
-  const [googleDriveTemplateFolderId, setGoogleDriveTemplateFolderId] =
-    useState(onboardingSettings?.googleDriveTemplateFolderId ?? "");
   const [googleDriveStatus, setGoogleDriveStatus] = useState(
     onboardingSettings?.googleDriveStatus ?? "unconfigured",
   );
@@ -400,14 +427,45 @@ Founder | ${orgName}`;
   const [isGoogleDriveDisconnecting, setIsGoogleDriveDisconnecting] =
     useState(false);
 
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
   // Flowchart Nodes & Edges Load Migration
   const rawNodes = onboardingSettings?.workflowConfig?.nodes;
   const initialNodes = rawNodes
     ? rawNodes.map((n: any) => {
         let type = n.type;
         if (type === "input" || n.id === "trigger") type = "customTrigger";
-        else if (n.id === "google-drive") type = "customDrive";
-        else if (n.id === "notion") type = "customNotion";
+        else if (n.id === "google-drive") {
+          type = "customDrive";
+          // Inject node data defaults or load settings legacy fallback properties
+          n.data = {
+            label: "Google Drive Automation",
+            mode:
+              n.data?.mode ||
+              (onboardingSettings?.googleDriveTemplateFolderId
+                ? "copy-template"
+                : "empty-folder"),
+            parentFolderId:
+              n.data?.parentFolderId ||
+              onboardingSettings?.googleDriveParentFolderId ||
+              "",
+            templateFolderId:
+              n.data?.templateFolderId ||
+              onboardingSettings?.googleDriveTemplateFolderId ||
+              "",
+            folderNamePattern:
+              n.data?.folderNamePattern || "{{client_name}} Onboarding",
+            shareEmails: n.data?.shareEmails || "{{contact_email}}",
+            shareRole: n.data?.shareRole || "writer",
+            subfolders: n.data?.subfolders || [
+              "/Briefs",
+              "/Creatives",
+              "/Reports",
+            ],
+            docRules: n.data?.docRules || [],
+            ...n.data,
+          };
+        } else if (n.id === "notion") type = "customNotion";
         else if (type === "output" || n.id === "email") type = "customEmail";
 
         let position = n.position;
@@ -447,7 +505,20 @@ Founder | ${orgName}`;
         {
           id: "google-drive",
           type: "customDrive",
-          data: { label: "Google Drive Automation" },
+          data: {
+            label: "Google Drive Automation",
+            mode: onboardingSettings?.googleDriveTemplateFolderId
+              ? "copy-template"
+              : "empty-folder",
+            parentFolderId: onboardingSettings?.googleDriveParentFolderId || "",
+            templateFolderId:
+              onboardingSettings?.googleDriveTemplateFolderId || "",
+            folderNamePattern: "{{client_name}} Onboarding",
+            shareEmails: "{{contact_email}}",
+            shareRole: "writer",
+            subfolders: ["/Briefs", "/Creatives", "/Reports"],
+            docRules: [],
+          },
           position: { x: 300, y: 120 },
         },
         {
@@ -506,6 +577,23 @@ Founder | ${orgName}`;
     [setEdges],
   );
 
+  const updateDriveNodeData = (key: string, value: any) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === "google-drive") {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              [key]: value,
+            },
+          };
+        }
+        return node;
+      }),
+    );
+  };
+
   const handleAddNode = (nodeType: "google-drive" | "notion" | "email") => {
     const exists = nodes.some((n) => n.id === nodeType);
     if (exists) {
@@ -517,11 +605,23 @@ Founder | ${orgName}`;
     let label = "";
     let x = 100;
     const y = 120;
+    let data: any = { label };
 
     if (nodeType === "google-drive") {
       type = "customDrive";
       label = "Google Drive Automation";
       x = 300;
+      data = {
+        label,
+        mode: "empty-folder",
+        parentFolderId: "",
+        templateFolderId: "",
+        folderNamePattern: "{{client_name}} Onboarding",
+        shareEmails: "{{contact_email}}",
+        shareRole: "writer",
+        subfolders: ["/Briefs", "/Creatives", "/Reports"],
+        docRules: [],
+      };
     } else if (nodeType === "notion") {
       type = "customNotion";
       label = "Notion Dashboard Automation";
@@ -536,7 +636,7 @@ Founder | ${orgName}`;
       id: nodeType,
       type,
       position: { x, y },
-      data: { label },
+      data,
     };
 
     setNodes((nds) => [...nds, newNode]);
@@ -554,7 +654,17 @@ Founder | ${orgName}`;
       {
         id: "google-drive",
         type: "customDrive",
-        data: { label: "Google Drive Automation" },
+        data: {
+          label: "Google Drive Automation",
+          mode: "empty-folder",
+          parentFolderId: "",
+          templateFolderId: "",
+          folderNamePattern: "{{client_name}} Onboarding",
+          shareEmails: "{{contact_email}}",
+          shareRole: "writer",
+          subfolders: ["/Briefs", "/Creatives", "/Reports"],
+          docRules: [],
+        },
         position: { x: 300, y: 120 },
       },
       {
@@ -631,8 +741,6 @@ Founder | ${orgName}`;
     try {
       const res = await saveOnboardingSettingsAction({
         googleDriveEnabled,
-        googleDriveParentFolderId,
-        googleDriveTemplateFolderId,
         notionEnabled,
         notionApiKey,
         notionParentPageId,
@@ -710,62 +818,395 @@ Founder | ${orgName}`;
               workflow. Link handles to establish step sequence dependencies.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0 h-[450px] relative bg-slate-50/50">
-            <ReactFlow
-              nodes={nodes}
-              edges={styledEdges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              nodeTypes={nodeTypes}
-              fitView
-              className="font-sans"
-            >
-              <Background color="#cbd5e1" gap={16} size={1} />
-              <Controls className="!bg-white !border-slate-200 !shadow-sm !rounded-xl overflow-hidden !m-4" />
-              <Panel
-                position={"right" as any}
-                className="bg-white/95 backdrop-blur border border-slate-200 shadow-md p-4 rounded-2xl flex flex-col gap-2.5 max-w-[200px] m-4"
+          <CardContent className="p-0 h-[450px] bg-slate-50/50 flex">
+            <div className="flex-1 h-full relative">
+              <ReactFlow
+                nodes={nodes}
+                edges={styledEdges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onNodeClick={(event, node) => setSelectedNodeId(node.id)}
+                onPaneClick={() => setSelectedNodeId(null)}
+                nodeTypes={nodeTypes}
+                fitView
+                className="font-sans"
               >
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                  Add Connector Node
-                </span>
-                <Button
-                  onClick={() => handleAddNode("google-drive")}
-                  disabled={nodes.some((n) => n.id === "google-drive")}
-                  variant="outline"
-                  className="w-full text-left justify-start font-bold text-xs h-9 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer flex gap-2"
+                <Background color="#cbd5e1" gap={16} size={1} />
+                <Controls className="!bg-white !border-slate-200 !shadow-sm !rounded-xl overflow-hidden !m-4" />
+                <Panel
+                  position={"right" as any}
+                  className="bg-white/95 backdrop-blur border border-slate-200 shadow-md p-4 rounded-2xl flex flex-col gap-2.5 max-w-[200px] m-4"
                 >
-                  <img
-                    src="/images/logos/google-drive.svg"
-                    alt=""
-                    className="w-4 h-4"
-                  />
-                  Google Drive
-                </Button>
-                <Button
-                  onClick={() => handleAddNode("notion")}
-                  disabled={nodes.some((n) => n.id === "notion")}
-                  variant="outline"
-                  className="w-full text-left justify-start font-bold text-xs h-9 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer flex gap-2"
-                >
-                  <img
-                    src="/images/logos/notion.svg"
-                    alt=""
-                    className="w-4 h-4"
-                  />
-                  Notion Dashboard
-                </Button>
-                <div className="h-px bg-slate-100 my-1 w-full" />
-                <Button
-                  onClick={handleResetFlowchart}
-                  variant="secondary"
-                  className="w-full font-bold text-xs h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
-                >
-                  Reset Flowchart
-                </Button>
-              </Panel>
-            </ReactFlow>
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                    Add Connector Node
+                  </span>
+                  <Button
+                    onClick={() => handleAddNode("google-drive")}
+                    disabled={nodes.some((n) => n.id === "google-drive")}
+                    variant="outline"
+                    className="w-full text-left justify-start font-bold text-xs h-9 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer flex gap-2"
+                  >
+                    <img
+                      src="/images/logos/google-drive.svg"
+                      alt=""
+                      className="w-4 h-4"
+                    />
+                    Google Drive
+                  </Button>
+                  <Button
+                    onClick={() => handleAddNode("notion")}
+                    disabled={nodes.some((n) => n.id === "notion")}
+                    variant="outline"
+                    className="w-full text-left justify-start font-bold text-xs h-9 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer flex gap-2"
+                  >
+                    <img
+                      src="/images/logos/notion.svg"
+                      alt=""
+                      className="w-4 h-4"
+                    />
+                    Notion Dashboard
+                  </Button>
+                  <div className="h-px bg-slate-100 my-1 w-full" />
+                  <Button
+                    onClick={handleResetFlowchart}
+                    variant="secondary"
+                    className="w-full font-bold text-xs h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                  >
+                    Reset Flowchart
+                  </Button>
+                </Panel>
+              </ReactFlow>
+            </div>
+
+            {/* DOCKED SIDEBAR FOR GOOGLE DRIVE NODE */}
+            {selectedNodeId === "google-drive" && (
+              <div className="w-80 border-l border-slate-200 p-5 overflow-y-auto bg-white flex flex-col h-[450px] shrink-0 font-sans text-xs">
+                <div className="flex items-center justify-between pb-3 border-b mb-4">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <Database className="w-4 h-4 text-blue-500" />
+                    Drive Node Settings
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedNodeId(null)}
+                    className="h-6 w-6 p-0 text-slate-400 hover:text-slate-650 rounded-full"
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                {(() => {
+                  const driveNode = nodes.find((n) => n.id === "google-drive");
+                  if (!driveNode) {
+                    return (
+                      <p className="text-slate-400 text-center py-6">
+                        Node not found.
+                      </p>
+                    );
+                  }
+                  const driveData = (driveNode.data || {}) as any;
+
+                  const mode = driveData.mode || "empty-folder";
+                  const parentFolderId = driveData.parentFolderId || "";
+                  const templateFolderId = driveData.templateFolderId || "";
+                  const folderNamePattern =
+                    driveData.folderNamePattern || "{{client_name}} Onboarding";
+                  const shareEmails =
+                    driveData.shareEmails || "{{contact_email}}";
+                  const shareRole = driveData.shareRole || "writer";
+                  const subfolders = driveData.subfolders || [];
+                  const docRules = driveData.docRules || [];
+
+                  return (
+                    <div className="space-y-4 flex-1">
+                      {/* MODE SELECT */}
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Automation Mode
+                        </Label>
+                        <select
+                          value={mode}
+                          onChange={(e) =>
+                            updateDriveNodeData("mode", e.target.value)
+                          }
+                          className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
+                        >
+                          <option value="copy-template">
+                            Copy Template Folder
+                          </option>
+                          <option value="create-structure">
+                            Create Custom Structure
+                          </option>
+                          <option value="empty-folder">
+                            Create Empty Folder Only
+                          </option>
+                        </select>
+                      </div>
+
+                      {/* ROOT PARENT FOLDER ID */}
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Parent Storage Folder ID
+                        </Label>
+                        <Input
+                          value={parentFolderId}
+                          onChange={(e) =>
+                            updateDriveNodeData(
+                              "parentFolderId",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="Google Drive Folder ID"
+                          className="text-xs bg-white font-mono"
+                        />
+                      </div>
+
+                      {/* TEMPLATE FOLDER ID (IF COPY-TEMPLATE) */}
+                      {mode === "copy-template" && (
+                        <div className="space-y-1.5">
+                          <Label className="text-slate-700 font-bold">
+                            Template Folder ID
+                          </Label>
+                          <Input
+                            value={templateFolderId}
+                            onChange={(e) =>
+                              updateDriveNodeData(
+                                "templateFolderId",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="Google Drive Folder ID to copy"
+                            className="text-xs bg-white font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* CUSTOM FOLDER STRUCTURE BUILDER (IF CREATE-STRUCTURE) */}
+                      {mode === "create-structure" && (
+                        <div className="space-y-2">
+                          <Label className="text-slate-700 font-bold block">
+                            Folder Structure Builder
+                          </Label>
+                          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                            {subfolders.map((path: string, index: number) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between gap-1.5 bg-slate-50 border p-1.5 rounded-lg"
+                              >
+                                <span className="font-mono text-[10px] text-slate-700 truncate">
+                                  {path}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const nextSub = subfolders.filter(
+                                      (_: any, idx: number) => idx !== index,
+                                    );
+                                    updateDriveNodeData("subfolders", nextSub);
+                                  }}
+                                  className="p-1 -m-1 text-slate-400 hover:text-red-500 shrink-0 cursor-pointer"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex gap-1">
+                            <Input
+                              id="new-subfolder-input"
+                              placeholder="e.g. /Briefs/Raw"
+                              className="text-[10px] h-8 bg-white"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  const input = document.getElementById(
+                                    "new-subfolder-input",
+                                  ) as HTMLInputElement;
+                                  const val = input?.value.trim();
+                                  if (val) {
+                                    const nextSub = [...subfolders, val];
+                                    updateDriveNodeData("subfolders", nextSub);
+                                    input.value = "";
+                                  }
+                                }
+                              }}
+                            />
+                            <Button
+                              onClick={() => {
+                                const input = document.getElementById(
+                                  "new-subfolder-input",
+                                ) as HTMLInputElement;
+                                const val = input?.value.trim();
+                                if (val) {
+                                  const nextSub = [...subfolders, val];
+                                  updateDriveNodeData("subfolders", nextSub);
+                                  input.value = "";
+                                }
+                              }}
+                              type="button"
+                              variant="outline"
+                              className="h-8 px-2 text-[10px]"
+                            >
+                              Add
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* FOLDER NAMING PATTERN */}
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Folder Naming Pattern
+                        </Label>
+                        <Input
+                          value={folderNamePattern}
+                          onChange={(e) =>
+                            updateDriveNodeData(
+                              "folderNamePattern",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="e.g. {{client_name}} Onboarding"
+                          className="text-xs bg-white"
+                        />
+                        <p className="text-[9px] text-slate-400">
+                          Supports: <code>{"{{client_name}}"}</code>,{" "}
+                          <code>{"{{contact_email}}"}</code>
+                        </p>
+                      </div>
+
+                      {/* PERMISSIONS SHARING */}
+                      <div className="space-y-2 border-t pt-3">
+                        <Label className="text-slate-700 font-bold block">
+                          Automated Share Settings
+                        </Label>
+                        <div className="space-y-1.5">
+                          <Label className="text-slate-500 font-semibold text-[10px]">
+                            Share Emails (comma separated)
+                          </Label>
+                          <Input
+                            value={shareEmails}
+                            onChange={(e) =>
+                              updateDriveNodeData("shareEmails", e.target.value)
+                            }
+                            placeholder="e.g. {{contact_email}}, team@agency.com"
+                            className="text-xs bg-white"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-slate-500 font-semibold text-[10px]">
+                            Permission Role
+                          </Label>
+                          <select
+                            value={shareRole}
+                            onChange={(e) =>
+                              updateDriveNodeData("shareRole", e.target.value)
+                            }
+                            className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
+                          >
+                            <option value="writer">Writer (Editor)</option>
+                            <option value="reader">Reader (Viewer)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* GOOGLE DOCS RULES */}
+                      <div className="space-y-2 border-t pt-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-slate-700 font-bold">
+                            Copy Document Rules
+                          </Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const nextRules = [
+                                ...docRules,
+                                {
+                                  templateFileId: "",
+                                  namePattern: "{{client_name}} Strategy",
+                                },
+                              ];
+                              updateDriveNodeData("docRules", nextRules);
+                            }}
+                            className="h-6 px-1.5 text-[10px] text-indigo-650 hover:text-indigo-800 cursor-pointer"
+                          >
+                            + Add Rule
+                          </Button>
+                        </div>
+                        <div className="space-y-3 max-h-40 overflow-y-auto pr-1">
+                          {docRules.map((rule: any, index: number) => (
+                            <div
+                              key={index}
+                              className="space-y-1.5 bg-slate-50 border p-2 rounded-lg relative"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextRules = docRules.filter(
+                                    (_: any, idx: number) => idx !== index,
+                                  );
+                                  updateDriveNodeData("docRules", nextRules);
+                                }}
+                                className="absolute top-2 right-2 text-slate-400 hover:text-red-500 text-[10px] cursor-pointer"
+                              >
+                                ✕
+                              </button>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-slate-500">
+                                  Doc File ID
+                                </Label>
+                                <Input
+                                  value={rule.templateFileId}
+                                  onChange={(e) => {
+                                    const nextRules = docRules.map(
+                                      (r: any, idx: number) =>
+                                        idx === index
+                                          ? {
+                                              ...r,
+                                              templateFileId: e.target.value,
+                                            }
+                                          : r,
+                                    );
+                                    updateDriveNodeData("docRules", nextRules);
+                                  }}
+                                  placeholder="Template File ID"
+                                  className="text-[10px] h-7 bg-white font-mono"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-slate-500">
+                                  Name Pattern
+                                </Label>
+                                <Input
+                                  value={rule.namePattern}
+                                  onChange={(e) => {
+                                    const nextRules = docRules.map(
+                                      (r: any, idx: number) =>
+                                        idx === index
+                                          ? {
+                                              ...r,
+                                              namePattern: e.target.value,
+                                            }
+                                          : r,
+                                    );
+                                    updateDriveNodeData("docRules", nextRules);
+                                  }}
+                                  placeholder="{{client_name}} Strat"
+                                  className="text-[10px] h-7 bg-white"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -778,8 +1219,9 @@ Founder | ${orgName}`;
                 Google Drive Onboarding Integration
               </CardTitle>
               <CardDescription className="text-xs">
-                Automatically provisions a secure shared workspace folder on
-                Google Drive for new client media assets.
+                Automatically provisions secure shared folders on Google Drive.
+                Configure folder names, structures, and documents directly on
+                the node settings panel.
               </CardDescription>
             </div>
             <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -806,7 +1248,7 @@ Founder | ${orgName}`;
                 {googleDriveEmail ? (
                   <span className="text-slate-500 mt-0.5 block">
                     Connected to{" "}
-                    <strong className="text-indigo-600 font-bold">
+                    <strong className="text-indigo-650 font-bold">
                       {googleDriveEmail}
                     </strong>
                   </span>
@@ -845,51 +1287,6 @@ Founder | ${orgName}`;
                 </div>
               </div>
             )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor="driveParentFolder"
-                  className="text-xs font-bold text-slate-700"
-                >
-                  Parent Storage Folder ID
-                </Label>
-                <Input
-                  id="driveParentFolder"
-                  value={googleDriveParentFolderId}
-                  onChange={(e) => setGoogleDriveParentFolderId(e.target.value)}
-                  disabled={!googleDriveEnabled}
-                  className="text-xs bg-white"
-                  placeholder="e.g. 1a2b3c4d5e..."
-                />
-                <p className="text-[10px] text-slate-455 leading-normal">
-                  The Google Drive folder ID where all newly created client
-                  directories will be stored.
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor="driveTemplateFolder"
-                  className="text-xs font-bold text-slate-700"
-                >
-                  Template Folder ID (Optional)
-                </Label>
-                <Input
-                  id="driveTemplateFolder"
-                  value={googleDriveTemplateFolderId}
-                  onChange={(e) =>
-                    setGoogleDriveTemplateFolderId(e.target.value)
-                  }
-                  disabled={!googleDriveEnabled}
-                  className="text-xs bg-white"
-                  placeholder="e.g. 9z8y7x6w5v..."
-                />
-                <p className="text-[10px] text-slate-455 leading-normal">
-                  If provided, new folders will copy structures, spreadsheets,
-                  and briefing documents from this folder.
-                </p>
-              </div>
-            </div>
           </CardContent>
         </Card>
 

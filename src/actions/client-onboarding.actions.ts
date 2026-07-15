@@ -281,12 +281,39 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
             `Google Drive integration has invalid credentials: ${settings.googleDriveError}`,
           );
         }
+
+        const driveNode = (settings?.workflowConfig as any)?.nodes?.find(
+          (n: any) => n.id === "google-drive",
+        );
+        const driveData = driveNode?.data || {};
+
+        const mode = driveData.mode || "empty-folder";
+        const parentFolderId =
+          driveData.parentFolderId ||
+          settings?.googleDriveParentFolderId ||
+          undefined;
+        const templateFolderId =
+          driveData.templateFolderId ||
+          settings?.googleDriveTemplateFolderId ||
+          undefined;
+
+        const options = {
+          mode,
+          folderNamePattern: driveData.folderNamePattern,
+          subfolders: driveData.subfolders,
+          shareEmails: driveData.shareEmails,
+          shareRole: driveData.shareRole,
+          docRules: driveData.docRules,
+          clientEmail: record.contactEmail,
+        };
+
         try {
           driveFolderLink = await createClientDriveFolder(
             record.clientName,
-            settings?.googleDriveParentFolderId || undefined,
-            settings?.googleDriveTemplateFolderId || undefined,
+            parentFolderId,
+            templateFolderId,
             record.organizationId,
+            options,
           );
         } catch (err: any) {
           console.warn(
