@@ -312,8 +312,11 @@ function CustomDriveNode({ id, data }: any) {
       </div>
       <button
         type="button"
-        onClick={() => data.onDeleteNode?.(id)}
-        className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold"
+        onClick={(e) => {
+          e.stopPropagation();
+          data.onDeleteNode?.(id);
+        }}
+        className="nodrag absolute -top-2 -right-2 w-5.5 h-5.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold transition-transform transform hover:scale-110"
       >
         ✕
       </button>
@@ -351,8 +354,11 @@ function CustomNotionNode({ id, data }: any) {
       </div>
       <button
         type="button"
-        onClick={() => data.onDeleteNode?.(id)}
-        className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold"
+        onClick={(e) => {
+          e.stopPropagation();
+          data.onDeleteNode?.(id);
+        }}
+        className="nodrag absolute -top-2 -right-2 w-5.5 h-5.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold transition-transform transform hover:scale-110"
       >
         ✕
       </button>
@@ -390,8 +396,11 @@ function CustomEmailNode({ id, data }: any) {
       </div>
       <button
         type="button"
-        onClick={() => data.onDeleteNode?.(id)}
-        className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold"
+        onClick={(e) => {
+          e.stopPropagation();
+          data.onDeleteNode?.(id);
+        }}
+        className="nodrag absolute -top-2 -right-2 w-5.5 h-5.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold transition-transform transform hover:scale-110"
       >
         ✕
       </button>
@@ -587,53 +596,70 @@ export default function SettingsClient({
     setIsMounted(true);
   }, []);
 
-  const initialNodes = onboardingSettings?.workflowConfig?.nodes ?? [
-    {
-      id: "trigger",
-      type: "customTrigger",
-      data: { label: "Client Onboarded (Start)" },
-      position: { x: 50, y: 120 },
-    },
-    {
-      id: "google-drive",
-      type: "customDrive",
-      data: { label: "Google Drive Automation" },
-      position: { x: 300, y: 120 },
-    },
-    {
-      id: "notion",
-      type: "customNotion",
-      data: { label: "Notion Dashboard Automation" },
-      position: { x: 580, y: 120 },
-    },
-    {
-      id: "email",
-      type: "customEmail",
-      data: { label: "Send Welcome Email" },
-      position: { x: 860, y: 120 },
-    },
-  ];
+  const rawNodes = onboardingSettings?.workflowConfig?.nodes;
+  const initialNodes = rawNodes
+    ? rawNodes.map((n: any) => {
+        let type = n.type;
+        if (type === "input" || n.id === "trigger") type = "customTrigger";
+        else if (n.id === "google-drive") type = "customDrive";
+        else if (n.id === "notion") type = "customNotion";
+        else if (type === "output" || n.id === "email") type = "customEmail";
+        return {
+          ...n,
+          type,
+          style: undefined,
+        };
+      })
+    : [
+        {
+          id: "trigger",
+          type: "customTrigger",
+          data: { label: "Client Onboarded (Start)" },
+          position: { x: 50, y: 120 },
+        },
+        {
+          id: "google-drive",
+          type: "customDrive",
+          data: { label: "Google Drive Automation" },
+          position: { x: 300, y: 120 },
+        },
+        {
+          id: "notion",
+          type: "customNotion",
+          data: { label: "Notion Dashboard Automation" },
+          position: { x: 580, y: 120 },
+        },
+        {
+          id: "email",
+          type: "customEmail",
+          data: { label: "Send Welcome Email" },
+          position: { x: 860, y: 120 },
+        },
+      ];
 
-  const initialEdges = onboardingSettings?.workflowConfig?.edges ?? [
-    {
-      id: "e-trig-drive",
-      source: "trigger",
-      target: "google-drive",
-      animated: true,
-    },
-    {
-      id: "e-drive-notion",
-      source: "google-drive",
-      target: "notion",
-      animated: true,
-    },
-    {
-      id: "e-notion-email",
-      source: "notion",
-      target: "email",
-      animated: true,
-    },
-  ];
+  const rawEdges = onboardingSettings?.workflowConfig?.edges;
+  const initialEdges = rawEdges
+    ? rawEdges.map((e: any) => ({ ...e, animated: true }))
+    : [
+        {
+          id: "e-trig-drive",
+          source: "trigger",
+          target: "google-drive",
+          animated: true,
+        },
+        {
+          id: "e-drive-notion",
+          source: "google-drive",
+          target: "notion",
+          animated: true,
+        },
+        {
+          id: "e-notion-email",
+          source: "notion",
+          target: "email",
+          animated: true,
+        },
+      ];
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
