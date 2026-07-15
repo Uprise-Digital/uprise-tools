@@ -8,8 +8,10 @@ import {
   Panel,
   Position,
   ReactFlow,
+  ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from "@xyflow/react";
 import {
   AlertTriangle,
@@ -19,7 +21,7 @@ import {
   Save,
   SlidersHorizontal,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import "@xyflow/react/dist/style.css";
 import {
@@ -91,6 +93,8 @@ function CustomTriggerNode({ id, data }: any) {
 }
 
 function CustomDriveNode({ id, data }: any) {
+  const { deleteElements } = useReactFlow();
+
   return (
     <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-blue-500 group">
       <Handle
@@ -117,7 +121,7 @@ function CustomDriveNode({ id, data }: any) {
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          data.onDeleteNode?.(id);
+          deleteElements({ nodes: [{ id }] });
         }}
         className="nodrag absolute -top-2 -right-2 w-5.5 h-5.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold transition-transform transform hover:scale-110"
       >
@@ -133,6 +137,8 @@ function CustomDriveNode({ id, data }: any) {
 }
 
 function CustomNotionNode({ id, data }: any) {
+  const { deleteElements } = useReactFlow();
+
   return (
     <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-slate-900 group">
       <Handle
@@ -159,7 +165,7 @@ function CustomNotionNode({ id, data }: any) {
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          data.onDeleteNode?.(id);
+          deleteElements({ nodes: [{ id }] });
         }}
         className="nodrag absolute -top-2 -right-2 w-5.5 h-5.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold transition-transform transform hover:scale-110"
       >
@@ -175,12 +181,14 @@ function CustomNotionNode({ id, data }: any) {
 }
 
 function CustomEmailNode({ id, data }: any) {
+  const { deleteElements } = useReactFlow();
+
   return (
     <div className="relative bg-white border border-slate-200 rounded-xl shadow-sm p-3.5 min-w-[200px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 border-l-indigo-600 group">
       <Handle
         type="target"
         position={Position.Left}
-        className="w-2.5 h-2.5 bg-indigo-600 border-2 border-white rounded-full !left-[-5px]"
+        className="w-2.5 h-2.5 bg-indigo-650 border-2 border-white rounded-full !left-[-5px]"
       />
       <div className="w-10 h-10 shrink-0 bg-indigo-50 rounded-lg flex items-center justify-center border border-indigo-100/50">
         <img
@@ -201,7 +209,7 @@ function CustomEmailNode({ id, data }: any) {
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          data.onDeleteNode?.(id);
+          deleteElements({ nodes: [{ id }] });
         }}
         className="nodrag absolute -top-2 -right-2 w-5.5 h-5.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold transition-transform transform hover:scale-110"
       >
@@ -218,7 +226,7 @@ const nodeTypes = {
   customEmail: CustomEmailNode,
 };
 
-export function OnboardingTab({
+function OnboardingTabContent({
   onboardingSettings,
   orgName,
   orgId,
@@ -396,31 +404,6 @@ Founder | ${orgName}`;
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  const handleDeleteNodeById = useCallback(
-    (nodeId: string) => {
-      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-      setEdges((eds) =>
-        eds.filter((e) => e.source !== nodeId && e.target !== nodeId),
-      );
-    },
-    [setNodes, setEdges],
-  );
-
-  useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.data.onDeleteNode) return node;
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            onDeleteNode: handleDeleteNodeById,
-          },
-        };
-      }),
-    );
-  }, [handleDeleteNodeById, setNodes]);
-
   const onConnect = useCallback(
     (params: any) =>
       setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
@@ -457,7 +440,7 @@ Founder | ${orgName}`;
       id: nodeType,
       type,
       position: { x, y },
-      data: { label, onDeleteNode: handleDeleteNodeById },
+      data: { label },
     };
 
     setNodes((nds) => [...nds, newNode]);
@@ -1042,5 +1025,13 @@ Founder | ${orgName}`;
         </Card>
       </div>
     </div>
+  );
+}
+
+export function OnboardingTab(props: OnboardingTabProps) {
+  return (
+    <ReactFlowProvider>
+      <OnboardingTabContent {...props} />
+    </ReactFlowProvider>
   );
 }
