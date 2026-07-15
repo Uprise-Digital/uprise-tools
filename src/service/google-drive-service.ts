@@ -87,29 +87,29 @@ async function copyFolderRecursive(
   return newFolderId;
 }
 
-/**
- * Creates a client folder. If a template ID is configured, it duplicates the template.
- * Otherwise, it creates a fresh empty client folder.
- */
 export async function createClientDriveFolder(
   clientName: string,
+  parentFolderId?: string,
+  templateFolderId?: string,
 ): Promise<string> {
   const drive = getDriveClient();
-  const templateFolderId = process.env.GOOGLE_DRIVE_TEMPLATE_FOLDER_ID;
-  const parentFolderId = process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID; // Optional root client folder
+  const actualTemplateFolderId =
+    templateFolderId || process.env.GOOGLE_DRIVE_TEMPLATE_FOLDER_ID;
+  const actualParentFolderId =
+    parentFolderId || process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID; // Optional root client folder
 
   console.log(
     `Google Drive Service: Creating folder for client '${clientName}'...`,
   );
 
-  if (templateFolderId) {
+  if (actualTemplateFolderId) {
     console.log(
-      `Google Drive Service: Duplicating template folder: ${templateFolderId}`,
+      `Google Drive Service: Duplicating template folder: ${actualTemplateFolderId}`,
     );
     const folderId = await copyFolderRecursive(
       drive,
-      templateFolderId,
-      parentFolderId,
+      actualTemplateFolderId,
+      actualParentFolderId,
       clientName,
     );
     return `https://drive.google.com/drive/folders/${folderId}`;
@@ -121,8 +121,8 @@ export async function createClientDriveFolder(
       name: clientName,
       mimeType: "application/vnd.google-apps.folder",
     };
-    if (parentFolderId) {
-      metadata.parents = [parentFolderId];
+    if (actualParentFolderId) {
+      metadata.parents = [actualParentFolderId];
     }
 
     const res = await drive.files.create({
@@ -132,5 +132,26 @@ export async function createClientDriveFolder(
     const folderId = res.data.id;
     if (!folderId) throw new Error("Failed to create Google Drive folder.");
     return `https://drive.google.com/drive/folders/${folderId}`;
+  }
+}
+
+/**
+ * Verifies if a folder ID is accessible in Google Drive.
+ */
+export async function verifyDriveFolderAccess(
+  folderId: string,
+): Promise<boolean> {
+  const drive = getDriveClient();
+  try {
+    const res = await drive.files.get({
+      fileId: folderId,
+      fields: "id, name, mimeType",
+    });
+    if (res.data.mimeType !== "application/vnd.google-apps.folder") {
+      throw new Error("Specified Google Drive ID is not a folder.");
+    }
+    return true;
+  } catch (err: any) {
+    throw new Error(err.message || "Failed to access Google Drive folder.");
   }
 }

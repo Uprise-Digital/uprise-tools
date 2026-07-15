@@ -62,20 +62,22 @@ async function duplicateNotionPageBlocks(
   }
 }
 
-/**
- * Creates a client dashboard in Notion.
- * Duplicates a template page if configured, or builds a clean onboarding workspace from scratch.
- */
 export async function createClientNotionDashboard(
   clientName: string,
+  customApiKey?: string,
+  customParentPageId?: string,
+  customTemplatePageId?: string,
 ): Promise<string> {
-  const notion = getNotionClient();
-  const parentPageId = process.env.NOTION_PARENT_PAGE_ID;
-  const templatePageId = process.env.NOTION_TEMPLATE_PAGE_ID;
+  const notion = customApiKey
+    ? new Client({ auth: customApiKey })
+    : getNotionClient();
+  const parentPageId = customParentPageId || process.env.NOTION_PARENT_PAGE_ID;
+  const templatePageId =
+    customTemplatePageId || process.env.NOTION_TEMPLATE_PAGE_ID;
 
   if (!parentPageId) {
     throw new Error(
-      "Missing Notion Parent Page ID. Please define NOTION_PARENT_PAGE_ID in env.",
+      "Missing Notion Parent Page ID. Please define NOTION_PARENT_PAGE_ID in env or organization settings.",
     );
   }
 
@@ -259,4 +261,30 @@ async function appendDefaultWorkspaceBlocks(
       },
     ],
   });
+}
+
+/**
+ * Verifies if a Notion API Key and Parent Page ID are valid and connected.
+ */
+export async function verifyNotionConnection(
+  apiKey: string,
+  parentPageId: string,
+): Promise<boolean> {
+  const notion = new Client({ auth: apiKey });
+  try {
+    // 1. Try to retrieve parent page
+    await notion.pages.retrieve({ page_id: parentPageId });
+    return true;
+  } catch (err: any) {
+    // 2. If it's a database, retrieve database
+    try {
+      await notion.databases.retrieve({ database_id: parentPageId });
+      return true;
+    } catch (dbErr: any) {
+      throw new Error(
+        err.message ||
+          "Failed to access Notion parent page/database. Ensure the connection has access to the page.",
+      );
+    }
+  }
 }

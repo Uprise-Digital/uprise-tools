@@ -739,3 +739,43 @@ export const backgroundTasksRelations = relations(
     }),
   }),
 );
+
+export const organizationOnboardingSettings = pgTable(
+  "organization_onboarding_settings",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .unique()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    googleDriveEnabled: boolean("google_drive_enabled")
+      .default(false)
+      .notNull(),
+    googleDriveParentFolderId: text("google_drive_parent_folder_id"),
+    googleDriveTemplateFolderId: text("google_drive_template_folder_id"),
+    googleDriveStatus: text("google_drive_status")
+      .default("unconfigured")
+      .notNull(),
+    googleDriveError: text("google_drive_error"),
+    notionEnabled: boolean("notion_enabled").default(false).notNull(),
+    notionApiKey: text("notion_api_key"),
+    notionParentPageId: text("notion_parent_page_id"),
+    notionTemplatePageId: text("notion_template_page_id"),
+    notionStatus: text("notion_status").default("unconfigured").notNull(),
+    notionError: text("notion_error"),
+    welcomeEmailSubject: text("welcome_email_subject"),
+    welcomeEmailTemplate: text("welcome_email_template"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+).enableRLS();
+
+export const organizationOnboardingSettingsRelations = relations(
+  organizationOnboardingSettings,
+  ({ one }) => ({
+    organization: one(organization, {
+      fields: [organizationOnboardingSettings.organizationId],
+      references: [organization.id],
+    }),
+  }),
+);

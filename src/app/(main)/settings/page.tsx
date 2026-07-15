@@ -151,6 +151,11 @@ export default async function SettingsPage() {
     }
   }
 
+  const { getOnboardingSettingsAction } = await import(
+    "@/actions/onboarding-settings.actions"
+  );
+  const onboardingSettingsRes = await getOnboardingSettingsAction();
+
   return (
     <SettingsClient
       initialDefaults={defaultsRes.data}
@@ -162,6 +167,11 @@ export default async function SettingsPage() {
       userEmail={session.user.email}
       userRole={memberRecord?.role || "member"}
       initialAutoJoinDomainEnabled={initialAutoJoinDomainEnabled}
+      onboardingSettings={
+        onboardingSettingsRes.success && onboardingSettingsRes.data
+          ? onboardingSettingsRes.data
+          : null
+      }
     />
   );
 }

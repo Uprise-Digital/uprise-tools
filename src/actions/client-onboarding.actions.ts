@@ -9,9 +9,11 @@ import {
   backgroundTasks,
   clientOnboardings,
   member,
+  organizationOnboardingSettings,
 } from "@/db/schema";
 import { logAction, logEmail } from "@/lib/audit";
 import { auth } from "@/lib/auth";
+import { decryptToken } from "@/lib/crypto";
 import { compileOnboardingEmail } from "@/lib/onboarding-email";
 import { updateGhlOpportunityStage } from "@/service/gohighlevel-service";
 import { createClientDriveFolder } from "@/service/google-drive-service";
@@ -231,29 +233,81 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
 
       const slug = record.clientName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-      // Drive Link: Attempt to create live Google Drive folder, fall back to mock link on failure
+      // 1. Fetch organization onboarding settings
+      const settings = await db.query.organizationOnboardingSettings.findFirst({
+        where: eq(
+          organizationOnboardingSettings.organizationId,
+          record.organizationId,
+        ),
+      });
+
       let driveFolderLink = `https://drive.google.com/drive/folders/mock-folder-${slug}`;
-      try {
-        driveFolderLink = await createClientDriveFolder(record.clientName);
-      } catch (err: any) {
-        console.warn(
-          `[Onboarding Automation] Live Google Drive folder creation failed: ${err.message}. Falling back to mock link.`,
-        );
-      }
-
-      // Notion Link: Attempt to create live Notion client page, fall back to mock link on failure
       let notionDashboardLink = `https://notion.so/uprisedigital/Uprise-Digital-x-${slug}-mock-dashboard`;
-      try {
-        notionDashboardLink = await createClientNotionDashboard(
-          record.clientName,
-        );
-      } catch (err: any) {
-        console.warn(
-          `[Onboarding Automation] Live Notion page creation failed: ${err.message}. Falling back to mock link.`,
-        );
+
+      // 2. Google Drive folder duplication/creation
+      const driveEnabled = settings ? settings.googleDriveEnabled : true;
+      if (driveEnabled) {
+        if (settings?.googleDriveStatus === "invalid") {
+          throw new Error(
+            `Google Drive integration has invalid credentials: ${settings.googleDriveError}`,
+          );
+        }
+        try {
+          driveFolderLink = await createClientDriveFolder(
+            record.clientName,
+            settings?.googleDriveParentFolderId || undefined,
+            settings?.googleDriveTemplateFolderId || undefined,
+          );
+        } catch (err: any) {
+          console.warn(
+            `[Onboarding Automation] Live Google Drive folder creation failed: ${err.message}`,
+          );
+          if (settings) {
+            throw new Error(
+              `Google Drive folder creation failed: ${err.message}`,
+            );
+          }
+        }
+      } else {
+        driveFolderLink = "";
       }
 
-      // Signal Link (Mock invite code generation)
+      // 3. Notion dashboard creation
+      const notionEnabled = settings ? settings.notionEnabled : true;
+      if (notionEnabled) {
+        if (settings?.notionStatus === "invalid") {
+          throw new Error(
+            `Notion integration has invalid credentials: ${settings.notionError}`,
+          );
+        }
+        let decryptedKey: string | undefined;
+        if (settings?.notionApiKey) {
+          try {
+            decryptedKey = decryptToken(settings.notionApiKey);
+          } catch (err) {
+            console.error("Failed to decrypt Notion API key:", err);
+          }
+        }
+        try {
+          notionDashboardLink = await createClientNotionDashboard(
+            record.clientName,
+            decryptedKey,
+            settings?.notionParentPageId || undefined,
+            settings?.notionTemplatePageId || undefined,
+          );
+        } catch (err: any) {
+          console.warn(
+            `[Onboarding Automation] Live Notion dashboard creation failed: ${err.message}`,
+          );
+          if (settings) {
+            throw new Error(`Notion dashboard creation failed: ${err.message}`);
+          }
+        }
+      } else {
+        notionDashboardLink = "";
+      }
+
+      // 4. Signal Link
       const signalGroupLink = `https://signal.group/#CjVKB-${slug}-mock-chat`;
 
       await db
@@ -275,6 +329,20 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
       }
     } catch (err: any) {
       console.error("Onboarding automation error:", err);
+      try {
+        await db
+          .update(clientOnboardings)
+          .set({
+            status: "failed",
+            updatedAt: new Date(),
+          })
+          .where(eq(clientOnboardings.id, onboardingId));
+      } catch (dbErr) {
+        console.error(
+          "Failed to update client onboarding status to failed:",
+          dbErr,
+        );
+      }
       if (taskRecord) {
         await db
           .update(backgroundTasks)
@@ -309,24 +377,58 @@ export async function sendOnboardingEmailAction(
     });
     if (!record) return { success: false, error: "Client not found" };
 
+    const settings = await db.query.organizationOnboardingSettings.findFirst({
+      where: eq(
+        organizationOnboardingSettings.organizationId,
+        record.organizationId,
+      ),
+    });
+
     const subject =
-      customSubject || "Welcome to Uprise Digital - Let's get started!";
+      customSubject ||
+      settings?.welcomeEmailSubject ||
+      "Welcome to Uprise Digital - Let's get started!";
 
     let html = customHtml;
     let text = customText;
 
     if (!html || !text) {
-      const generated = compileOnboardingEmail({
-        primaryContactName: record.primaryContactName,
-        clientName: record.clientName,
-        driveFolderLink: record.driveFolderLink || "",
-        notionDashboardLink: record.notionDashboardLink || "",
-        signalGroupLink: record.signalGroupLink || "",
-        googleAdsAccess: record.googleAdsAccess,
-        metaAdsAccess: record.metaAdsAccess,
-      });
-      html = html || generated.html;
-      text = text || generated.text;
+      if (settings?.welcomeEmailTemplate) {
+        // Parse placeholders in custom template
+        const variables: Record<string, string> = {
+          primary_contact_name: record.primaryContactName,
+          client_name: record.clientName,
+          drive_link: record.driveFolderLink || "",
+          notion_link: record.notionDashboardLink || "",
+          signal_link: record.signalGroupLink || "",
+        };
+
+        let parsedBody = settings.welcomeEmailTemplate;
+        for (const [key, val] of Object.entries(variables)) {
+          const regex = new RegExp(`{{\\s*${key}\\s*}}`, "g");
+          parsedBody = parsedBody.replace(regex, val);
+        }
+
+        text = parsedBody;
+        // Simple markdown-to-html conversion for newlines
+        html = parsedBody
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n/g, "<br />");
+      } else {
+        const generated = compileOnboardingEmail({
+          primaryContactName: record.primaryContactName,
+          clientName: record.clientName,
+          driveFolderLink: record.driveFolderLink || "",
+          notionDashboardLink: record.notionDashboardLink || "",
+          signalGroupLink: record.signalGroupLink || "",
+          googleAdsAccess: record.googleAdsAccess,
+          metaAdsAccess: record.metaAdsAccess,
+        });
+        html = html || generated.html;
+        text = text || generated.text;
+      }
     }
 
     const { Resend } = await import("resend");
