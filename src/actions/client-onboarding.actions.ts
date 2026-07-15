@@ -257,6 +257,7 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
             record.clientName,
             settings?.googleDriveParentFolderId || undefined,
             settings?.googleDriveTemplateFolderId || undefined,
+            record.organizationId,
           );
         } catch (err: any) {
           console.warn(

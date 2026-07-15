@@ -1,9 +1,12 @@
+import { eq } from "drizzle-orm";
 import { google } from "googleapis";
+import { db } from "@/db";
+import { googleAdsConnections } from "@/db/schema";
 
 /**
  * Initializes a Google Drive API client using either Service Account or OAuth2 credentials.
  */
-function getDriveClient() {
+async function getDriveClient(organizationId?: string) {
   const saEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const saKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
 
@@ -18,10 +21,19 @@ function getDriveClient() {
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  // Fall back to GOOGLE_ADS_REFRESH_TOKEN if GOOGLE_DRIVE_REFRESH_TOKEN is not defined
-  const refreshToken =
+
+  let refreshToken =
     process.env.GOOGLE_DRIVE_REFRESH_TOKEN ||
     process.env.GOOGLE_ADS_REFRESH_TOKEN;
+
+  if (organizationId) {
+    const connection = await db.query.googleAdsConnections.findFirst({
+      where: eq(googleAdsConnections.organizationId, organizationId),
+    });
+    if (connection?.refreshToken) {
+      refreshToken = connection.refreshToken;
+    }
+  }
 
   if (clientId && clientSecret && refreshToken) {
     const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
@@ -30,7 +42,7 @@ function getDriveClient() {
   }
 
   throw new Error(
-    "Missing Google Drive API credentials. Set GOOGLE_SERVICE_ACCOUNT_EMAIL/KEY or GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN in env.",
+    "Missing Google Drive API credentials. Set GOOGLE_SERVICE_ACCOUNT_EMAIL/KEY or connect Google Ads/Drive in settings.",
   );
 }
 
@@ -91,8 +103,9 @@ export async function createClientDriveFolder(
   clientName: string,
   parentFolderId?: string,
   templateFolderId?: string,
+  organizationId?: string,
 ): Promise<string> {
-  const drive = getDriveClient();
+  const drive = await getDriveClient(organizationId);
   const actualTemplateFolderId =
     templateFolderId || process.env.GOOGLE_DRIVE_TEMPLATE_FOLDER_ID;
   const actualParentFolderId =
@@ -140,8 +153,9 @@ export async function createClientDriveFolder(
  */
 export async function verifyDriveFolderAccess(
   folderId: string,
+  organizationId?: string,
 ): Promise<boolean> {
-  const drive = getDriveClient();
+  const drive = await getDriveClient(organizationId);
   try {
     const res = await drive.files.get({
       fileId: folderId,

@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     "email",
     "profile",
     "https://www.googleapis.com/auth/adwords",
+    "https://www.googleapis.com/auth/drive",
   ];
 
   const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");

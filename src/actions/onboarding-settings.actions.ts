@@ -152,9 +152,12 @@ export async function saveOnboardingSettingsAction(data: {
         googleDriveError = "Missing Google Drive Parent Folder ID.";
       } else {
         try {
-          await verifyDriveFolderAccess(data.googleDriveParentFolderId);
+          await verifyDriveFolderAccess(data.googleDriveParentFolderId, orgId);
           if (data.googleDriveTemplateFolderId) {
-            await verifyDriveFolderAccess(data.googleDriveTemplateFolderId);
+            await verifyDriveFolderAccess(
+              data.googleDriveTemplateFolderId,
+              orgId,
+            );
           }
           googleDriveStatus = "valid";
         } catch (err: any) {
