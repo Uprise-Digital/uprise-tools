@@ -472,7 +472,27 @@ export default function AgencyReportsClient() {
 
   // --- CHART DATASETS & CONFIGS ---
 
-  // 1. Daily CPA Trend Data
+  // 1. Spend vs. Conversions (Indexed) Data
+  const indexedDailyTotals = (() => {
+    const daily = portfolio?.dailyTotals || [];
+    const firstActiveIdx = daily.findIndex((d: any) => d.spend > 0);
+    if (firstActiveIdx === -1) return [];
+
+    const baselineSpend = daily[firstActiveIdx].spend;
+    const baselineConv = daily[firstActiveIdx].conversions > 0 ? daily[firstActiveIdx].conversions : 1;
+
+    return daily.slice(firstActiveIdx).map((d: any) => {
+      return {
+        date: d.date,
+        rawSpend: d.spend,
+        rawConversions: d.conversions,
+        spendIndex: Math.round((d.spend / baselineSpend) * 100),
+        convIndex: Math.round((d.conversions / baselineConv) * 100),
+      };
+    });
+  })();
+
+  // 2. Daily CPA Trend Data
   const dailyTotalsWithCpa = portfolio?.dailyTotals?.map((item: any) => ({
     ...item,
     cpa: item.conversions > 0 ? Number((item.spend / item.conversions).toFixed(2)) : 0,
@@ -541,9 +561,9 @@ export default function AgencyReportsClient() {
     }) || [];
 
   // --- SHADCN CHART CONFIGS ---
-  const dualAxisChartConfig = {
-    spend: { label: "Spend", color: "#4f46e5" },
-    conversions: { label: "Conversions", color: "#10b981" },
+  const indexedChartConfig = {
+    spendIndex: { label: "Spend Index", color: "#2a78d6" },
+    convIndex: { label: "Conversions Index", color: "#008300" },
   } satisfies ChartConfig;
 
   const cpaChartConfig = {
@@ -598,6 +618,42 @@ export default function AgencyReportsClient() {
             <p>CTR: <span className="font-semibold text-slate-800">{fPct(data.ctr)}</span></p>
             <p>CPC: <span className="font-semibold text-slate-800">{fCur(data.cpc)}</span></p>
             <p>Risk: <span className="font-semibold" style={{ color: data.color }}>{data.riskLevel}</span></p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const CustomIndexedTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border border-slate-200 shadow-md rounded-md space-y-2 text-xs">
+          <p className="font-bold text-slate-900">Date: {data.date}</p>
+          <div className="space-y-1.5">
+            <div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="flex items-center gap-1.5 font-medium text-slate-600">
+                  <span className="w-2 h-2 rounded-full bg-[#2a78d6] inline-block" /> Spend Index:
+                </span>
+                <span className="font-bold text-slate-900">{data.spendIndex}</span>
+              </div>
+              <div className="text-[10px] text-slate-400 pl-3.5">
+                Raw: {fCur(data.rawSpend)}
+              </div>
+            </div>
+            <div className="border-t border-slate-100 pt-1.5">
+              <div className="flex items-center justify-between gap-4">
+                <span className="flex items-center gap-1.5 font-medium text-slate-600">
+                  <span className="w-2.5 h-2.5 border border-[#008300] border-dashed rounded-full bg-white inline-block" /> Conversions Index:
+                </span>
+                <span className="font-bold text-slate-900">{data.convIndex}</span>
+              </div>
+              <div className="text-[10px] text-slate-400 pl-3.5">
+                Raw: {fNum(data.rawConversions)}
+              </div>
+            </div>
           </div>
         </div>
       );
@@ -791,62 +847,56 @@ export default function AgencyReportsClient() {
           <Activity className="w-3.5 h-3.5" /> Daily Portfolio Trends
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Spend vs. Conversions (Dual-Axis Overlay) */}
+          {/* Spend vs. Conversions (indexed) */}
           <Card className="border-slate-200 shadow-sm bg-white">
             <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <DollarSign className="w-4 h-4 text-indigo-500" /> Spend vs. Conversions
-              </CardTitle>
-              <div className="flex items-center gap-3 text-[11px] md:text-xs">
-                <span className="flex items-center gap-1 font-semibold text-slate-600">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#4f46e5] inline-block" /> Spend: {fCur(totalSpend)}
-                </span>
-                <span className="flex items-center gap-1 font-semibold text-slate-600">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#10b981] inline-block" /> Conversions: {fNum(totalConv)}
-                </span>
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-indigo-500" /> Spend vs. Conversions (Indexed)
+                </CardTitle>
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                  Indexed to day 1 = 100 (first active day with spend)
+                </p>
               </div>
             </CardHeader>
-            <CardContent className="pt-6 h-72">
-              {portfolio?.dailyTotals && portfolio.dailyTotals.length > 0 ? (
-                <ChartContainer config={dualAxisChartConfig} className="w-full h-full">
-                  <ComposedChart data={portfolio.dailyTotals}>
-                    <defs>
-                      <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    {weekendAreas.map((area) => (
-                      <ReferenceArea
-                        key={area.id}
-                        x1={area.x1}
-                        x2={area.x2}
-                        fill="#f1f5f9"
-                        fillOpacity={0.6}
-                        ifOverflow="extendDomain"
-                      />
-                    ))}
-                    <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} stroke="#94a3b8" fontSize={10} tickLine={false} />
-                    <YAxis yAxisId="left" tickFormatter={(v) => `$${v}`} stroke="#4f46e5" fontSize={10} tickLine={false} axisLine={false} />
-                    <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={10} tickLine={false} axisLine={false} />
-                    <ChartTooltip
-                      cursor={{ strokeDasharray: '3 3' }}
-                      content={
-                        <ChartTooltipContent
-                          labelFormatter={(d) => `Date: ${d}`}
+            <CardContent className="pt-6">
+              <div className="h-64">
+                {indexedDailyTotals.length > 0 ? (
+                  <ChartContainer config={indexedChartConfig} className="w-full h-full">
+                    <LineChart data={indexedDailyTotals}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      {weekendAreas.map((area) => (
+                        <ReferenceArea
+                          key={area.id}
+                          x1={area.x1}
+                          x2={area.x2}
+                          fill="#f1f5f9"
+                          fillOpacity={0.6}
+                          ifOverflow="extendDomain"
                         />
-                      }
-                    />
-                    <Area yAxisId="left" type="monotone" name="spend" dataKey="spend" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#spendGrad)" />
-                    <Line yAxisId="right" type="monotone" name="conversions" dataKey="conversions" stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-                  </ComposedChart>
-                </ChartContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
-                  No daily metrics found
-                </div>
-              )}
+                      ))}
+                      <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} stroke="#94a3b8" fontSize={10} tickLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} label={{ value: "Index (day 1 = 100)", angle: -90, position: "insideLeft", style: { fontSize: "10px", fill: "#94a3b8" }, offset: -5 }} />
+                      <Tooltip
+                        cursor={{ strokeDasharray: '3 3' }}
+                        content={<CustomIndexedTooltip />}
+                      />
+                      <Line type="monotone" name="spendIndex" dataKey="spendIndex" stroke="#2a78d6" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+                      <Line type="monotone" name="convIndex" dataKey="convIndex" stroke="#008300" strokeDasharray="5 5" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+                    </LineChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                    No active daily metrics found
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 p-3 bg-slate-50 border border-slate-100 rounded-lg flex gap-2">
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-1.5 py-0.5 rounded h-fit">Guide</span>
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  If the green dashed line (conversions) falls further below the blue solid line (spend) as time goes on, spend is not dropping as fast as conversions, meaning efficiency is degrading.
+                </p>
+              </div>
             </CardContent>
           </Card>
 
