@@ -475,19 +475,38 @@ export default function AgencyReportsClient() {
   // 1. Spend vs. Conversions (Indexed) Data
   const indexedDailyTotals = (() => {
     const daily = portfolio?.dailyTotals || [];
-    const firstActiveIdx = daily.findIndex((d: any) => d.spend > 0);
-    if (firstActiveIdx === -1) return [];
+    // Sanity floor: find first day with at least $10 spend
+    let startIdx = daily.findIndex((d: any) => d.spend >= 10);
+    if (startIdx === -1) {
+      startIdx = daily.findIndex((d: any) => d.spend > 0);
+    }
+    if (startIdx === -1) return [];
 
-    const baselineSpend = daily[firstActiveIdx].spend;
-    const baselineConv = daily[firstActiveIdx].conversions > 0 ? daily[firstActiveIdx].conversions : 1;
+    // Smooth out baseline using mean of first 3 active days
+    const baselineDays = daily.slice(startIdx, startIdx + 3);
+    const baselineSpend = baselineDays.reduce((sum: number, d: any) => sum + d.spend, 0) / baselineDays.length;
+    const rawBaselineConv = baselineDays.reduce((sum: number, d: any) => sum + d.conversions, 0) / baselineDays.length;
 
-    return daily.slice(firstActiveIdx).map((d: any) => {
+    // Guard against divide-by-zero or tiny baseline values
+    const safeBaselineSpend = baselineSpend >= 1 ? baselineSpend : 1;
+    const safeBaselineConv = rawBaselineConv >= 1 ? rawBaselineConv : 1;
+
+    console.log("Spend vs. Conversions (Indexed) baseline selection:", {
+      startIdx,
+      startDate: daily[startIdx]?.date,
+      baselineSpendAvg: baselineSpend,
+      baselineConvAvg: rawBaselineConv,
+      safeBaselineSpend,
+      safeBaselineConv,
+    });
+
+    return daily.slice(startIdx).map((d: any) => {
       return {
         date: d.date,
         rawSpend: d.spend,
         rawConversions: d.conversions,
-        spendIndex: Math.round((d.spend / baselineSpend) * 100),
-        convIndex: Math.round((d.conversions / baselineConv) * 100),
+        spendIndex: Math.round((d.spend / safeBaselineSpend) * 100),
+        convIndex: Math.round((d.conversions / safeBaselineConv) * 100),
       };
     });
   })();
