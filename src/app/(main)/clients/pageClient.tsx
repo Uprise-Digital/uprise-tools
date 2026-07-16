@@ -156,6 +156,62 @@ export default function ClientsDirectoryClient() {
     loadData();
   }, [loadData]);
 
+  // Silent background polling for clients list
+  const pollClients = useCallback(async () => {
+    try {
+      const clientsRes = await getClientOnboardingsAction();
+      if (clientsRes.success && clientsRes.clients) {
+        const mappedClients = clientsRes.clients.map((c: any) => ({
+          ...c,
+          createdAt: new Date(c.createdAt),
+          updatedAt: new Date(c.updatedAt),
+        }));
+        setClients(mappedClients);
+      }
+    } catch (err) {
+      console.error("Polling clients failed:", err);
+    }
+  }, []);
+
+  // Sync selectedClient state when the clients database array is updated via polling
+  useEffect(() => {
+    if (selectedClient) {
+      const latest = clients.find((c) => c.id === selectedClient.id);
+      if (
+        latest &&
+        (latest.status !== selectedClient.status ||
+          latest.driveFolderLink !== selectedClient.driveFolderLink ||
+          latest.notionDashboardLink !== selectedClient.notionDashboardLink ||
+          latest.signalGroupLink !== selectedClient.signalGroupLink)
+      ) {
+        setSelectedClient(latest);
+        if (
+          selectedClient.status === "draft" ||
+          selectedClient.status === "generating"
+        ) {
+          setEditDrive(latest.driveFolderLink || "");
+          setEditNotion(latest.notionDashboardLink || "");
+          setEditSignal(latest.signalGroupLink || "");
+        }
+      }
+    }
+  }, [clients, selectedClient]);
+
+  // Polling scheduler when drawer is open and the onboarding status is pending
+  useEffect(() => {
+    if (!selectedClient) return;
+    const isPending =
+      selectedClient.status === "draft" ||
+      selectedClient.status === "generating";
+
+    if (isPending) {
+      const interval = setInterval(() => {
+        pollClients();
+      }, 2500);
+      return () => clearInterval(interval);
+    }
+  }, [selectedClient, pollClients]);
+
   // GHL Autocomplete lookup
   useEffect(() => {
     const delayDebounce = setTimeout(async () => {

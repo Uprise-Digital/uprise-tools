@@ -404,6 +404,7 @@ async function executeOnboardingPipeline(
         .set({ status: "completed", updatedAt: new Date() })
         .where(eq(backgroundTasks.id, taskRecordId));
     }
+    revalidatePath("/clients");
   } catch (err: any) {
     console.error("Onboarding automation error:", err);
     try {
@@ -433,6 +434,7 @@ async function executeOnboardingPipeline(
         })
         .where(eq(backgroundTasks.id, taskRecordId));
     }
+    revalidatePath("/clients");
     throw err;
   }
 }
