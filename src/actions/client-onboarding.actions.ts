@@ -258,8 +258,8 @@ async function executeOnboardingPipeline(
       ),
     });
 
-    let driveFolderLink = `https://drive.google.com/drive/folders/mock-folder-${slug}`;
-    let notionDashboardLink = `https://notion.so/uprisedigital/Uprise-Digital-x-${slug}-mock-dashboard`;
+    let driveFolderLink = "";
+    let notionDashboardLink = "";
 
     const rawEdges = (settings?.workflowConfig as any)?.edges || [];
     const activeChain = getActiveWorkflowChain(rawEdges);
@@ -411,6 +411,9 @@ async function executeOnboardingPipeline(
         .update(clientOnboardings)
         .set({
           status: "failed",
+          driveFolderLink: "",
+          notionDashboardLink: "",
+          signalGroupLink: "",
           updatedAt: new Date(),
         })
         .where(eq(clientOnboardings.id, onboardingId));

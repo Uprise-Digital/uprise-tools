@@ -43,6 +43,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { compileOnboardingEmail } from "@/lib/onboarding-email";
+import { cn } from "@/lib/utils";
 
 interface ClientRecord {
   id: number;
@@ -349,10 +350,41 @@ export default function ClientsDirectoryClient() {
         });
         loadData();
       } else {
-        toast.error(res.error || "Failed to run pipeline.", { id: toastId });
+        toast.error(
+          `Onboarding Pipeline Failed: ${res.error || "Unknown error"}`,
+          {
+            id: toastId,
+            duration: 6000,
+          },
+        );
+        setEditDrive("");
+        setEditNotion("");
+        setEditSignal("");
+        setSelectedClient({
+          ...selectedClient,
+          driveFolderLink: null,
+          notionDashboardLink: null,
+          signalGroupLink: null,
+          status: "failed",
+        });
+        loadData();
       }
     } catch (err: any) {
-      toast.error("Error executing pipeline.", { id: toastId });
+      toast.error(`Error Executing Pipeline: ${err.message || String(err)}`, {
+        id: toastId,
+        duration: 6000,
+      });
+      setEditDrive("");
+      setEditNotion("");
+      setEditSignal("");
+      setSelectedClient({
+        ...selectedClient,
+        driveFolderLink: null,
+        notionDashboardLink: null,
+        signalGroupLink: null,
+        status: "failed",
+      });
+      loadData();
     } finally {
       setIsRunningPipeline(false);
     }
@@ -764,6 +796,19 @@ export default function ClientsDirectoryClient() {
                 </button>
               </div>
 
+              {/* Alert Banner if pipeline failed */}
+              {selectedClient.status === "failed" && (
+                <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="text-rose-500 font-bold shrink-0 mt-0.5 text-sm">⚠️</div>
+                  <div className="space-y-1">
+                    <p className="font-bold">Onboarding Pipeline Failed</p>
+                    <p className="text-[11px] text-rose-700">
+                      The asset generation process encountered an error. Please verify your integration setups (e.g. Google Drive parent permissions or Notion database credentials) and click <strong>Run Pipeline</strong> to try again.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Resource Links Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -774,7 +819,7 @@ export default function ClientsDirectoryClient() {
                   <Button
                     onClick={handleRunPipeline}
                     disabled={isRunningPipeline}
-                    className="bg-emerald-650 hover:bg-emerald-600 disabled:bg-emerald-450 text-white font-bold text-xs h-8 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-300 text-white font-bold text-xs h-8 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm"
                   >
                     {isRunningPipeline ? (
                       <>
@@ -790,79 +835,157 @@ export default function ClientsDirectoryClient() {
                   </Button>
                 </div>
 
-                <div className="grid gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                      1. Google Drive Assets Folder
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={editDrive}
-                        onChange={(e) => setEditDrive(e.target.value)}
-                        placeholder="Pending generation..."
-                        className="bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800"
-                      />
-                      {editDrive && (
-                        <a
-                          href={editDrive}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                {(() => {
+                  const driveWarning =
+                    selectedClient.status === "failed" && !editDrive
+                      ? "⚠️ Pipeline failed - link missing"
+                      : onboardingSettings &&
+                          !onboardingSettings.googleDriveEnabled
+                        ? "⚠️ Google Drive integration is disabled"
+                        : !editDrive
+                          ? "(Pending run)"
+                          : null;
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                      2. Notion Client Dashboard
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={editNotion}
-                        onChange={(e) => setEditNotion(e.target.value)}
-                        placeholder="Pending generation..."
-                        className="bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800"
-                      />
-                      {editNotion && (
-                        <a
-                          href={editNotion}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                  const notionWarning =
+                    selectedClient.status === "failed" && !editNotion
+                      ? "⚠️ Pipeline failed - link missing"
+                      : onboardingSettings && !onboardingSettings.notionEnabled
+                        ? "⚠️ Notion integration is disabled"
+                        : !editNotion
+                          ? "(Pending run)"
+                          : null;
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                      3. Signal Group Chat Invite Link
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={editSignal}
-                        onChange={(e) => setEditSignal(e.target.value)}
-                        placeholder="Pending generation..."
-                        className="bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800"
-                      />
-                      {editSignal && (
-                        <a
-                          href={editSignal}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      )}
+                  const signalWarning =
+                    selectedClient.status === "failed" && !editSignal
+                      ? "⚠️ Pipeline failed - link missing"
+                      : !editSignal
+                        ? "(Pending run)"
+                        : null;
+
+                  return (
+                    <div className="grid gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
+                          <span>1. Google Drive Assets Folder</span>
+                          {driveWarning && (
+                            <span
+                              className={cn(
+                                "font-bold text-[9px]",
+                                driveWarning.startsWith("⚠️")
+                                  ? "text-rose-600"
+                                  : "text-amber-600",
+                              )}
+                            >
+                              {driveWarning}
+                            </span>
+                          )}
+                        </label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={editDrive}
+                            onChange={(e) => setEditDrive(e.target.value)}
+                            placeholder="Pending generation..."
+                            className={cn(
+                              "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
+                              driveWarning?.startsWith("⚠️") &&
+                                "border-rose-300 bg-rose-50/20 placeholder-rose-450 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
+                            )}
+                          />
+                          {editDrive && (
+                            <a
+                              href={editDrive}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
+                          <span>2. Notion Client Dashboard</span>
+                          {notionWarning && (
+                            <span
+                              className={cn(
+                                "font-bold text-[9px]",
+                                notionWarning.startsWith("⚠️")
+                                  ? "text-rose-600"
+                                  : "text-amber-600",
+                              )}
+                            >
+                              {notionWarning}
+                            </span>
+                          )}
+                        </label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={editNotion}
+                            onChange={(e) => setEditNotion(e.target.value)}
+                            placeholder="Pending generation..."
+                            className={cn(
+                              "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
+                              notionWarning?.startsWith("⚠️") &&
+                                "border-rose-300 bg-rose-50/20 placeholder-rose-455 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
+                            )}
+                          />
+                          {editNotion && (
+                            <a
+                              href={editNotion}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
+                          <span>3. Signal Group Chat Invite Link</span>
+                          {signalWarning && (
+                            <span
+                              className={cn(
+                                "font-bold text-[9px]",
+                                signalWarning.startsWith("⚠️")
+                                  ? "text-rose-600"
+                                  : "text-amber-600",
+                              )}
+                            >
+                              {signalWarning}
+                            </span>
+                          )}
+                        </label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={editSignal}
+                            onChange={(e) => setEditSignal(e.target.value)}
+                            placeholder="Pending generation..."
+                            className={cn(
+                              "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
+                              signalWarning?.startsWith("⚠️") &&
+                                "border-rose-300 bg-rose-50/20 placeholder-rose-455 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
+                            )}
+                          />
+                          {editSignal && (
+                            <a
+                              href={editSignal}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 <div className="flex justify-end">
                   <Button
