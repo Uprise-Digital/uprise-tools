@@ -6,7 +6,7 @@ import SettingsClient from "../src/app/(main)/settings/pageClient";
 describe("SettingsClient Rendering", () => {
   it("renders without crashing with null connection", () => {
     const html = renderToStaticMarkup(
-      React.createElement(SettingsClient, {
+      React.createElement(SettingsClient as any, {
         initialDefaults: {
           id: 1,
           criticalSpendThreshold: 70,
@@ -35,7 +35,7 @@ describe("SettingsClient Rendering", () => {
 
   it("renders without crashing with active connection", () => {
     const html = renderToStaticMarkup(
-      React.createElement(SettingsClient, {
+      React.createElement(SettingsClient as any, {
         initialDefaults: {
           id: 1,
           criticalSpendThreshold: 70,

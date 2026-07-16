@@ -110,8 +110,14 @@ describe("Database RLS Scoping Tests", () => {
 
   test("should enforce RLS and only return Org 1 accounts when scoped to Org 1", async () => {
     const results = await withTenantDb("org-rls-test-1", async (tx) => {
+      const beforeRole = await tx.select().from(adAccounts);
+      console.log("DEBUG RLS before SET ROLE:", beforeRole.filter((a: any) => a.name.includes("RLS")));
       // Switch to standard role so RLS is enforced
       await tx.execute(sql`SET ROLE rls_test_role`);
+      const debugVal = await tx.execute(sql`SELECT current_setting('app.current_organization_id', true) as val`);
+      console.log("DEBUG RLS Org 1 current_setting:", debugVal);
+      const rawRes = await tx.execute(sql`SELECT * FROM ad_accounts`);
+      console.log("DEBUG RLS rawRes under role:", rawRes);
       const res = await tx.select().from(adAccounts);
       await tx.execute(sql`RESET ROLE`);
       return res;
@@ -125,6 +131,8 @@ describe("Database RLS Scoping Tests", () => {
   test("should enforce RLS and only return Org 2 accounts when scoped to Org 2", async () => {
     const results = await withTenantDb("org-rls-test-2", async (tx) => {
       await tx.execute(sql`SET ROLE rls_test_role`);
+      const debugVal = await tx.execute(sql`SELECT current_setting('app.current_organization_id', true) as val`);
+      console.log("DEBUG RLS Org 2 current_setting:", debugVal);
       const res = await tx.select().from(adAccounts);
       await tx.execute(sql`RESET ROLE`);
       return res;
