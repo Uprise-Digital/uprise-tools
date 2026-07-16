@@ -23,6 +23,7 @@ import {
   Save,
   SlidersHorizontal,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import "@xyflow/react/dist/style.css";
@@ -382,6 +383,7 @@ function OnboardingTabContent({
   orgName,
   orgId,
 }: OnboardingTabProps) {
+  const router = useRouter();
   const [googleDriveEnabled, setGoogleDriveEnabled] = useState(
     onboardingSettings?.googleDriveEnabled ?? false,
   );
@@ -840,6 +842,7 @@ Founder | ${orgName}`;
             { id: toastId },
           );
         }
+        router.refresh();
       } else {
         toast.error(res.error || "Failed to save onboarding settings.", {
           id: toastId,

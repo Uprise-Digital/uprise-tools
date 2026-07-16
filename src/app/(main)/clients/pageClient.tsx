@@ -799,11 +799,16 @@ export default function ClientsDirectoryClient() {
               {/* Alert Banner if pipeline failed */}
               {selectedClient.status === "failed" && (
                 <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <div className="text-rose-500 font-bold shrink-0 mt-0.5 text-sm">⚠️</div>
+                  <div className="text-rose-500 font-bold shrink-0 mt-0.5 text-sm">
+                    ⚠️
+                  </div>
                   <div className="space-y-1">
                     <p className="font-bold">Onboarding Pipeline Failed</p>
                     <p className="text-[11px] text-rose-700">
-                      The asset generation process encountered an error. Please verify your integration setups (e.g. Google Drive parent permissions or Notion database credentials) and click <strong>Run Pipeline</strong> to try again.
+                      The asset generation process encountered an error. Please
+                      verify your integration setups (e.g. Google Drive parent
+                      permissions or Notion database credentials) and click{" "}
+                      <strong>Run Pipeline</strong> to try again.
                     </p>
                   </div>
                 </div>
