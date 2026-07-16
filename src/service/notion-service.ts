@@ -29,6 +29,56 @@ function replaceVariables(
 }
 
 /**
+ * Recursively fetches all children blocks of a given container block.
+ */
+async function fetchBlockChildrenRecursive(
+  notion: Client,
+  blockId: string,
+): Promise<any[]> {
+  const children: any[] = [];
+  let hasMore = true;
+  let startCursor: string | undefined;
+
+  while (hasMore) {
+    const res: any = await notion.blocks.children.list({
+      block_id: blockId,
+      start_cursor: startCursor,
+      page_size: 100,
+    });
+
+    for (const child of res.results) {
+      const {
+        id,
+        parent,
+        has_children,
+        created_time,
+        last_edited_time,
+        created_by,
+        last_edited_by,
+        ...appendableChild
+      } = child;
+
+      if (child.type === "child_page") {
+        continue;
+      }
+
+      if (child.has_children) {
+        const nested = await fetchBlockChildrenRecursive(notion, child.id);
+        if (appendableChild[child.type]) {
+          appendableChild[child.type].children = nested;
+        }
+      }
+      children.push(appendableChild);
+    }
+
+    hasMore = res.has_more;
+    startCursor = res.next_cursor || undefined;
+  }
+
+  return children;
+}
+
+/**
  * Recursively fetches all blocks from a source page and appends them to a target page.
  * If recursive is true, it also duplicates nested child pages.
  */
@@ -107,6 +157,19 @@ async function duplicateNotionPageBlocks(
           );
         }
       } else {
+        if (block.has_children) {
+          try {
+            const nested = await fetchBlockChildrenRecursive(notion, block.id);
+            if (appendableBlock[block.type]) {
+              appendableBlock[block.type].children = nested;
+            }
+          } catch (err: any) {
+            console.warn(
+              `Failed to fetch children for block ${block.id}:`,
+              err.message,
+            );
+          }
+        }
         blocksToAppend.push(appendableBlock);
       }
     }

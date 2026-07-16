@@ -125,10 +125,12 @@ export async function createClientOnboardingAction(data: {
         },
       );
 
-      // Auto-trigger folder/link automation in the background
-      triggerOnboardingAutomation(inserted.id).catch((err) => {
-        console.error("Auto trigger failed:", err);
-      });
+      // Auto-trigger folder/link automation in the background decoupled from current request
+      setTimeout(() => {
+        triggerOnboardingAutomation(inserted.id).catch((err) => {
+          console.error("Auto trigger failed:", err);
+        });
+      }, 50);
 
       revalidatePath("/clients");
       return { success: true, onboardingId: inserted.id };
@@ -458,10 +460,12 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
     })
     .returning({ id: backgroundTasks.id });
 
-  // Run in background unawaited
-  executeOnboardingPipeline(onboardingId, taskRecord.id).catch((err) => {
-    console.error("Pipeline background execution failed:", err);
-  });
+  // Run in background unawaited and decoupled from request store
+  setTimeout(() => {
+    executeOnboardingPipeline(onboardingId, taskRecord.id).catch((err) => {
+      console.error("Pipeline background execution failed:", err);
+    });
+  }, 50);
 }
 
 /**
