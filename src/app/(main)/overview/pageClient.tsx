@@ -28,16 +28,31 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
+  Cell,
+  ComposedChart,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   ReferenceArea,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
+  ZAxis,
 } from "recharts";
 import { toast } from "sonner";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 import {
   getAgencyPortfolioMetricsAction,
@@ -455,6 +470,106 @@ export default function AgencyReportsClient() {
 
   const weekendAreas = getWeekendReferenceAreas(portfolio?.dailyTotals || []);
 
+  // --- CHART DATASETS & CONFIGS ---
+
+  // 1. Daily CPA Trend Data
+  const dailyTotalsWithCpa = portfolio?.dailyTotals?.map((item: any) => ({
+    ...item,
+    cpa: item.conversions > 0 ? Number((item.spend / item.conversions).toFixed(2)) : 0,
+  })) || [];
+
+  // 2. Account Spend Share Data (Pie Chart: Top 5 + Other)
+  const spendData = portfolio?.accountBreakdown
+    ?.filter((acc: any) => acc.spend > 0)
+    ?.sort((a: any, b: any) => b.spend - a.spend) || [];
+
+  const topSpends = spendData.slice(0, 5);
+  const otherSpendsSum = spendData.slice(5).reduce((sum: number, a: any) => sum + a.spend, 0);
+  const pieData = [
+    ...topSpends.map((a: any) => ({ name: a.name, value: a.spend })),
+    ...(otherSpendsSum > 0 ? [{ name: "Other Accounts", value: otherSpendsSum }] : [])
+  ];
+  const PIE_COLORS = ["#4f46e5", "#7c3aed", "#9333ea", "#c084fc", "#e879f9", "#94a3b8"];
+
+  // 3. Account Conversions Data (Horizontal Bar: Top 8)
+  const barData = portfolio?.accountBreakdown
+    ?.filter((acc: any) => acc.conversions > 0)
+    ?.sort((a: any, b: any) => b.conversions - a.conversions)
+    ?.slice(0, 8)
+    ?.map((a: any) => ({ name: a.name, conversions: a.conversions })) || [];
+
+  // 4. Spend vs CPA Scatter Data (Bubble sized by conversions, colored by risk)
+  const scatterData = portfolio?.accountBreakdown?.map((acc: any) => {
+    const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
+    return {
+      name: acc.name,
+      spend: acc.spend,
+      cpa: acc.cpa,
+      conversions: acc.conversions,
+      riskLevel: risk.label,
+      color: risk.label === "High" ? "#ef4444" : risk.label === "Medium" ? "#f59e0b" : "#10b981",
+    };
+  }) || [];
+
+  // 5. Risk-Weighted Spend Data
+  const riskTiers = { Healthy: 0, Medium: 0, High: 0 };
+  portfolio?.accountBreakdown?.forEach((acc: any) => {
+    const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
+    if (risk.label === "High") riskTiers.High += acc.spend;
+    else if (risk.label === "Medium") riskTiers.Medium += acc.spend;
+    else riskTiers.Healthy += acc.spend;
+  });
+  const totalActiveSpend = riskTiers.Healthy + riskTiers.Medium + riskTiers.High;
+  const riskSpendData = [
+    { name: "Healthy", spend: riskTiers.Healthy, pct: totalActiveSpend > 0 ? (riskTiers.Healthy / totalActiveSpend) * 100 : 0, color: "#10b981" },
+    { name: "Medium Risk", spend: riskTiers.Medium, pct: totalActiveSpend > 0 ? (riskTiers.Medium / totalActiveSpend) * 100 : 0, color: "#f59e0b" },
+    { name: "High Risk", spend: riskTiers.High, pct: totalActiveSpend > 0 ? (riskTiers.High / totalActiveSpend) * 100 : 0, color: "#ef4444" },
+  ];
+
+  // 6. CTR vs CPC Scatter Data
+  const ctrCpcData = portfolio?.accountBreakdown
+    ?.filter((acc: any) => acc.ctr > 0 && acc.cpc > 0)
+    ?.map((acc: any) => {
+      const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
+      return {
+        name: acc.name,
+        ctr: acc.ctr,
+        cpc: acc.cpc,
+        riskLevel: risk.label,
+        color: risk.label === "High" ? "#ef4444" : risk.label === "Medium" ? "#f59e0b" : "#10b981",
+      };
+    }) || [];
+
+  // --- SHADCN CHART CONFIGS ---
+  const dualAxisChartConfig = {
+    spend: { label: "Spend", color: "#4f46e5" },
+    conversions: { label: "Conversions", color: "#10b981" },
+  } satisfies ChartConfig;
+
+  const cpaChartConfig = {
+    cpa: { label: "CPA", color: "#f59e0b" },
+  } satisfies ChartConfig;
+
+  const pieChartConfig = {
+    spend: { label: "Spend" },
+  } satisfies ChartConfig;
+
+  const conversionsChartConfig = {
+    conversions: { label: "Conversions", color: "#10b981" },
+  } satisfies ChartConfig;
+
+  const scatterChartConfig = {
+    accounts: { label: "Accounts" },
+  } satisfies ChartConfig;
+
+  const riskSpendChartConfig = {
+    spend: { label: "Spend" },
+  } satisfies ChartConfig;
+
+  const ctrCpcChartConfig = {
+    accounts: { label: "Accounts" },
+  } satisfies ChartConfig;
+
   const handleRowClick = (accountId: number) => {
     router.push(`/accounts/${accountId}`);
   };
@@ -635,144 +750,355 @@ export default function AgencyReportsClient() {
         </Card>
       </div>
 
-      {/* ── DAILY PERFORMANCE CHARTS ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Spend Chart */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-indigo-500" /> Daily Spend
-            </CardTitle>
-            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-              Total: {fCur(totalSpend)}
-            </span>
-          </CardHeader>
-          <CardContent className="pt-6 h-64">
-            {portfolio?.dailyTotals && portfolio.dailyTotals.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={portfolio.dailyTotals}>
-                  <defs>
-                    <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#f1f5f9"
-                    vertical={false}
-                  />
-                  {weekendAreas.map((area) => (
-                    <ReferenceArea
-                      key={area.id}
-                      x1={area.x1}
-                      x2={area.x2}
-                      fill="#f1f5f9"
-                      fillOpacity={0.6}
-                      ifOverflow="extendDomain"
-                    />
-                  ))}
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(d) => d.slice(5)}
-                    stroke="#94a3b8"
-                    fontSize={10}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tickFormatter={(v) => `$${v}`}
-                    stroke="#94a3b8"
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    formatter={(value) => [fCur(Number(value)), "Spend"]}
-                    labelFormatter={(d) => `Date: ${d}`}
-                    contentStyle={{ fontSize: "11px", borderRadius: "8px" }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="spend"
-                    stroke="#4f46e5"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#spendGrad)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full text-slate-400 text-xs">
-                No daily metrics found
+      {/* ── SECTION 1: DAILY PORTFOLIO TRENDS ── */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+          <Activity className="w-3.5 h-3.5" /> Daily Portfolio Trends
+        </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Spend vs. Conversions (Dual-Axis Overlay) */}
+          <Card className="border-slate-200 shadow-sm bg-white">
+            <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <DollarSign className="w-4 h-4 text-indigo-500" /> Spend vs. Conversions
+              </CardTitle>
+              <div className="flex items-center gap-3 text-[11px] md:text-xs">
+                <span className="flex items-center gap-1 font-semibold text-slate-600">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#4f46e5] inline-block" /> Spend: {fCur(totalSpend)}
+                </span>
+                <span className="flex items-center gap-1 font-semibold text-slate-600">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#10b981] inline-block" /> Conversions: {fNum(totalConv)}
+                </span>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="pt-6 h-72">
+              {portfolio?.dailyTotals && portfolio.dailyTotals.length > 0 ? (
+                <ChartContainer config={dualAxisChartConfig} className="w-full h-full">
+                  <ComposedChart data={portfolio.dailyTotals}>
+                    <defs>
+                      <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    {weekendAreas.map((area) => (
+                      <ReferenceArea
+                        key={area.id}
+                        x1={area.x1}
+                        x2={area.x2}
+                        fill="#f1f5f9"
+                        fillOpacity={0.6}
+                        ifOverflow="extendDomain"
+                      />
+                    ))}
+                    <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} stroke="#94a3b8" fontSize={10} tickLine={false} />
+                    <YAxis yAxisId="left" tickFormatter={(v) => `$${v}`} stroke="#4f46e5" fontSize={10} tickLine={false} axisLine={false} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={10} tickLine={false} axisLine={false} />
+                    <ChartTooltip
+                      cursor={{ strokeDasharray: '3 3' }}
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={(d) => `Date: ${d}`}
+                        />
+                      }
+                    />
+                    <Area yAxisId="left" type="monotone" name="spend" dataKey="spend" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#spendGrad)" />
+                    <Line yAxisId="right" type="monotone" name="conversions" dataKey="conversions" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  </ComposedChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                  No daily metrics found
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Conversions Chart */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-              <Target className="w-4 h-4 text-emerald-500" /> Daily Conversions
-            </CardTitle>
-            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-              Total: {fNum(totalConv)}
-            </span>
-          </CardHeader>
-          <CardContent className="pt-6 h-64">
-            {portfolio?.dailyTotals && portfolio.dailyTotals.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={portfolio.dailyTotals}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#f1f5f9"
-                    vertical={false}
-                  />
-                  {weekendAreas.map((area) => (
-                    <ReferenceArea
-                      key={area.id}
-                      x1={area.x1}
-                      x2={area.x2}
-                      fill="#f1f5f9"
-                      fillOpacity={0.6}
-                      ifOverflow="extendDomain"
+          {/* Daily CPA Trend */}
+          <Card className="border-slate-200 shadow-sm bg-white">
+            <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-amber-500" /> Daily CPA Trend
+              </CardTitle>
+              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                Blended: {fCur(portfolio?.agencyTotals?.cpa || 0)}
+              </span>
+            </CardHeader>
+            <CardContent className="pt-6 h-72">
+              {dailyTotalsWithCpa.length > 0 ? (
+                <ChartContainer config={cpaChartConfig} className="w-full h-full">
+                  <LineChart data={dailyTotalsWithCpa}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    {weekendAreas.map((area) => (
+                      <ReferenceArea
+                        key={area.id}
+                        x1={area.x1}
+                        x2={area.x2}
+                        fill="#f1f5f9"
+                        fillOpacity={0.6}
+                        ifOverflow="extendDomain"
+                      />
+                    ))}
+                    <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} stroke="#94a3b8" fontSize={10} tickLine={false} />
+                    <YAxis tickFormatter={(v) => `$${v}`} stroke="#f59e0b" fontSize={10} tickLine={false} axisLine={false} />
+                    <ChartTooltip
+                      cursor={{ strokeDasharray: '3 3' }}
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={(d) => `Date: ${d}`}
+                          formatter={(value) => [fCur(Number(value)), "CPA"]}
+                        />
+                      }
                     />
-                  ))}
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(d) => d.slice(5)}
-                    stroke="#94a3b8"
-                    fontSize={10}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    stroke="#94a3b8"
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    formatter={(value) => [fNum(Number(value)), "Conversions"]}
-                    labelFormatter={(d) => `Date: ${d}`}
-                    contentStyle={{ fontSize: "11px", borderRadius: "8px" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="conversions"
-                    stroke="#10b981"
-                    strokeWidth={2.5}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full text-slate-400 text-xs">
-                No daily metrics found
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <Line type="monotone" name="cpa" dataKey="cpa" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                  No daily metrics found
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ── SECTION 2: PORTFOLIO SHARE & BREAKDOWNS ── */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+          <Scale className="w-3.5 h-3.5" /> Portfolio Share & Breakdowns
+        </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Account Spend Share (Pie Chart) */}
+          <Card className="border-slate-200 shadow-sm bg-white">
+            <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <DollarSign className="w-4 h-4 text-indigo-500" /> Account Spend Share
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 h-72">
+              {pieData.length > 0 ? (
+                <ChartContainer config={pieChartConfig} className="w-full h-full">
+                  <PieChart>
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, name) => {
+                            const total = pieData.reduce((sum, item) => sum + item.value, 0);
+                            const pct = total > 0 ? ((Number(value) / total) * 100).toFixed(1) : "0.0";
+                            return [`${fCur(Number(value))} (${pct}%)`, name];
+                          }}
+                        />
+                      }
+                    />
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                  No active spend found
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Account Conversions (Bar Chart) */}
+          <Card className="border-slate-200 shadow-sm bg-white">
+            <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-emerald-500" /> Top Accounts by Conversions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 h-72">
+              {barData.length > 0 ? (
+                <ChartContainer config={conversionsChartConfig} className="w-full h-full">
+                  <BarChart layout="vertical" data={barData} margin={{ left: 10, right: 30, top: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                    <XAxis type="number" stroke="#94a3b8" fontSize={10} tickLine={false} />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      width={120}
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(tick) => (tick.length > 18 ? `${tick.slice(0, 15)}...` : tick)}
+                    />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value) => [fNum(Number(value)), "Conversions"]}
+                        />
+                      }
+                    />
+                    <Bar dataKey="conversions" fill="#10b981" radius={[0, 4, 4, 0]} barSize={12} />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                  No active conversions found
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ── SECTION 3: RISK & EFFICIENCY DIAGNOSTICS ── */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+          <ShieldAlert className="w-3.5 h-3.5" /> Risk & Engagement Diagnostics
+        </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Spend vs. CPA Scatter (Bubble) */}
+          <Card className="border-slate-200 shadow-sm bg-white">
+            <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-rose-500" /> Spend vs. CPA Risk Map
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 h-72">
+              {scatterData.length > 0 ? (
+                <ChartContainer config={scatterChartConfig} className="w-full h-full">
+                  <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis type="number" dataKey="spend" name="Spend" tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={9} />
+                    <YAxis type="number" dataKey="cpa" name="CPA" tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={9} />
+                    <ZAxis type="number" dataKey="conversions" range={[50, 400]} name="Conversions" />
+                    <ChartTooltip
+                      cursor={{ strokeDasharray: '3 3' }}
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, name, props) => {
+                            const data = props.payload;
+                            return (
+                              <div className="space-y-1">
+                                <p className="font-bold text-slate-800">{data.name}</p>
+                                <p className="text-slate-600">Spend: <span className="font-semibold">{fCur(data.spend)}</span></p>
+                                <p className="text-slate-600">CPA: <span className="font-semibold">{fCur(data.cpa)}</span></p>
+                                <p className="text-slate-600">Conversions: <span className="font-semibold">{fNum(data.conversions)}</span></p>
+                                <p className="text-slate-600">Risk: <span className="font-semibold" style={{ color: data.color }}>{data.riskLevel}</span></p>
+                              </div>
+                            );
+                          }}
+                        />
+                      }
+                    />
+                    <Scatter name="Accounts" data={scatterData}>
+                      {scatterData.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Scatter>
+                  </ScatterChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                  No active accounts found
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Risk-Weighted Spend (Bar) */}
+          <Card className="border-slate-200 shadow-sm bg-white">
+            <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <Scale className="w-4 h-4 text-indigo-500" /> Churn Risk Spend Share
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 h-72">
+              {totalActiveSpend > 0 ? (
+                <ChartContainer config={riskSpendChartConfig} className="w-full h-full">
+                  <BarChart data={riskSpendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} />
+                    <YAxis tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, name, props: any) => [
+                            `${fCur(Number(value))} (${props.payload.pct.toFixed(1)}%)`,
+                            "Spend"
+                          ]}
+                        />
+                      }
+                    />
+                    <Bar dataKey="spend" radius={[4, 4, 0, 0]} barSize={40}>
+                      {riskSpendData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                  No active spend found
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* CTR vs CPC Scatter */}
+          <Card className="border-slate-200 shadow-sm bg-white">
+            <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-emerald-500" /> CTR vs. CPC Engagement
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 h-72">
+              {ctrCpcData.length > 0 ? (
+                <ChartContainer config={ctrCpcChartConfig} className="w-full h-full">
+                  <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis type="number" dataKey="ctr" name="CTR" tickFormatter={(v) => `${v}%`} stroke="#94a3b8" fontSize={9} />
+                    <YAxis type="number" dataKey="cpc" name="CPC" tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={9} />
+                    <ChartTooltip
+                      cursor={{ strokeDasharray: '3 3' }}
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, name, props) => {
+                            const data = props.payload;
+                            return (
+                              <div className="space-y-1">
+                                <p className="font-bold text-slate-800">{data.name}</p>
+                                <p className="text-slate-600">CTR: <span className="font-semibold">{fPct(data.ctr)}</span></p>
+                                <p className="text-slate-600">CPC: <span className="font-semibold">{fCur(data.cpc)}</span></p>
+                                <p className="text-slate-600">Risk: <span className="font-semibold" style={{ color: data.color }}>{data.riskLevel}</span></p>
+                              </div>
+                            );
+                          }}
+                        />
+                      }
+                    />
+                    <Scatter name="Accounts" data={ctrCpcData}>
+                      {ctrCpcData.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Scatter>
+                  </ScatterChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                  No active accounts found
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* ── PORTFOLIO INTELLIGENCE ENGINE (LIGHT MODE) ── */}
