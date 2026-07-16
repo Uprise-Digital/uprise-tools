@@ -806,6 +806,38 @@ Founder | ${orgName}`;
       "Saving onboarding configurations and verifying connections...",
     );
     try {
+      // Strip out internal React Flow non-serializable properties
+      const cleanedNodes = nodes.map((node) => ({
+        id: node.id,
+        type: node.type,
+        position: {
+          x: node.position.x,
+          y: node.position.y,
+        },
+        data: {
+          label: node.data?.label || "",
+          mode: node.data?.mode || "",
+          parentFolderId: node.data?.parentFolderId || "",
+          templateFolderId: node.data?.templateFolderId || "",
+          folderNamePattern: node.data?.folderNamePattern || "",
+          shareEmails: node.data?.shareEmails || "",
+          shareRole: node.data?.shareRole || "",
+          subfolders: node.data?.subfolders || [],
+          docRules: node.data?.docRules || [],
+          parentPageId: node.data?.parentPageId || "",
+          templatePageId: node.data?.templatePageId || "",
+          pageNamePattern: node.data?.pageNamePattern || "",
+          pageIcon: node.data?.pageIcon || "",
+        },
+      }));
+
+      const cleanedEdges = edges.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        animated: !!edge.animated,
+      }));
+
       const res = await saveOnboardingSettingsAction({
         googleDriveEnabled,
         notionEnabled,
@@ -813,8 +845,8 @@ Founder | ${orgName}`;
         welcomeEmailSubject,
         welcomeEmailTemplate,
         workflowConfig: {
-          nodes,
-          edges,
+          nodes: cleanedNodes,
+          edges: cleanedEdges,
         },
       });
 
