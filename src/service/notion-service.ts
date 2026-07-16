@@ -28,6 +28,95 @@ function replaceVariables(
   return result;
 }
 
+const CONTENT_ALLOWLIST: Record<string, string[]> = {
+  paragraph: ["rich_text", "color", "children"],
+  heading_1: ["rich_text", "color", "is_toggleable", "children"],
+  heading_2: ["rich_text", "color", "is_toggleable", "children"],
+  heading_3: ["rich_text", "color", "is_toggleable", "children"],
+  bulleted_list_item: ["rich_text", "color", "children"],
+  numbered_list_item: ["rich_text", "color", "children"],
+  to_do: ["rich_text", "checked", "color", "children"],
+  toggle: ["rich_text", "color", "children"],
+  callout: ["rich_text", "icon", "color", "children"],
+  quote: ["rich_text", "color", "children"],
+  code: ["rich_text", "language", "caption"],
+  divider: [],
+  column_list: ["children"],
+  column: ["children"], // width_ratio intentionally omitted — let Notion auto-distribute
+  table: ["table_width", "has_column_header", "has_row_header", "children"],
+  table_row: ["cells"],
+  image: ["type", "external", "file", "caption"],
+  bookmark: ["url", "caption"],
+  embed: ["url"],
+  equation: ["expression"],
+  synced_block: ["synced_from", "children"],
+};
+
+/**
+ * Sanitizes a block for creation, removing read-only metadata fields
+ * and stripping null values (such as icon: null or color: null) that fail Notion API validation.
+ */
+function sanitizeBlockForCreate(block: any): any {
+  if (!block || !block.type) return block;
+  const { type } = block;
+
+  // child_database, child_page, or unsupported block types cannot be appended directly.
+  if (["unsupported", "child_database", "child_page"].includes(type)) {
+    return null;
+  }
+
+  const original = block[type] ?? {};
+  const allowed = CONTENT_ALLOWLIST[type];
+
+  let cleanContent: Record<string, any> = {};
+
+  if (allowed) {
+    for (const key of allowed) {
+      const val = original[key];
+      if (val !== null && val !== undefined) {
+        cleanContent[key] = val;
+      }
+    }
+  } else {
+    // Unknown/unhandled block type — best-effort: strip nulls
+    console.warn(`No allowlist entry for block type "${type}" — falling back to null-stripping`);
+    cleanContent = { ...original };
+    for (const key of Object.keys(cleanContent)) {
+      if (cleanContent[key] === null) {
+        delete cleanContent[key];
+      }
+    }
+  }
+
+  // --- SPECIAL TYPE TRANSLATIONS ---
+
+  // 1. Media blocks (image, video, file, pdf, audio)
+  if (["image", "video", "file", "pdf", "audio"].includes(type)) {
+    // If original block was type "file" (temporary hosted url), convert it to "external"
+    if (original.type === "file" && original.file?.url) {
+      cleanContent.type = "external";
+      cleanContent.external = { url: original.file.url };
+      delete cleanContent.file;
+    }
+  }
+
+  const newBlock: any = { type, [type]: cleanContent };
+
+  // Recurse into children if they exist on the tree
+  if (cleanContent.children) {
+    cleanContent.children = cleanContent.children
+      .map(sanitizeBlockForCreate)
+      .filter((b: any) => b !== null);
+  }
+  if (block.children) {
+    newBlock.children = block.children
+      .map(sanitizeBlockForCreate)
+      .filter((b: any) => b !== null);
+  }
+
+  return newBlock;
+}
+
 /**
  * Recursively fetches all children blocks of a given container block.
  */
@@ -47,18 +136,12 @@ async function fetchBlockChildrenRecursive(
     });
 
     for (const child of res.results) {
-      const {
-        id,
-        parent,
-        has_children,
-        created_time,
-        last_edited_time,
-        created_by,
-        last_edited_by,
-        ...appendableChild
-      } = child;
-
       if (child.type === "child_page") {
+        continue;
+      }
+
+      const appendableChild = sanitizeBlockForCreate(child);
+      if (!appendableChild) {
         continue;
       }
 
@@ -76,6 +159,120 @@ async function fetchBlockChildrenRecursive(
   }
 
   return children;
+}
+
+/**
+ * Cleans database properties schema for databases.create.
+ */
+function cleanDatabasePropertiesForCreate(properties: any): any {
+  const cleanProps: any = {};
+  for (const key of Object.keys(properties)) {
+    const prop = properties[key];
+    const { id, ...cleanProp } = prop;
+
+    if (cleanProp.type === "select" && cleanProp.select?.options) {
+      cleanProp.select.options = cleanProp.select.options.map((opt: any) => {
+        const { id: _, ...cleanOpt } = opt;
+        return cleanOpt;
+      });
+    }
+    if (cleanProp.type === "multi_select" && cleanProp.multi_select?.options) {
+      cleanProp.multi_select.options = cleanProp.multi_select.options.map((opt: any) => {
+        const { id: _, ...cleanOpt } = opt;
+        return cleanOpt;
+      });
+    }
+    if (cleanProp.type === "status") {
+      // Notion does not allow customizing status options on creation via API
+      cleanProp.status = {};
+    }
+    if (["formula", "rollup", "unique_id"].includes(cleanProp.type)) {
+      continue;
+    }
+
+    cleanProps[key] = cleanProp;
+  }
+  return cleanProps;
+}
+
+/**
+ * Copies all rows from one database to another recursively copying block content.
+ */
+async function duplicateDatabaseRows(
+  notion: Client,
+  sourceDbId: string,
+  targetDbId: string,
+) {
+  let hasMore = true;
+  let startCursor: string | undefined;
+
+  while (hasMore) {
+    const res = await notion.databases.query({
+      database_id: sourceDbId,
+      start_cursor: startCursor,
+      page_size: 100,
+    });
+
+    for (const page of res.results) {
+      const cleanProperties: any = {};
+      for (const key of Object.keys(page.properties)) {
+        const propValue = page.properties[key];
+        const { id, ...cleanVal } = propValue;
+
+        if (
+          [
+            "formula",
+            "rollup",
+            "unique_id",
+            "created_time",
+            "created_by",
+            "last_edited_time",
+            "last_edited_by",
+          ].includes(cleanVal.type)
+        ) {
+          continue;
+        }
+
+        cleanProperties[key] = cleanVal;
+      }
+
+      const newPage = await notion.pages.create({
+        parent: { database_id: targetDbId },
+        properties: cleanProperties,
+      });
+
+      // Copy body content inside the database row page
+      await duplicateNotionPageBlocks(notion, page.id, newPage.id, true);
+    }
+
+    hasMore = res.has_more;
+    startCursor = res.next_cursor || undefined;
+  }
+}
+
+/**
+ * Duplicates a Notion database schema and copies all its rows.
+ */
+async function duplicateNotionDatabase(
+  notion: Client,
+  sourceDbId: string,
+  targetPageId: string,
+) {
+  console.log(`Notion Service: Duplicating database ${sourceDbId} under page ${targetPageId}...`);
+  const sourceDb: any = await notion.databases.retrieve({ database_id: sourceDbId });
+  console.log("Notion Service: sourceDb retrieved:", JSON.stringify(sourceDb));
+  const properties = cleanDatabasePropertiesForCreate(sourceDb.properties);
+
+  const newDb = await notion.databases.create({
+    parent: { page_id: targetPageId },
+    title: sourceDb.title,
+    icon: sourceDb.icon || undefined,
+    description: sourceDb.description || undefined,
+    properties,
+  });
+
+  console.log(`Notion Service: Database duplicated. New DB ID: ${newDb.id}. Copying rows...`);
+  await duplicateDatabaseRows(notion, sourceDbId, newDb.id);
 }
 
 /**
@@ -101,18 +298,6 @@ async function duplicateNotionPageBlocks(
     });
 
     for (const block of res.results) {
-      // Remove read-only block attributes to allow creation
-      const {
-        id,
-        parent,
-        has_children,
-        created_time,
-        last_edited_time,
-        created_by,
-        last_edited_by,
-        ...appendableBlock
-      } = block;
-
       if (block.type === "child_page") {
         if (recursive) {
           try {
@@ -156,7 +341,26 @@ async function duplicateNotionPageBlocks(
             `Notion Service: Skipping child page block '${block.child_page?.title || "untitled"}' because recursive copy is disabled.`,
           );
         }
+      } else if (block.type === "child_database") {
+        if (recursive) {
+          try {
+            await duplicateNotionDatabase(notion, block.id, targetPageId);
+          } catch (err: any) {
+            console.warn(
+              `Failed to duplicate database ${block.id}:`,
+              err,
+            );
+          }
+        } else {
+          console.log(
+            `Notion Service: Skipping child database block '${block.child_database?.title || "untitled"}' because recursive copy is disabled.`,
+          );
+        }
       } else {
+        const appendableBlock = sanitizeBlockForCreate(block);
+        if (!appendableBlock) {
+          continue;
+        }
         if (block.has_children) {
           try {
             const nested = await fetchBlockChildrenRecursive(notion, block.id);
