@@ -3,6 +3,7 @@
 import { desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { db } from "@/db";
 import {
   adAccounts,
@@ -125,12 +126,12 @@ export async function createClientOnboardingAction(data: {
         },
       );
 
-      // Auto-trigger folder/link automation in the background decoupled from current request
-      setTimeout(() => {
+      // Auto-trigger folder/link automation in the background
+      after(() => {
         triggerOnboardingAutomation(inserted.id).catch((err) => {
           console.error("Auto trigger failed:", err);
         });
-      }, 50);
+      });
 
       revalidatePath("/clients");
       return { success: true, onboardingId: inserted.id };
@@ -461,11 +462,11 @@ export async function triggerOnboardingAutomation(onboardingId: number) {
     .returning({ id: backgroundTasks.id });
 
   // Run in background unawaited and decoupled from request store
-  setTimeout(() => {
+  after(() => {
     executeOnboardingPipeline(onboardingId, taskRecord.id).catch((err) => {
       console.error("Pipeline background execution failed:", err);
     });
-  }, 50);
+  });
 }
 
 /**
