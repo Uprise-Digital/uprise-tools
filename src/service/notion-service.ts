@@ -186,7 +186,17 @@ function cleanDatabasePropertiesForCreate(properties: any): any {
       // Notion does not allow customizing status options on creation via API
       cleanProp.status = {};
     }
-    if (["formula", "rollup", "unique_id"].includes(cleanProp.type)) {
+    if (
+      [
+        "formula",
+        "rollup",
+        "unique_id",
+        "created_time",
+        "created_by",
+        "last_edited_time",
+        "last_edited_by",
+      ].includes(cleanProp.type)
+    ) {
       continue;
     }
 
@@ -296,14 +306,23 @@ async function duplicateNotionDatabase(
 
   const cleanProperties = cleanDatabasePropertiesForCreate(properties);
 
-  const newDb = await notion.databases.create({
+  const createParams: any = {
     parent: { type: "page_id", page_id: targetPageId },
     title: sourceDb.title,
     icon: sourceDb.icon || undefined,
     description: sourceDb.description || undefined,
     is_inline: sourceDb.is_inline,
-    properties: cleanProperties,
-  } as any);
+  };
+
+  if (dataSourceId) {
+    createParams.initial_data_source = {
+      properties: cleanProperties,
+    };
+  } else {
+    createParams.properties = cleanProperties;
+  }
+
+  const newDb = await notion.databases.create(createParams);
 
   console.log(`Notion Service: Database duplicated. New DB ID: ${newDb.id}. Copying rows...`);
   await duplicateDatabaseRows(notion, sourceDbId, newDb.id, dataSourceId);
