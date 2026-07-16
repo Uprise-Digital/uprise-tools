@@ -63,41 +63,47 @@ async function duplicateNotionPageBlocks(
         ...appendableBlock
       } = block;
 
-      if (recursive && block.type === "child_page") {
-        try {
-          console.log(
-            `Notion Service: Duplicating nested subpage '${block.child_page.title}' under parent ${targetPageId}...`,
-          );
-          // Create the subpage under target page
-          const newSubpage = await notion.pages.create({
-            parent: { page_id: targetPageId },
-            properties: {
-              title: {
-                title: [
-                  {
-                    text: {
-                      content: block.child_page.title,
+      if (block.type === "child_page") {
+        if (recursive) {
+          try {
+            console.log(
+              `Notion Service: Duplicating nested subpage '${block.child_page.title}' under parent ${targetPageId}...`,
+            );
+            // Create the subpage under target page
+            const newSubpage = await notion.pages.create({
+              parent: { page_id: targetPageId },
+              properties: {
+                title: {
+                  title: [
+                    {
+                      text: {
+                        content: block.child_page.title,
+                      },
                     },
-                  },
-                ],
+                  ],
+                },
               },
-            },
-            icon: {
-              type: "emoji",
-              emoji: "📄",
-            },
-          });
-          // Recursively duplicate blocks from old child page to new child page
-          await duplicateNotionPageBlocks(
-            notion,
-            block.id,
-            newSubpage.id,
-            true,
-          );
-        } catch (err: any) {
-          console.warn(
-            `Failed to duplicate nested subpage ${block.id}:`,
-            err.message,
+              icon: {
+                type: "emoji",
+                emoji: "📄",
+              },
+            });
+            // Recursively duplicate blocks from old child page to new child page
+            await duplicateNotionPageBlocks(
+              notion,
+              block.id,
+              newSubpage.id,
+              true,
+            );
+          } catch (err: any) {
+            console.warn(
+              `Failed to duplicate nested subpage ${block.id}:`,
+              err.message,
+            );
+          }
+        } else {
+          console.log(
+            `Notion Service: Skipping child page block '${block.child_page?.title || "untitled"}' because recursive copy is disabled.`,
           );
         }
       } else {
