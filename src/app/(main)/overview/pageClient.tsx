@@ -804,7 +804,7 @@ export default function AgencyReportsClient() {
                       }
                     />
                     <Area yAxisId="left" type="monotone" name="spend" dataKey="spend" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#spendGrad)" />
-                    <Line yAxisId="right" type="monotone" name="conversions" dataKey="conversions" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                    <Line yAxisId="right" type="monotone" name="conversions" dataKey="conversions" stroke="#10b981" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
                   </ComposedChart>
                 </ChartContainer>
               ) : (
@@ -851,7 +851,7 @@ export default function AgencyReportsClient() {
                         />
                       }
                     />
-                    <Line type="monotone" name="cpa" dataKey="cpa" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                    <Line type="monotone" name="cpa" dataKey="cpa" stroke="#f59e0b" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
                   </LineChart>
                 </ChartContainer>
               ) : (
