@@ -507,7 +507,7 @@ export default function AgencyReportsClient() {
       cpa: acc.cpa,
       conversions: acc.conversions,
       riskLevel: risk.label,
-      color: risk.label === "High" ? "#ef4444" : risk.label === "Medium" ? "#f59e0b" : "#10b981",
+      color: risk.label === "High Risk" ? "#ef4444" : risk.label === "Medium" ? "#f59e0b" : "#10b981",
     };
   }) || [];
 
@@ -515,7 +515,7 @@ export default function AgencyReportsClient() {
   const riskTiers = { Healthy: 0, Medium: 0, High: 0 };
   portfolio?.accountBreakdown?.forEach((acc: any) => {
     const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
-    if (risk.label === "High") riskTiers.High += acc.spend;
+    if (risk.label === "High Risk") riskTiers.High += acc.spend;
     else if (risk.label === "Medium") riskTiers.Medium += acc.spend;
     else riskTiers.Healthy += acc.spend;
   });
@@ -536,7 +536,7 @@ export default function AgencyReportsClient() {
         ctr: acc.ctr,
         cpc: acc.cpc,
         riskLevel: risk.label,
-        color: risk.label === "High" ? "#ef4444" : risk.label === "Medium" ? "#f59e0b" : "#10b981",
+        color: risk.label === "High Risk" ? "#ef4444" : risk.label === "Medium" ? "#f59e0b" : "#10b981",
       };
     }) || [];
 
@@ -569,6 +569,41 @@ export default function AgencyReportsClient() {
   const ctrCpcChartConfig = {
     accounts: { label: "Accounts" },
   } satisfies ChartConfig;
+
+  const CustomScatterTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border border-slate-200 shadow-md rounded-md space-y-1 text-xs">
+          <p className="font-bold text-slate-900">{data.name}</p>
+          <div className="space-y-0.5 text-slate-500">
+            <p>Spend: <span className="font-semibold text-slate-800">{fCur(data.spend)}</span></p>
+            <p>CPA: <span className="font-semibold text-slate-800">{fCur(data.cpa)}</span></p>
+            <p>Conversions: <span className="font-semibold text-slate-800">{fNum(data.conversions)}</span></p>
+            <p>Risk: <span className="font-semibold" style={{ color: data.color }}>{data.riskLevel}</span></p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const CustomCtrCpcTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border border-slate-200 shadow-md rounded-md space-y-1 text-xs">
+          <p className="font-bold text-slate-900">{data.name}</p>
+          <div className="space-y-0.5 text-slate-500">
+            <p>CTR: <span className="font-semibold text-slate-800">{fPct(data.ctr)}</span></p>
+            <p>CPC: <span className="font-semibold text-slate-800">{fCur(data.cpc)}</span></p>
+            <p>Risk: <span className="font-semibold" style={{ color: data.color }}>{data.riskLevel}</span></p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   const handleRowClick = (accountId: number) => {
     router.push(`/accounts/${accountId}`);
@@ -869,9 +904,9 @@ export default function AgencyReportsClient() {
         <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
           <Scale className="w-3.5 h-3.5" /> Portfolio Share & Breakdowns
         </h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Account Spend Share (Pie Chart) */}
-          <Card className="border-slate-200 shadow-sm bg-white">
+          <Card className="border-slate-200 shadow-sm bg-white lg:col-span-1">
             <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
                 <DollarSign className="w-4 h-4 text-indigo-500" /> Account Spend Share
@@ -879,7 +914,7 @@ export default function AgencyReportsClient() {
             </CardHeader>
             <CardContent className="pt-6 h-72">
               {pieData.length > 0 ? (
-                <ChartContainer config={pieChartConfig} className="w-full h-full">
+                <ChartContainer config={pieChartConfig} className="w-full h-full aspect-auto min-h-[240px] flex items-center justify-center">
                   <PieChart>
                     <ChartTooltip
                       content={
@@ -896,8 +931,8 @@ export default function AgencyReportsClient() {
                       data={pieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
-                      outerRadius={80}
+                      innerRadius={60}
+                      outerRadius={95}
                       paddingAngle={3}
                       dataKey="value"
                     >
@@ -916,7 +951,7 @@ export default function AgencyReportsClient() {
           </Card>
 
           {/* Account Conversions (Bar Chart) */}
-          <Card className="border-slate-200 shadow-sm bg-white">
+          <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2">
             <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
                 <Target className="w-4 h-4 text-emerald-500" /> Top Accounts by Conversions
@@ -979,28 +1014,19 @@ export default function AgencyReportsClient() {
                     <XAxis type="number" dataKey="spend" name="Spend" tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={9} />
                     <YAxis type="number" dataKey="cpa" name="CPA" tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={9} />
                     <ZAxis type="number" dataKey="conversions" range={[50, 400]} name="Conversions" />
-                    <ChartTooltip
+                    <Tooltip
                       cursor={{ strokeDasharray: '3 3' }}
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value, name, props) => {
-                            const data = props.payload;
-                            return (
-                              <div className="space-y-1">
-                                <p className="font-bold text-slate-800">{data.name}</p>
-                                <p className="text-slate-600">Spend: <span className="font-semibold">{fCur(data.spend)}</span></p>
-                                <p className="text-slate-600">CPA: <span className="font-semibold">{fCur(data.cpa)}</span></p>
-                                <p className="text-slate-600">Conversions: <span className="font-semibold">{fNum(data.conversions)}</span></p>
-                                <p className="text-slate-600">Risk: <span className="font-semibold" style={{ color: data.color }}>{data.riskLevel}</span></p>
-                              </div>
-                            );
-                          }}
-                        />
-                      }
+                      content={<CustomScatterTooltip />}
                     />
                     <Scatter name="Accounts" data={scatterData}>
                       {scatterData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.color}
+                          fillOpacity={0.6}
+                          stroke={entry.color}
+                          strokeWidth={1.5}
+                        />
                       ))}
                     </Scatter>
                   </ScatterChart>
@@ -1066,27 +1092,19 @@ export default function AgencyReportsClient() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis type="number" dataKey="ctr" name="CTR" tickFormatter={(v) => `${v}%`} stroke="#94a3b8" fontSize={9} />
                     <YAxis type="number" dataKey="cpc" name="CPC" tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={9} />
-                    <ChartTooltip
+                    <Tooltip
                       cursor={{ strokeDasharray: '3 3' }}
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value, name, props) => {
-                            const data = props.payload;
-                            return (
-                              <div className="space-y-1">
-                                <p className="font-bold text-slate-800">{data.name}</p>
-                                <p className="text-slate-600">CTR: <span className="font-semibold">{fPct(data.ctr)}</span></p>
-                                <p className="text-slate-600">CPC: <span className="font-semibold">{fCur(data.cpc)}</span></p>
-                                <p className="text-slate-600">Risk: <span className="font-semibold" style={{ color: data.color }}>{data.riskLevel}</span></p>
-                              </div>
-                            );
-                          }}
-                        />
-                      }
+                      content={<CustomCtrCpcTooltip />}
                     />
                     <Scatter name="Accounts" data={ctrCpcData}>
                       {ctrCpcData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.color}
+                          fillOpacity={0.6}
+                          stroke={entry.color}
+                          strokeWidth={1.5}
+                        />
                       ))}
                     </Scatter>
                   </ScatterChart>
