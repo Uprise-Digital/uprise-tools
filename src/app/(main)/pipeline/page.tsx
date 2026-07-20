@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { getPipelineDashboardDataAction } from "@/actions/pipeline.actions";
+import {
+  getPipelineDashboardDataAction,
+  getSalesReminderSettingsAction,
+  getTeamMembersAction,
+} from "@/actions/pipeline.actions";
 import PipelineClient from "./pageClient";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +15,18 @@ export const metadata: Metadata = {
 };
 
 export default async function PipelinePage() {
-  const result = await getPipelineDashboardDataAction();
+  const [result, settingsRes, teamRes] = await Promise.all([
+    getPipelineDashboardDataAction(),
+    getSalesReminderSettingsAction(),
+    getTeamMembersAction(),
+  ]);
+
+  const defaultSettings = {
+    id: 0,
+    recipients: [],
+    sendTime: "08:00",
+    isActive: true,
+  };
 
   return (
     <PipelineClient
@@ -31,6 +46,12 @@ export default async function PipelinePage() {
               },
             }
       }
+      initialSettings={
+        settingsRes.success && settingsRes.data
+          ? settingsRes.data
+          : defaultSettings
+      }
+      teamMembers={teamRes.success && teamRes.data ? teamRes.data : []}
       error={!result.success ? (result as any).error : null}
     />
   );

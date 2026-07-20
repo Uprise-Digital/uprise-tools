@@ -1,7 +1,12 @@
 "use server";
 
+import { eq, ne } from "drizzle-orm";
 import { headers } from "next/headers";
+import { getBriefingSettingsAction } from "@/actions/briefing-settings.actions";
+import { db } from "@/db";
+import { salesReminderSettings, user } from "@/db/schema";
 import { generateContentTracked } from "@/lib/ai-logger";
+import { logEmail } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import {
   createContactNote,
@@ -309,6 +314,323 @@ export async function generateTranscriptSummaryAction(transcript: string) {
     };
   } catch (error: any) {
     console.error("[generateTranscriptSummaryAction Error]:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
+ * Sends a daily stalled opportunities email digest to Uprise team members.
+ */
+export async function sendStalledOpportunitiesReminderAction() {
+  const SYSTEM_ACTOR = "SYSTEM_AUTOMATION";
+  try {
+    const locationId = process.env.GHL_LOCATION_ID;
+    const apiKey = process.env.GHL_API_KEY;
+    const resendKey = process.env.RESEND_API_KEY;
+
+    if (!locationId || !apiKey) {
+      throw new Error("GHL_LOCATION_ID or GHL_API_KEY is not configured.");
+    }
+    if (!resendKey) {
+      throw new Error("RESEND_API_KEY is not configured.");
+    }
+
+    const { Resend } = await import("resend");
+    const resend = new Resend(resendKey);
+
+    // 1. Fetch Sales Reminder Settings
+    let recipients: string[] = [];
+    let isActive = true;
+    try {
+      const settingsRes = await getSalesReminderSettingsAction();
+      if (settingsRes.success && settingsRes.data) {
+        isActive = settingsRes.data.isActive;
+        recipients = settingsRes.data.recipients;
+      }
+    } catch (e) {
+      console.warn(
+        "Failed to load sales reminder settings, using default team fallbacks:",
+        e,
+      );
+    }
+
+    if (!isActive) {
+      return {
+        success: true,
+        message: "Sales reminders email notification is disabled.",
+      };
+    }
+
+    // 2. Fetch Pipelines & Opportunities
+    const pipelines = await getGhlPipelines(locationId);
+    if (pipelines.length === 0) {
+      return { success: true, message: "No GHL pipelines found." };
+    }
+
+    // Get all opportunities for the first pipeline
+    const targetPipeline = pipelines[0];
+    const rawOpps = await getGhlOpportunities(locationId, targetPipeline.id);
+
+    // Fetch GHL Users
+    let usersList: any[] = [];
+    try {
+      usersList = await getGhlUsers(locationId);
+    } catch (e) {
+      // Ignore
+    }
+    const userMap = new Map(usersList.map((u) => [u.id, u.name]));
+
+    const now = Date.now();
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+    const stalledOpps = rawOpps
+      .filter(
+        (o) =>
+          o.status === "open" && new Date(o.updatedAt).getTime() < sevenDaysAgo,
+      )
+      .map((o) => {
+        const ownerName = o.assignedTo
+          ? userMap.get(o.assignedTo) || `User (${o.assignedTo.slice(-4)})`
+          : "Unassigned";
+        const daysStalled = Math.max(
+          0,
+          Math.floor(
+            (now - new Date(o.updatedAt).getTime()) / (24 * 60 * 60 * 1000),
+          ),
+        );
+        return { ...o, ownerName, daysStalled };
+      })
+      .sort((a, b) => b.daysStalled - a.daysStalled);
+
+    if (stalledOpps.length === 0) {
+      return {
+        success: true,
+        message: "No stalled opportunities found today.",
+      };
+    }
+
+    // 3. Fallback recipients (all team members) if empty
+    if (recipients.length === 0) {
+      const team = await db
+        .select()
+        .from(user)
+        .where(ne(user.id, SYSTEM_ACTOR));
+      recipients = team.map((u) => u.email).filter(Boolean);
+    }
+
+    if (recipients.length === 0) {
+      throw new Error("No recipients found to email.");
+    }
+
+    // 4. Compile HTML
+    const appUrl =
+      process.env.BETTER_AUTH_URL ||
+      "https://uprise-tools-production.up.railway.app";
+
+    let tableRows = "";
+    for (const opp of stalledOpps) {
+      tableRows += `
+        <tr style="border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #334155;">
+          <td style="padding: 12px 0;">
+            <strong style="color: #1e293b;">${opp.name}</strong><br/>
+            <span style="font-size: 11px; color: #64748b;">${opp.contactName} (${opp.contactEmail || "no email"})</span>
+          </td>
+          <td style="padding: 12px 0; font-weight: 600;">$${(opp.monetaryValue || 0).toLocaleString()}</td>
+          <td style="padding: 12px 0; color: #475569;">${opp.ownerName}</td>
+          <td style="padding: 12px 0; font-weight: bold; color: #ef4444;">${opp.daysStalled} days</td>
+        </tr>
+      `;
+    }
+
+    const htmlBody = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <div style="text-align: center; margin-bottom: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
+          <img src="https://uprise-tools-production.up.railway.app/logo_white.png" alt="Uprise Logo" style="height: 36px; filter: invert(1); margin-bottom: 8px;" />
+          <h1 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a;">Sales Follow-up Required</h1>
+        </div>
+
+        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+          <h2 style="margin: 0; color: #991b1b; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">⚠️ Stalled Sales Opportunities</h2>
+          <p style="margin: 6px 0 0 0; color: #7f1d1d; font-size: 13px; line-height: 1.5;">
+            There are <strong>${stalledOpps.length} deals</strong> in the sales pipeline with no updates or CRM activity in the last 7+ days. Lak & Reuben, please follow up immediately.
+          </p>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 28px;">
+          <thead>
+            <tr style="border-bottom: 2px solid #e2e8f0; text-align: left; font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">
+              <th style="padding: 8px 0; width: 45%;">Deal / Contact</th>
+              <th style="padding: 8px 0; width: 20%;">Value</th>
+              <th style="padding: 8px 0; width: 20%;">Owner</th>
+              <th style="padding: 8px 0; width: 15%;">Stalled</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+
+        <div style="text-align: center; margin-bottom: 16px;">
+          <a href="${appUrl}/pipeline" style="background-color: #4f46e5; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 13px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">
+            View Pipeline & AI Action Plans
+          </a>
+        </div>
+
+        <p style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+          This is an automated notification from Uprise Tools Daily Sales Assistant.
+        </p>
+      </div>
+    `;
+
+    const subject = `⚠️ Action Required: ${stalledOpps.length} Stalled Sales Opportunities`;
+
+    // 5. Send emails
+    for (const email of recipients) {
+      const emailResult = await resend.emails.send({
+        from: "Uprise Tools <briefing@uprise.digital>",
+        to: email,
+        subject: subject,
+        html: htmlBody,
+      });
+
+      // Log to email_logs
+      await logEmail({
+        recipient: email,
+        subject: subject,
+        emailType: "morning_briefing",
+        status: emailResult.error ? "failed" : "success",
+        resendId: emailResult.data?.id || null,
+        error: emailResult.error?.message || null,
+      });
+    }
+
+    return {
+      success: true,
+      message: `Sent stalled leads digest to ${recipients.length} recipients.`,
+    };
+  } catch (error: any) {
+    console.error("[sendStalledOpportunitiesReminderAction Error]:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Fetches GHL Sales Reminder Settings for the organization.
+ */
+export async function getSalesReminderSettingsAction() {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    let orgId = "default-org";
+    if (session?.session?.activeOrganizationId) {
+      orgId = session.session.activeOrganizationId;
+    }
+
+    let settings = await db.query.salesReminderSettings.findFirst({
+      where: eq(salesReminderSettings.organizationId, orgId),
+    });
+
+    if (!settings) {
+      // Create default settings with all team members as default recipients
+      let defaultRecipients: string[] = [];
+      try {
+        const team = await db
+          .select()
+          .from(user)
+          .where(ne(user.id, "SYSTEM_AUTOMATION"));
+        defaultRecipients = team.map((u) => u.email).filter(Boolean);
+      } catch (e) {
+        // Ignore
+      }
+
+      const [newSettings] = await db
+        .insert(salesReminderSettings)
+        .values({
+          organizationId: orgId,
+          recipients: defaultRecipients,
+          sendTime: "08:00",
+          isActive: true,
+        })
+        .returning();
+      settings = newSettings;
+    }
+
+    return {
+      success: true as const,
+      data: {
+        id: settings.id,
+        recipients: settings.recipients as string[],
+        sendTime: settings.sendTime,
+        isActive: settings.isActive,
+      },
+    };
+  } catch (error: any) {
+    console.error("[getSalesReminderSettingsAction Error]:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
+ * Updates GHL Sales Reminder Settings for the organization.
+ */
+export async function updateSalesReminderSettingsAction(data: {
+  recipients: string[];
+  sendTime: string;
+  isActive: boolean;
+}) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    let orgId = "default-org";
+    if (session?.session?.activeOrganizationId) {
+      orgId = session.session.activeOrganizationId;
+    }
+
+    const existing = await db.query.salesReminderSettings.findFirst({
+      where: eq(salesReminderSettings.organizationId, orgId),
+    });
+
+    if (existing) {
+      await db
+        .update(salesReminderSettings)
+        .set({
+          recipients: data.recipients,
+          sendTime: data.sendTime,
+          isActive: data.isActive,
+          updatedAt: new Date(),
+        })
+        .where(eq(salesReminderSettings.id, existing.id));
+    } else {
+      await db.insert(salesReminderSettings).values({
+        organizationId: orgId,
+        recipients: data.recipients,
+        sendTime: data.sendTime,
+        isActive: data.isActive,
+      });
+    }
+
+    return { success: true as const };
+  } catch (error: any) {
+    console.error("[updateSalesReminderSettingsAction Error]:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
+ * Fetches the list of all registered team members.
+ */
+export async function getTeamMembersAction() {
+  try {
+    await checkAuth();
+    const team = await db
+      .select({ id: user.id, email: user.email, name: user.name })
+      .from(user)
+      .where(ne(user.id, "SYSTEM_AUTOMATION"));
+    return { success: true as const, data: team };
+  } catch (error: any) {
+    console.error("[getTeamMembersAction Error]:", error);
     return { success: false as const, error: error.message };
   }
 }

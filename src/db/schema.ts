@@ -572,6 +572,15 @@ export const briefingSettings = pgTable("briefing_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }).enableRLS();
 
+export const salesReminderSettings = pgTable("sales_reminder_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: text("organization_id").notNull().default("default-org"),
+  recipients: jsonb("recipients").notNull().default([]), // Array of email strings
+  sendTime: varchar("send_time", { length: 5 }).notNull().default("08:00"),
+  isActive: boolean("is_active").default(true).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}).enableRLS();
+
 export const orgTriageDefaults = pgTable("org_triage_defaults", {
   id: serial("id").primaryKey(),
   organizationId: text("organization_id").notNull().default("default-org"),

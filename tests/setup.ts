@@ -48,6 +48,16 @@ const mockDbQuery = {
       updatedAt: new Date(),
     }),
   },
+  salesReminderSettings: {
+    findFirst: vi.fn().mockResolvedValue({
+      id: 1,
+      organizationId: "org-test-uprise",
+      recipients: ["test-sales@uprise.digital"],
+      sendTime: "08:00",
+      isActive: true,
+      updatedAt: new Date(),
+    }),
+  },
   aiModelPricing: {
     findFirst: vi.fn().mockResolvedValue({
       id: 1,

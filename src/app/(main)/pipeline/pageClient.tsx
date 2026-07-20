@@ -11,6 +11,7 @@ import {
   Mail,
   MessageSquarePlus,
   Phone,
+  Settings,
   Sparkles,
   TrendingUp,
   User,
@@ -23,6 +24,7 @@ import {
   generateTranscriptSummaryAction,
   getContactNotesAction,
   getPipelineDashboardDataAction,
+  updateSalesReminderSettingsAction,
 } from "@/actions/pipeline.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,7 +35,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 interface PipelineClientProps {
   initialData: {
@@ -48,17 +58,42 @@ interface PipelineClientProps {
       stalledValue: number;
     };
   };
+  initialSettings: {
+    id: number;
+    recipients: string[];
+    sendTime: string;
+    isActive: boolean;
+  };
+  teamMembers: {
+    id: string;
+    email: string | null;
+    name: string | null;
+  }[];
   error: string | null;
 }
 
 export default function PipelineClient({
   initialData,
+  initialSettings,
+  teamMembers,
   error,
 }: PipelineClientProps) {
   const [data, setData] = useState(initialData);
   const [selectedPipelineId, setSelectedPipelineId] = useState(
     initialData.selectedPipelineId,
   );
+
+  // Settings configuration state
+  const [settings, setSettings] = useState(initialSettings);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  const [editRecipients, setEditRecipients] = useState<string[]>(
+    initialSettings.recipients,
+  );
+  const [editSendTime, setEditSendTime] = useState(initialSettings.sendTime);
+  const [editIsActive, setEditIsActive] = useState(initialSettings.isActive);
+  const [customEmailInput, setCustomEmailInput] = useState("");
   const [activeMainTab, setActiveMainTab] = useState<"board" | "stalled">(
     "board",
   );
@@ -108,6 +143,54 @@ export default function PipelineClient({
     } finally {
       setIsSwitchingPipeline(false);
     }
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const res = await updateSalesReminderSettingsAction({
+        recipients: editRecipients,
+        sendTime: editSendTime,
+        isActive: editIsActive,
+      });
+
+      if (res.success) {
+        setSettings({
+          id: settings.id,
+          recipients: editRecipients,
+          sendTime: editSendTime,
+          isActive: editIsActive,
+        });
+        toast.success("Sales reminder settings saved successfully.");
+        setIsSettingsOpen(false);
+      } else {
+        toast.error("Failed to save settings.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Error saving settings.");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleAddCustomEmail = () => {
+    const clean = customEmailInput.trim().toLowerCase();
+    if (!clean) return;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(clean)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+    if (editRecipients.includes(clean)) {
+      toast.error("Email is already in the recipient list.");
+      return;
+    }
+    setEditRecipients([...editRecipients, clean]);
+    setCustomEmailInput("");
+  };
+
+  const handleRemoveRecipient = (email: string) => {
+    setEditRecipients(editRecipients.filter((r) => r !== email));
   };
 
   // Open opportunity details slide-over
@@ -303,29 +386,46 @@ export default function PipelineClient({
           </p>
         </div>
 
-        {/* Pipeline Selector Switcher */}
-        {data.pipelines.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-              Pipeline:
-            </span>
-            <select
-              className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              value={selectedPipelineId}
-              onChange={(e) => handlePipelineChange(e.target.value)}
-              disabled={isSwitchingPipeline}
-            >
-              {data.pipelines.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            {isSwitchingPipeline && (
-              <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-            )}
-          </div>
-        )}
+        {/* Pipeline Selector Switcher & Settings */}
+        <div className="flex items-center gap-3">
+          {data.pipelines.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                Pipeline:
+              </span>
+              <select
+                className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                value={selectedPipelineId}
+                onChange={(e) => handlePipelineChange(e.target.value)}
+                disabled={isSwitchingPipeline}
+              >
+                {data.pipelines.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {isSwitchingPipeline && (
+                <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
+              )}
+            </div>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditRecipients(settings.recipients);
+              setEditSendTime(settings.sendTime);
+              setEditIsActive(settings.isActive);
+              setIsSettingsOpen(true);
+            }}
+            className="flex items-center gap-1.5 text-xs font-bold border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer h-9 px-3"
+          >
+            <Settings className="w-4 h-4 text-slate-500" />
+            Reminder Settings
+          </Button>
+        </div>
       </div>
 
       {/* METRICS DASHBOARD SUMMARY */}
@@ -1039,6 +1139,175 @@ export default function PipelineClient({
           </div>
         </div>
       )}
+      {/* SALES REMINDER CONFIGURATION DIALOG */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="max-w-md bg-white border border-slate-200 rounded-xl p-6 shadow-xl text-slate-800">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-indigo-600" />
+              GHL Sales Reminder Settings
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400">
+              Configure daily email warnings for stalled opportunities
+              independently of Google Ads morning briefings.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-4">
+            {/* Status Switch */}
+            <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-lg">
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-slate-800">
+                  Enable Daily Reminders
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Send morning digest of stagnant leads
+                </span>
+              </div>
+              <Switch
+                checked={editIsActive}
+                onCheckedChange={setEditIsActive}
+              />
+            </div>
+
+            {/* Time of Day */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-700">
+                Send Time (Melbourne Time)
+              </Label>
+              <input
+                type="time"
+                value={editSendTime}
+                onChange={(e) => setEditSendTime(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
+            {/* Target Recipients */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-700">
+                Notification Recipients
+              </Label>
+
+              {/* Select Team Members */}
+              {teamMembers.length > 0 && (
+                <div className="space-y-1.5 border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+                  <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400 block mb-1">
+                    Select Team Members:
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {teamMembers.map((member) => {
+                      if (!member.email) return null;
+                      const isSelected = editRecipients.includes(member.email);
+                      return (
+                        <button
+                          key={member.id}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              handleRemoveRecipient(member.email!);
+                            } else {
+                              setEditRecipients([
+                                ...editRecipients,
+                                member.email!,
+                              ]);
+                            }
+                          }}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-left text-xs font-semibold cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <Mail className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">
+                            {member.name || member.email}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Add Custom Email */}
+              <div className="flex gap-2 mt-2">
+                <input
+                  type="email"
+                  placeholder="custom-recipient@domain.com"
+                  value={customEmailInput}
+                  onChange={(e) => setCustomEmailInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddCustomEmail();
+                    }
+                  }}
+                  className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <Button
+                  type="button"
+                  onClick={handleAddCustomEmail}
+                  className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs h-8 px-3 cursor-pointer"
+                >
+                  Add
+                </Button>
+              </div>
+
+              {/* Selected Recipients Tags */}
+              <div className="flex flex-wrap gap-1.5 mt-2.5 pt-2 border-t border-slate-100">
+                {editRecipients.length === 0 ? (
+                  <span className="text-[11px] text-amber-600 font-semibold italic flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    No recipients (falls back to entire team)
+                  </span>
+                ) : (
+                  editRecipients.map((email) => (
+                    <Badge
+                      key={email}
+                      variant="secondary"
+                      className="flex items-center gap-1 bg-indigo-50/50 border border-indigo-100 text-indigo-700 text-[10px] font-semibold py-0.5 px-2 rounded-full"
+                    >
+                      {email}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRecipient(email)}
+                        className="text-indigo-400 hover:text-indigo-600 font-bold ml-1 text-xs shrink-0 cursor-pointer"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-200">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSettingsOpen(false)}
+                disabled={savingSettings}
+                className="text-xs font-bold border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer h-9 px-4"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveSettings}
+                disabled={savingSettings}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold h-9 px-5 flex items-center gap-1.5 cursor-pointer"
+              >
+                {savingSettings && (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                )}
+                Save Configuration
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
