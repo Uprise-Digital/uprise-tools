@@ -183,7 +183,7 @@ export function AiUsageTab({ initialStats, orgId, userRole }: AiUsageTabProps) {
       {/* METER & CONFIG GROUP */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* RADIAL PROGRESS SPEND METER */}
-        <Card className="py-6 shadow-sm border-slate-200">
+        <Card className="py-4 shadow-sm border-slate-200">
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-sm font-bold text-slate-800">
@@ -274,7 +274,7 @@ export function AiUsageTab({ initialStats, orgId, userRole }: AiUsageTabProps) {
         </Card>
 
         {/* METRICS CARDS */}
-        <Card className="py-6 shadow-sm border-slate-200">
+        <Card className="py-4 shadow-sm border-slate-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold text-slate-800">
               Activity Overview
@@ -324,7 +324,7 @@ export function AiUsageTab({ initialStats, orgId, userRole }: AiUsageTabProps) {
         </Card>
 
         {/* AI BILLING CONFIGURATION */}
-        <Card className="py-6 shadow-sm border-slate-200">
+        <Card className="py-4 shadow-sm border-slate-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-slate-800">
               Usage & Limits Config
@@ -431,7 +431,7 @@ export function AiUsageTab({ initialStats, orgId, userRole }: AiUsageTabProps) {
       {/* ATTRIBUTION BREAKDOWN CHARTS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* ATTRIBUTION BY FEATURE */}
-        <Card className="py-6 shadow-sm border-slate-200">
+        <Card className="py-4 shadow-sm border-slate-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-slate-800">
               Feature Cost Attribution
@@ -480,7 +480,7 @@ export function AiUsageTab({ initialStats, orgId, userRole }: AiUsageTabProps) {
         </Card>
 
         {/* ATTRIBUTION BY USER */}
-        <Card className="py-6 shadow-sm border-slate-200">
+        <Card className="py-4 shadow-sm border-slate-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-slate-800">
               User Usage Attribution
@@ -528,7 +528,7 @@ export function AiUsageTab({ initialStats, orgId, userRole }: AiUsageTabProps) {
       </div>
 
       {/* LEDGER GRID LOG */}
-      <Card className="py-6 shadow-sm border-slate-200">
+      <Card className="py-4 shadow-sm border-slate-200">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-sm font-bold text-slate-800">
