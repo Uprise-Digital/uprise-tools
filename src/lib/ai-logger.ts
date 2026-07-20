@@ -9,7 +9,7 @@ import {
   usageLogs,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { getMelbourneTodayStr, parseUTCDate } from "@/lib/date-utils";
+import { getMelbourneTodayStr } from "@/lib/date-utils";
 
 // Shared GoogleGenAI instance using the env key
 export const googleAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });

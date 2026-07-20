@@ -12,6 +12,14 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  return {
+    ...actual,
+    after: vi.fn(),
+  };
+});
+
 vi.mock("@/lib/auth", () => ({
   auth: {
     api: {
@@ -30,6 +38,28 @@ vi.mock("@/lib/auth", () => ({
 // 2. MOCK DRIZZLE DATABASE INSTANCE
 // ============================================================================
 const mockDbQuery = {
+  aiUsageSettings: {
+    findFirst: vi.fn().mockResolvedValue({
+      id: 1,
+      organizationId: "org-test-uprise",
+      monthlyBudgetLimit: "100.00",
+      softLimitPercentage: 80,
+      hardLimitBlocked: true,
+      updatedAt: new Date(),
+    }),
+  },
+  aiModelPricing: {
+    findFirst: vi.fn().mockResolvedValue({
+      id: 1,
+      modelName: "gemini-2.5-flash",
+      modelFamily: "gemini-2.5",
+      displayName: "Gemini 2.5 Flash",
+      inputCostPerMillion: "0.075",
+      outputCostPerMillion: "0.30",
+      inputCachedCostPerMillion: "0.0375",
+      updatedAt: new Date(),
+    }),
+  },
   clientOnboardings: {
     findFirst: vi.fn().mockResolvedValue({
       id: 101,
@@ -274,7 +304,11 @@ vi.mock("@/db", () => {
   const mockExecutor = {
     execute: vi.fn().mockResolvedValue(true),
     query: mockDbQuery,
-    select: vi.fn(),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn().mockResolvedValue([{ totalSpend: "0.00" }]),
+      })),
+    })),
     insert: vi.fn(() => ({
       values: vi.fn(() => ({
         returning: vi.fn().mockResolvedValue([{ id: 1 }]),
