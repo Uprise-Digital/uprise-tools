@@ -26,19 +26,15 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  ComposedChart,
   Line,
   LineChart,
   Pie,
   PieChart,
   ReferenceArea,
-  ResponsiveContainer,
   Scatter,
   ScatterChart,
   Tooltip,

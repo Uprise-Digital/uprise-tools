@@ -1,24 +1,13 @@
 "use server";
 
-import * as cheerio from "cheerio";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import {
-  aiModelPricing,
-  aiUsageSettings,
-  member,
-  usageLogs,
-  user,
-} from "@/db/schema";
+import { aiUsageSettings, member, usageLogs, user } from "@/db/schema";
 import { withTenantContext } from "@/db/tenant-db";
 import { auth } from "@/lib/auth";
-import {
-  formatUTCDate,
-  getMelbourneTodayStr,
-  parseUTCDate,
-} from "@/lib/date-utils";
+import { getMelbourneTodayStr, parseUTCDate } from "@/lib/date-utils";
 
 // Helper to get active session organization context
 async function getSessionOrgContext() {

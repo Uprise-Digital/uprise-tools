@@ -123,3 +123,186 @@ export async function updateGhlOpportunityStage(
     return false;
   }
 }
+
+export interface GhlPipeline {
+  id: string;
+  name: string;
+  stages: {
+    id: string;
+    name: string;
+  }[];
+}
+
+export interface GhlOpportunityDetails {
+  id: string;
+  name: string;
+  contactId: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  pipelineId: string;
+  stageId: string;
+  status: string;
+  monetaryValue?: number;
+  assignedTo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GhlUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface GhlNote {
+  id: string;
+  body: string;
+  createdAt: string;
+  userId?: string;
+}
+
+/**
+ * Fetches all pipelines for a location in GoHighLevel.
+ */
+export async function getGhlPipelines(
+  locationId: string,
+): Promise<GhlPipeline[]> {
+  try {
+    const res = await fetch(
+      `${GHL_API_BASE}/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`,
+      { headers: getGhlHeaders() },
+    );
+    if (!res.ok) {
+      throw new Error(`Failed to fetch pipelines: ${res.statusText}`);
+    }
+    const data = await res.json();
+    return (data.pipelines || []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      stages: (p.stages || []).map((s: any) => ({
+        id: s.id,
+        name: s.name,
+      })),
+    }));
+  } catch (error) {
+    console.error("Error fetching GHL pipelines:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches/searches opportunities in a pipeline for a location.
+ */
+export async function getGhlOpportunities(
+  locationId: string,
+  pipelineId: string,
+): Promise<GhlOpportunityDetails[]> {
+  try {
+    const res = await fetch(
+      `${GHL_API_BASE}/opportunities/search?locationId=${encodeURIComponent(locationId)}&pipelineId=${encodeURIComponent(pipelineId)}&limit=100`,
+      { headers: getGhlHeaders() },
+    );
+    if (!res.ok) {
+      throw new Error(`Failed to fetch GHL opportunities: ${res.statusText}`);
+    }
+    const data = await res.json();
+    return (data.opportunities || []).map((o: any) => ({
+      id: o.id,
+      name: o.name,
+      contactId: o.contactId,
+      contactName: o.contact?.name || o.contactName || "Unknown",
+      contactEmail: o.contact?.email || o.contactEmail || "",
+      contactPhone: o.contact?.phone || o.contactPhone,
+      pipelineId: o.pipelineId,
+      stageId: o.pipelineStageId || o.stageId,
+      status: o.status,
+      monetaryValue: o.monetaryValue,
+      assignedTo: o.assignedTo,
+      createdAt: o.createdAt,
+      updatedAt:
+        o.updatedAt ||
+        o.lastStatusChangeAt ||
+        o.lastStageChangeAt ||
+        o.createdAt,
+    }));
+  } catch (error) {
+    console.error("Error fetching GHL opportunities:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches users (team members) for a location in GoHighLevel.
+ */
+export async function getGhlUsers(locationId: string): Promise<GhlUser[]> {
+  try {
+    const res = await fetch(
+      `${GHL_API_BASE}/users/?locationId=${encodeURIComponent(locationId)}`,
+      { headers: getGhlHeaders() },
+    );
+    if (!res.ok) {
+      throw new Error(`Failed to fetch GHL users: ${res.statusText}`);
+    }
+    const data = await res.json();
+    return (data.users || []).map((u: any) => ({
+      id: u.id,
+      name: `${u.firstName || ""} ${u.lastName || ""}`.trim(),
+      email: u.email,
+    }));
+  } catch (error) {
+    console.error("Error fetching GHL users:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches notes for a specific contact in GoHighLevel.
+ */
+export async function getContactNotes(contactId: string): Promise<GhlNote[]> {
+  try {
+    const res = await fetch(
+      `${GHL_API_BASE}/contacts/${encodeURIComponent(contactId)}/notes`,
+      { headers: getGhlHeaders() },
+    );
+    if (!res.ok) {
+      throw new Error(`Failed to fetch contact notes: ${res.statusText}`);
+    }
+    const data = await res.json();
+    return (data.notes || []).map((n: any) => ({
+      id: n.id,
+      body: n.body,
+      createdAt: n.dateAdded || n.createdAt,
+      userId: n.userId,
+    }));
+  } catch (error) {
+    console.error(`Error fetching GHL notes for contact ${contactId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Creates a new note for a specific contact in GoHighLevel.
+ */
+export async function createContactNote(
+  contactId: string,
+  body: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${GHL_API_BASE}/contacts/${encodeURIComponent(contactId)}/notes`,
+      {
+        method: "POST",
+        headers: getGhlHeaders(),
+        body: JSON.stringify({ body }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Failed to create contact note: ${res.statusText}`);
+    }
+    return true;
+  } catch (error) {
+    console.error(`Error creating GHL note for contact ${contactId}:`, error);
+    throw error;
+  }
+}
