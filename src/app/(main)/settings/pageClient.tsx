@@ -7,10 +7,12 @@ import {
   Mail,
   Settings as SettingsIcon,
   SlidersHorizontal,
+  Sparkles,
   XCircle,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AiUsageTab } from "./components/AiUsageTab";
 import { AuditTab } from "./components/AuditTab";
 import { EmailsTab } from "./components/EmailsTab";
 import { GeneralTab } from "./components/GeneralTab";
@@ -103,6 +105,7 @@ interface SettingsClientProps {
     welcomeEmailTemplate: string;
     workflowConfig: any;
   } | null;
+  initialAiUsageStats: any;
 }
 
 // React Error Boundary to catch hydration and client-side crashes
@@ -158,9 +161,10 @@ export default function SettingsClient({
   initialAutoJoinDomainEnabled,
   orgId,
   onboardingSettings,
+  initialAiUsageStats,
 }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<
-    "general" | "triage" | "audit" | "emails" | "onboarding"
+    "general" | "triage" | "onboarding" | "audit" | "emails" | "ai_usage"
   >("general");
 
   const [isMounted, setIsMounted] = useState(false);
@@ -237,6 +241,18 @@ export default function SettingsClient({
             <button
               type="button"
               className={`pb-3 text-sm font-semibold transition-all border-b-2 px-1 flex items-center gap-2 ${
+                activeTab === "ai_usage"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+              onClick={() => setActiveTab("ai_usage")}
+            >
+              <Sparkles className="w-4 h-4" />
+              AI Usage
+            </button>
+            <button
+              type="button"
+              className={`pb-3 text-sm font-semibold transition-all border-b-2 px-1 flex items-center gap-2 ${
                 activeTab === "audit"
                   ? "border-indigo-600 text-indigo-600"
                   : "border-transparent text-slate-500 hover:text-slate-800"
@@ -287,6 +303,14 @@ export default function SettingsClient({
           {activeTab === "audit" && <AuditTab auditLogs={auditLogs} />}
 
           {activeTab === "emails" && <EmailsTab emailLogs={emailLogs} />}
+
+          {activeTab === "ai_usage" && (
+            <AiUsageTab
+              initialStats={initialAiUsageStats}
+              orgId={orgId}
+              userRole={userRole}
+            />
+          )}
         </div>
       </TooltipProvider>
     </SettingsErrorBoundary>

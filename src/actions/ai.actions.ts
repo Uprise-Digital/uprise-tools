@@ -1,12 +1,10 @@
 "use server";
 
-import { GoogleGenAI } from "@google/genai";
 import { and, eq } from "drizzle-orm";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { db } from "@/db";
 import { aiInsightsCache } from "@/db/schema";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+import { generateContentTracked } from "@/lib/ai-logger";
 
 export async function getOrGenerateAiInsightsAction(
   adAccountId: number,
@@ -158,12 +156,18 @@ export async function getOrGenerateAiInsightsAction(
 
   // 4. Generate response using Gemini
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
+    const result = await generateContentTracked(
+      {
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      },
+      {
+        feature: "campaign_diagnostics",
+      },
+    );
 
+    const response = result.response;
     const parsedInsights = JSON.parse(response.text as string);
 
     // 5. Upsert into Cache
@@ -194,6 +198,7 @@ export async function getOrGenerateAiInsightsAction(
       data: parsedInsights,
       generatedAt: upserted.createdAt,
       isCached: false,
+      usageAlert: result.usageAlert,
     };
   } catch (error) {
     console.error("AI Insights Error:", error);
@@ -245,13 +250,22 @@ export async function generateAgencyAiInsightsAction(portfolioData: any) {
     `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
+    const result = await generateContentTracked(
+      {
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      },
+      {
+        feature: "agency_portfolio_analysis",
+      },
+    );
 
-    return JSON.parse(response.text as string);
+    const parsed = JSON.parse(result.response.text as string);
+    if (parsed && typeof parsed === "object") {
+      parsed.usageAlert = result.usageAlert;
+    }
+    return parsed;
   } catch (error) {
     console.error("Agency AI Insights Error:", error);
     throw new Error("Failed to generate portfolio insights.");

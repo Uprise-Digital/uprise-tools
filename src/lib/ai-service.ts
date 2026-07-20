@@ -1,6 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+import { generateContentTracked } from "@/lib/ai-logger";
 
 /**
  * USE CASE 1: PDF CONTENT
@@ -31,12 +29,19 @@ export async function generateReportInsights(data: any) {
     `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
-    return JSON.parse(response.text as string);
+    const result = await generateContentTracked(
+      {
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      },
+      {
+        organizationId: data.organizationId,
+        userId: data.userId,
+        feature: "pdf_report_insights",
+      },
+    );
+    return JSON.parse(result.response.text as string);
   } catch (error) {
     console.error("PDF Insights Error:", error);
     return {
@@ -75,12 +80,19 @@ export async function generateEmailBody(data: any) {
     `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
-    return JSON.parse(response.text as string);
+    const result = await generateContentTracked(
+      {
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      },
+      {
+        organizationId: data.organizationId,
+        userId: data.userId,
+        feature: "email_body_generation",
+      },
+    );
+    return JSON.parse(result.response.text as string);
   } catch (error) {
     console.error("Email Body Error:", error);
     return {
@@ -148,6 +160,8 @@ export async function generateMorningBriefingText(data: {
     anomalies: boolean;
     whaleAnalysis: boolean;
   };
+  organizationId?: string;
+  userId?: string | null;
 }) {
   const prompt = `
     You are the Strategy Director at Uprise Digital.
@@ -221,12 +235,19 @@ export async function generateMorningBriefingText(data: {
     `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
-    return JSON.parse(response.text as string);
+    const result = await generateContentTracked(
+      {
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      },
+      {
+        organizationId: data.organizationId,
+        userId: data.userId,
+        feature: "morning_briefing",
+      },
+    );
+    return JSON.parse(result.response.text as string);
   } catch (error) {
     console.error("Morning Briefing Generation Error:", error);
     return {

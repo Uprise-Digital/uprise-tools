@@ -48,13 +48,6 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import {
-  type ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-
-import {
   getAgencyPortfolioMetricsAction,
   getOrGenerateAgencyAiInsightsAction,
   syncAgencyPortfolioAction,
@@ -62,6 +55,12 @@ import {
 import { sendMorningBriefingAction } from "@/actions/briefing.actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -484,8 +483,12 @@ export default function AgencyReportsClient() {
 
     // Smooth out baseline using mean of first 3 active days
     const baselineDays = daily.slice(startIdx, startIdx + 3);
-    const baselineSpend = baselineDays.reduce((sum: number, d: any) => sum + d.spend, 0) / baselineDays.length;
-    const rawBaselineConv = baselineDays.reduce((sum: number, d: any) => sum + d.conversions, 0) / baselineDays.length;
+    const baselineSpend =
+      baselineDays.reduce((sum: number, d: any) => sum + d.spend, 0) /
+      baselineDays.length;
+    const rawBaselineConv =
+      baselineDays.reduce((sum: number, d: any) => sum + d.conversions, 0) /
+      baselineDays.length;
 
     // Guard against divide-by-zero or tiny baseline values
     const safeBaselineSpend = baselineSpend >= 1 ? baselineSpend : 1;
@@ -512,43 +515,66 @@ export default function AgencyReportsClient() {
   })();
 
   // 2. Daily CPA Trend Data
-  const dailyTotalsWithCpa = portfolio?.dailyTotals?.map((item: any) => ({
-    ...item,
-    cpa: item.conversions > 0 ? Number((item.spend / item.conversions).toFixed(2)) : 0,
-  })) || [];
+  const dailyTotalsWithCpa =
+    portfolio?.dailyTotals?.map((item: any) => ({
+      ...item,
+      cpa:
+        item.conversions > 0
+          ? Number((item.spend / item.conversions).toFixed(2))
+          : 0,
+    })) || [];
 
   // 2. Account Spend Share Data (Pie Chart: Top 5 + Other)
-  const spendData = portfolio?.accountBreakdown
-    ?.filter((acc: any) => acc.spend > 0)
-    ?.sort((a: any, b: any) => b.spend - a.spend) || [];
+  const spendData =
+    portfolio?.accountBreakdown
+      ?.filter((acc: any) => acc.spend > 0)
+      ?.sort((a: any, b: any) => b.spend - a.spend) || [];
 
   const topSpends = spendData.slice(0, 5);
-  const otherSpendsSum = spendData.slice(5).reduce((sum: number, a: any) => sum + a.spend, 0);
+  const otherSpendsSum = spendData
+    .slice(5)
+    .reduce((sum: number, a: any) => sum + a.spend, 0);
   const pieData = [
     ...topSpends.map((a: any) => ({ name: a.name, value: a.spend })),
-    ...(otherSpendsSum > 0 ? [{ name: "Other Accounts", value: otherSpendsSum }] : [])
+    ...(otherSpendsSum > 0
+      ? [{ name: "Other Accounts", value: otherSpendsSum }]
+      : []),
   ];
-  const PIE_COLORS = ["#4f46e5", "#7c3aed", "#9333ea", "#c084fc", "#e879f9", "#94a3b8"];
+  const PIE_COLORS = [
+    "#4f46e5",
+    "#7c3aed",
+    "#9333ea",
+    "#c084fc",
+    "#e879f9",
+    "#94a3b8",
+  ];
 
   // 3. Account Conversions Data (Horizontal Bar: Top 8)
-  const barData = portfolio?.accountBreakdown
-    ?.filter((acc: any) => acc.conversions > 0)
-    ?.sort((a: any, b: any) => b.conversions - a.conversions)
-    ?.slice(0, 8)
-    ?.map((a: any) => ({ name: a.name, conversions: a.conversions })) || [];
+  const barData =
+    portfolio?.accountBreakdown
+      ?.filter((acc: any) => acc.conversions > 0)
+      ?.sort((a: any, b: any) => b.conversions - a.conversions)
+      ?.slice(0, 8)
+      ?.map((a: any) => ({ name: a.name, conversions: a.conversions })) || [];
 
   // 4. Spend vs CPA Scatter Data (Bubble sized by conversions, colored by risk)
-  const scatterData = portfolio?.accountBreakdown?.map((acc: any) => {
-    const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
-    return {
-      name: acc.name,
-      spend: acc.spend,
-      cpa: acc.cpa,
-      conversions: acc.conversions,
-      riskLevel: risk.label,
-      color: risk.label === "High Risk" ? "#ef4444" : risk.label === "Medium" ? "#f59e0b" : "#10b981",
-    };
-  }) || [];
+  const scatterData =
+    portfolio?.accountBreakdown?.map((acc: any) => {
+      const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
+      return {
+        name: acc.name,
+        spend: acc.spend,
+        cpa: acc.cpa,
+        conversions: acc.conversions,
+        riskLevel: risk.label,
+        color:
+          risk.label === "High Risk"
+            ? "#ef4444"
+            : risk.label === "Medium"
+              ? "#f59e0b"
+              : "#10b981",
+      };
+    }) || [];
 
   // 5. Risk-Weighted Spend Data
   const riskTiers = { Healthy: 0, Medium: 0, High: 0 };
@@ -558,26 +584,50 @@ export default function AgencyReportsClient() {
     else if (risk.label === "Medium") riskTiers.Medium += acc.spend;
     else riskTiers.Healthy += acc.spend;
   });
-  const totalActiveSpend = riskTiers.Healthy + riskTiers.Medium + riskTiers.High;
+  const totalActiveSpend =
+    riskTiers.Healthy + riskTiers.Medium + riskTiers.High;
   const riskSpendData = [
-    { name: "Healthy", spend: riskTiers.Healthy, pct: totalActiveSpend > 0 ? (riskTiers.Healthy / totalActiveSpend) * 100 : 0, color: "#10b981" },
-    { name: "Medium Risk", spend: riskTiers.Medium, pct: totalActiveSpend > 0 ? (riskTiers.Medium / totalActiveSpend) * 100 : 0, color: "#f59e0b" },
-    { name: "High Risk", spend: riskTiers.High, pct: totalActiveSpend > 0 ? (riskTiers.High / totalActiveSpend) * 100 : 0, color: "#ef4444" },
+    {
+      name: "Healthy",
+      spend: riskTiers.Healthy,
+      pct:
+        totalActiveSpend > 0 ? (riskTiers.Healthy / totalActiveSpend) * 100 : 0,
+      color: "#10b981",
+    },
+    {
+      name: "Medium Risk",
+      spend: riskTiers.Medium,
+      pct:
+        totalActiveSpend > 0 ? (riskTiers.Medium / totalActiveSpend) * 100 : 0,
+      color: "#f59e0b",
+    },
+    {
+      name: "High Risk",
+      spend: riskTiers.High,
+      pct: totalActiveSpend > 0 ? (riskTiers.High / totalActiveSpend) * 100 : 0,
+      color: "#ef4444",
+    },
   ];
 
   // 6. CTR vs CPC Scatter Data
-  const ctrCpcData = portfolio?.accountBreakdown
-    ?.filter((acc: any) => acc.ctr > 0 && acc.cpc > 0)
-    ?.map((acc: any) => {
-      const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
-      return {
-        name: acc.name,
-        ctr: acc.ctr,
-        cpc: acc.cpc,
-        riskLevel: risk.label,
-        color: risk.label === "High Risk" ? "#ef4444" : risk.label === "Medium" ? "#f59e0b" : "#10b981",
-      };
-    }) || [];
+  const ctrCpcData =
+    portfolio?.accountBreakdown
+      ?.filter((acc: any) => acc.ctr > 0 && acc.cpc > 0)
+      ?.map((acc: any) => {
+        const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
+        return {
+          name: acc.name,
+          ctr: acc.ctr,
+          cpc: acc.cpc,
+          riskLevel: risk.label,
+          color:
+            risk.label === "High Risk"
+              ? "#ef4444"
+              : risk.label === "Medium"
+                ? "#f59e0b"
+                : "#10b981",
+        };
+      }) || [];
 
   // --- SHADCN CHART CONFIGS ---
   const indexedChartConfig = {
@@ -616,10 +666,30 @@ export default function AgencyReportsClient() {
         <div className="bg-white p-3 border border-slate-200 shadow-md rounded-md space-y-1 text-xs">
           <p className="font-bold text-slate-900">{data.name}</p>
           <div className="space-y-0.5 text-slate-500">
-            <p>Spend: <span className="font-semibold text-slate-800">{fCur(data.spend)}</span></p>
-            <p>CPA: <span className="font-semibold text-slate-800">{fCur(data.cpa)}</span></p>
-            <p>Conversions: <span className="font-semibold text-slate-800">{fNum(data.conversions)}</span></p>
-            <p>Risk: <span className="font-semibold" style={{ color: data.color }}>{data.riskLevel}</span></p>
+            <p>
+              Spend:{" "}
+              <span className="font-semibold text-slate-800">
+                {fCur(data.spend)}
+              </span>
+            </p>
+            <p>
+              CPA:{" "}
+              <span className="font-semibold text-slate-800">
+                {fCur(data.cpa)}
+              </span>
+            </p>
+            <p>
+              Conversions:{" "}
+              <span className="font-semibold text-slate-800">
+                {fNum(data.conversions)}
+              </span>
+            </p>
+            <p>
+              Risk:{" "}
+              <span className="font-semibold" style={{ color: data.color }}>
+                {data.riskLevel}
+              </span>
+            </p>
           </div>
         </div>
       );
@@ -634,9 +704,24 @@ export default function AgencyReportsClient() {
         <div className="bg-white p-3 border border-slate-200 shadow-md rounded-md space-y-1 text-xs">
           <p className="font-bold text-slate-900">{data.name}</p>
           <div className="space-y-0.5 text-slate-500">
-            <p>CTR: <span className="font-semibold text-slate-800">{fPct(data.ctr)}</span></p>
-            <p>CPC: <span className="font-semibold text-slate-800">{fCur(data.cpc)}</span></p>
-            <p>Risk: <span className="font-semibold" style={{ color: data.color }}>{data.riskLevel}</span></p>
+            <p>
+              CTR:{" "}
+              <span className="font-semibold text-slate-800">
+                {fPct(data.ctr)}
+              </span>
+            </p>
+            <p>
+              CPC:{" "}
+              <span className="font-semibold text-slate-800">
+                {fCur(data.cpc)}
+              </span>
+            </p>
+            <p>
+              Risk:{" "}
+              <span className="font-semibold" style={{ color: data.color }}>
+                {data.riskLevel}
+              </span>
+            </p>
           </div>
         </div>
       );
@@ -654,9 +739,12 @@ export default function AgencyReportsClient() {
             <div>
               <div className="flex items-center justify-between gap-4">
                 <span className="flex items-center gap-1.5 font-medium text-slate-600">
-                  <span className="w-2 h-2 rounded-full bg-[#2a78d6] inline-block" /> Spend Index:
+                  <span className="w-2 h-2 rounded-full bg-[#2a78d6] inline-block" />{" "}
+                  Spend Index:
                 </span>
-                <span className="font-bold text-slate-900">{data.spendIndex}</span>
+                <span className="font-bold text-slate-900">
+                  {data.spendIndex}
+                </span>
               </div>
               <div className="text-[10px] text-slate-400 pl-3.5">
                 Raw: {fCur(data.rawSpend)}
@@ -665,9 +753,12 @@ export default function AgencyReportsClient() {
             <div className="border-t border-slate-100 pt-1.5">
               <div className="flex items-center justify-between gap-4">
                 <span className="flex items-center gap-1.5 font-medium text-slate-600">
-                  <span className="w-2.5 h-2.5 border border-[#008300] border-dashed rounded-full bg-white inline-block" /> Conversions Index:
+                  <span className="w-2.5 h-2.5 border border-[#008300] border-dashed rounded-full bg-white inline-block" />{" "}
+                  Conversions Index:
                 </span>
-                <span className="font-bold text-slate-900">{data.convIndex}</span>
+                <span className="font-bold text-slate-900">
+                  {data.convIndex}
+                </span>
               </div>
               <div className="text-[10px] text-slate-400 pl-3.5">
                 Raw: {fNum(data.rawConversions)}
@@ -871,7 +962,8 @@ export default function AgencyReportsClient() {
             <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                  <Activity className="w-4 h-4 text-indigo-500" /> Spend vs. Conversions (Indexed)
+                  <Activity className="w-4 h-4 text-indigo-500" /> Spend vs.
+                  Conversions (Indexed)
                 </CardTitle>
                 <p className="text-[10px] text-slate-400 font-medium mt-0.5">
                   Indexed to day 1 = 100 (first active day with spend)
@@ -881,9 +973,16 @@ export default function AgencyReportsClient() {
             <CardContent className="pt-6">
               <div className="h-64">
                 {indexedDailyTotals.length > 0 ? (
-                  <ChartContainer config={indexedChartConfig} className="w-full h-full">
+                  <ChartContainer
+                    config={indexedChartConfig}
+                    className="w-full h-full"
+                  >
                     <LineChart data={indexedDailyTotals}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#f1f5f9"
+                        vertical={false}
+                      />
                       {weekendAreas.map((area) => (
                         <ReferenceArea
                           key={area.id}
@@ -894,14 +993,49 @@ export default function AgencyReportsClient() {
                           ifOverflow="extendDomain"
                         />
                       ))}
-                      <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} stroke="#94a3b8" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} label={{ value: "Index (day 1 = 100)", angle: -90, position: "insideLeft", style: { fontSize: "10px", fill: "#94a3b8" }, offset: -5 }} />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(d) => d.slice(5)}
+                        stroke="#94a3b8"
+                        fontSize={10}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        stroke="#94a3b8"
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                        label={{
+                          value: "Index (day 1 = 100)",
+                          angle: -90,
+                          position: "insideLeft",
+                          style: { fontSize: "10px", fill: "#94a3b8" },
+                          offset: -5,
+                        }}
+                      />
                       <Tooltip
-                        cursor={{ strokeDasharray: '3 3' }}
+                        cursor={{ strokeDasharray: "3 3" }}
                         content={<CustomIndexedTooltip />}
                       />
-                      <Line type="monotone" name="spendIndex" dataKey="spendIndex" stroke="#2a78d6" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
-                      <Line type="monotone" name="convIndex" dataKey="convIndex" stroke="#008300" strokeDasharray="5 5" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+                      <Line
+                        type="monotone"
+                        name="spendIndex"
+                        dataKey="spendIndex"
+                        stroke="#2a78d6"
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
+                      <Line
+                        type="monotone"
+                        name="convIndex"
+                        dataKey="convIndex"
+                        stroke="#008300"
+                        strokeDasharray="5 5"
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
                     </LineChart>
                   </ChartContainer>
                 ) : (
@@ -911,9 +1045,13 @@ export default function AgencyReportsClient() {
                 )}
               </div>
               <div className="mt-4 p-3 bg-slate-50 border border-slate-100 rounded-lg flex gap-2">
-                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-1.5 py-0.5 rounded h-fit">Guide</span>
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-1.5 py-0.5 rounded h-fit">
+                  Guide
+                </span>
                 <p className="text-[11px] leading-relaxed text-slate-500">
-                  If the green dashed line (conversions) falls further below the blue solid line (spend) as time goes on, spend is not dropping as fast as conversions, meaning efficiency is degrading.
+                  If the green dashed line (conversions) falls further below the
+                  blue solid line (spend) as time goes on, spend is not dropping
+                  as fast as conversions, meaning efficiency is degrading.
                 </p>
               </div>
             </CardContent>
@@ -923,7 +1061,8 @@ export default function AgencyReportsClient() {
           <Card className="border-slate-200 shadow-sm bg-white">
             <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-amber-500" /> Daily CPA Trend
+                <TrendingUp className="w-4 h-4 text-amber-500" /> Daily CPA
+                Trend
               </CardTitle>
               <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                 Blended: {fCur(portfolio?.agencyTotals?.cpa || 0)}
@@ -931,9 +1070,16 @@ export default function AgencyReportsClient() {
             </CardHeader>
             <CardContent className="pt-6 h-72">
               {dailyTotalsWithCpa.length > 0 ? (
-                <ChartContainer config={cpaChartConfig} className="w-full h-full">
+                <ChartContainer
+                  config={cpaChartConfig}
+                  className="w-full h-full"
+                >
                   <LineChart data={dailyTotalsWithCpa}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#f1f5f9"
+                      vertical={false}
+                    />
                     {weekendAreas.map((area) => (
                       <ReferenceArea
                         key={area.id}
@@ -944,10 +1090,22 @@ export default function AgencyReportsClient() {
                         ifOverflow="extendDomain"
                       />
                     ))}
-                    <XAxis dataKey="date" tickFormatter={(d) => d.slice(5)} stroke="#94a3b8" fontSize={10} tickLine={false} />
-                    <YAxis tickFormatter={(v) => `$${v}`} stroke="#f59e0b" fontSize={10} tickLine={false} axisLine={false} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(d) => d.slice(5)}
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => `$${v}`}
+                      stroke="#f59e0b"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <ChartTooltip
-                      cursor={{ strokeDasharray: '3 3' }}
+                      cursor={{ strokeDasharray: "3 3" }}
                       content={
                         <ChartTooltipContent
                           labelFormatter={(d) => `Date: ${d}`}
@@ -955,7 +1113,15 @@ export default function AgencyReportsClient() {
                         />
                       }
                     />
-                    <Line type="monotone" name="cpa" dataKey="cpa" stroke="#f59e0b" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+                    <Line
+                      type="monotone"
+                      name="cpa"
+                      dataKey="cpa"
+                      stroke="#f59e0b"
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 4 }}
+                    />
                   </LineChart>
                 </ChartContainer>
               ) : (
@@ -978,19 +1144,29 @@ export default function AgencyReportsClient() {
           <Card className="border-slate-200 shadow-sm bg-white lg:col-span-1">
             <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <DollarSign className="w-4 h-4 text-indigo-500" /> Account Spend Share
+                <DollarSign className="w-4 h-4 text-indigo-500" /> Account Spend
+                Share
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 h-72">
               {pieData.length > 0 ? (
-                <ChartContainer config={pieChartConfig} className="w-full h-full aspect-auto min-h-[240px] flex items-center justify-center">
+                <ChartContainer
+                  config={pieChartConfig}
+                  className="w-full h-full aspect-auto min-h-[240px] flex items-center justify-center"
+                >
                   <PieChart>
                     <ChartTooltip
                       content={
                         <ChartTooltipContent
                           formatter={(value, name) => {
-                            const total = pieData.reduce((sum, item) => sum + item.value, 0);
-                            const pct = total > 0 ? ((Number(value) / total) * 100).toFixed(1) : "0.0";
+                            const total = pieData.reduce(
+                              (sum, item) => sum + item.value,
+                              0,
+                            );
+                            const pct =
+                              total > 0
+                                ? ((Number(value) / total) * 100).toFixed(1)
+                                : "0.0";
                             return [`${fCur(Number(value))} (${pct}%)`, name];
                           }}
                         />
@@ -1006,7 +1182,10 @@ export default function AgencyReportsClient() {
                       dataKey="value"
                     >
                       {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={PIE_COLORS[index % PIE_COLORS.length]}
+                        />
                       ))}
                     </Pie>
                   </PieChart>
@@ -1023,15 +1202,32 @@ export default function AgencyReportsClient() {
           <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2">
             <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <Target className="w-4 h-4 text-emerald-500" /> Top Accounts by Conversions
+                <Target className="w-4 h-4 text-emerald-500" /> Top Accounts by
+                Conversions
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 h-72">
               {barData.length > 0 ? (
-                <ChartContainer config={conversionsChartConfig} className="w-full h-full">
-                  <BarChart layout="vertical" data={barData} margin={{ left: 10, right: 30, top: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                    <XAxis type="number" stroke="#94a3b8" fontSize={10} tickLine={false} />
+                <ChartContainer
+                  config={conversionsChartConfig}
+                  className="w-full h-full"
+                >
+                  <BarChart
+                    layout="vertical"
+                    data={barData}
+                    margin={{ left: 10, right: 30, top: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#f1f5f9"
+                      horizontal={false}
+                    />
+                    <XAxis
+                      type="number"
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                    />
                     <YAxis
                       dataKey="name"
                       type="category"
@@ -1040,16 +1236,26 @@ export default function AgencyReportsClient() {
                       fontSize={10}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(tick) => (tick.length > 18 ? `${tick.slice(0, 15)}...` : tick)}
+                      tickFormatter={(tick) =>
+                        tick.length > 18 ? `${tick.slice(0, 15)}...` : tick
+                      }
                     />
                     <ChartTooltip
                       content={
                         <ChartTooltipContent
-                          formatter={(value) => [fNum(Number(value)), "Conversions"]}
+                          formatter={(value) => [
+                            fNum(Number(value)),
+                            "Conversions",
+                          ]}
                         />
                       }
                     />
-                    <Bar dataKey="conversions" fill="#10b981" radius={[0, 4, 4, 0]} barSize={12} />
+                    <Bar
+                      dataKey="conversions"
+                      fill="#10b981"
+                      radius={[0, 4, 4, 0]}
+                      barSize={12}
+                    />
                   </BarChart>
                 </ChartContainer>
               ) : (
@@ -1072,19 +1278,44 @@ export default function AgencyReportsClient() {
           <Card className="border-slate-200 shadow-sm bg-white">
             <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-rose-500" /> Spend vs. CPA Risk Map
+                <AlertTriangle className="w-4 h-4 text-rose-500" /> Spend vs.
+                CPA Risk Map
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 h-72">
               {scatterData.length > 0 ? (
-                <ChartContainer config={scatterChartConfig} className="w-full h-full">
-                  <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+                <ChartContainer
+                  config={scatterChartConfig}
+                  className="w-full h-full"
+                >
+                  <ScatterChart
+                    margin={{ top: 10, right: 10, bottom: 10, left: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis type="number" dataKey="spend" name="Spend" tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={9} />
-                    <YAxis type="number" dataKey="cpa" name="CPA" tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={9} />
-                    <ZAxis type="number" dataKey="conversions" range={[50, 400]} name="Conversions" />
+                    <XAxis
+                      type="number"
+                      dataKey="spend"
+                      name="Spend"
+                      tickFormatter={(v) => `$${v}`}
+                      stroke="#94a3b8"
+                      fontSize={9}
+                    />
+                    <YAxis
+                      type="number"
+                      dataKey="cpa"
+                      name="CPA"
+                      tickFormatter={(v) => `$${v}`}
+                      stroke="#94a3b8"
+                      fontSize={9}
+                    />
+                    <ZAxis
+                      type="number"
+                      dataKey="conversions"
+                      range={[50, 400]}
+                      name="Conversions"
+                    />
                     <Tooltip
-                      cursor={{ strokeDasharray: '3 3' }}
+                      cursor={{ strokeDasharray: "3 3" }}
                       content={<CustomScatterTooltip />}
                     />
                     <Scatter name="Accounts" data={scatterData}>
@@ -1112,22 +1343,41 @@ export default function AgencyReportsClient() {
           <Card className="border-slate-200 shadow-sm bg-white">
             <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <Scale className="w-4 h-4 text-indigo-500" /> Churn Risk Spend Share
+                <Scale className="w-4 h-4 text-indigo-500" /> Churn Risk Spend
+                Share
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 h-72">
               {totalActiveSpend > 0 ? (
-                <ChartContainer config={riskSpendChartConfig} className="w-full h-full">
+                <ChartContainer
+                  config={riskSpendChartConfig}
+                  className="w-full h-full"
+                >
                   <BarChart data={riskSpendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} />
-                    <YAxis tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#f1f5f9"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="name"
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => `$${v}`}
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <ChartTooltip
                       content={
                         <ChartTooltipContent
                           formatter={(value, name, props: any) => [
                             `${fCur(Number(value))} (${props.payload.pct.toFixed(1)}%)`,
-                            "Spend"
+                            "Spend",
                           ]}
                         />
                       }
@@ -1151,18 +1401,38 @@ export default function AgencyReportsClient() {
           <Card className="border-slate-200 shadow-sm bg-white">
             <CardHeader className="py-3.5 border-b border-slate-100 bg-slate-50/30">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-emerald-500" /> CTR vs. CPC Engagement
+                <TrendingUp className="w-4 h-4 text-emerald-500" /> CTR vs. CPC
+                Engagement
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 h-72">
               {ctrCpcData.length > 0 ? (
-                <ChartContainer config={ctrCpcChartConfig} className="w-full h-full">
-                  <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+                <ChartContainer
+                  config={ctrCpcChartConfig}
+                  className="w-full h-full"
+                >
+                  <ScatterChart
+                    margin={{ top: 10, right: 10, bottom: 10, left: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis type="number" dataKey="ctr" name="CTR" tickFormatter={(v) => `${v}%`} stroke="#94a3b8" fontSize={9} />
-                    <YAxis type="number" dataKey="cpc" name="CPC" tickFormatter={(v) => `$${v}`} stroke="#94a3b8" fontSize={9} />
+                    <XAxis
+                      type="number"
+                      dataKey="ctr"
+                      name="CTR"
+                      tickFormatter={(v) => `${v}%`}
+                      stroke="#94a3b8"
+                      fontSize={9}
+                    />
+                    <YAxis
+                      type="number"
+                      dataKey="cpc"
+                      name="CPC"
+                      tickFormatter={(v) => `$${v}`}
+                      stroke="#94a3b8"
+                      fontSize={9}
+                    />
                     <Tooltip
-                      cursor={{ strokeDasharray: '3 3' }}
+                      cursor={{ strokeDasharray: "3 3" }}
                       content={<CustomCtrCpcTooltip />}
                     />
                     <Scatter name="Accounts" data={ctrCpcData}>

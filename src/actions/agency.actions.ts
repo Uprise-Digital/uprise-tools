@@ -1,6 +1,5 @@
 "use server";
 
-import { GoogleGenAI } from "@google/genai";
 import { and, eq, gte, ilike, lte } from "drizzle-orm";
 import { headers } from "next/headers";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
@@ -13,6 +12,7 @@ import {
   backgroundTasks,
   member,
 } from "@/db/schema";
+import { generateContentTracked } from "@/lib/ai-logger";
 import { auth } from "@/lib/auth";
 import {
   formatUTCDate,
@@ -29,7 +29,6 @@ import {
 
 const DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN!;
 const MANAGER_ID = process.env.GOOGLE_ADS_MANAGER_ID!;
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 // Bulletproof number parser
 function parseDataNumber(val: any): number {
@@ -237,11 +236,16 @@ export async function getOrGenerateAgencyAiInsightsAction(
 
   while (retries > 0) {
     try {
-      response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: prompt,
-        config: { responseMimeType: "application/json" },
-      });
+      response = await generateContentTracked(
+        {
+          model: "gemini-3.5-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json" },
+        },
+        {
+          feature: "agency_portfolio_analysis",
+        },
+      );
       break;
     } catch (error: any) {
       retries -= 1;
@@ -256,7 +260,7 @@ export async function getOrGenerateAgencyAiInsightsAction(
   }
 
   try {
-    const parsedInsights = JSON.parse(response!.text as string);
+    const parsedInsights = JSON.parse(response!.response.text as string);
 
     const [upserted] = await db
       .insert(agencyAiInsightsCache)
@@ -283,6 +287,7 @@ export async function getOrGenerateAgencyAiInsightsAction(
       data: parsedInsights,
       generatedAt: upserted.createdAt,
       isCached: false,
+      usageAlert: response?.usageAlert,
     };
   } catch (error) {
     console.error("Agency AI Insights Parsing/DB Error:", error);

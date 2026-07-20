@@ -154,7 +154,12 @@ export default async function SettingsPage() {
   const { getOnboardingSettingsAction } = await import(
     "@/actions/onboarding-settings.actions"
   );
-  const onboardingSettingsRes = await getOnboardingSettingsAction();
+  const { getAiUsageStatsAction } = await import("@/actions/ai-usage.actions");
+
+  const [onboardingSettingsRes, aiUsageStatsRes] = await Promise.all([
+    getOnboardingSettingsAction(),
+    getAiUsageStatsAction(),
+  ]);
 
   return (
     <SettingsClient
@@ -171,6 +176,11 @@ export default async function SettingsPage() {
       onboardingSettings={
         onboardingSettingsRes.success && onboardingSettingsRes.data
           ? onboardingSettingsRes.data
+          : null
+      }
+      initialAiUsageStats={
+        aiUsageStatsRes.success && "data" in aiUsageStatsRes
+          ? aiUsageStatsRes.data
           : null
       }
     />

@@ -79,7 +79,9 @@ function sanitizeBlockForCreate(block: any): any {
     }
   } else {
     // Unknown/unhandled block type — best-effort: strip nulls
-    console.warn(`No allowlist entry for block type "${type}" — falling back to null-stripping`);
+    console.warn(
+      `No allowlist entry for block type "${type}" — falling back to null-stripping`,
+    );
     cleanContent = { ...original };
     for (const key of Object.keys(cleanContent)) {
       if (cleanContent[key] === null) {
@@ -177,10 +179,12 @@ function cleanDatabasePropertiesForCreate(properties: any): any {
       });
     }
     if (cleanProp.type === "multi_select" && cleanProp.multi_select?.options) {
-      cleanProp.multi_select.options = cleanProp.multi_select.options.map((opt: any) => {
-        const { id: _, ...cleanOpt } = opt;
-        return cleanOpt;
-      });
+      cleanProp.multi_select.options = cleanProp.multi_select.options.map(
+        (opt: any) => {
+          const { id: _, ...cleanOpt } = opt;
+          return cleanOpt;
+        },
+      );
     }
     if (cleanProp.type === "status") {
       // Notion does not allow customizing status options on creation via API
@@ -284,15 +288,21 @@ async function duplicateNotionDatabase(
   sourceDbId: string,
   targetPageId: string,
 ) {
-  console.log(`Notion Service: Duplicating database ${sourceDbId} under page ${targetPageId}...`);
-  const sourceDb: any = await notion.databases.retrieve({ database_id: sourceDbId });
+  console.log(
+    `Notion Service: Duplicating database ${sourceDbId} under page ${targetPageId}...`,
+  );
+  const sourceDb: any = await notion.databases.retrieve({
+    database_id: sourceDbId,
+  });
   console.log("Notion Service: sourceDb retrieved:", JSON.stringify(sourceDb));
 
   let properties = sourceDb.properties;
   const dataSourceId = sourceDb.data_sources?.[0]?.id;
 
   if (dataSourceId) {
-    console.log(`Notion Service: Database uses data source ${dataSourceId}. Fetching schema...`);
+    console.log(
+      `Notion Service: Database uses data source ${dataSourceId}. Fetching schema...`,
+    );
     const dataSource: any = await notion.request({
       path: `data_sources/${dataSourceId}`,
       method: "get",
@@ -324,7 +334,9 @@ async function duplicateNotionDatabase(
 
   const newDb = await notion.databases.create(createParams);
 
-  console.log(`Notion Service: Database duplicated. New DB ID: ${newDb.id}. Copying rows...`);
+  console.log(
+    `Notion Service: Database duplicated. New DB ID: ${newDb.id}. Copying rows...`,
+  );
   await duplicateDatabaseRows(notion, sourceDbId, newDb.id, dataSourceId);
 }
 
@@ -399,10 +411,7 @@ async function duplicateNotionPageBlocks(
           try {
             await duplicateNotionDatabase(notion, block.id, targetPageId);
           } catch (err: any) {
-            console.warn(
-              `Failed to duplicate database ${block.id}:`,
-              err,
-            );
+            console.warn(`Failed to duplicate database ${block.id}:`, err);
           }
         } else {
           console.log(
@@ -471,7 +480,10 @@ async function findAllChildPagesRecursive(
           const nested = await findAllChildPagesRecursive(notion, block.id);
           subpages.push(...nested);
         } catch (err: any) {
-          console.warn(`Failed to scan children of block ${block.id}:`, err.message);
+          console.warn(
+            `Failed to scan children of block ${block.id}:`,
+            err.message,
+          );
         }
       }
     }
@@ -566,11 +578,20 @@ export async function createClientNotionDashboard(
 
       // Recursively find and copy subpages
       if (recursive) {
-        console.log("Notion Service: Finding all nested subpages to duplicate...");
-        const subpages = await findAllChildPagesRecursive(notion, templatePageId);
-        console.log(`Notion Service: Found ${subpages.length} nested subpages to copy.`);
+        console.log(
+          "Notion Service: Finding all nested subpages to duplicate...",
+        );
+        const subpages = await findAllChildPagesRecursive(
+          notion,
+          templatePageId,
+        );
+        console.log(
+          `Notion Service: Found ${subpages.length} nested subpages to copy.`,
+        );
         for (const subpage of subpages) {
-          console.log(`Notion Service: Duplicating subpage '${subpage.title}'...`);
+          console.log(
+            `Notion Service: Duplicating subpage '${subpage.title}'...`,
+          );
           const newSubpage = await notion.pages.create({
             parent: { page_id: newPage.id },
             properties: {
@@ -581,7 +602,12 @@ export async function createClientNotionDashboard(
             icon: { type: "emoji", emoji: "📄" },
           });
           // Duplicate blocks of the subpage recursively
-          await duplicateNotionPageBlocks(notion, subpage.id, newSubpage.id, true);
+          await duplicateNotionPageBlocks(
+            notion,
+            subpage.id,
+            newSubpage.id,
+            true,
+          );
         }
       }
     } catch (err: any) {

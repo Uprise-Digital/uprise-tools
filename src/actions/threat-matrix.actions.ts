@@ -2,19 +2,16 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { GoogleGenAI } from "@google/genai";
 import * as cheerio from "cheerio";
 import { eq } from "drizzle-orm";
 import TurndownService from "turndown";
 import { db } from "@/db";
 import { adAccounts, threatMatrixAudits } from "@/db/schema";
+import { generateContentTracked } from "@/lib/ai-logger";
 import {
   fetchTopClientLandingPage,
   fetchTopNonBrandedSearchTerm,
 } from "@/lib/google-ads";
-
-// Initialize Gemini
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 // ============================================================================
 // 4. AUTO-TARGETING HELPER
@@ -451,12 +448,18 @@ export async function generateThreatMatrixAction(
         CONSTRAINTS: Be brutal and data-driven. Do not provide generic advice. Quote specific offers or text found in the competitor pages.
         `;
 
-    const aiResponse = await ai.models.generateContent({
-      model: "gemini-1.5-flash", // Corrected model version
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
+    const result = await generateContentTracked(
+      {
+        model: "gemini-1.5-flash", // Corrected model version
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      },
+      {
+        feature: "threat_matrix",
+      },
+    );
 
+    const aiResponse = result.response;
     const parsedAnalysis = JSON.parse(aiResponse.text as string);
 
     // STEP 6: Cache the Audit in the Database
@@ -480,6 +483,7 @@ export async function generateThreatMatrixAction(
         clientUrl,
         competitorUrls,
         analysis: parsedAnalysis,
+        usageAlert: result.usageAlert,
       },
     };
   } catch (error: any) {

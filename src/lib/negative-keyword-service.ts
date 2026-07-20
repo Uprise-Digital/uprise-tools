@@ -1,6 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+import { generateContentTracked } from "@/lib/ai-logger";
 
 interface SearchTermInput {
   query: string;
@@ -26,6 +24,8 @@ interface GenerateSuggestionsInput {
   wastedTerms: SearchTermInput[];
   existingNegatives: string[];
   historicalDecisions: HistoricalDecisionInput[];
+  organizationId?: string;
+  userId?: string | null;
 }
 
 export interface NegativeKeywordSuggestionOutput {
@@ -49,9 +49,14 @@ export async function generateNegativeKeywordSuggestions({
   wastedTerms,
   existingNegatives,
   historicalDecisions,
-}: GenerateSuggestionsInput): Promise<NegativeKeywordSuggestionOutput[]> {
+  organizationId,
+  userId,
+}: GenerateSuggestionsInput): Promise<{
+  suggestions: NegativeKeywordSuggestionOutput[];
+  usageAlert?: string;
+}> {
   if (wastedTerms.length === 0) {
-    return [];
+    return { suggestions: [] };
   }
 
   // Filter out any wasted terms that exactly match existing negative keywords
@@ -63,7 +68,7 @@ export async function generateNegativeKeywordSuggestions({
   );
 
   if (filteredWastedTerms.length === 0) {
-    return [];
+    return { suggestions: [] };
   }
 
   // Parse structured notes if targetNotes is valid JSON (Account-Level Persona Store)
@@ -177,16 +182,26 @@ export async function generateNegativeKeywordSuggestions({
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
+    const result = await generateContentTracked(
+      {
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      },
+      {
+        organizationId,
+        userId,
+        feature: "negative_keyword_suggestions",
+      },
+    );
 
-    const parsed = JSON.parse(response.text as string);
-    return parsed.suggestions || [];
+    const parsed = JSON.parse(result.response.text as string);
+    return {
+      suggestions: parsed.suggestions || [],
+      usageAlert: result.usageAlert,
+    };
   } catch (error) {
     console.error("Gemini Negative Keywords Generation Error:", error);
-    return [];
+    return { suggestions: [] };
   }
 }

@@ -57,6 +57,13 @@
       "when": 1783583662815,
       "tag": "0007_nice_human_fly",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784527371911,
+      "tag": "0008_cold_reaper",
+      "breakpoints": true
     }
   ]
 }

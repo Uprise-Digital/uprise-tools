@@ -1,18 +1,16 @@
 "use server";
 
-import { GoogleGenAI } from "@google/genai";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { adAccounts, adGroupAdAudits } from "@/db/schema";
+import { generateContentTracked } from "@/lib/ai-logger";
 import { auth } from "@/lib/auth";
 import {
   fetchAdGroupAdAssetPerformance,
   fetchAdGroupAds,
 } from "@/lib/google-ads";
 import { scrapeAndCompressLandingPage } from "./lp-analysis.actions";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 /**
  * Interface representing the detailed analysis stored inside aiAnalysis jsonb field
@@ -295,14 +293,19 @@ export async function runAdCopyAuditInternal(
     "[Ad Audit] Querying gemini-3.5-flash for scoring (3x parallel)...",
   );
   const calls = Array.from({ length: 3 }).map(() =>
-    ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.2,
+    generateContentTracked(
+      {
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.2,
+        },
       },
-    }),
+      {
+        feature: "ad_copy_audit",
+      },
+    ),
   );
 
   const responses = await Promise.all(calls);
@@ -310,7 +313,7 @@ export async function runAdCopyAuditInternal(
 
   for (const resp of responses) {
     try {
-      const text = resp.text || "";
+      const text = resp.response.text || "";
       const parsed = JSON.parse(text.trim()) as AdCopyAuditAnalysis;
 
       const searchVal = parsed.search_intent_score ?? 7;
@@ -372,9 +375,12 @@ export async function runAdCopyAuditInternal(
     })
     .returning({ id: adGroupAdAudits.id });
 
+  const usageAlert = responses.find((r) => r.usageAlert)?.usageAlert;
+
   return {
     auditId: savedAudit.id,
     score: parsedAudit.overall_score,
+    usageAlert,
   };
 }
 

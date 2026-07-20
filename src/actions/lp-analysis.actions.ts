@@ -1,6 +1,5 @@
 "use server";
 
-import { GoogleGenAI } from "@google/genai";
 import * as cheerio from "cheerio";
 import { and, desc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
@@ -11,11 +10,11 @@ import {
   campaignLandingPages,
   landingPageAudits,
 } from "@/db/schema";
+import { generateContentTracked } from "@/lib/ai-logger";
 import { auth } from "@/lib/auth";
 import { fetchCampaignLandingPages } from "@/lib/google-ads";
 import { uploadImageToR2 } from "@/lib/storage";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 function isElementHidden(el: any, $: any): boolean {
   // 1. Traverse up to check if this is a progressively disclosed element (accordions, tabs, FAQs)
   // If so, we want to KEEP the content rather than filtering it out as dead code.
@@ -775,12 +774,18 @@ export async function runLandingPageAuditInternal(
     });
   }
 
-  const aiResponse = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
-    contents,
-    config: { responseMimeType: "application/json" },
-  });
+  const result = await generateContentTracked(
+    {
+      model: "gemini-3.5-flash",
+      contents,
+      config: { responseMimeType: "application/json" },
+    },
+    {
+      feature: "landing_page_analysis",
+    },
+  );
 
+  const aiResponse = result.response;
   const parsedAudit = JSON.parse(aiResponse.text as string);
 
   // Save in Database
@@ -815,6 +820,7 @@ export async function runLandingPageAuditInternal(
   return {
     auditId: savedAudit.id,
     score: parsedAudit.overall_score,
+    usageAlert: result.usageAlert,
   };
 }
 

@@ -179,7 +179,7 @@ export async function generateSuggestionsInternal(
     }));
 
   // 4.6 Send to Gemini for negative keywords suggestions
-  const suggestions = await generateNegativeKeywordSuggestions({
+  const { suggestions, usageAlert } = await generateNegativeKeywordSuggestions({
     clientName: account.name,
     websiteUrl: account.websiteUrl,
     targetNotes: account.targetNotes,
@@ -370,6 +370,7 @@ export async function generateSuggestionsInternal(
     newSuggestionsAdded: newSuggestions.length,
     pushedDirectly: pushedCount,
     savedForReview: savedCount,
+    usageAlert,
   };
 }
 

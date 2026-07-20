@@ -464,6 +464,58 @@ export const agencyAiInsightsCache = pgTable(
   }),
 );
 
+// --- 7B. AI MODEL PRICING & BUDGET LIMITS (NEW) ---
+export const aiModelPricing = pgTable("ai_model_pricing", {
+  modelName: text("model_name").primaryKey(),
+  inputCostPerMillion: decimal("input_cost_per_million", {
+    precision: 10,
+    scale: 6,
+  }).notNull(),
+  outputCostPerMillion: decimal("output_cost_per_million", {
+    precision: 10,
+    scale: 6,
+  }).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const aiUsageSettings = pgTable("ai_usage_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .unique()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  monthlyBudgetLimit: decimal("monthly_budget_limit", {
+    precision: 10,
+    scale: 2,
+  })
+    .default("50.00")
+    .notNull(),
+  softLimitPercentage: integer("soft_limit_percentage").default(80).notNull(),
+  hardLimitBlocked: boolean("hard_limit_blocked").default(true).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}).enableRLS();
+
+export const aiUsageSettingsRelations = relations(
+  aiUsageSettings,
+  ({ one }) => ({
+    organization: one(organization, {
+      fields: [aiUsageSettings.organizationId],
+      references: [organization.id],
+    }),
+  }),
+);
+
+export const usageLogsRelations = relations(usageLogs, ({ one }) => ({
+  user: one(user, {
+    fields: [usageLogs.userId],
+    references: [user.id],
+  }),
+  organization: one(organization, {
+    fields: [usageLogs.organizationId],
+    references: [organization.id],
+  }),
+}));
+
 // --- 8. COMPETITOR INTELLIGENCE (NEW) ---
 export const threatMatrixAudits = pgTable("threat_matrix_audits", {
   id: serial("id").primaryKey(),
