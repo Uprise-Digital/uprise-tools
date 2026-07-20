@@ -199,33 +199,43 @@ export async function getGhlOpportunities(
   pipelineId: string,
 ): Promise<GhlOpportunityDetails[]> {
   try {
-    const res = await fetch(
-      `${GHL_API_BASE}/opportunities/search?locationId=${encodeURIComponent(locationId)}&pipelineId=${encodeURIComponent(pipelineId)}&limit=100`,
-      { headers: getGhlHeaders() },
-    );
+    const res = await fetch(`${GHL_API_BASE}/opportunities/search`, {
+      method: "POST",
+      headers: getGhlHeaders(),
+      body: JSON.stringify({
+        locationId,
+        limit: 100,
+      }),
+    });
     if (!res.ok) {
-      throw new Error(`Failed to fetch GHL opportunities: ${res.statusText}`);
+      const errText = await res.text().catch(() => "");
+      throw new Error(
+        `Failed to fetch GHL opportunities (status ${res.status}): ${res.statusText || errText}`,
+      );
     }
     const data = await res.json();
-    return (data.opportunities || []).map((o: any) => ({
-      id: o.id,
-      name: o.name,
-      contactId: o.contactId,
-      contactName: o.contact?.name || o.contactName || "Unknown",
-      contactEmail: o.contact?.email || o.contactEmail || "",
-      contactPhone: o.contact?.phone || o.contactPhone,
-      pipelineId: o.pipelineId,
-      stageId: o.pipelineStageId || o.stageId,
-      status: o.status,
-      monetaryValue: o.monetaryValue,
-      assignedTo: o.assignedTo,
-      createdAt: o.createdAt,
-      updatedAt:
-        o.updatedAt ||
-        o.lastStatusChangeAt ||
-        o.lastStageChangeAt ||
-        o.createdAt,
-    }));
+    const opportunities = data.opportunities || [];
+    return opportunities
+      .filter((o: any) => o.pipelineId === pipelineId)
+      .map((o: any) => ({
+        id: o.id,
+        name: o.name,
+        contactId: o.contactId,
+        contactName: o.contact?.name || o.contactName || "Unknown",
+        contactEmail: o.contact?.email || o.contactEmail || "",
+        contactPhone: o.contact?.phone || o.contactPhone,
+        pipelineId: o.pipelineId,
+        stageId: o.pipelineStageId || o.stageId,
+        status: o.status,
+        monetaryValue: o.monetaryValue,
+        assignedTo: o.assignedTo,
+        createdAt: o.createdAt,
+        updatedAt:
+          o.updatedAt ||
+          o.lastStatusChangeAt ||
+          o.lastStageChangeAt ||
+          o.createdAt,
+      }));
   } catch (error) {
     console.error("Error fetching GHL opportunities:", error);
     throw error;
@@ -242,7 +252,10 @@ export async function getGhlUsers(locationId: string): Promise<GhlUser[]> {
       { headers: getGhlHeaders() },
     );
     if (!res.ok) {
-      throw new Error(`Failed to fetch GHL users: ${res.statusText}`);
+      console.warn(
+        `Failed to fetch GHL users (status ${res.status}), using empty list fallback.`,
+      );
+      return [];
     }
     const data = await res.json();
     return (data.users || []).map((u: any) => ({
@@ -251,8 +264,8 @@ export async function getGhlUsers(locationId: string): Promise<GhlUser[]> {
       email: u.email,
     }));
   } catch (error) {
-    console.error("Error fetching GHL users:", error);
-    throw error;
+    console.warn("Error fetching GHL users, using empty list fallback:", error);
+    return [];
   }
 }
 
