@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   date,
@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   numeric,
+  pgPolicy,
   pgTable,
   serial,
   text,
@@ -116,21 +117,30 @@ export const invitation = pgTable("invitation", {
   updatedAt: timestamp("updatedAt").notNull(),
 });
 
-export const googleAdsConnections = pgTable("google_ads_connections", {
-  id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organization.id, { onDelete: "cascade" }),
-  connectedEmail: text("connected_email").notNull(),
-  managerCustomerId: text("manager_customer_id").notNull(), // MCC Customer ID
-  refreshToken: text("refresh_token").notNull(), // Encrypted at rest
-  status: text("status").notNull().default("active"), // 'active', 'revoked', 'error'
-  errorMessage: text("error_message"),
-  autoAddAccounts: boolean("auto_add_accounts").default(false).notNull(),
-  autoSyncScope: text("auto_sync_scope").default("ALL").notNull(), // 'ALL' | 'ACTIVE_ONLY'
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}).enableRLS();
+export const googleAdsConnections = pgTable(
+  "google_ads_connections",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    connectedEmail: text("connected_email").notNull(),
+    managerCustomerId: text("manager_customer_id").notNull(), // MCC Customer ID
+    refreshToken: text("refresh_token").notNull(), // Encrypted at rest
+    status: text("status").notNull().default("active"), // 'active', 'revoked', 'error'
+    errorMessage: text("error_message"),
+    autoAddAccounts: boolean("auto_add_accounts").default(false).notNull(),
+    autoSyncScope: text("auto_sync_scope").default("ALL").notNull(), // 'ALL' | 'ACTIVE_ONLY'
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
 
 export const usageLogs = pgTable("usage_logs", {
   id: serial("id").primaryKey(),
@@ -147,28 +157,37 @@ export const usageLogs = pgTable("usage_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }).enableRLS();
 
-export const clientOnboardings = pgTable("client_onboardings", {
-  id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organization.id, { onDelete: "cascade" }),
-  ghlContactId: text("ghl_contact_id"),
-  ghlOpportunityId: text("ghl_opportunity_id"),
-  clientName: text("client_name").notNull(),
-  primaryContactName: text("primary_contact_name").notNull(),
-  contactEmail: text("contact_email").notNull(),
-  googleAdsAccess: boolean("google_ads_access").default(true).notNull(),
-  metaAdsAccess: boolean("meta_ads_access").default(true).notNull(),
-  driveFolderLink: text("drive_folder_link"),
-  notionDashboardLink: text("notion_dashboard_link"),
-  signalGroupLink: text("signal_group_link"),
-  status: text("status").default("draft").notNull(),
-  googleAdsStatus: text("google_ads_status").default("pending").notNull(),
-  metaAdsStatus: text("meta_ads_status").default("pending").notNull(),
-  emailSentAt: timestamp("email_sent_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}).enableRLS();
+export const clientOnboardings = pgTable(
+  "client_onboardings",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    ghlContactId: text("ghl_contact_id"),
+    ghlOpportunityId: text("ghl_opportunity_id"),
+    clientName: text("client_name").notNull(),
+    primaryContactName: text("primary_contact_name").notNull(),
+    contactEmail: text("contact_email").notNull(),
+    googleAdsAccess: boolean("google_ads_access").default(true).notNull(),
+    metaAdsAccess: boolean("meta_ads_access").default(true).notNull(),
+    driveFolderLink: text("drive_folder_link"),
+    notionDashboardLink: text("notion_dashboard_link"),
+    signalGroupLink: text("signal_group_link"),
+    status: text("status").default("draft").notNull(),
+    googleAdsStatus: text("google_ads_status").default("pending").notNull(),
+    metaAdsStatus: text("meta_ads_status").default("pending").notNull(),
+    emailSentAt: timestamp("email_sent_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
 
 // --- 3. GOOGLE ADS CORE ---
 export const adAccounts = pgTable("ad_accounts", {
@@ -480,22 +499,31 @@ export const aiModelPricing = pgTable("ai_model_pricing", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const aiUsageSettings = pgTable("ai_usage_settings", {
-  id: serial("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .unique()
-    .references(() => organization.id, { onDelete: "cascade" }),
-  monthlyBudgetLimit: decimal("monthly_budget_limit", {
-    precision: 10,
-    scale: 2,
-  })
-    .default("50.00")
-    .notNull(),
-  softLimitPercentage: integer("soft_limit_percentage").default(80).notNull(),
-  hardLimitBlocked: boolean("hard_limit_blocked").default(true).notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}).enableRLS();
+export const aiUsageSettings = pgTable(
+  "ai_usage_settings",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .unique()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    monthlyBudgetLimit: decimal("monthly_budget_limit", {
+      precision: 10,
+      scale: 2,
+    })
+      .default("50.00")
+      .notNull(),
+    softLimitPercentage: integer("soft_limit_percentage").default(80).notNull(),
+    hardLimitBlocked: boolean("hard_limit_blocked").default(true).notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
 
 export const aiUsageSettingsRelations = relations(
   aiUsageSettings,
@@ -834,6 +862,12 @@ export const organizationOnboardingSettings = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
 ).enableRLS();
 
 export const organizationOnboardingSettingsRelations = relations(
