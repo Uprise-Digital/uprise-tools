@@ -244,7 +244,7 @@ export async function generateRevivalPlanAction(
 
     const result = await generateContentTracked(
       {
-        model: "gemini-2.5-flash",
+        model: "gemini-flash-latest",
         contents: prompt,
         config: { responseMimeType: "application/json" },
       },
@@ -311,7 +311,7 @@ export async function generateTranscriptSummaryAction(transcript: string) {
 
     const result = await generateContentTracked(
       {
-        model: "gemini-2.5-flash",
+        model: "gemini-flash-latest",
         contents: prompt,
       },
       {
