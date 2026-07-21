@@ -28,6 +28,7 @@ export async function getBriefingSettingsAction() {
         data: {
           id: null,
           isActive: true,
+          onlyActiveAccounts: true,
           sendTime: "07:00",
           recipients: defaultRecipients,
           dataPoints: {
@@ -50,6 +51,7 @@ export async function getBriefingSettingsAction() {
       data: {
         id: settings.id,
         isActive: settings.isActive,
+        onlyActiveAccounts: settings.onlyActiveAccounts ?? true,
         sendTime: settings.sendTime,
         recipients: settings.recipients as string[],
         dataPoints: settings.dataPoints as {
@@ -74,6 +76,7 @@ export async function getBriefingSettingsAction() {
 export async function saveBriefingSettingsAction(data: {
   id?: number | null;
   isActive: boolean;
+  onlyActiveAccounts?: boolean;
   sendTime: string;
   recipients: string[];
   dataPoints: {
@@ -94,6 +97,7 @@ export async function saveBriefingSettingsAction(data: {
   try {
     const payload = {
       isActive: data.isActive,
+      onlyActiveAccounts: data.onlyActiveAccounts ?? true,
       sendTime: data.sendTime,
       recipients: data.recipients,
       dataPoints: data.dataPoints,

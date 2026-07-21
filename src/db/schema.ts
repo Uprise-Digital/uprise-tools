@@ -599,6 +599,7 @@ export const briefingSettings = pgTable("briefing_settings", {
     whaleAnalysis: true,
   }),
   isActive: boolean("is_active").default(true).notNull(),
+  onlyActiveAccounts: boolean("only_active_accounts").default(true).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }).enableRLS();
 

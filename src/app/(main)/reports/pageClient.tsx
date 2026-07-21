@@ -38,6 +38,7 @@ interface TeamMember {
 interface BriefingSettingsData {
   id: number | null;
   isActive: boolean;
+  onlyActiveAccounts: boolean;
   sendTime: string;
   recipients: string[];
   dataPoints: {
@@ -66,6 +67,7 @@ export default function ReportsClient({
     initialSettings || {
       id: null,
       isActive: true,
+      onlyActiveAccounts: true,
       sendTime: "07:00",
       recipients: teamMembers.map((u) => u.email).filter(Boolean),
       dataPoints: {
@@ -334,6 +336,33 @@ export default function ReportsClient({
                       setSettings((prev) => ({
                         ...prev,
                         isActive: !prev.isActive,
+                      }))
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              {/* Only Active Accounts Switch */}
+              <div className="flex items-center justify-between p-4 bg-indigo-50/50 rounded-lg border border-indigo-100">
+                <div>
+                  <h4 className="font-semibold text-slate-800 text-sm">
+                    Only Include Active Accounts
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Exclude delinked and inactive accounts from report totals,
+                    daily morning briefings, and portfolio metrics.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.onlyActiveAccounts ?? true}
+                    onChange={() =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        onlyActiveAccounts: !(prev.onlyActiveAccounts ?? true),
                       }))
                     }
                     className="sr-only peer"

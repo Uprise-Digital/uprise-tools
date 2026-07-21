@@ -353,11 +353,20 @@ export async function getAgencyPortfolioMetricsAction(
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
+    const bSettings = await db.query.briefingSettings.findFirst();
+    const onlyActiveAccounts = bSettings?.onlyActiveAccounts ?? true;
+
     allPerformance.forEach((row) => {
       const spend = Number(row.spend || 0);
       const clicks = Number(row.clicks || 0);
       const impressions = Number(row.impressions || 0);
       const conversions = Number(row.conversions || 0);
+
+      // If onlyActiveAccounts is enabled, skip performance rows belonging to inactive/delinked accounts
+      const isAccountActive = Boolean(accountBreakdownMap[row.adAccountId]);
+      if (onlyActiveAccounts && !isAccountActive) {
+        return;
+      }
 
       // Add to totals
       totalSpend += spend;
