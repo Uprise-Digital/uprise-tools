@@ -947,8 +947,10 @@ export async function getAccountAnomaliesAction(
   lookbackDays: number = 30, // baseline window
 ) {
   try {
-    const account = await db.query.adAccounts.findFirst({
-      where: eq(adAccounts.id, accountId),
+    const account = await withBypassTenantDb(async (tx) => {
+      return await tx.query.adAccounts.findFirst({
+        where: eq(adAccounts.id, accountId),
+      });
     });
 
     if (!account) {
@@ -976,22 +978,24 @@ export async function getAccountAnomaliesAction(
     const baselineStartStr = formatUTCDate(baselineStart);
 
     // Pull both windows from our local DB — no Google Ads API call needed
-    const [recentRows, baselineRows] = await Promise.all([
-      db.query.adPerformanceDaily.findMany({
-        where: and(
-          eq((adPerformanceDaily as any).adAccountId, accountId),
-          gte(adPerformanceDaily.date, recentStartStr),
-          lte(adPerformanceDaily.date, todayStr),
-        ),
-      }),
-      db.query.adPerformanceDaily.findMany({
-        where: and(
-          eq((adPerformanceDaily as any).adAccountId, accountId),
-          gte(adPerformanceDaily.date, baselineStartStr),
-          lte(adPerformanceDaily.date, baselineEndStr),
-        ),
-      }),
-    ]);
+    const [recentRows, baselineRows] = await withBypassTenantDb(async (tx) => {
+      return await Promise.all([
+        tx.query.adPerformanceDaily.findMany({
+          where: and(
+            eq((adPerformanceDaily as any).adAccountId, accountId),
+            gte(adPerformanceDaily.date, recentStartStr),
+            lte(adPerformanceDaily.date, todayStr),
+          ),
+        }),
+        tx.query.adPerformanceDaily.findMany({
+          where: and(
+            eq((adPerformanceDaily as any).adAccountId, accountId),
+            gte(adPerformanceDaily.date, baselineStartStr),
+            lte(adPerformanceDaily.date, baselineEndStr),
+          ),
+        }),
+      ]);
+    });
 
     if (baselineRows.length === 0) {
       return {
@@ -1226,8 +1230,10 @@ export async function getConcentrationReportAction(
 // ---------------------------------------------------------------------------
 export async function getAccountTargetsAction(accountId: number) {
   try {
-    const account = await db.query.adAccounts.findFirst({
-      where: eq(adAccounts.id, accountId),
+    const account = await withBypassTenantDb(async (tx) => {
+      return await tx.query.adAccounts.findFirst({
+        where: eq(adAccounts.id, accountId),
+      });
     });
 
     if (!account) {
@@ -1287,8 +1293,10 @@ export async function getImpressionShareReportInternal(
   endDate?: string,
   campaignId?: number,
 ) {
-  const account = await db.query.adAccounts.findFirst({
-    where: eq(adAccounts.id, accountId),
+  const account = await withBypassTenantDb(async (tx) => {
+    return await tx.query.adAccounts.findFirst({
+      where: eq(adAccounts.id, accountId),
+    });
   });
 
   if (!account) {
@@ -1333,8 +1341,10 @@ export async function getImpressionShareReportAction(
 }
 
 export async function auditConversionTrackingInternal(accountId: number) {
-  const account = await db.query.adAccounts.findFirst({
-    where: eq(adAccounts.id, accountId),
+  const account = await withBypassTenantDb(async (tx) => {
+    return await tx.query.adAccounts.findFirst({
+      where: eq(adAccounts.id, accountId),
+    });
   });
 
   if (!account) {

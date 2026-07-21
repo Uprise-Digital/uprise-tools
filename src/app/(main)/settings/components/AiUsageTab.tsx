@@ -13,6 +13,7 @@ import {
   Bar,
   BarChart,
   Cell,
+  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -54,14 +55,14 @@ interface AiUsageTabProps {
 }
 
 const COLORS = [
-  "hsl(var(--primary))",
-  "hsl(217, 91%, 60%)",
-  "hsl(142, 71%, 45%)",
-  "hsl(38, 92%, 50%)",
-  "hsl(262, 83%, 58%)",
-  "hsl(316, 70%, 50%)",
-  "hsl(199, 89%, 48%)",
-  "hsl(32, 95%, 44%)",
+  "#6366f1", // Indigo
+  "#8b5cf6", // Purple
+  "#3b82f6", // Blue
+  "#10b981", // Emerald
+  "#f59e0b", // Amber
+  "#ec4899", // Pink
+  "#06b6d4", // Cyan
+  "#f43f5e", // Rose
 ];
 
 export function AiUsageTab({ initialStats, orgId, userRole }: AiUsageTabProps) {
@@ -440,34 +441,54 @@ export function AiUsageTab({ initialStats, orgId, userRole }: AiUsageTabProps) {
               AI cost parsed by invoked function/feature
             </CardDescription>
           </CardHeader>
-          <CardContent className="h-[250px] flex items-center justify-center">
+          <CardContent className="h-[270px] flex items-center justify-center pt-2">
             {stats.featureBreakdown.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={stats.featureBreakdown}
                     cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) =>
-                      `${name} (${((percent || 0) * 100).toFixed(0)}%)`
-                    }
-                    outerRadius={75}
-                    fill="#8884d8"
+                    cy="42%"
+                    innerRadius={48}
+                    outerRadius={72}
+                    paddingAngle={3}
                     dataKey="spend"
                   >
                     {stats.featureBreakdown.map((entry: any, index: number) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
+                        stroke="#ffffff"
+                        strokeWidth={2}
                       />
                     ))}
                   </Pie>
                   <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#0f172a",
+                      borderColor: "#334155",
+                      borderRadius: "10px",
+                      color: "#f8fafc",
+                      fontSize: "12px",
+                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
+                    }}
+                    itemStyle={{ color: "#38bdf8" }}
                     formatter={(value) => [
-                      `$${parseFloat(value as string).toFixed(3)} USD`,
+                      `$${Number(value).toFixed(4)} USD`,
                       "Spend",
                     ]}
+                  />
+                  <Legend
+                    verticalAlign="bottom"
+                    align="center"
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                    formatter={(value) => (
+                      <span className="text-slate-600 font-medium">
+                        {value}
+                      </span>
+                    )}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -489,26 +510,41 @@ export function AiUsageTab({ initialStats, orgId, userRole }: AiUsageTabProps) {
               Cost and call volumes generated per user
             </CardDescription>
           </CardHeader>
-          <CardContent className="h-[250px] flex items-center justify-center">
+          <CardContent className="h-[270px] flex items-center justify-center pt-2">
             {stats.userBreakdown.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={stats.userBreakdown}
-                  margin={{ top: 10, right: 10, left: -25, bottom: 5 }}
+                  margin={{ top: 15, right: 15, left: -15, bottom: 10 }}
                 >
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    axisLine={{ stroke: "#e2e8f0" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "#64748b" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(val) => `$${Number(val).toFixed(3)}`}
+                  />
                   <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#0f172a",
+                      borderColor: "#334155",
+                      borderRadius: "10px",
+                      color: "#f8fafc",
+                      fontSize: "12px",
+                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
+                    }}
+                    itemStyle={{ color: "#38bdf8" }}
                     formatter={(value) => [
-                      `$${parseFloat(value as string).toFixed(3)} USD`,
+                      `$${Number(value).toFixed(4)} USD`,
                       "Spend",
                     ]}
                   />
-                  <Bar
-                    dataKey="spend"
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                  >
+                  <Bar dataKey="spend" maxBarSize={44} radius={[6, 6, 0, 0]}>
                     {stats.userBreakdown.map((entry: any, index: number) => (
                       <Cell
                         key={`cell-${index}`}

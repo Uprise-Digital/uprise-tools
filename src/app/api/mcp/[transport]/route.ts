@@ -40,6 +40,7 @@ import {
   saveAccountTriageSettingsInternal,
 } from "@/actions/triage-settings.actions";
 import { db } from "@/db";
+import { withBypassTenantDb } from "@/db/db-helper";
 import {
   adAccounts,
   mcpSettings,
@@ -113,8 +114,10 @@ const handler = createMcpHandler(
         },
       },
       async ({ accountId, startDate, endDate }) => {
-        const account = await db.query.adAccounts.findFirst({
-          where: eq(adAccounts.id, accountId),
+        const account = await withBypassTenantDb(async (tx) => {
+          return await tx.query.adAccounts.findFirst({
+            where: eq(adAccounts.id, accountId),
+          });
         });
 
         if (!account) {
@@ -899,20 +902,26 @@ const handler = createMcpHandler(
             updatedAt: new Date(),
           };
 
-          const existing = await db.query.orgTriageDefaults.findFirst();
+          const existing = await withBypassTenantDb(async (tx) => {
+            return await tx.query.orgTriageDefaults.findFirst();
+          });
           let savedId: number;
 
           if (existing) {
-            await db
-              .update(orgTriageDefaults)
-              .set(payload)
-              .where(eq(orgTriageDefaults.id, existing.id));
+            await withBypassTenantDb(async (tx) => {
+              await tx
+                .update(orgTriageDefaults)
+                .set(payload)
+                .where(eq(orgTriageDefaults.id, existing.id));
+            });
             savedId = existing.id;
           } else {
-            const [newDefaults] = await db
-              .insert(orgTriageDefaults)
-              .values(payload)
-              .returning();
+            const [newDefaults] = await withBypassTenantDb(async (tx) => {
+              return await tx
+                .insert(orgTriageDefaults)
+                .values(payload)
+                .returning();
+            });
             savedId = newDefaults.id;
           }
 
@@ -1017,8 +1026,10 @@ const handler = createMcpHandler(
       async ({ accountId, ...data }) => {
         try {
           // Safety Precaution: Verify that the account exists before modifying its configuration
-          const account = await db.query.adAccounts.findFirst({
-            where: eq(adAccounts.id, accountId),
+          const account = await withBypassTenantDb(async (tx) => {
+            return await tx.query.adAccounts.findFirst({
+              where: eq(adAccounts.id, accountId),
+            });
           });
 
           if (!account) {
@@ -1178,11 +1189,12 @@ const handler = createMcpHandler(
       },
       async ({ accountId }) => {
         try {
-          const suggestions =
-            await db.query.negativeKeywordSuggestions.findMany({
+          const suggestions = await withBypassTenantDb(async (tx) => {
+            return await tx.query.negativeKeywordSuggestions.findMany({
               where: eq(negativeKeywordSuggestions.adAccountId, accountId),
               orderBy: (table, { desc }) => [desc(table.suggestedAt)],
             });
+          });
           return {
             content: [{ type: "text", text: JSON.stringify(suggestions) }],
           };
@@ -1280,8 +1292,10 @@ const handler = createMcpHandler(
       },
       async ({ accountId, campaignId, keyword, matchType, suggestionId }) => {
         try {
-          const account = await db.query.adAccounts.findFirst({
-            where: eq(adAccounts.id, accountId),
+          const account = await withBypassTenantDb(async (tx) => {
+            return await tx.query.adAccounts.findFirst({
+              where: eq(adAccounts.id, accountId),
+            });
           });
 
           if (!account) {
@@ -1330,27 +1344,31 @@ const handler = createMcpHandler(
 
           if (suggestionId) {
             // Update suggestion status to approved
-            await db
-              .update(negativeKeywordSuggestions)
-              .set({
-                status: "approved",
-                matchType: matchType,
-                processedAt: new Date(),
-                error: null,
-              })
-              .where(eq(negativeKeywordSuggestions.id, suggestionId));
+            await withBypassTenantDb(async (tx) => {
+              await tx
+                .update(negativeKeywordSuggestions)
+                .set({
+                  status: "approved",
+                  matchType: matchType,
+                  processedAt: new Date(),
+                  error: null,
+                })
+                .where(eq(negativeKeywordSuggestions.id, suggestionId));
+            });
           } else {
             // Insert a direct approved record in DB
-            await db.insert(negativeKeywordSuggestions).values({
-              adAccountId: accountId,
-              keyword,
-              matchType,
-              campaignId,
-              campaignName,
-              rationale: "Directly added via AI chat",
-              status: "approved",
-              searchQuery: "Manual addition",
-              processedAt: new Date(),
+            await withBypassTenantDb(async (tx) => {
+              await tx.insert(negativeKeywordSuggestions).values({
+                adAccountId: accountId,
+                keyword,
+                matchType,
+                campaignId,
+                campaignName,
+                rationale: "Directly added via AI chat",
+                status: "approved",
+                searchQuery: "Manual addition",
+                processedAt: new Date(),
+              });
             });
           }
 
@@ -1415,8 +1433,10 @@ const handler = createMcpHandler(
       },
       async ({ accountId }) => {
         try {
-          const account = await db.query.adAccounts.findFirst({
-            where: eq(adAccounts.id, accountId),
+          const account = await withBypassTenantDb(async (tx) => {
+            return await tx.query.adAccounts.findFirst({
+              where: eq(adAccounts.id, accountId),
+            });
           });
 
           if (!account) {
@@ -1474,8 +1494,10 @@ const handler = createMcpHandler(
       },
       async ({ accountId }) => {
         try {
-          const account = await db.query.adAccounts.findFirst({
-            where: eq(adAccounts.id, accountId),
+          const account = await withBypassTenantDb(async (tx) => {
+            return await tx.query.adAccounts.findFirst({
+              where: eq(adAccounts.id, accountId),
+            });
           });
 
           if (!account) {
@@ -1563,8 +1585,10 @@ const handler = createMcpHandler(
         researchIntentSignals,
       }) => {
         try {
-          const account = await db.query.adAccounts.findFirst({
-            where: eq(adAccounts.id, accountId),
+          const account = await withBypassTenantDb(async (tx) => {
+            return await tx.query.adAccounts.findFirst({
+              where: eq(adAccounts.id, accountId),
+            });
           });
 
           if (!account) {
@@ -1596,10 +1620,12 @@ const handler = createMcpHandler(
 
           const personaString = JSON.stringify(personaData);
 
-          await db
-            .update(adAccounts)
-            .set({ targetNotes: personaString })
-            .where(eq(adAccounts.id, accountId));
+          await withBypassTenantDb(async (tx) => {
+            await tx
+              .update(adAccounts)
+              .set({ targetNotes: personaString })
+              .where(eq(adAccounts.id, accountId));
+          });
 
           return {
             content: [

@@ -2,10 +2,12 @@ import { GoogleGenAI } from "@google/genai";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
+import { withBypassTenantDb } from "@/db/db-helper";
 import {
   aiModelPricing,
   aiUsageSettings,
   member,
+  organization,
   usageLogs,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -74,8 +76,10 @@ export async function generateContentTracked(
         organizationId = session.session.activeOrganizationId ?? undefined;
 
         if (!organizationId) {
-          const userMember = await db.query.member.findFirst({
-            where: eq(member.userId, userId),
+          const userMember = await withBypassTenantDb(async (tx) => {
+            return await tx.query.member.findFirst({
+              where: eq(member.userId, userId!),
+            });
           });
           organizationId = userMember?.organizationId;
         }
@@ -85,57 +89,75 @@ export async function generateContentTracked(
     }
   }
 
-  // Fallback to default if still not resolved
+  // Fallback to first available organization if still not resolved
   if (!organizationId) {
-    organizationId = "default-org";
+    const firstOrg = await withBypassTenantDb(async (tx) => {
+      return await tx.query.organization.findFirst();
+    });
+    organizationId = firstOrg?.id;
   }
 
-  // 1. Get or Create Organization AI Settings
-  let settings = await db.query.aiUsageSettings.findFirst({
-    where: eq(aiUsageSettings.organizationId, organizationId),
-  });
+  let budgetLimit = 50.0;
+  let softLimitPercent = 80;
+  let hardLimitBlocked = true;
+  let currentMonthSpend = 0;
 
-  if (!settings) {
-    const [newSettings] = await db
-      .insert(aiUsageSettings)
-      .values({
-        organizationId,
-        monthlyBudgetLimit: "50.00",
-        softLimitPercentage: 80,
-        hardLimitBlocked: true,
-      })
-      .returning();
-    settings = newSettings;
-  }
+  if (organizationId) {
+    // 1. Get or Create Organization AI Settings
+    let settings = await withBypassTenantDb(async (tx) => {
+      return await tx.query.aiUsageSettings.findFirst({
+        where: eq(aiUsageSettings.organizationId, organizationId!),
+      });
+    });
 
-  const budgetLimit = parseFloat(settings.monthlyBudgetLimit);
-  const softLimitPercent = settings.softLimitPercentage;
-  const hardLimitBlocked = settings.hardLimitBlocked;
+    if (!settings) {
+      const [newSettings] = await withBypassTenantDb(async (tx) => {
+        return await tx
+          .insert(aiUsageSettings)
+          .values({
+            organizationId: organizationId!,
+            monthlyBudgetLimit: "50.00",
+            softLimitPercentage: 80,
+            hardLimitBlocked: true,
+          })
+          .returning();
+      });
+      settings = newSettings;
+    }
 
-  // 2. Calculate Current Month's Spend
-  const melbourneTodayStr = getMelbourneTodayStr();
-  const [year, month] = melbourneTodayStr.split("-").map(Number);
-  const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
+    if (settings) {
+      budgetLimit = parseFloat(settings.monthlyBudgetLimit);
+      softLimitPercent = settings.softLimitPercentage;
+      hardLimitBlocked = settings.hardLimitBlocked;
+    }
 
-  const [usageSum] = await db
-    .select({
-      totalSpend: sql<string>`COALESCE(SUM(${usageLogs.estimatedCost}), '0.000000')`,
-    })
-    .from(usageLogs)
-    .where(
-      and(
-        eq(usageLogs.organizationId, organizationId),
-        gte(usageLogs.createdAt, startOfMonth),
-      ),
-    );
+    // 2. Calculate Current Month's Spend
+    const melbourneTodayStr = getMelbourneTodayStr();
+    const [year, month] = melbourneTodayStr.split("-").map(Number);
+    const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
 
-  const currentMonthSpend = parseFloat(usageSum?.totalSpend || "0");
+    const [usageSum] = await withBypassTenantDb(async (tx) => {
+      return await tx
+        .select({
+          totalSpend: sql<string>`COALESCE(SUM(${usageLogs.estimatedCost}), '0.000000')`,
+        })
+        .from(usageLogs)
+        .where(
+          and(
+            eq(usageLogs.organizationId, organizationId!),
+            gte(usageLogs.createdAt, startOfMonth),
+          ),
+        );
+    });
 
-  // 3. Enforce Hard Limit if blocked and limit exceeded
-  if (hardLimitBlocked && currentMonthSpend >= budgetLimit) {
-    throw new Error(
-      `AI_LIMIT_EXCEEDED: Monthly AI budget cap of $${budgetLimit.toFixed(2)} reached ($${currentMonthSpend.toFixed(2)} spent).`,
-    );
+    currentMonthSpend = parseFloat(usageSum?.totalSpend || "0");
+
+    // 3. Enforce Hard Limit if blocked and limit exceeded
+    if (hardLimitBlocked && currentMonthSpend >= budgetLimit) {
+      throw new Error(
+        `AI_LIMIT_EXCEEDED: Monthly AI budget cap of $${budgetLimit.toFixed(2)} reached ($${currentMonthSpend.toFixed(2)} spent).`,
+      );
+    }
   }
 
   // 4. Execute AI Query
@@ -153,8 +175,10 @@ export async function generateContentTracked(
   const totalTokens = response.usageMetadata?.totalTokenCount || 0;
 
   // Lookup model pricing
-  const pricing = await db.query.aiModelPricing.findFirst({
-    where: eq(aiModelPricing.modelName, modelName),
+  const pricing = await withBypassTenantDb(async (tx) => {
+    return await tx.query.aiModelPricing.findFirst({
+      where: eq(aiModelPricing.modelName, modelName),
+    });
   });
 
   // Fallback to local default pricing if database record is missing
@@ -170,22 +194,26 @@ export async function generateContentTracked(
   const outputCost = (candidatesTokens * outputRate) / 1000000;
   const queryCost = inputCost + outputCost;
 
-  // 6. Log the usage in usage_logs
-  await db.insert(usageLogs).values({
-    organizationId,
-    userId,
-    actionType: "gemini_query",
-    unitsUsed: totalTokens,
-    estimatedCost: queryCost.toFixed(6),
-    metadata: {
-      model: modelName,
-      inputTokens: promptTokens,
-      outputTokens: candidatesTokens,
-      feature,
-      durationMs,
-    },
-    createdAt: new Date(),
-  });
+  // 6. Log the usage in usage_logs if organizationId is present
+  if (organizationId) {
+    await withBypassTenantDb(async (tx) => {
+      await tx.insert(usageLogs).values({
+        organizationId: organizationId!,
+        userId,
+        actionType: "gemini_query",
+        unitsUsed: totalTokens,
+        estimatedCost: queryCost.toFixed(6),
+        metadata: {
+          model: modelName,
+          inputTokens: promptTokens,
+          outputTokens: candidatesTokens,
+          feature,
+          durationMs,
+        },
+        createdAt: new Date(),
+      });
+    });
+  }
 
   // 7. Check if Soft Limit has been reached after this call
   const postSpend = currentMonthSpend + queryCost;

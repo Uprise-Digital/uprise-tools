@@ -4,6 +4,7 @@ import { eq, ne } from "drizzle-orm";
 import { headers } from "next/headers";
 import { getBriefingSettingsAction } from "@/actions/briefing-settings.actions";
 import { db } from "@/db";
+import { withBypassTenantDb } from "@/db/db-helper";
 import { salesReminderSettings, user } from "@/db/schema";
 import { generateContentTracked } from "@/lib/ai-logger";
 import { logEmail } from "@/lib/audit";
@@ -252,7 +253,10 @@ export async function generateRevivalPlanAction(
       },
     );
 
-    const parsedPlan = JSON.parse(result.response.text as string);
+    const rawText = (result.response.text as string) || "";
+    const cleanedText = rawText.replace(/```json\n?|\n?```/g, "").trim();
+    const parsedPlan = JSON.parse(cleanedText);
+
     return {
       success: true as const,
       plan: parsedPlan,
@@ -260,7 +264,15 @@ export async function generateRevivalPlanAction(
     };
   } catch (error: any) {
     console.error("[generateRevivalPlanAction Error]:", error);
-    return { success: false as const, error: error.message };
+    let errMsg = error.message || "Failed to generate revival plan.";
+    if (
+      errMsg.includes("CONSUMER_SUSPENDED") ||
+      errMsg.includes("Permission denied")
+    ) {
+      errMsg =
+        "Gemini API key is suspended by Google Cloud. Please update GEMINI_API_KEY in .env.local.";
+    }
+    return { success: false as const, error: errMsg };
   }
 }
 
@@ -411,10 +423,9 @@ export async function sendStalledOpportunitiesReminderAction() {
 
     // 3. Fallback recipients (all team members) if empty
     if (recipients.length === 0) {
-      const team = await db
-        .select()
-        .from(user)
-        .where(ne(user.id, SYSTEM_ACTOR));
+      const team = await withBypassTenantDb(async (tx) => {
+        return await tx.select().from(user).where(ne(user.id, SYSTEM_ACTOR));
+      });
       recipients = team.map((u) => u.email).filter(Boolean);
     }
 
@@ -519,40 +530,64 @@ export async function sendStalledOpportunitiesReminderAction() {
  */
 export async function getSalesReminderSettingsAction() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-    let orgId = "default-org";
-    if (session?.session?.activeOrganizationId) {
-      orgId = session.session.activeOrganizationId;
+    let orgId: string | undefined;
+    try {
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
+      if (session?.session?.activeOrganizationId) {
+        orgId = session.session.activeOrganizationId;
+      }
+    } catch {
+      // Outside HTTP context
     }
 
-    let settings = await db.query.salesReminderSettings.findFirst({
-      where: eq(salesReminderSettings.organizationId, orgId),
+    if (!orgId) {
+      const firstOrg = await withBypassTenantDb(async (tx) => {
+        return await tx.query.organization.findFirst();
+      });
+      orgId = firstOrg?.id;
+    }
+
+    if (!orgId) {
+      return {
+        success: true as const,
+        data: { id: 0, recipients: [], sendTime: "08:00", isActive: false },
+      };
+    }
+
+    let settings = await withBypassTenantDb(async (tx) => {
+      return await tx.query.salesReminderSettings.findFirst({
+        where: eq(salesReminderSettings.organizationId, orgId!),
+      });
     });
 
     if (!settings) {
       // Create default settings with all team members as default recipients
       let defaultRecipients: string[] = [];
       try {
-        const team = await db
-          .select()
-          .from(user)
-          .where(ne(user.id, "SYSTEM_AUTOMATION"));
+        const team = await withBypassTenantDb(async (tx) => {
+          return await tx
+            .select()
+            .from(user)
+            .where(ne(user.id, "SYSTEM_AUTOMATION"));
+        });
         defaultRecipients = team.map((u) => u.email).filter(Boolean);
       } catch (e) {
         // Ignore
       }
 
-      const [newSettings] = await db
-        .insert(salesReminderSettings)
-        .values({
-          organizationId: orgId,
-          recipients: defaultRecipients,
-          sendTime: "08:00",
-          isActive: true,
-        })
-        .returning();
+      const [newSettings] = await withBypassTenantDb(async (tx) => {
+        return await tx
+          .insert(salesReminderSettings)
+          .values({
+            organizationId: orgId!,
+            recipients: defaultRecipients,
+            sendTime: "08:00",
+            isActive: true,
+          })
+          .returning();
+      });
       settings = newSettings;
     }
 
@@ -580,34 +615,55 @@ export async function updateSalesReminderSettingsAction(data: {
   isActive: boolean;
 }) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-    let orgId = "default-org";
-    if (session?.session?.activeOrganizationId) {
-      orgId = session.session.activeOrganizationId;
+    let orgId: string | undefined;
+    try {
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
+      if (session?.session?.activeOrganizationId) {
+        orgId = session.session.activeOrganizationId;
+      }
+    } catch {
+      // Outside HTTP context
     }
 
-    const existing = await db.query.salesReminderSettings.findFirst({
-      where: eq(salesReminderSettings.organizationId, orgId),
+    if (!orgId) {
+      const firstOrg = await withBypassTenantDb(async (tx) => {
+        return await tx.query.organization.findFirst();
+      });
+      orgId = firstOrg?.id;
+    }
+
+    if (!orgId) {
+      throw new Error("No active organization found to update settings.");
+    }
+
+    const existing = await withBypassTenantDb(async (tx) => {
+      return await tx.query.salesReminderSettings.findFirst({
+        where: eq(salesReminderSettings.organizationId, orgId!),
+      });
     });
 
     if (existing) {
-      await db
-        .update(salesReminderSettings)
-        .set({
+      await withBypassTenantDb(async (tx) => {
+        await tx
+          .update(salesReminderSettings)
+          .set({
+            recipients: data.recipients,
+            sendTime: data.sendTime,
+            isActive: data.isActive,
+            updatedAt: new Date(),
+          })
+          .where(eq(salesReminderSettings.id, existing.id));
+      });
+    } else {
+      await withBypassTenantDb(async (tx) => {
+        await tx.insert(salesReminderSettings).values({
+          organizationId: orgId!,
           recipients: data.recipients,
           sendTime: data.sendTime,
           isActive: data.isActive,
-          updatedAt: new Date(),
-        })
-        .where(eq(salesReminderSettings.id, existing.id));
-    } else {
-      await db.insert(salesReminderSettings).values({
-        organizationId: orgId,
-        recipients: data.recipients,
-        sendTime: data.sendTime,
-        isActive: data.isActive,
+        });
       });
     }
 
@@ -624,10 +680,12 @@ export async function updateSalesReminderSettingsAction(data: {
 export async function getTeamMembersAction() {
   try {
     await checkAuth();
-    const team = await db
-      .select({ id: user.id, email: user.email, name: user.name })
-      .from(user)
-      .where(ne(user.id, "SYSTEM_AUTOMATION"));
+    const team = await withBypassTenantDb(async (tx) => {
+      return await tx
+        .select({ id: user.id, email: user.email, name: user.name })
+        .from(user)
+        .where(ne(user.id, "SYSTEM_AUTOMATION"));
+    });
     return { success: true as const, data: team };
   } catch (error: any) {
     console.error("[getTeamMembersAction Error]:", error);
