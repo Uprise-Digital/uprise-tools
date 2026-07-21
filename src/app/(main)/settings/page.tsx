@@ -137,6 +137,9 @@ export default async function SettingsPage() {
         managerCustomerId: connection.managerCustomerId,
         status: connection.status,
         errorMessage: connection.errorMessage,
+        autoAddAccounts: connection.autoAddAccounts ?? false,
+        autoSyncScope:
+          (connection.autoSyncScope as "ALL" | "ACTIVE_ONLY") ?? "ALL",
         createdAt: connection.createdAt.toISOString(),
       }
     : null;

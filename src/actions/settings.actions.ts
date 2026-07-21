@@ -447,21 +447,52 @@ export async function refreshAdAccountsMetadataAction() {
           const clientIdStr = client.id.toString();
           const liveStatus = client.status || "ENABLED";
 
-          await tx
-            .update(adAccounts)
-            .set({
-              name: client.descriptiveName || `Client Account (${client.id})`,
-              currencyCode: client.currencyCode || "AUD",
-              timeZone: client.timeZone || "Australia/Melbourne",
-              googleStatus: liveStatus,
-              isActive: liveStatus === "ENABLED",
-            })
-            .where(
-              and(
-                eq(adAccounts.googleAccountId, clientIdStr),
-                eq(adAccounts.organizationId, orgId),
-              ),
-            );
+          if (conn.autoAddAccounts) {
+            const shouldBeActive =
+              conn.autoSyncScope === "ACTIVE_ONLY"
+                ? liveStatus === "ENABLED"
+                : true;
+
+            await tx
+              .insert(adAccounts)
+              .values({
+                googleAccountId: clientIdStr,
+                name: client.descriptiveName || `Client Account (${client.id})`,
+                currencyCode: client.currencyCode || "AUD",
+                timeZone: client.timeZone || "Australia/Melbourne",
+                googleStatus: liveStatus,
+                organizationId: orgId,
+                connectionId: conn.id,
+                isActive: shouldBeActive,
+              })
+              .onConflictDoUpdate({
+                target: adAccounts.googleAccountId,
+                set: {
+                  name:
+                    client.descriptiveName || `Client Account (${client.id})`,
+                  currencyCode: client.currencyCode || "AUD",
+                  timeZone: client.timeZone || "Australia/Melbourne",
+                  googleStatus: liveStatus,
+                  isActive: shouldBeActive,
+                },
+              });
+          } else {
+            await tx
+              .update(adAccounts)
+              .set({
+                name: client.descriptiveName || `Client Account (${client.id})`,
+                currencyCode: client.currencyCode || "AUD",
+                timeZone: client.timeZone || "Australia/Melbourne",
+                googleStatus: liveStatus,
+                isActive: liveStatus === "ENABLED",
+              })
+              .where(
+                and(
+                  eq(adAccounts.googleAccountId, clientIdStr),
+                  eq(adAccounts.organizationId, orgId),
+                ),
+              );
+          }
         }
       }
     });
@@ -470,6 +501,68 @@ export async function refreshAdAccountsMetadataAction() {
     return { success: true };
   } catch (error: any) {
     console.error("Failed to refresh ad accounts metadata:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// --- Action 5: Update Auto Sync Settings ---
+export async function updateAutoSyncSettingsAction(payload: {
+  connectionId: number;
+  autoAddAccounts: boolean;
+  autoSyncScope: "ALL" | "ACTIVE_ONLY";
+}) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  let orgId = session.session.activeOrganizationId;
+  if (!orgId) {
+    const userMember = await db.query.member.findFirst({
+      where: eq(member.userId, session.user.id),
+    });
+    if (userMember) {
+      orgId = userMember.organizationId;
+    }
+  }
+
+  if (!orgId) {
+    throw new Error("No active organization found");
+  }
+
+  try {
+    const conn = await db.query.googleAdsConnections.findFirst({
+      where: and(
+        eq(googleAdsConnections.id, payload.connectionId),
+        eq(googleAdsConnections.organizationId, orgId),
+      ),
+    });
+
+    if (!conn) {
+      throw new Error("Google Ads connection not found.");
+    }
+
+    await db
+      .update(googleAdsConnections)
+      .set({
+        autoAddAccounts: payload.autoAddAccounts,
+        autoSyncScope: payload.autoSyncScope,
+        updatedAt: new Date(),
+      })
+      .where(eq(googleAdsConnections.id, conn.id));
+
+    if (payload.autoAddAccounts) {
+      await refreshAdAccountsMetadataAction();
+    } else {
+      revalidatePath("/settings");
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to update auto-sync settings:", error);
     return { success: false, error: error.message };
   }
 }

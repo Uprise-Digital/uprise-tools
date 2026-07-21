@@ -80,6 +80,8 @@ interface SettingsClientProps {
     connectedEmail: string;
     managerCustomerId: string | null;
     status: string;
+    autoAddAccounts: boolean;
+    autoSyncScope: "ALL" | "ACTIVE_ONLY";
     createdAt: string;
   } | null;
   orgName: string;

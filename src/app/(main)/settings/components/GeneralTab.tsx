@@ -16,11 +16,13 @@ import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
 import {
   disconnectGoogleAdsAction,
   refreshAdAccountsMetadataAction,
+  updateAutoSyncSettingsAction,
   updateLinkedAccountsAction,
   updateOrganizationNameAction,
 } from "@/actions/settings.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -66,6 +68,8 @@ interface GeneralTabProps {
     connectedEmail: string;
     managerCustomerId: string | null;
     status: string;
+    autoAddAccounts: boolean;
+    autoSyncScope: "ALL" | "ACTIVE_ONLY";
     createdAt: string;
   } | null;
   accounts: AccountSyncData[];
@@ -110,6 +114,52 @@ export function GeneralTab({
   const [modalStatusFilter, setModalStatusFilter] = useState("ALL");
   const [savingLinkedAccounts, setSavingLinkedAccounts] = useState(false);
   const [refreshingAccounts, setRefreshingAccounts] = useState(false);
+
+  const [autoAddAccounts, setAutoAddAccounts] = useState(
+    connection?.autoAddAccounts ?? false,
+  );
+  const [autoSyncScope, setAutoSyncScope] = useState<"ALL" | "ACTIVE_ONLY">(
+    connection?.autoSyncScope ?? "ALL",
+  );
+  const [updatingAutoSync, setUpdatingAutoSync] = useState(false);
+
+  const handleToggleAutoSync = async (
+    enabled: boolean,
+    scope?: "ALL" | "ACTIVE_ONLY",
+  ) => {
+    if (!connection) return;
+    const nextScope = scope ?? autoSyncScope;
+    setAutoAddAccounts(enabled);
+    if (scope) setAutoSyncScope(scope);
+
+    setUpdatingAutoSync(true);
+    const toastId = toast.loading("Updating auto-sync configuration...");
+    try {
+      const res = await updateAutoSyncSettingsAction({
+        connectionId: connection.id,
+        autoAddAccounts: enabled,
+        autoSyncScope: nextScope,
+      });
+      if (res.success) {
+        toast.success(
+          enabled
+            ? `Auto-sync enabled (${nextScope === "ALL" ? "Sync All Accounts" : "Sync Active Accounts Only"}).`
+            : "Auto-sync disabled. Manual account linking mode active.",
+          { id: toastId },
+        );
+      } else {
+        toast.error(res.error || "Failed to update auto-sync settings.", {
+          id: toastId,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An unexpected error occurred.", {
+        id: toastId,
+      });
+    } finally {
+      setUpdatingAutoSync(false);
+    }
+  };
 
   const handleSaveOrgName = async () => {
     if (!orgNameInput.trim()) {
@@ -290,6 +340,100 @@ export function GeneralTab({
                     accounts synced under this connection.
                   </span>
                 </div>
+
+                {connection.managerCustomerId && (
+                  <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-indigo-950">
+                            Auto-Add & Sync New Accounts
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] px-2 py-0.5 border-none font-semibold",
+                              autoAddAccounts
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-slate-200 text-slate-700",
+                            )}
+                          >
+                            {autoAddAccounts ? "Enabled" : "Disabled"}
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-slate-600 mt-0.5">
+                          Automatically discover and sync client accounts added
+                          to your Google Ads Manager (MCC) without manually
+                          adding them each time.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={autoAddAccounts}
+                        disabled={updatingAutoSync}
+                        onCheckedChange={(checked) =>
+                          handleToggleAutoSync(checked)
+                        }
+                      />
+                    </div>
+
+                    {autoAddAccounts && (
+                      <div className="pt-2 border-t border-indigo-100/80 space-y-2">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                          Sync Scope Options
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <button
+                            type="button"
+                            disabled={updatingAutoSync}
+                            onClick={() => handleToggleAutoSync(true, "ALL")}
+                            className={cn(
+                              "p-3 rounded-lg border text-left transition-all cursor-pointer",
+                              autoSyncScope === "ALL"
+                                ? "bg-white border-indigo-600 ring-2 ring-indigo-600/20 text-indigo-950 shadow-xs"
+                                : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
+                            )}
+                          >
+                            <div className="font-bold flex items-center justify-between">
+                              <span>Auto Sync ALL</span>
+                              {autoSyncScope === "ALL" && (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                              Sync all accounts under your MCC, including paused
+                              or inactive accounts.
+                            </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={updatingAutoSync}
+                            onClick={() =>
+                              handleToggleAutoSync(true, "ACTIVE_ONLY")
+                            }
+                            className={cn(
+                              "p-3 rounded-lg border text-left transition-all cursor-pointer",
+                              autoSyncScope === "ACTIVE_ONLY"
+                                ? "bg-white border-indigo-600 ring-2 ring-indigo-600/20 text-indigo-950 shadow-xs"
+                                : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
+                            )}
+                          >
+                            <div className="font-bold flex items-center justify-between">
+                              <span>Auto Add & Sync ACTIVE Only</span>
+                              {autoSyncScope === "ACTIVE_ONLY" && (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                              Only automatically sync active (ENABLED) client
+                              accounts under your MCC.
+                            </p>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-3 pt-2">
                   {connection.managerCustomerId && (

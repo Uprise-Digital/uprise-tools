@@ -126,6 +126,8 @@ export const googleAdsConnections = pgTable("google_ads_connections", {
   refreshToken: text("refresh_token").notNull(), // Encrypted at rest
   status: text("status").notNull().default("active"), // 'active', 'revoked', 'error'
   errorMessage: text("error_message"),
+  autoAddAccounts: boolean("auto_add_accounts").default(false).notNull(),
+  autoSyncScope: text("auto_sync_scope").default("ALL").notNull(), // 'ALL' | 'ACTIVE_ONLY'
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }).enableRLS();
