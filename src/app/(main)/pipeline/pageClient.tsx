@@ -11,12 +11,13 @@ import {
   Mail,
   MessageSquarePlus,
   Phone,
+  RotateCw,
   Settings,
   Sparkles,
   TrendingUp,
   User,
 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   addGhlContactNoteAction,
@@ -24,6 +25,7 @@ import {
   generateTranscriptSummaryAction,
   getContactNotesAction,
   getPipelineDashboardDataAction,
+  getSavedRevivalPlanAction,
   updateSalesReminderSettingsAction,
 } from "@/actions/pipeline.actions";
 import { Badge } from "@/components/ui/badge";
@@ -120,12 +122,36 @@ export default function PipelineClient({
   // Revival Plan state
   const [revivalPlan, setRevivalPlan] = useState<any | null>(null);
   const [loadingRevival, setLoadingRevival] = useState(false);
+  const [fetchingSavedPlan, setFetchingSavedPlan] = useState(false);
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>(
     {},
   );
 
   const [isSwitchingPipeline, setIsSwitchingPipeline] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Fetch saved revival plan from DB when opportunity drawer opens
+  useEffect(() => {
+    if (selectedOpportunity) {
+      setRevivalPlan(null);
+      setCompletedSteps({});
+      setFetchingSavedPlan(true);
+      getSavedRevivalPlanAction(selectedOpportunity.id)
+        .then((res) => {
+          if (res.success && res.plan) {
+            setRevivalPlan(res.plan);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch saved revival plan:", err);
+        })
+        .finally(() => {
+          setFetchingSavedPlan(false);
+        });
+    } else {
+      setRevivalPlan(null);
+    }
+  }, [selectedOpportunity?.id]);
 
   // Switch pipeline handler
   const handlePipelineChange = async (pipelineId: string) => {
@@ -248,10 +274,17 @@ export default function PipelineClient({
     }
   };
 
-  // Generate Revival Plan via Gemini
+  // Generate Revival Plan via Gemini with explicit Sonner toasts
   const handleGenerateRevivalPlan = async () => {
     if (!selectedOpportunity) return;
     setLoadingRevival(true);
+    const toastId = toast.loading(
+      "Generating AI Revival Strategy via Gemini...",
+      {
+        description: `Analyzing deal value ($${(selectedOpportunity.monetaryValue || 0).toLocaleString()}) and ${selectedOpportunity.daysStalled || 0} stalled days...`,
+      },
+    );
+
     try {
       const stageName =
         data.stages.find((s) => s.id === selectedOpportunity.stageId)?.name ||
@@ -263,18 +296,26 @@ export default function PipelineClient({
         value: selectedOpportunity.monetaryValue || 0,
         daysStalled: selectedOpportunity.daysStalled || 0,
         ownerName: selectedOpportunity.ownerName,
+        contactId: selectedOpportunity.contactId,
       });
 
       if (res.success && "plan" in res) {
         setRevivalPlan(res.plan);
+        setCompletedSteps({});
+        toast.success("AI Revival Plan generated & saved to database!", {
+          id: toastId,
+          description: "Strategy, checklist, and outreach script ready below.",
+        });
         if (res.usageAlert) {
           toast.warning(res.usageAlert, { duration: 6000 });
         }
       } else {
-        toast.error((res as any).error || "Failed to generate revival plan.");
+        toast.error((res as any).error || "Failed to generate revival plan.", {
+          id: toastId,
+        });
       }
     } catch (err: any) {
-      toast.error(err.message || "AI service error.");
+      toast.error(err.message || "AI service error.", { id: toastId });
     } finally {
       setLoadingRevival(false);
     }
@@ -838,15 +879,49 @@ export default function PipelineClient({
               {/* REVIVAL PLAN PANEL */}
               {activeDrawerTab === "revival" && (
                 <div className="space-y-4">
-                  {revivalPlan ? (
+                  {fetchingSavedPlan ? (
+                    <div className="flex flex-col items-center justify-center p-12 text-center bg-white border border-slate-200 rounded-xl shadow-sm space-y-2">
+                      <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
+                      <span className="text-xs font-semibold text-slate-600">
+                        Checking for saved AI revival plan...
+                      </span>
+                    </div>
+                  ) : revivalPlan ? (
                     <div className="space-y-4">
                       {/* Strategy Summary */}
                       <Card className="border-indigo-100 shadow-sm bg-indigo-50/20">
-                        <CardHeader className="py-3">
+                        <CardHeader className="py-3 flex flex-row items-center justify-between space-y-0">
                           <CardTitle className="text-xs font-bold text-indigo-600 flex items-center gap-1.5">
                             <BrainCircuit className="w-4 h-4" /> Recommended
                             Outreach Strategy
                           </CardTitle>
+                          <div className="flex items-center gap-2">
+                            {revivalPlan.createdAt && (
+                              <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1 bg-white/80 px-2 py-0.5 rounded border border-slate-200/80 shadow-xs">
+                                <Clock className="w-3 h-3 text-slate-400" />
+                                {new Date(
+                                  revivalPlan.createdAt,
+                                ).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={loadingRevival}
+                              onClick={handleGenerateRevivalPlan}
+                              className="h-7 text-[10px] font-bold flex items-center gap-1 border-indigo-200 text-indigo-600 hover:bg-indigo-50 bg-white"
+                            >
+                              <RotateCw
+                                className={`w-3 h-3 ${loadingRevival ? "animate-spin" : ""}`}
+                              />
+                              Regenerate
+                            </Button>
+                          </div>
                         </CardHeader>
                         <CardContent className="py-1 text-xs text-slate-600 leading-relaxed font-semibold">
                           {revivalPlan.strategy}

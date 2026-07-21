@@ -380,6 +380,28 @@ export const aiInsightsCache = pgTable(
   }),
 );
 
+// --- 6.1 PIPELINE REVIVAL PLANS ---
+export const pipelineRevivalPlans = pgTable(
+  "pipeline_revival_plans",
+  {
+    id: serial("id").primaryKey(),
+    opportunityId: text("opportunity_id").notNull(),
+    contactId: text("contact_id"),
+    opportunityName: text("opportunity_name"),
+    strategy: text("strategy").notNull(),
+    steps: jsonb("steps").$type<string[]>().notNull(),
+    outreachScript: text("outreach_script").notNull(),
+    recommendedFollowUpDays: integer("recommended_follow_up_days").default(3),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    oppIdx: index("pipeline_revival_plans_opportunity_idx").on(
+      table.opportunityId,
+    ),
+  }),
+);
+
 // --- 7. RELATIONS ---
 export const clientOnboardingRelations = relations(
   clientOnboardings,

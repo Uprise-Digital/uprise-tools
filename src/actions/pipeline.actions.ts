@@ -1,11 +1,11 @@
 "use server";
 
-import { eq, ne } from "drizzle-orm";
+import { desc, eq, ne } from "drizzle-orm";
 import { headers } from "next/headers";
 import { getBriefingSettingsAction } from "@/actions/briefing-settings.actions";
 import { db } from "@/db";
 import { withBypassTenantDb } from "@/db/db-helper";
-import { salesReminderSettings, user } from "@/db/schema";
+import { pipelineRevivalPlans, salesReminderSettings, user } from "@/db/schema";
 import { generateContentTracked } from "@/lib/ai-logger";
 import { logEmail } from "@/lib/audit";
 import { auth } from "@/lib/auth";
@@ -197,7 +197,43 @@ export async function addGhlContactNoteAction(
 }
 
 /**
- * Uses Gemini to generate an action revival plan and outreach templates for a stalled prospect.
+ * Fetches the latest saved revival plan from the database for a given opportunity.
+ */
+export async function getSavedRevivalPlanAction(opportunityId: string) {
+  try {
+    await checkAuth();
+    if (!opportunityId) return { success: true as const, plan: null };
+
+    const savedPlan = await withBypassTenantDb(async (tx) => {
+      return await tx.query.pipelineRevivalPlans.findFirst({
+        where: eq(pipelineRevivalPlans.opportunityId, opportunityId),
+        orderBy: [desc(pipelineRevivalPlans.createdAt)],
+      });
+    });
+
+    if (!savedPlan) {
+      return { success: true as const, plan: null };
+    }
+
+    return {
+      success: true as const,
+      plan: {
+        strategy: savedPlan.strategy,
+        steps: savedPlan.steps as string[],
+        outreachScript: savedPlan.outreachScript,
+        recommendedFollowUpDays: savedPlan.recommendedFollowUpDays || 3,
+        createdAt: savedPlan.createdAt.toISOString(),
+      },
+    };
+  } catch (error: any) {
+    console.error("[getSavedRevivalPlanAction Error]:", error);
+    return { success: false as const, error: error.message, plan: null };
+  }
+}
+
+/**
+ * Uses Gemini to generate an action revival plan and outreach templates for a stalled prospect,
+ * and saves it into the database for persistence.
  */
 export async function generateRevivalPlanAction(
   opportunityId: string,
@@ -208,6 +244,7 @@ export async function generateRevivalPlanAction(
     value: number;
     daysStalled: number;
     ownerName: string;
+    contactId?: string;
   },
 ) {
   try {
@@ -257,9 +294,63 @@ export async function generateRevivalPlanAction(
     const cleanedText = rawText.replace(/```json\n?|\n?```/g, "").trim();
     const parsedPlan = JSON.parse(cleanedText);
 
+    // Save/upsert to database
+    let savedRecord;
+    try {
+      const existing = await withBypassTenantDb(async (tx) => {
+        return await tx.query.pipelineRevivalPlans.findFirst({
+          where: eq(pipelineRevivalPlans.opportunityId, opportunityId),
+        });
+      });
+
+      if (existing) {
+        const [updated] = await withBypassTenantDb(async (tx) => {
+          return await tx
+            .update(pipelineRevivalPlans)
+            .set({
+              strategy: parsedPlan.strategy || "",
+              steps: parsedPlan.steps || [],
+              outreachScript: parsedPlan.outreachScript || "",
+              recommendedFollowUpDays: parsedPlan.recommendedFollowUpDays || 3,
+              opportunityName: details.name,
+              contactId: details.contactId || null,
+              updatedAt: new Date(),
+            })
+            .where(eq(pipelineRevivalPlans.id, existing.id))
+            .returning();
+        });
+        savedRecord = updated;
+      } else {
+        const [created] = await withBypassTenantDb(async (tx) => {
+          return await tx
+            .insert(pipelineRevivalPlans)
+            .values({
+              opportunityId,
+              contactId: details.contactId || null,
+              opportunityName: details.name,
+              strategy: parsedPlan.strategy || "",
+              steps: parsedPlan.steps || [],
+              outreachScript: parsedPlan.outreachScript || "",
+              recommendedFollowUpDays: parsedPlan.recommendedFollowUpDays || 3,
+            })
+            .returning();
+        });
+        savedRecord = created;
+      }
+    } catch (dbErr) {
+      console.error("[generateRevivalPlanAction DB Save Error]:", dbErr);
+    }
+
+    const createdAt = savedRecord
+      ? savedRecord.updatedAt.toISOString()
+      : new Date().toISOString();
+
     return {
       success: true as const,
-      plan: parsedPlan,
+      plan: {
+        ...parsedPlan,
+        createdAt,
+      },
       usageAlert: result.usageAlert,
     };
   } catch (error: any) {
