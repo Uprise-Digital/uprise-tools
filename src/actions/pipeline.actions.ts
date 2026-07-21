@@ -12,6 +12,7 @@ import { auth } from "@/lib/auth";
 import {
   createContactNote,
   getContactNotes,
+  getGhlContactDetails,
   getGhlOpportunities,
   getGhlPipelines,
   getGhlUsers,
@@ -26,6 +27,21 @@ async function checkAuth() {
     throw new Error("Unauthorized");
   }
   return session;
+}
+
+/**
+ * Fetches full GHL contact details including tags, campaign attribution, and source.
+ */
+export async function getGhlContactDetailsAction(contactId: string) {
+  try {
+    await checkAuth();
+    if (!contactId) return { success: true as const, data: null };
+    const details = await getGhlContactDetails(contactId);
+    return { success: true as const, data: details };
+  } catch (error: any) {
+    console.error("[getGhlContactDetailsAction Error]:", error);
+    return { success: false as const, error: error.message, data: null };
+  }
 }
 
 /**
@@ -250,6 +266,49 @@ export async function generateRevivalPlanAction(
   try {
     await checkAuth();
 
+    let crmNotesSummary = "No CRM activity notes recorded.";
+    let leadAttributionSummary = "Standard Lead";
+
+    if (details.contactId) {
+      try {
+        const [notes, contactDetails] = await Promise.all([
+          getContactNotes(details.contactId).catch(() => []),
+          getGhlContactDetails(details.contactId).catch(() => null),
+        ]);
+
+        if (notes && notes.length > 0) {
+          crmNotesSummary = notes
+            .map((n) => {
+              const text = (n.body || "").replace(/<[^>]*>/g, "").trim();
+              const dateStr = n.createdAt ? n.createdAt.slice(0, 10) : "";
+              return `[${dateStr}] ${text}`;
+            })
+            .join("\n");
+        }
+
+        if (contactDetails) {
+          const parts = [];
+          if (contactDetails.source)
+            parts.push(`Source: ${contactDetails.source}`);
+          if (contactDetails.campaign)
+            parts.push(`Campaign: ${contactDetails.campaign}`);
+          if (contactDetails.formName)
+            parts.push(`Form: ${contactDetails.formName}`);
+          if (contactDetails.tags && contactDetails.tags.length > 0) {
+            parts.push(`Tags: ${contactDetails.tags.join(", ")}`);
+          }
+          if (parts.length > 0) {
+            leadAttributionSummary = parts.join(" | ");
+          }
+        }
+      } catch (ctxErr) {
+        console.warn(
+          "Failed to fetch CRM context for revival plan prompt:",
+          ctxErr,
+        );
+      }
+    }
+
     const prompt = `
       You are an expert sales director and growth coach.
       Analyze this STALLED sales opportunity from our pipeline and write an actionable revival plan.
@@ -259,8 +318,12 @@ export async function generateRevivalPlanAction(
       - Contact: ${details.contactName}
       - Stage: ${details.stageName}
       - Deal Value: $${details.value} USD
-      - Stalled Period: ${details.daysStalled} days without contact/update
+      - Stalled Period: ${details.daysStalled} days without stage movement
       - Assigned Owner: ${details.ownerName}
+      - Lead Source & Marketing Context: ${leadAttributionSummary}
+      
+      PREVIOUS CRM ACTIVITY & CALL NOTES HISTORY:
+      ${crmNotesSummary}
       
       OUTPUT FORMAT (Strict JSON):
       {
@@ -270,13 +333,13 @@ export async function generateRevivalPlanAction(
           "Action Step 2 (Follow-up - e.g. Email template or audit link to share)",
           "Action Step 3 (Closing loop - e.g. A final break-up text or scheduling proposal)"
         ],
-        "outreachScript": "A professional, punchy, high-conversion email or SMS message template ready to copy-paste. Tailored to the deal details. Keep it short, casual, and low-friction.",
+        "outreachScript": "A professional, punchy, high-conversion email or SMS message template ready to copy-paste. Tailored specifically to the deal details AND prior CRM activity notes above. If phone calls or emails were already attempted in notes, reference them naturally (e.g. 'I tried giving you a shout earlier but figured you were swamped...').",
         "recommendedFollowUpDays": 3
       }
       
       CONSTRAINTS:
       - Do NOT wrap in markdown block code tags (e.g. \`\`\`json). Output raw json string only.
-      - Make the outreach script highly contextual to the ${details.stageName} stage.
+      - Make the outreach script highly contextual to the ${details.stageName} stage and CRM notes history.
     `;
 
     const result = await generateContentTracked(

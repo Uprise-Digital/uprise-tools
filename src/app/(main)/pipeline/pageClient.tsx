@@ -14,6 +14,8 @@ import {
   RotateCw,
   Settings,
   Sparkles,
+  Tag,
+  Target,
   TrendingUp,
   User,
 } from "lucide-react";
@@ -24,6 +26,7 @@ import {
   generateRevivalPlanAction,
   generateTranscriptSummaryAction,
   getContactNotesAction,
+  getGhlContactDetailsAction,
   getPipelineDashboardDataAction,
   getSavedRevivalPlanAction,
   updateSalesReminderSettingsAction,
@@ -121,6 +124,7 @@ export default function PipelineClient({
 
   // Revival Plan state
   const [revivalPlan, setRevivalPlan] = useState<any | null>(null);
+  const [contactDetails, setContactDetails] = useState<any | null>(null);
   const [loadingRevival, setLoadingRevival] = useState(false);
   const [fetchingSavedPlan, setFetchingSavedPlan] = useState(false);
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>(
@@ -150,6 +154,7 @@ export default function PipelineClient({
         });
     } else {
       setRevivalPlan(null);
+      setContactDetails(null);
     }
   }, [selectedOpportunity?.id]);
 
@@ -815,22 +820,57 @@ export default function PipelineClient({
             </div>
 
             {/* Contact details sub-panel */}
-            <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex gap-4 text-xs font-semibold text-slate-500">
-              <span className="flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                {selectedOpportunity.contactName}
-              </span>
-              {selectedOpportunity.contactEmail && (
-                <span className="flex items-center gap-1 truncate max-w-[180px]">
-                  <Mail className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                  {selectedOpportunity.contactEmail}
-                </span>
-              )}
-              {selectedOpportunity.contactPhone && (
+            <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500">
                 <span className="flex items-center gap-1">
-                  <Phone className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                  {selectedOpportunity.contactPhone}
+                  <User className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                  {selectedOpportunity.contactName}
                 </span>
+                {selectedOpportunity.contactEmail && (
+                  <span className="flex items-center gap-1 truncate max-w-[180px]">
+                    <Mail className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                    {selectedOpportunity.contactEmail}
+                  </span>
+                )}
+                {selectedOpportunity.contactPhone && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                    {selectedOpportunity.contactPhone}
+                  </span>
+                )}
+              </div>
+
+              {/* Lead Source, Campaign Attribution & Tags Badges */}
+              {contactDetails && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  {contactDetails.source && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-bold bg-white text-slate-700 border-slate-200 gap-1 py-0.5 shadow-xs"
+                    >
+                      <Target className="w-3 h-3 text-indigo-500" />
+                      {contactDetails.source}
+                    </Badge>
+                  )}
+                  {contactDetails.campaign && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200 gap-1 py-0.5 shadow-xs"
+                    >
+                      🎯 {contactDetails.campaign}
+                    </Badge>
+                  )}
+                  {contactDetails.tags?.map((tag: string) => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="text-[9px] font-semibold bg-slate-200/70 text-slate-600 gap-1 py-0.5"
+                    >
+                      <Tag className="w-2.5 h-2.5 text-slate-400" />
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
               )}
             </div>
 

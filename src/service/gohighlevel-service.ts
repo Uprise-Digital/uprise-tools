@@ -319,3 +319,68 @@ export async function createContactNote(
     throw error;
   }
 }
+
+export interface GhlContactFullDetails {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  tags: string[];
+  source?: string;
+  campaign?: string;
+  formName?: string;
+  customFields?: { id: string; value: any }[];
+}
+
+/**
+ * Fetches full details for a specific contact in GoHighLevel including tags, source, and attribution.
+ */
+export async function getGhlContactDetails(
+  contactId: string,
+): Promise<GhlContactFullDetails | null> {
+  try {
+    const res = await fetch(
+      `${GHL_API_BASE}/contacts/${encodeURIComponent(contactId)}`,
+      { headers: getGhlHeaders() },
+    );
+    if (!res.ok) {
+      return null;
+    }
+    const data = await res.json();
+    const c = data.contact;
+    if (!c) return null;
+
+    const campaign =
+      c.attributionSource?.campaign ||
+      c.attributionSource?.utmCampaign ||
+      c.lastAttributionSource?.campaign ||
+      undefined;
+
+    const formName =
+      c.attributionSource?.formName ||
+      c.lastAttributionSource?.formName ||
+      undefined;
+
+    return {
+      id: c.id,
+      name:
+        `${c.firstName || ""} ${c.lastName || ""}`.trim() ||
+        c.name ||
+        "Unknown",
+      email: c.email || "",
+      phone: c.phone,
+      tags: Array.isArray(c.tags) ? c.tags : [],
+      source:
+        c.source || c.attributionSource?.source || c.attributionSource?.medium,
+      campaign,
+      formName,
+      customFields: Array.isArray(c.customFields) ? c.customFields : [],
+    };
+  } catch (error) {
+    console.error(
+      `Error fetching GHL contact details for ${contactId}:`,
+      error,
+    );
+    return null;
+  }
+}
