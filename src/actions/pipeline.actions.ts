@@ -354,8 +354,17 @@ export async function generateRevivalPlanAction(
     );
 
     const rawText = (result.response.text as string) || "";
-    const cleanedText = rawText.replace(/```json\n?|\n?```/g, "").trim();
-    const parsedPlan = JSON.parse(cleanedText);
+    const firstBrace = rawText.indexOf("{");
+    const lastBrace = rawText.lastIndexOf("}");
+
+    let jsonString = rawText;
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      jsonString = rawText.substring(firstBrace, lastBrace + 1);
+    } else {
+      jsonString = rawText.replace(/```json\n?|\n?```/g, "").trim();
+    }
+
+    const parsedPlan = JSON.parse(jsonString);
 
     // Save/upsert to database
     let savedRecord;

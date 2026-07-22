@@ -300,6 +300,14 @@ export async function getAgencyPortfolioMetricsAction(
   endDate: string,
 ) {
   try {
+    if (typeof startDate !== "string" || !startDate.includes("-")) {
+      const d = new Date();
+      const past = new Date();
+      past.setDate(d.getDate() - (Number(startDate) || 30));
+      startDate = past.toISOString().slice(0, 10);
+      endDate = d.toISOString().slice(0, 10);
+    }
+
     // 1. Get all active accounts
     const activeAccounts = await db.query.adAccounts.findMany({
       where: eq(adAccounts.isActive, true),
