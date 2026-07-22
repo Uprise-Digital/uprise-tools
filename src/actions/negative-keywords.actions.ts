@@ -167,6 +167,9 @@ export async function generateSuggestionsInternal(
   const wastedTerms = formattedSearchTerms.filter(
     (st: any) => st.conversions === 0 && st.spend >= criticalSpendThreshold,
   );
+  const allZeroConversionTerms = formattedSearchTerms.filter(
+    (st: any) => st.conversions === 0 && st.spend > 0,
+  );
 
   const activeNegativesSet = new Set(
     activeNegTextList.map((kw: string) => kw.toLowerCase().trim()),
@@ -247,16 +250,18 @@ export async function generateSuggestionsInternal(
   }
 
   // --- 4.7 Send to Gemini for negative keywords suggestions ---
-  const { suggestions, usageAlert } = await generateNegativeKeywordSuggestions({
-    clientName: account.name,
-    websiteUrl: account.websiteUrl,
-    targetNotes: account.targetNotes,
-    convertingTerms,
-    wastedTerms: filteredWastedTerms,
-    existingNegatives: activeNegTextList,
-    historicalDecisions,
-    webResearchQueries,
-  });
+  const { suggestions, explanation, usageAlert } =
+    await generateNegativeKeywordSuggestions({
+      clientName: account.name,
+      websiteUrl: account.websiteUrl,
+      targetNotes: account.targetNotes,
+      convertingTerms,
+      wastedTerms: filteredWastedTerms,
+      existingNegatives: activeNegTextList,
+      historicalDecisions,
+      webResearchQueries,
+      allZeroConversionTerms,
+    });
 
   // 5. Deduplicate suggestions from Gemini response first
   const deduplicatedSuggestions: typeof suggestions = [];
@@ -435,6 +440,12 @@ export async function generateSuggestionsInternal(
     }
   }
 
+  // Save generated explanation to database for persistency
+  await db
+    .update(adAccounts)
+    .set({ lastNegativeGenerationExplanation: explanation })
+    .where(eq(adAccounts.id, adAccountId));
+
   // 6. Log Audit action
   if (actorId) {
     await logAction(
@@ -459,6 +470,7 @@ export async function generateSuggestionsInternal(
     pushedDirectly: pushedCount,
     savedForReview: savedCount,
     usageAlert,
+    explanation,
   };
 }
 

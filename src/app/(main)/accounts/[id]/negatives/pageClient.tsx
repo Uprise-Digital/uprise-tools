@@ -50,6 +50,7 @@ interface NegativesClientWorkspaceProps {
     targetNotes?: string | null;
     isActive: boolean;
     googleStatus: string;
+    lastNegativeGenerationExplanation?: string | null;
   };
 }
 
@@ -126,6 +127,9 @@ export default function NegativesClientWorkspace({
 
   // Data States
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [generationExplanation, setGenerationExplanation] = useState<
+    string | null
+  >(account.lastNegativeGenerationExplanation || null);
   const [groupByCampaign, setGroupByCampaign] = useState<boolean>(true);
   const [activeNegatives, setActiveNegatives] = useState<any[]>([]);
   const [activeSearch, setActiveSearch] = useState("");
@@ -254,6 +258,9 @@ export default function NegativesClientWorkspace({
       endDate,
     )) as any;
     if (res.success) {
+      if (res.explanation) {
+        setGenerationExplanation(res.explanation);
+      }
       if (res.warning) {
         toast.warning(res.warning, { duration: 6000 });
       } else if (turboMode) {
@@ -875,17 +882,42 @@ export default function NegativesClientWorkspace({
                 </p>
               </div>
             ) : pendingSuggestions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3 bg-white border border-dashed rounded-2xl border-slate-200 shadow-inner">
-                <Ban className="h-10 w-10 text-slate-300" />
-                <div className="text-center">
-                  <p className="font-bold text-slate-700 text-sm">
-                    No Pending Suggestions
-                  </p>
-                  <p className="text-xs text-slate-400 max-w-sm mt-1">
-                    Click "Generate Exclusions" above to trigger Gemini to
-                    analyze recent search term waste.
-                  </p>
-                </div>
+              <div className="space-y-4">
+                {generationExplanation ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 border border-indigo-100">
+                        <Sparkles className="h-5 w-5 text-indigo-600 animate-pulse" />
+                      </div>
+                      <div className="space-y-3 flex-1 min-w-0">
+                        <div>
+                          <h3 className="font-bold text-slate-800 text-sm">
+                            AI Keyword Scan Analysis
+                          </h3>
+                          <p className="text-xs text-slate-400">
+                            Completed Pass: Account Clean Audit
+                          </p>
+                        </div>
+                        <div className="text-sm leading-relaxed text-slate-600 whitespace-pre-wrap bg-slate-50 rounded-xl p-4 border border-slate-100 font-sans">
+                          {generationExplanation}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3 bg-white border border-dashed rounded-2xl border-slate-200 shadow-inner">
+                    <Ban className="h-10 w-10 text-slate-300" />
+                    <div className="text-center">
+                      <p className="font-bold text-slate-700 text-sm">
+                        No Pending Suggestions
+                      </p>
+                      <p className="text-xs text-slate-400 max-w-sm mt-1">
+                        Click "Generate Exclusions" above to trigger Gemini to
+                        analyze recent search term waste.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-6">

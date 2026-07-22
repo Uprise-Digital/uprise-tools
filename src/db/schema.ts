@@ -221,6 +221,9 @@ export const adAccounts = pgTable("ad_accounts", {
     () => clientOnboardings.id,
     { onDelete: "set null" },
   ),
+  lastNegativeGenerationExplanation: text(
+    "last_negative_generation_explanation",
+  ),
 }).enableRLS();
 
 export const accountMetrics = pgTable(

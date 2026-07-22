@@ -27,6 +27,7 @@ interface GenerateSuggestionsInput {
   organizationId?: string;
   userId?: string | null;
   webResearchQueries?: string[];
+  allZeroConversionTerms?: SearchTermInput[];
 }
 
 export interface NegativeKeywordSuggestionOutput {
@@ -53,8 +54,10 @@ export async function generateNegativeKeywordSuggestions({
   organizationId,
   userId,
   webResearchQueries = [],
+  allZeroConversionTerms = [],
 }: GenerateSuggestionsInput): Promise<{
   suggestions: NegativeKeywordSuggestionOutput[];
+  explanation: string;
   usageAlert?: string;
 }> {
   // Filter out any wasted terms that exactly match existing negative keywords
@@ -64,6 +67,23 @@ export async function generateNegativeKeywordSuggestions({
   const filteredWastedTerms = wastedTerms.filter(
     (term) => !activeNegativesSet.has(term.query.toLowerCase().trim()),
   );
+
+  const filteredAllZeroTerms = allZeroConversionTerms.filter(
+    (term) => !activeNegativesSet.has(term.query.toLowerCase().trim()),
+  );
+
+  // Compute metrics for the statistics section
+  const totalWastedSpend = filteredAllZeroTerms.reduce(
+    (sum, t) => sum + t.spend,
+    0,
+  );
+  const totalConvertingSpend = convertingTerms.reduce(
+    (sum, t) => sum + t.spend,
+    0,
+  );
+  const totalSpend = totalConvertingSpend + totalWastedSpend;
+  const wastedSpendPercent =
+    totalSpend > 0 ? (totalWastedSpend / totalSpend) * 100 : 0;
 
   // Parse structured notes if targetNotes is valid JSON (Account-Level Persona Store)
   let structuredNotesSection = "";
@@ -181,18 +201,25 @@ export async function generateNegativeKeywordSuggestions({
     WEB RESEARCH FINDINGS (REAL-TIME GOOGLE SEARCH QUERIES & QUESTIONS RELATED TO CLIENT SERVICES):
     ${webResearchQueries.length > 0 ? JSON.stringify(webResearchQueries, null, 2) : "None."}
 
-    WASTED SEARCH TERMS TO EVALUATE:
+    PERFORMANCE STATISTICS:
+    - Total evaluated query spend: $${totalSpend.toFixed(2)}
+    - Total wasted spend (on zero-conversion queries): $${totalWastedSpend.toFixed(2)} (${wastedSpendPercent.toFixed(1)}% of spend)
+    - Number of zero-conversion terms: ${filteredAllZeroTerms.length}
+
+    WASTED SEARCH TERMS FOR NEGATIVE CONSIDERATION:
     ${JSON.stringify(filteredWastedTerms, null, 2)}
+
+    ALL ZERO-CONVERSION TERMS EVALUATED IN THIS PERIOD (FOR NARRATIVE/EXPLANATION CONTEXT):
+    ${JSON.stringify(filteredAllZeroTerms.slice(0, 40), null, 2)}
     
     EVALUATION & GENERATION INSTRUCTIONS:
     1. Wasted Search Terms: Evaluate every query in the wasted search terms list. Suggest a negative keyword only if there is clear, undeniable intent mismatch (e.g. competitors, wrong location, out-of-scope service). Do NOT negate highly relevant queries just because they lack conversions.
     2. Proactive Exclusions (Real-Time Web Research): Review the WEB RESEARCH FINDINGS and suggest negative keywords for any queries that represent competitor brand names, out-of-scope services, or low-intent research (like DIY, jobs, or education).
-    3. Proactive Exclusions (Creative Industry Defaults): If there are few or no wasted search terms/web research findings, utilize your deep digital marketing knowledge of the client's industry to suggest standard proactive negative exclusions that this business type should always block (e.g., jobs, DIY, free, courses, resume, tools). Keep these highly creative but industry-aligned, and strictly ensure they do NOT conflict with client core services.
-    4. Competitor Root Word Isolation: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative. (For example, if the competitor is 'Solargain', suggest "gain" or "solargain", NEVER "solar gain". If the competitor is 'Digga Group Demolition', suggest "digga", NEVER "digga group demolition").
+    3. Proactive Exclusions (Creative Industry Defaults): If there are few or no wasted search terms/web research findings, suggest standard proactive negative exclusions that this business type should always block (e.g., jobs, DIY, free, courses, resume, tools). Keep these highly creative but industry-aligned, and strictly ensure they do NOT conflict with client core services.
+    4. Competitor Root Word Isolation: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative. (For example, if the competitor is 'Solargain', suggest "gain" or "solargain", NEVER "solar gain").
     5. Redundancy Consolidation: Always target the root cause of the waste. If multiple wasted search terms or research queries share the same bad root word (e.g. a competitor name), suggest ONLY the root word as a phrase match negative.
 
     MATCH TYPE STRATEGY:
-    You must choose the recommended negative match type based on these strict guidelines:
     - BROAD Match: Use ONLY for single, universally wasteful terms that indicate 100% wrong intent across the board (e.g. "jobs", "hire", "rental", "diy", "courses", "classes", "resume").
     - PHRASE Match: Use for competitor names (e.g. "walsh", "napoli") and specific geographic cities/states outside the service area (e.g. "perth", "gold coast", "canberra"). This prevents queries like "perth demolition contractors" from triggering ads.
     - Root Word Isolation for Competitors: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative.
@@ -203,20 +230,22 @@ export async function generateNegativeKeywordSuggestions({
     - GLOBAL / ACCOUNT-WIDE: If the keyword is a competitor, a wrong geographic region, an out-of-scope service, or a low-intent word (like "jobs"), it should be blocked across ALL campaigns in the account (set campaignId to "ALL" and campaignName to "All Campaigns").
     - LOCAL / CAMPAIGN-SPECIFIC: If the term is only wasteful for the specific campaign it appeared in, keep the original "campaignId" and "campaignName" from the search term report.
 
-    Response MUST be a JSON object containing a "suggestions" key with an array of suggestions matching this exact TypeScript structure:
-    interface SuggestionsResponse {
-        suggestions: Array<{
-            keyword: string;                               // The suggested negative keyword itself (do not include quotes or brackets, just the raw text)
-            matchType: 'broad' | 'phrase' | 'exact';       // The recommended match type for the negative keyword
-            campaignId: string;                            // The campaign ID associated with the search term, or "ALL" for global/account-wide exclusions
-            campaignName: string;                          // The campaign name associated with the search term, or "All Campaigns" for global/account-wide exclusions
-            rationale: string;                             // A concise, professional marketing rationale for why this is waste
-            searchQuery: string;                           // The original search query/research finding that triggered this recommendation (use "Proactive Exclusion" for generic industry suggestions not linked to a specific query)
-            clicks: number;                                // Original clicks (0 for proactive suggestions)
-            impressions: number;                           // Original impressions (0 for proactive suggestions)
-            spend: number;                                 // Original spend (0 for proactive suggestions)
-            conversions: number;                           // Original conversions (0 for proactive suggestions)
-        }>;
+    Response MUST be a JSON object containing the "suggestions" and "explanation" keys matching this exact structure:
+    {
+        "suggestions": Array<{
+            "keyword": string,                               // The suggested negative keyword itself (do not include quotes or brackets, just the raw text)
+            "matchType": "broad" | "phrase" | "exact",       // The recommended match type for the negative keyword
+            "campaignId": string,                            // The campaign ID associated with the search term, or "ALL" for global/account-wide exclusions
+            "campaignName": string,                          // The campaign name associated with the search term, or "All Campaigns" for global/account-wide exclusions
+            "rationale": string,                             // A concise, professional marketing rationale for why this is waste
+            "searchQuery": string,                           // The original search query/research finding that triggered this recommendation (use "Proactive Exclusion" for generic industry suggestions not linked to a specific query)
+            "clicks": number,                                // Original clicks (0 for proactive suggestions)
+            "impressions": number,                           // Original impressions (0 for proactive suggestions)
+            "spend": number,                                 // Original spend (0 for proactive suggestions)
+            "conversions": number                            // Original conversions (0 for proactive suggestions)
+        }>,
+        "explanation": string                                // A detailed, professional, agency-grade marketing explanation (3-4 sentences). 
+                                                             // If "suggestions" is empty, write a clear narrative explaining WHY no suggestions were generated. Break down the zero-conversion queries (e.g. they are high-quality, on-topic searches like "plumber fortitude valley" that just have 1-2 clicks and need more data rather than being negative candidates). Include exact stats in the format "Total wasted spend: $X.XX (Y.Y% of spend) across Z zero-conversion terms" and name specific queries to explain why they are safe.
     }
   `;
 
@@ -237,10 +266,14 @@ export async function generateNegativeKeywordSuggestions({
     const parsed = JSON.parse(result.response.text as string);
     return {
       suggestions: parsed.suggestions || [],
+      explanation: parsed.explanation || "",
       usageAlert: result.usageAlert,
     };
   } catch (error) {
     console.error("Gemini Negative Keywords Generation Error:", error);
-    return { suggestions: [] };
+    return {
+      suggestions: [],
+      explanation: "Failed to generate suggestions description.",
+    };
   }
 }
