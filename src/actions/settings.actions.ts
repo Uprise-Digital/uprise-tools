@@ -608,3 +608,61 @@ export async function updateAutoSyncSettingsAction(payload: {
     return { success: false, error: error.message };
   }
 }
+
+export async function updateNegativeKeywordOptionsAction(payload: {
+  connectionId: number;
+  broadEnabled: boolean;
+  phraseEnabled: boolean;
+  exactEnabled: boolean;
+}) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  let orgId = session.session.activeOrganizationId;
+  if (!orgId) {
+    const userMember = await db.query.member.findFirst({
+      where: eq(member.userId, session.user.id),
+    });
+    if (userMember) {
+      orgId = userMember.organizationId;
+    }
+  }
+
+  if (!orgId) {
+    throw new Error("No active organization found");
+  }
+
+  try {
+    const conn = await db.query.googleAdsConnections.findFirst({
+      where: and(
+        eq(googleAdsConnections.id, payload.connectionId),
+        eq(googleAdsConnections.organizationId, orgId),
+      ),
+    });
+
+    if (!conn) {
+      throw new Error("Google Ads connection not found.");
+    }
+
+    await db
+      .update(googleAdsConnections)
+      .set({
+        negativeKeywordBroadEnabled: payload.broadEnabled,
+        negativeKeywordPhraseEnabled: payload.phraseEnabled,
+        negativeKeywordExactEnabled: payload.exactEnabled,
+        updatedAt: new Date(),
+      })
+      .where(eq(googleAdsConnections.id, conn.id));
+
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to update negative keyword options:", error);
+    return { success: false, error: error.message };
+  }
+}

@@ -131,6 +131,15 @@ export const googleAdsConnections = pgTable(
     errorMessage: text("error_message"),
     autoAddAccounts: boolean("auto_add_accounts").default(false).notNull(),
     autoSyncScope: text("auto_sync_scope").default("ALL").notNull(), // 'ALL' | 'ACTIVE_ONLY'
+    negativeKeywordBroadEnabled: boolean("negative_keyword_broad_enabled")
+      .default(true)
+      .notNull(),
+    negativeKeywordPhraseEnabled: boolean("negative_keyword_phrase_enabled")
+      .default(true)
+      .notNull(),
+    negativeKeywordExactEnabled: boolean("negative_keyword_exact_enabled")
+      .default(true)
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

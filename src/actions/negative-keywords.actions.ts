@@ -7,6 +7,7 @@ import { db } from "@/db";
 import {
   accountTriageSettings,
   adAccounts,
+  googleAdsConnections,
   negativeKeywordSuggestions,
 } from "@/db/schema";
 import { logAction } from "@/lib/audit";
@@ -105,6 +106,14 @@ export async function generateSuggestionsInternal(
   if (!account) {
     throw new Error("Ad account not found");
   }
+
+  // Fetch connection settings to check enabled negative keyword match type options
+  const connection = await db.query.googleAdsConnections.findFirst({
+    where: eq(googleAdsConnections.organizationId, account.organizationId),
+  });
+  const broadEnabled = connection?.negativeKeywordBroadEnabled ?? true;
+  const phraseEnabled = connection?.negativeKeywordPhraseEnabled ?? true;
+  const exactEnabled = connection?.negativeKeywordExactEnabled ?? true;
 
   // 2. Fetch existing active negative keywords from Google Ads API
   const activeGoogleNegatives = await fetchActiveNegativeKeywords(
@@ -261,6 +270,9 @@ export async function generateSuggestionsInternal(
       historicalDecisions,
       webResearchQueries,
       allZeroConversionTerms,
+      broadEnabled,
+      phraseEnabled,
+      exactEnabled,
     });
 
   // 5. Deduplicate suggestions from Gemini response first

@@ -24,6 +24,9 @@ interface GenerateSuggestionsInput {
   wastedTerms: SearchTermInput[];
   existingNegatives: string[];
   historicalDecisions: HistoricalDecisionInput[];
+  broadEnabled?: boolean;
+  phraseEnabled?: boolean;
+  exactEnabled?: boolean;
   organizationId?: string;
   userId?: string | null;
   webResearchQueries?: string[];
@@ -51,6 +54,9 @@ export async function generateNegativeKeywordSuggestions({
   wastedTerms,
   existingNegatives,
   historicalDecisions,
+  broadEnabled = true,
+  phraseEnabled = true,
+  exactEnabled = true,
   organizationId,
   userId,
   webResearchQueries = [],
@@ -216,14 +222,18 @@ export async function generateNegativeKeywordSuggestions({
     1. Wasted Search Terms: Evaluate every query in the wasted search terms list. Suggest a negative keyword only if there is clear, undeniable intent mismatch (e.g. competitors, wrong location, out-of-scope service). Do NOT negate highly relevant queries just because they lack conversions.
     2. Proactive Exclusions (Real-Time Web Research): Review the WEB RESEARCH FINDINGS and suggest negative keywords for any queries that represent competitor brand names, out-of-scope services, or low-intent research (like DIY, jobs, or education).
     3. Proactive Exclusions (Creative Industry Defaults): If there are few or no wasted search terms/web research findings, suggest standard proactive negative exclusions that this business type should always block (e.g., jobs, DIY, free, courses, resume, tools). Keep these highly creative but industry-aligned, and strictly ensure they do NOT conflict with client core services.
-    4. Competitor Root Word Isolation: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative. (For example, if the competitor is 'Solargain', suggest "gain" or "solargain", NEVER "solar gain").
+    4. Competitor Root Word Isolation: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative — UNLESS the competitor's brand name itself is a multi-word proper noun where one word overlaps with a core service keyword (e.g. competitor "Red Energy" vs. core keyword "energy"). In that case, do NOT strip the shared word down to a single bare word (e.g. never suggest "red" alone or "energy" alone), and do NOT fall back to an EXACT match on the full literal search query. Instead, use the full competitor brand name as a single PHRASE match negative (e.g. "red energy"), since the brand name as a whole is a proper noun distinct from the generic service term.
+       Example (multi-word brand overlapping a core keyword): Client "Clean Energy Providers" (core keywords include "energy", "solar", "battery"). Competitor "Red Energy" appears in search term "red energy batteries". Correct suggestion: keyword "red energy", matchType "phrase". Incorrect: keyword "red energy batteries", matchType "exact" (too narrow, won't catch variants). Incorrect: keyword "red", matchType "broad" (over-blocks unrelated queries).
     5. Redundancy Consolidation: Always target the root cause of the waste. If multiple wasted search terms or research queries share the same bad root word (e.g. a competitor name), suggest ONLY the root word as a phrase match negative.
 
     MATCH TYPE STRATEGY:
+    Allowed Match Types: ${[broadEnabled && "broad", phraseEnabled && "phrase", exactEnabled && "exact"].filter(Boolean).join(", ").toUpperCase()}
+    CRITICAL CONSTRAINT: You are ONLY allowed to recommend negative keywords using the above Allowed Match Types. Do NOT suggest any negative keyword with a match type that is not listed here. If a query would normally require a disallowed match type, skip generating a suggestion for that query entirely.
+
     - BROAD Match: Use ONLY for single, universally wasteful terms that indicate 100% wrong intent across the board (e.g. "jobs", "hire", "rental", "diy", "courses", "classes", "resume").
     - PHRASE Match: Use for competitor names (e.g. "walsh", "napoli") and specific geographic cities/states outside the service area (e.g. "perth", "gold coast", "canberra"). This prevents queries like "perth demolition contractors" from triggering ads.
-    - Root Word Isolation for Competitors: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative.
-    - EXACT Match: Use for queries that are close to the target service but are wasteful in this exact context (e.g., "[trench excavation meaning]" or "[fibreglass pool removal]"). This blocks the specific wasted search while protecting broad terms.
+    - Root Word Isolation for Competitors: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative — UNLESS the competitor's brand name itself is a multi-word proper noun where one word overlaps with a core service keyword (e.g. competitor "Red Energy" vs. core keyword "energy"). In that case, do NOT strip the shared word down to a single bare word (e.g. never suggest "red" alone or "energy" alone), and do NOT fall back to an EXACT match on the full literal search query. Instead, use the full competitor brand name as a single PHRASE match negative (e.g. "red energy"), since the brand name as a whole is a proper noun distinct from the generic service term.
+    - EXACT Match: Use ONLY for non-competitor queries that are close to the target service but wasteful in this exact context (e.g. "[trench excavation meaning]" or "[fibreglass pool removal]"). Never use EXACT match as a substitute for a competitor exclusion — competitor brand names, whether single-word or multi-word, are always PHRASE match, scoped to the isolated brand name, never the full raw search query.
     
     CAMPAIGN SCOPE (CROSS-CAMPAIGN REASONING):
     For each wasteful term, you must determine if the exclusion should be scoped locally or globally:
@@ -305,8 +315,17 @@ export async function generateNegativeKeywordSuggestions({
     );
 
     const parsed = JSON.parse(result.response.text as string);
+    const rawSuggestions = parsed.suggestions || [];
+    const suggestionsFiltered = rawSuggestions.filter((s: any) => {
+      const matchType = s.matchType?.toLowerCase();
+      if (matchType === "broad" && !broadEnabled) return false;
+      if (matchType === "phrase" && !phraseEnabled) return false;
+      if (matchType === "exact" && !exactEnabled) return false;
+      return true;
+    });
+
     return {
-      suggestions: parsed.suggestions || [],
+      suggestions: suggestionsFiltered,
       explanation: parsed.explanation || "",
       usageAlert: result.usageAlert,
     };

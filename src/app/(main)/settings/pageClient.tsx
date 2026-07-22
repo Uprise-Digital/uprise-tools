@@ -82,6 +82,9 @@ interface SettingsClientProps {
     status: string;
     autoAddAccounts: boolean;
     autoSyncScope: "ALL" | "ACTIVE_ONLY";
+    negativeKeywordBroadEnabled: boolean;
+    negativeKeywordPhraseEnabled: boolean;
+    negativeKeywordExactEnabled: boolean;
     createdAt: string;
   } | null;
   orgName: string;

@@ -18,6 +18,7 @@ import {
   refreshAdAccountsMetadataAction,
   updateAutoSyncSettingsAction,
   updateLinkedAccountsAction,
+  updateNegativeKeywordOptionsAction,
   updateOrganizationNameAction,
 } from "@/actions/settings.actions";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +71,9 @@ interface GeneralTabProps {
     status: string;
     autoAddAccounts: boolean;
     autoSyncScope: "ALL" | "ACTIVE_ONLY";
+    negativeKeywordBroadEnabled: boolean;
+    negativeKeywordPhraseEnabled: boolean;
+    negativeKeywordExactEnabled: boolean;
     createdAt: string;
   } | null;
   accounts: AccountSyncData[];
@@ -122,6 +126,65 @@ export function GeneralTab({
     connection?.autoSyncScope ?? "ALL",
   );
   const [updatingAutoSync, setUpdatingAutoSync] = useState(false);
+
+  const [broadEnabled, setBroadEnabled] = useState(
+    connection?.negativeKeywordBroadEnabled ?? true,
+  );
+  const [phraseEnabled, setPhraseEnabled] = useState(
+    connection?.negativeKeywordPhraseEnabled ?? true,
+  );
+  const [exactEnabled, setExactEnabled] = useState(
+    connection?.negativeKeywordExactEnabled ?? true,
+  );
+  const [updatingOptions, setUpdatingOptions] = useState(false);
+
+  const handleToggleKeywordOptions = async (
+    type: "broad" | "phrase" | "exact",
+    val: boolean,
+  ) => {
+    if (!connection) return;
+
+    let nextBroad = broadEnabled;
+    let nextPhrase = phraseEnabled;
+    let nextExact = exactEnabled;
+
+    if (type === "broad") {
+      nextBroad = val;
+      setBroadEnabled(val);
+    } else if (type === "phrase") {
+      nextPhrase = val;
+      setPhraseEnabled(val);
+    } else if (type === "exact") {
+      nextExact = val;
+      setExactEnabled(val);
+    }
+
+    setUpdatingOptions(true);
+    const toastId = toast.loading(
+      "Updating negative keywording match type options...",
+    );
+    try {
+      const res = await updateNegativeKeywordOptionsAction({
+        connectionId: connection.id,
+        broadEnabled: nextBroad,
+        phraseEnabled: nextPhrase,
+        exactEnabled: nextExact,
+      });
+      if (res.success) {
+        toast.success("Negative keywording options successfully updated.", {
+          id: toastId,
+        });
+      } else {
+        toast.error(res.error || "Failed to update settings.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An unexpected error occurred.", {
+        id: toastId,
+      });
+    } finally {
+      setUpdatingOptions(false);
+    }
+  };
 
   const handleToggleAutoSync = async (
     enabled: boolean,
@@ -432,6 +495,70 @@ export function GeneralTab({
                         </div>
                       </div>
                     )}
+
+                    {/* Negative Keywording Options */}
+                    <div className="pt-4 border-t border-slate-100 space-y-3">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                          Negative Keywording Options
+                        </span>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Configure which match types the AI agent is allowed to
+                          suggest. Disabling a match type prevents suggestions
+                          of that type from being generated.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 pt-1">
+                        <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={broadEnabled}
+                            disabled={updatingOptions}
+                            onChange={(e) =>
+                              handleToggleKeywordOptions(
+                                "broad",
+                                e.target.checked,
+                              )
+                            }
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                          />
+                          <span>Broad Match</span>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={phraseEnabled}
+                            disabled={updatingOptions}
+                            onChange={(e) =>
+                              handleToggleKeywordOptions(
+                                "phrase",
+                                e.target.checked,
+                              )
+                            }
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                          />
+                          <span>Phrase Match</span>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={exactEnabled}
+                            disabled={updatingOptions}
+                            onChange={(e) =>
+                              handleToggleKeywordOptions(
+                                "exact",
+                                e.target.checked,
+                              )
+                            }
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                          />
+                          <span>Exact Match</span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 )}
 

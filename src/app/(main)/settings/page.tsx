@@ -140,6 +140,9 @@ export default async function SettingsPage() {
         autoAddAccounts: connection.autoAddAccounts ?? false,
         autoSyncScope:
           (connection.autoSyncScope as "ALL" | "ACTIVE_ONLY") ?? "ALL",
+        negativeKeywordBroadEnabled: connection.negativeKeywordBroadEnabled,
+        negativeKeywordPhraseEnabled: connection.negativeKeywordPhraseEnabled,
+        negativeKeywordExactEnabled: connection.negativeKeywordExactEnabled,
         createdAt: connection.createdAt.toISOString(),
       }
     : null;
