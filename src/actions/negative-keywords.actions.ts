@@ -168,18 +168,6 @@ export async function generateSuggestionsInternal(
     (st: any) => st.conversions === 0 && st.spend >= criticalSpendThreshold,
   );
 
-  if (wastedTerms.length === 0) {
-    return {
-      totalGenerated: 0,
-      newSuggestionsAdded: 0,
-      pushedDirectly: 0,
-      savedForReview: 0,
-      warning: `No search terms exceeded your Critical Spend Threshold of $${criticalSpendThreshold.toFixed(
-        2,
-      )} in the selected date range. Try lowering the threshold under 'Targeting Persona & Scope' or selecting a wider date range.`,
-    };
-  }
-
   const activeNegativesSet = new Set(
     activeNegTextList.map((kw: string) => kw.toLowerCase().trim()),
   );
@@ -187,19 +175,7 @@ export async function generateSuggestionsInternal(
     (term: any) => !activeNegativesSet.has(term.query.toLowerCase().trim()),
   );
 
-  if (filteredWastedTerms.length === 0) {
-    return {
-      totalGenerated: 0,
-      newSuggestionsAdded: 0,
-      pushedDirectly: 0,
-      savedForReview: 0,
-      warning: `All non-converting search terms exceeding your Critical Spend Threshold ($${criticalSpendThreshold.toFixed(
-        2,
-      )}) are already excluded as active negative keywords.`,
-    };
-  }
-
-  // 4.5 Fetch historical decisions for feedback loop
+  // --- 4.5 Fetch historical decisions for feedback loop ---
   const historicalDBSuggestions =
     await db.query.negativeKeywordSuggestions.findMany({
       where: eq(negativeKeywordSuggestions.adAccountId, adAccountId),
@@ -213,15 +189,73 @@ export async function generateSuggestionsInternal(
       rationale: s.rationale,
     }));
 
-  // 4.6 Send to Gemini for negative keywords suggestions
+  // --- 4.6 Perform Web Research using Serper.dev if available ---
+  let webResearchQueries: string[] = [];
+  let servicesToSearch: string[] = [];
+  if (account.targetNotes) {
+    try {
+      const parsed = JSON.parse(account.targetNotes);
+      if (parsed && parsed.serviceScope) {
+        servicesToSearch = Array.isArray(parsed.serviceScope)
+          ? parsed.serviceScope
+          : [parsed.serviceScope];
+      }
+    } catch {}
+  }
+  if (servicesToSearch.length === 0) {
+    servicesToSearch = [account.name];
+  }
+
+  if (process.env.SERPER_KEY) {
+    try {
+      console.log(
+        `[Negative Keywords] Initiating Serper research for: ${servicesToSearch.slice(0, 2).join(", ")}`,
+      );
+      const searchPromises = servicesToSearch
+        .slice(0, 2)
+        .map(async (service) => {
+          const res = await fetch("https://google.serper.dev/search", {
+            method: "POST",
+            headers: {
+              "X-API-KEY": process.env.SERPER_KEY!,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ q: service, gl: "au" }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const queries = (data.relatedSearches || []).map(
+              (item: any) => item.query,
+            );
+            const questions = (data.peopleAlsoAsk || []).map(
+              (item: any) => item.question,
+            );
+            return [...queries, ...questions];
+          }
+          return [];
+        });
+      const searchResults = await Promise.all(searchPromises);
+      webResearchQueries = Array.from(
+        new Set(searchResults.flat().filter(Boolean)),
+      );
+      console.log(
+        `[Negative Keywords] Serper research returned ${webResearchQueries.length} queries.`,
+      );
+    } catch (searchError) {
+      console.error("[Negative Keywords] Serper research failed:", searchError);
+    }
+  }
+
+  // --- 4.7 Send to Gemini for negative keywords suggestions ---
   const { suggestions, usageAlert } = await generateNegativeKeywordSuggestions({
     clientName: account.name,
     websiteUrl: account.websiteUrl,
     targetNotes: account.targetNotes,
     convertingTerms,
-    wastedTerms,
+    wastedTerms: filteredWastedTerms,
     existingNegatives: activeNegTextList,
     historicalDecisions,
+    webResearchQueries,
   });
 
   // 5. Deduplicate suggestions from Gemini response first

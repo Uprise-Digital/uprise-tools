@@ -26,6 +26,7 @@ interface GenerateSuggestionsInput {
   historicalDecisions: HistoricalDecisionInput[];
   organizationId?: string;
   userId?: string | null;
+  webResearchQueries?: string[];
 }
 
 export interface NegativeKeywordSuggestionOutput {
@@ -51,14 +52,11 @@ export async function generateNegativeKeywordSuggestions({
   historicalDecisions,
   organizationId,
   userId,
+  webResearchQueries = [],
 }: GenerateSuggestionsInput): Promise<{
   suggestions: NegativeKeywordSuggestionOutput[];
   usageAlert?: string;
 }> {
-  if (wastedTerms.length === 0) {
-    return { suggestions: [] };
-  }
-
   // Filter out any wasted terms that exactly match existing negative keywords
   const activeNegativesSet = new Set(
     existingNegatives.map((kw) => kw.toLowerCase().trim()),
@@ -66,10 +64,6 @@ export async function generateNegativeKeywordSuggestions({
   const filteredWastedTerms = wastedTerms.filter(
     (term) => !activeNegativesSet.has(term.query.toLowerCase().trim()),
   );
-
-  if (filteredWastedTerms.length === 0) {
-    return { suggestions: [] };
-  }
 
   // Parse structured notes if targetNotes is valid JSON (Account-Level Persona Store)
   let structuredNotesSection = "";
@@ -84,7 +78,7 @@ export async function generateNegativeKeywordSuggestions({
     - Services in Scope: ${Array.isArray(parsed.serviceScope) ? parsed.serviceScope.join(", ") : parsed.serviceScope || "N/A"}
     - Out-of-Scope Services: ${Array.isArray(parsed.outOfScope) ? parsed.outOfScope.join(", ") : parsed.outOfScope || "N/A"}
     - Converting Intent Signals: ${Array.isArray(parsed.convertingIntentSignals) ? parsed.convertingIntentSignals.join(", ") : parsed.convertingIntentSignals || "N/A"}
-    - Research/Informational Signals: ${Array.isArray(parsed.researchIntentSignals) ? parsed.researchIntentSignals.join(", ") : parsed.researchIntentSignals || "N/A"}${parsed.notes ? `\n    - Targeting & Business Notes: ${parsed.notes}` : ""}
+    - Research/Informational Intent: ${Array.isArray(parsed.researchIntentSignals) ? parsed.researchIntentSignals.join(", ") : parsed.researchIntentSignals || "N/A"}${parsed.notes ? `\n    - Targeting & Business Notes: ${parsed.notes}` : ""}
         `;
       }
     } catch {
@@ -144,7 +138,7 @@ export async function generateNegativeKeywordSuggestions({
 
   const prompt = `
     You are an elite Google Ads Performance Director at Uprise Digital.
-    Your task is to review a search terms report for a client and identify wasteful, irrelevant, or non-converting search queries that should be added as negative keywords.
+    Your task is to review a search terms report and web research findings for a client and identify wasteful, irrelevant, or non-converting search queries that should be added as negative keywords.
     
     CLIENT INFORMATION:
     - Name: ${clientName}
@@ -184,31 +178,29 @@ export async function generateNegativeKeywordSuggestions({
         : "None recorded."
     }
 
+    WEB RESEARCH FINDINGS (REAL-TIME GOOGLE SEARCH QUERIES & QUESTIONS RELATED TO CLIENT SERVICES):
+    ${webResearchQueries.length > 0 ? JSON.stringify(webResearchQueries, null, 2) : "None."}
+
     WASTED SEARCH TERMS TO EVALUATE:
     ${JSON.stringify(filteredWastedTerms, null, 2)}
     
-    EVALUATION INSTRUCTIONS:
-    You must evaluate every single query in the wasted search terms list, but only suggest a negative keyword if there is clear, undeniable intent mismatch (e.g. competitors, wrong location, out-of-scope service). Do NOT penalize or negate highly relevant queries just because they lack conversions in this period.
-    
-    Consolidate Negatives: Always target the root cause of the waste. If multiple wasted search terms share the same bad root word (e.g. a competitor name), suggest ONLY the root word as a phrase match. Do not generate multiple overlapping or redundant suggestions for the same competitor.
-
-    Identify and suggest negative keywords based on the targeting persona details and historical decisions:
-    1. Competitor Brands: Any query referencing other local/national companies, contractors, or specific brand names.
-    2. Geographic Waste: Any query targeting a region outside the client's service area (e.g. if the client operates on the East Coast of Australia, queries containing "perth", "western australia", "adelaide", "wa" are waste).
-    3. Research/Informational Intent: Queries searching for definitions, formulas, checklists, general templates, or free resources when the target buyer persona seeks active consulting/assessments.
-    4. Out-of-Scope Services: Queries seeking services the client does NOT provide (check services in scope vs out-of-scope).
-    5. Employment/Job-Seekers: Queries containing "jobs", "careers", "resume", "hiring", "salary".
+    EVALUATION & GENERATION INSTRUCTIONS:
+    1. Wasted Search Terms: Evaluate every query in the wasted search terms list. Suggest a negative keyword only if there is clear, undeniable intent mismatch (e.g. competitors, wrong location, out-of-scope service). Do NOT negate highly relevant queries just because they lack conversions.
+    2. Proactive Exclusions (Real-Time Web Research): Review the WEB RESEARCH FINDINGS and suggest negative keywords for any queries that represent competitor brand names, out-of-scope services, or low-intent research (like DIY, jobs, or education).
+    3. Proactive Exclusions (Creative Industry Defaults): If there are few or no wasted search terms/web research findings, utilize your deep digital marketing knowledge of the client's industry to suggest standard proactive negative exclusions that this business type should always block (e.g., jobs, DIY, free, courses, resume, tools). Keep these highly creative but industry-aligned, and strictly ensure they do NOT conflict with client core services.
+    4. Competitor Root Word Isolation: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative. (For example, if the competitor is 'Solargain', suggest "gain" or "solargain", NEVER "solar gain". If the competitor is 'Digga Group Demolition', suggest "digga", NEVER "digga group demolition").
+    5. Redundancy Consolidation: Always target the root cause of the waste. If multiple wasted search terms or research queries share the same bad root word (e.g. a competitor name), suggest ONLY the root word as a phrase match negative.
 
     MATCH TYPE STRATEGY:
     You must choose the recommended negative match type based on these strict guidelines:
     - BROAD Match: Use ONLY for single, universally wasteful terms that indicate 100% wrong intent across the board (e.g. "jobs", "hire", "rental", "diy", "courses", "classes", "resume").
     - PHRASE Match: Use for competitor names (e.g. "walsh", "napoli") and specific geographic cities/states outside the service area (e.g. "perth", "gold coast", "canberra"). This prevents queries like "perth demolition contractors" from triggering ads.
-    - Root Word Isolation for Competitors: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative. (For example, if the competitor is 'Solargain', suggest "gain" or "solargain", NEVER "solar gain". If the competitor is 'Digga Group Demolition', suggest "digga", NEVER "digga group demolition").
+    - Root Word Isolation for Competitors: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative.
     - EXACT Match: Use for queries that are close to the target service but are wasteful in this exact context (e.g., "[trench excavation meaning]" or "[fibreglass pool removal]"). This blocks the specific wasted search while protecting broad terms.
     
     CAMPAIGN SCOPE (CROSS-CAMPAIGN REASONING):
     For each wasteful term, you must determine if the exclusion should be scoped locally or globally:
-    - GLOBAL / ACCOUNT-WIDE: If the keyword is a competitor, a wrong geographic region, an out-of-scope service, or a low-intent word (like "jobs"), it should be blocked across ALL campaigns in the account.
+    - GLOBAL / ACCOUNT-WIDE: If the keyword is a competitor, a wrong geographic region, an out-of-scope service, or a low-intent word (like "jobs"), it should be blocked across ALL campaigns in the account (set campaignId to "ALL" and campaignName to "All Campaigns").
     - LOCAL / CAMPAIGN-SPECIFIC: If the term is only wasteful for the specific campaign it appeared in, keep the original "campaignId" and "campaignName" from the search term report.
 
     Response MUST be a JSON object containing a "suggestions" key with an array of suggestions matching this exact TypeScript structure:
@@ -219,11 +211,11 @@ export async function generateNegativeKeywordSuggestions({
             campaignId: string;                            // The campaign ID associated with the search term, or "ALL" for global/account-wide exclusions
             campaignName: string;                          // The campaign name associated with the search term, or "All Campaigns" for global/account-wide exclusions
             rationale: string;                             // A concise, professional marketing rationale for why this is waste
-            searchQuery: string;                           // The original search query that triggered this recommendation
-            clicks: number;                                // Original clicks
-            impressions: number;                           // Original impressions
-            spend: number;                                 // Original spend (in normal currency)
-            conversions: number;                           // Original conversions
+            searchQuery: string;                           // The original search query/research finding that triggered this recommendation (use "Proactive Exclusion" for generic industry suggestions not linked to a specific query)
+            clicks: number;                                // Original clicks (0 for proactive suggestions)
+            impressions: number;                           // Original impressions (0 for proactive suggestions)
+            spend: number;                                 // Original spend (0 for proactive suggestions)
+            conversions: number;                           // Original conversions (0 for proactive suggestions)
         }>;
     }
   `;
