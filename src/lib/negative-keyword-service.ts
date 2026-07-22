@@ -250,11 +250,52 @@ export async function generateNegativeKeywordSuggestions({
   `;
 
   try {
+    const responseSchema = {
+      type: "object",
+      properties: {
+        suggestions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              keyword: { type: "string" },
+              matchType: { type: "string", enum: ["broad", "phrase", "exact"] },
+              campaignId: { type: "string" },
+              campaignName: { type: "string" },
+              rationale: { type: "string" },
+              searchQuery: { type: "string" },
+              clicks: { type: "integer" },
+              impressions: { type: "integer" },
+              spend: { type: "number" },
+              conversions: { type: "integer" },
+            },
+            required: [
+              "keyword",
+              "matchType",
+              "campaignId",
+              "campaignName",
+              "rationale",
+              "searchQuery",
+              "clicks",
+              "impressions",
+              "spend",
+              "conversions",
+            ],
+          },
+        },
+        explanation: { type: "string" },
+      },
+      required: ["suggestions", "explanation"],
+    };
+
     const result = await generateContentTracked(
       {
         model: "gemini-3.5-flash",
         contents: prompt,
-        config: { responseMimeType: "application/json" },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
+        },
       },
       {
         organizationId,
