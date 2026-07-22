@@ -7,6 +7,7 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  SlidersHorizontal,
   Trash,
   User as UserIcon,
 } from "lucide-react";
