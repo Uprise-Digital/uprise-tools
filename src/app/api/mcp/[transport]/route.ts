@@ -50,6 +50,7 @@ import {
 import { withTenantContext } from "@/db/tenant-db";
 import { logAction } from "@/lib/audit";
 import {
+  addAdGroupNegativeKeyword,
   addCampaignNegativeKeyword,
   fetchAccountCampaigns,
   fetchActiveNegativeKeywords,
@@ -1268,7 +1269,7 @@ const handler = createMcpHandler(
       {
         title: "Add Negative Keyword",
         description:
-          "Applies/pushes a campaign-level negative keyword directly to Google Ads and marks it as approved in the database.",
+          "Applies/pushes a campaign-level or ad group-level negative keyword directly to Google Ads and marks it as approved in the database.",
         inputSchema: {
           accountId: z
             .number()
@@ -1288,9 +1289,27 @@ const handler = createMcpHandler(
             .describe(
               "Optional database suggestion ID if resolving an existing pending card",
             ),
+          adGroupId: z
+            .string()
+            .optional()
+            .describe(
+              "Optional Google Ads Ad Group ID to add the negative keyword at the Ad Group level",
+            ),
+          adGroupName: z
+            .string()
+            .optional()
+            .describe("Optional Google Ads Ad Group Name"),
         },
       },
-      async ({ accountId, campaignId, keyword, matchType, suggestionId }) => {
+      async ({
+        accountId,
+        campaignId,
+        keyword,
+        matchType,
+        suggestionId,
+        adGroupId,
+        adGroupName,
+      }) => {
         try {
           const account = await withBypassTenantDb(async (tx) => {
             return await tx.query.adAccounts.findFirst({
@@ -1302,8 +1321,15 @@ const handler = createMcpHandler(
             throw new Error(`Ad account with ID ${accountId} not found.`);
           }
 
-          // Push to Google Ads campaign
-          if (campaignId === "ALL") {
+          // Push to Google Ads campaign or ad group
+          if (adGroupId) {
+            await addAdGroupNegativeKeyword(
+              account.googleAccountId,
+              adGroupId,
+              keyword,
+              matchType,
+            );
+          } else if (campaignId === "ALL") {
             const campaigns = await fetchAccountCampaigns(
               account.googleAccountId,
             );
@@ -1325,7 +1351,9 @@ const handler = createMcpHandler(
           }
 
           let campaignName = "Manual Campaign Exclusion";
-          if (campaignId === "ALL") {
+          if (adGroupId) {
+            campaignName = `Ad Group: ${adGroupName || adGroupId}`;
+          } else if (campaignId === "ALL") {
             campaignName = "All Campaigns";
           } else {
             try {
@@ -1350,6 +1378,10 @@ const handler = createMcpHandler(
                 .set({
                   status: "approved",
                   matchType: matchType,
+                  campaignId,
+                  campaignName,
+                  adGroupId: adGroupId || null,
+                  adGroupName: adGroupName || null,
                   processedAt: new Date(),
                   error: null,
                 })
@@ -1364,6 +1396,8 @@ const handler = createMcpHandler(
                 matchType,
                 campaignId,
                 campaignName,
+                adGroupId: adGroupId || null,
+                adGroupName: adGroupName || null,
                 rationale: "Directly added via AI chat",
                 status: "approved",
                 searchQuery: "Manual addition",
@@ -1377,7 +1411,7 @@ const handler = createMcpHandler(
             "ADD_NEGATIVE_KEYWORD",
             "negative_keyword_suggestions",
             accountId,
-            { keyword, campaignId, matchType },
+            { keyword, campaignId, matchType, adGroupId, adGroupName },
           );
 
           return {
@@ -1386,7 +1420,9 @@ const handler = createMcpHandler(
                 type: "text",
                 text: JSON.stringify({
                   success: true,
-                  message: `Successfully added negative keyword "${keyword}" to campaign ${campaignId}.`,
+                  message: adGroupId
+                    ? `Successfully added negative keyword "${keyword}" to ad group ${adGroupName || adGroupId}.`
+                    : `Successfully added negative keyword "${keyword}" to campaign ${campaignId}.`,
                 }),
               },
             ],
