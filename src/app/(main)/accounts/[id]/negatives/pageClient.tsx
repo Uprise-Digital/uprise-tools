@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   addManualNegativeKeywordAction,
@@ -126,6 +126,7 @@ export default function NegativesClientWorkspace({
 
   // Data States
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [groupByCampaign, setGroupByCampaign] = useState<boolean>(true);
   const [activeNegatives, setActiveNegatives] = useState<any[]>([]);
   const [activeSearch, setActiveSearch] = useState("");
 
@@ -235,7 +236,9 @@ export default function NegativesClientWorkspace({
       endDate,
     )) as any;
     if (res.success) {
-      if (turboMode) {
+      if (res.warning) {
+        toast.warning(res.warning, { duration: 6000 });
+      } else if (turboMode) {
         toast.success(
           `Success! Generated and automatically pushed ${res.pushedDirectly} negative keywords.`,
         );
@@ -320,12 +323,14 @@ export default function NegativesClientWorkspace({
     suggestionId: number,
     status: "approved" | "denied" | "archived",
     customMatchType?: "broad" | "phrase" | "exact",
+    customScope?: "global" | "campaign" | "adgroup",
   ) => {
     setStatusLoaders((prev) => ({ ...prev, [suggestionId]: true }));
     const res = await updateSuggestionStatusAction(
       suggestionId,
       status,
       customMatchType,
+      customScope,
     );
     if (res.success) {
       toast.success(`Keyword marked as ${status}`);
@@ -349,11 +354,36 @@ export default function NegativesClientWorkspace({
     );
   };
 
+  // Scope selector helper for UI card
+  const handleScopeChange = (
+    suggestionId: number,
+    newScope: "global" | "campaign" | "adgroup",
+  ) => {
+    setSuggestions((prev) =>
+      prev.map((s) =>
+        s.id === suggestionId ? { ...s, customScope: newScope } : s,
+      ),
+    );
+  };
+
   // Grouped suggestions
   const pendingSuggestions = suggestions.filter((s) => s.status === "pending");
   const processedSuggestions = suggestions.filter(
     (s) => s.status !== "pending",
   );
+
+  // Group pending suggestions by campaign name for Campaign Scope
+  const groupedSuggestions = useMemo(() => {
+    const groups: Record<string, typeof pendingSuggestions> = {};
+    for (const item of pendingSuggestions) {
+      const key = item.campaignName || "All Campaigns";
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(item);
+    }
+    return groups;
+  }, [pendingSuggestions]);
 
   // Filtered live negative keywords in Google Ads
   const filteredActiveNegatives = activeNegatives.filter((neg) => {
@@ -364,6 +394,197 @@ export default function NegativesClientWorkspace({
       neg.matchType.toLowerCase().includes(searchVal)
     );
   });
+
+  const renderSuggestionCard = (item: any) => {
+    const loader = statusLoaders[item.id] || false;
+    const finalScope =
+      item.customScope || (item.campaignId === "ALL" ? "global" : "campaign");
+
+    return (
+      <Card
+        key={item.id}
+        className="bg-white border-slate-200 hover:border-slate-300 transition-all shadow-sm rounded-xl overflow-hidden flex flex-col justify-between"
+      >
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-4">
+          <div className="flex justify-between items-start gap-2">
+            <div>
+              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                Suggested Negative
+              </div>
+              <div className="font-mono text-sm font-bold text-indigo-600 bg-indigo-50/50 border border-indigo-100 px-2 py-0.5 rounded mt-1 inline-block">
+                {item.matchType === "exact"
+                  ? `[${item.keyword}]`
+                  : item.matchType === "phrase"
+                    ? `"${item.keyword}"`
+                    : item.keyword}
+              </div>
+            </div>
+
+            {/* Match Type Dropdown selector */}
+            <select
+              value={item.matchType}
+              onChange={(e) =>
+                handleMatchTypeChange(item.id, e.target.value as any)
+              }
+              className="text-xs bg-white border border-slate-200 rounded px-1.5 py-1 text-slate-600 font-semibold focus:outline-none"
+            >
+              <option value="phrase">Phrase Match</option>
+              <option value="exact">Exact Match</option>
+              <option value="broad">Broad Match</option>
+            </select>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 space-y-4 flex-1">
+          {/* Search term source query & Campaign context */}
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold uppercase">
+              Trigger Query
+            </span>
+            <p
+              className="text-xs text-slate-800 font-mono mt-0.5 bg-slate-50 px-2 py-1 rounded truncate"
+              title={item.searchQuery}
+            >
+              {item.searchQuery || "N/A"}
+            </p>
+          </div>
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-3 gap-2 bg-slate-50/80 p-2.5 rounded-lg border border-slate-100">
+            <div className="text-center">
+              <span className="text-[9px] text-slate-400 font-bold uppercase">
+                Spend
+              </span>
+              <p className="text-xs font-bold text-slate-700 mt-0.5">
+                AUD ${Number(item.spend || 0).toFixed(2)}
+              </p>
+            </div>
+            <div className="text-center border-x border-slate-200">
+              <span className="text-[9px] text-slate-400 font-bold uppercase">
+                Clicks
+              </span>
+              <p className="text-xs font-bold text-slate-700 mt-0.5">
+                {item.clicks || 0}
+              </p>
+            </div>
+            <div className="text-center">
+              <span className="text-[9px] text-slate-400 font-bold uppercase">
+                Convs
+              </span>
+              <p className="text-xs font-bold text-slate-700 mt-0.5">
+                {Number(item.conversions || 0)}
+              </p>
+            </div>
+          </div>
+
+          {/* Gemini Rationale */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase">
+              <Info className="h-3 w-3 text-indigo-400" />
+              AI Rationale
+            </div>
+            <p className="text-xs text-slate-600 italic bg-indigo-50/20 p-2 rounded border border-indigo-50/50 leading-relaxed">
+              {item.rationale}
+            </p>
+          </div>
+
+          {/* Target Scope Dropdown */}
+          <div className="space-y-1">
+            <span className="text-[10px] text-slate-400 font-bold uppercase">
+              Target Scope
+            </span>
+            <select
+              value={finalScope}
+              onChange={(e) =>
+                handleScopeChange(item.id, e.target.value as any)
+              }
+              className="text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-600 font-semibold focus:outline-none w-full"
+            >
+              <option value="global">🌍 Global (Account-wide)</option>
+              {item.campaignId !== "ALL" && (
+                <option value="campaign">📋 Campaign Level</option>
+              )}
+              {item.adGroupId && (
+                <option value="adgroup">🎯 Ad Group: {item.adGroupName}</option>
+              )}
+            </select>
+          </div>
+
+          {/* Ad Group Context & campaign info */}
+          <div className="space-y-1 pt-1 border-t border-slate-100">
+            <div
+              className="text-[10px] text-slate-400 font-semibold truncate"
+              title={item.campaignName}
+            >
+              Campaign:{" "}
+              <span className="text-slate-600">{item.campaignName}</span>
+            </div>
+            {item.adGroupName && (
+              <div
+                className="text-[10px] text-slate-400 font-semibold truncate"
+                title={item.adGroupName}
+              >
+                Ad Group (Ad Set):{" "}
+                <span className="text-slate-600">{item.adGroupName}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Error logging (if a prior auto-push failed) */}
+          {item.error && (
+            <div className="flex items-start gap-1.5 p-2 bg-rose-50 text-rose-700 border border-rose-100 rounded text-[10px] leading-relaxed">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-500 mt-0.5" />
+              <span>Error: {item.error}</span>
+            </div>
+          )}
+        </CardContent>
+
+        {/* Card Actions Footer */}
+        <div className="border-t border-slate-100 p-4 bg-slate-50/50 flex gap-2 justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={loader}
+            onClick={() => handleUpdateStatus(item.id, "denied")}
+            className="text-xs hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center gap-1 rounded-lg"
+          >
+            <X className="h-3.5 w-3.5" />
+            Deny
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={loader}
+            onClick={() => handleUpdateStatus(item.id, "archived")}
+            className="text-xs hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center gap-1 rounded-lg"
+          >
+            <Archive className="h-3.5 w-3.5" />
+            Archive
+          </Button>
+          <Button
+            size="sm"
+            disabled={loader || !account.isActive}
+            onClick={() =>
+              handleUpdateStatus(
+                item.id,
+                "approved",
+                item.matchType,
+                finalScope,
+              )
+            }
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1 px-3 py-1.5"
+          >
+            {loader ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+            Approve
+          </Button>
+        </div>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6 p-4 max-w-7xl mx-auto min-h-screen">
@@ -582,167 +803,59 @@ export default function NegativesClientWorkspace({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pendingSuggestions.map((item) => {
-                  const loader = statusLoaders[item.id] || false;
-                  return (
-                    <Card
-                      key={item.id}
-                      className="bg-white border-slate-200 hover:border-slate-300 transition-all shadow-sm rounded-xl overflow-hidden flex flex-col justify-between"
+              <div className="space-y-6">
+                <div className="flex items-center justify-between bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-700">
+                      Group by Campaign Scope:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setGroupByCampaign(!groupByCampaign)}
+                      className={`text-xs px-3 py-1.5 rounded-lg border font-bold transition-all shadow-sm ${
+                        groupByCampaign
+                          ? "bg-indigo-600 border-indigo-600 text-white"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
                     >
-                      <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-4">
-                        <div className="flex justify-between items-start gap-2">
-                          <div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                              Suggested Negative
-                            </div>
-                            <div className="font-mono text-sm font-bold text-indigo-600 bg-indigo-50/50 border border-indigo-100 px-2 py-0.5 rounded mt-1 inline-block">
-                              {item.matchType === "exact"
-                                ? `[${item.keyword}]`
-                                : item.matchType === "phrase"
-                                  ? `"${item.keyword}"`
-                                  : item.keyword}
-                            </div>
-                          </div>
+                      {groupByCampaign ? "ON (Grouped)" : "OFF (Flat List)"}
+                    </button>
+                  </div>
+                  <span className="text-[11px] text-slate-400 hidden sm:inline">
+                    Shows exclusions grouped by Campaign Scope and allows
+                    granular Ad Group mapping.
+                  </span>
+                </div>
 
-                          {/* Match Type Dropdown selector */}
-                          <select
-                            value={item.matchType}
-                            onChange={(e) =>
-                              handleMatchTypeChange(
-                                item.id,
-                                e.target.value as any,
-                              )
-                            }
-                            className="text-xs bg-white border border-slate-200 rounded px-1.5 py-1 text-slate-600 font-semibold focus:outline-none"
-                          >
-                            <option value="phrase">Phrase Match</option>
-                            <option value="exact">Exact Match</option>
-                            <option value="broad">Broad Match</option>
-                          </select>
-                        </div>
-                      </CardHeader>
-
-                      <CardContent className="p-4 space-y-4 flex-1">
-                        {/* Search term source query & Campaign context */}
-                        <div>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase">
-                            Trigger Query
-                          </span>
-                          <p
-                            className="text-xs text-slate-800 font-mono mt-0.5 bg-slate-50 px-2 py-1 rounded truncate"
-                            title={item.searchQuery}
-                          >
-                            {item.searchQuery || "N/A"}
-                          </p>
-                        </div>
-
-                        {/* Stats Row */}
-                        <div className="grid grid-cols-3 gap-2 bg-slate-50/80 p-2.5 rounded-lg border border-slate-100">
-                          <div className="text-center">
-                            <span className="text-[9px] text-slate-400 font-bold uppercase">
-                              Spend
+                {groupByCampaign ? (
+                  <div className="space-y-8">
+                    {Object.entries(groupedSuggestions).map(
+                      ([campaignName, items]) => (
+                        <div key={campaignName} className="space-y-4">
+                          <div className="flex items-center gap-3 border-b border-slate-100 pb-2">
+                            <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                              {campaignName === "All Campaigns"
+                                ? "🌍 Global / Account-Wide Exclusions"
+                                : `📋 Campaign: ${campaignName}`}
+                            </h3>
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                              {items.length} suggestions
                             </span>
-                            <p className="text-xs font-bold text-slate-700 mt-0.5">
-                              AUD ${Number(item.spend || 0).toFixed(2)}
-                            </p>
                           </div>
-                          <div className="text-center border-x border-slate-200">
-                            <span className="text-[9px] text-slate-400 font-bold uppercase">
-                              Clicks
-                            </span>
-                            <p className="text-xs font-bold text-slate-700 mt-0.5">
-                              {item.clicks || 0}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <span className="text-[9px] text-slate-400 font-bold uppercase">
-                              Convs
-                            </span>
-                            <p className="text-xs font-bold text-slate-700 mt-0.5">
-                              {Number(item.conversions || 0)}
-                            </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {items.map((item) => renderSuggestionCard(item))}
                           </div>
                         </div>
-
-                        {/* Gemini Rationale */}
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase">
-                            <Info className="h-3 w-3 text-indigo-400" />
-                            AI Rationale
-                          </div>
-                          <p className="text-xs text-slate-600 italic bg-indigo-50/20 p-2 rounded border border-indigo-50/50 leading-relaxed">
-                            {item.rationale}
-                          </p>
-                        </div>
-
-                        {/* Campaign scope info */}
-                        <div
-                          className="text-[10px] text-slate-400 font-semibold truncate"
-                          title={item.campaignName}
-                        >
-                          Campaign:{" "}
-                          <span className="text-slate-600">
-                            {item.campaignName}
-                          </span>
-                        </div>
-
-                        {/* Error logging (if a prior auto-push failed) */}
-                        {item.error && (
-                          <div className="flex items-start gap-1.5 p-2 bg-rose-50 text-rose-700 border border-rose-100 rounded text-[10px] leading-relaxed">
-                            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-500 mt-0.5" />
-                            <span>Error: {item.error}</span>
-                          </div>
-                        )}
-                      </CardContent>
-
-                      {/* Card Actions Footer */}
-                      <div className="border-t border-slate-100 p-4 bg-slate-50/50 flex gap-2 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={loader}
-                          onClick={() => handleUpdateStatus(item.id, "denied")}
-                          className="text-xs hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center gap-1 rounded-lg"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                          Deny
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={loader}
-                          onClick={() =>
-                            handleUpdateStatus(item.id, "archived")
-                          }
-                          className="text-xs hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center gap-1 rounded-lg"
-                        >
-                          <Archive className="h-3.5 w-3.5" />
-                          Archive
-                        </Button>
-                        <Button
-                          size="sm"
-                          disabled={loader || !account.isActive}
-                          onClick={() =>
-                            handleUpdateStatus(
-                              item.id,
-                              "approved",
-                              item.matchType,
-                            )
-                          }
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1 px-3 py-1.5"
-                        >
-                          {loader ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Check className="h-3.5 w-3.5" />
-                          )}
-                          Approve
-                        </Button>
-                      </div>
-                    </Card>
-                  );
-                })}
+                      ),
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {pendingSuggestions.map((item) =>
+                      renderSuggestionCard(item),
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

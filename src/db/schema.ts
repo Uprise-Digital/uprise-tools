@@ -706,6 +706,8 @@ export const negativeKeywordSuggestions = pgTable(
     matchType: text("match_type").notNull().default("phrase"), // 'broad', 'phrase', 'exact'
     campaignId: text("campaign_id").notNull(),
     campaignName: text("campaign_name").notNull(),
+    adGroupId: text("ad_group_id"),
+    adGroupName: text("ad_group_name"),
     rationale: text("rationale").notNull(),
     status: text("status").notNull().default("pending"), // 'pending', 'approved', 'denied', 'archived'
     searchQuery: text("search_query"),

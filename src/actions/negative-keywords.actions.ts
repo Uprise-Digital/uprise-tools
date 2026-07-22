@@ -12,6 +12,7 @@ import {
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import {
+  addAdGroupNegativeKeyword,
   addCampaignNegativeKeyword,
   fetchAccountCampaigns,
   fetchActiveNegativeKeywords,
@@ -127,12 +128,15 @@ export async function generateSuggestionsInternal(
     .map((row: any) => {
       const stView = row.searchTermView || {};
       const campaignObj = row.campaign || {};
+      const adGroupObj = row.adGroup || {};
       const metricsObj = row.metrics || {};
 
       return {
         query: stView.searchTerm || "",
         campaignId: campaignObj.id || "",
         campaignName: campaignObj.name || "",
+        adGroupId: adGroupObj.id || "",
+        adGroupName: adGroupObj.name || "",
         clicks: Number(metricsObj.clicks || 0),
         impressions: Number(metricsObj.impressions || 0),
         spend: Number(metricsObj.costMicros || 0) / 1_000_000,
@@ -163,6 +167,37 @@ export async function generateSuggestionsInternal(
   const wastedTerms = formattedSearchTerms.filter(
     (st: any) => st.conversions === 0 && st.spend >= criticalSpendThreshold,
   );
+
+  if (wastedTerms.length === 0) {
+    return {
+      totalGenerated: 0,
+      newSuggestionsAdded: 0,
+      pushedDirectly: 0,
+      savedForReview: 0,
+      warning: `No search terms exceeded your Critical Spend Threshold of $${criticalSpendThreshold.toFixed(
+        2,
+      )} in the selected date range. Try lowering the threshold under 'Targeting Persona & Scope' or selecting a wider date range.`,
+    };
+  }
+
+  const activeNegativesSet = new Set(
+    activeNegTextList.map((kw: string) => kw.toLowerCase().trim()),
+  );
+  const filteredWastedTerms = wastedTerms.filter(
+    (term: any) => !activeNegativesSet.has(term.query.toLowerCase().trim()),
+  );
+
+  if (filteredWastedTerms.length === 0) {
+    return {
+      totalGenerated: 0,
+      newSuggestionsAdded: 0,
+      pushedDirectly: 0,
+      savedForReview: 0,
+      warning: `All non-converting search terms exceeding your Critical Spend Threshold ($${criticalSpendThreshold.toFixed(
+        2,
+      )}) are already excluded as active negative keywords.`,
+    };
+  }
 
   // 4.5 Fetch historical decisions for feedback loop
   const historicalDBSuggestions =
@@ -264,6 +299,13 @@ export async function generateSuggestionsInternal(
   };
 
   for (const s of newSuggestions) {
+    const originalTerm = wastedTerms.find(
+      (w: any) =>
+        w.query.toLowerCase().trim() === s.searchQuery.toLowerCase().trim(),
+    );
+    const adGroupId = originalTerm?.adGroupId || null;
+    const adGroupName = originalTerm?.adGroupName || null;
+
     if (account.negativeKeywordTurboMode) {
       // TURBO MODE IS ON: Push directly to Google Ads
       try {
@@ -292,6 +334,8 @@ export async function generateSuggestionsInternal(
           matchType: s.matchType,
           campaignId: s.campaignId,
           campaignName: s.campaignName,
+          adGroupId,
+          adGroupName,
           rationale: s.rationale,
           status: "approved",
           searchQuery: s.searchQuery,
@@ -315,6 +359,8 @@ export async function generateSuggestionsInternal(
           matchType: s.matchType,
           campaignId: s.campaignId,
           campaignName: s.campaignName,
+          adGroupId,
+          adGroupName,
           rationale: s.rationale,
           status: "pending",
           searchQuery: s.searchQuery,
@@ -335,6 +381,8 @@ export async function generateSuggestionsInternal(
         matchType: s.matchType,
         campaignId: s.campaignId,
         campaignName: s.campaignName,
+        adGroupId,
+        adGroupName,
         rationale: s.rationale,
         status: "pending",
         searchQuery: s.searchQuery,
@@ -414,6 +462,7 @@ export async function updateSuggestionStatusAction(
   suggestionId: number,
   status: "approved" | "denied" | "archived",
   customMatchType?: "broad" | "phrase" | "exact",
+  customScope?: "global" | "campaign" | "adgroup",
 ) {
   const session = await getSession();
   if (!session) throw new Error("Unauthorized");
@@ -432,14 +481,26 @@ export async function updateSuggestionStatusAction(
     }
 
     const finalMatchType = customMatchType || suggestion.matchType;
+    let finalCampaignId = suggestion.campaignId;
+    let finalCampaignName = suggestion.campaignName;
+    let finalAdGroupId = suggestion.adGroupId;
+    let finalAdGroupName = suggestion.adGroupName;
 
     if (status === "approved") {
-      // Push to Google Ads
+      const scopeToUse =
+        customScope ||
+        (suggestion.campaignId === "ALL" ? "global" : "campaign");
+
       console.log(
-        `[Actions] User ${session.user.email} approved keyword "${suggestion.keyword}" (Match: ${finalMatchType}) for campaign ID ${suggestion.campaignId}`,
+        `[Actions] User ${session.user.email} approved keyword "${suggestion.keyword}" (Match: ${finalMatchType}, Scope: ${scopeToUse})`,
       );
 
-      if (suggestion.campaignId === "ALL") {
+      if (scopeToUse === "global") {
+        finalCampaignId = "ALL";
+        finalCampaignName = "All Campaigns";
+        finalAdGroupId = null;
+        finalAdGroupName = null;
+
         const campaigns = await fetchAccountCampaigns(
           suggestion.account.googleAccountId,
         );
@@ -451,10 +512,29 @@ export async function updateSuggestionStatusAction(
             finalMatchType,
           );
         }
+      } else if (scopeToUse === "adgroup" && suggestion.adGroupId) {
+        finalAdGroupId = suggestion.adGroupId;
+        finalAdGroupName = suggestion.adGroupName;
+
+        await addAdGroupNegativeKeyword(
+          suggestion.account.googleAccountId,
+          suggestion.adGroupId,
+          suggestion.keyword,
+          finalMatchType,
+        );
       } else {
+        // Campaign Scope
+        if (finalCampaignId === "ALL") {
+          throw new Error(
+            "Cannot apply to Campaign scope: original suggestion is account-wide.",
+          );
+        }
+        finalAdGroupId = null;
+        finalAdGroupName = null;
+
         await addCampaignNegativeKeyword(
           suggestion.account.googleAccountId,
-          suggestion.campaignId,
+          finalCampaignId,
           suggestion.keyword,
           finalMatchType,
         );
@@ -466,6 +546,10 @@ export async function updateSuggestionStatusAction(
         .set({
           status: "approved",
           matchType: finalMatchType,
+          campaignId: finalCampaignId,
+          campaignName: finalCampaignName,
+          adGroupId: finalAdGroupId,
+          adGroupName: finalAdGroupName,
           processedAt: new Date(),
           error: null,
         })

@@ -576,6 +576,8 @@ export async function fetchSearchTermsReport(
             search_term_view.search_term,
             campaign.id,
             campaign.name,
+            ad_group.id,
+            ad_group.name,
             metrics.impressions,
             metrics.clicks,
             metrics.cost_micros,
@@ -611,6 +613,63 @@ export async function fetchSearchTermsReport(
   }
 
   return data.results || [];
+}
+
+/**
+ * Mutates ad group criteria to add a negative keyword to a specific ad group.
+ */
+export async function addAdGroupNegativeKeyword(
+  googleAccountId: string,
+  adGroupId: string,
+  keywordText: string,
+  matchType: string,
+) {
+  const { accessToken, managerCustomerId } = await getManagementAccessToken();
+  const sanitizedId = googleAccountId.replace(/-/g, "");
+  const formattedMatchType = matchType.toUpperCase();
+
+  const url = `https://googleads.googleapis.com/v23/customers/${sanitizedId}/adGroupCriteria:mutate`;
+
+  const body = {
+    operations: [
+      {
+        create: {
+          adGroup: `customers/${sanitizedId}/adGroups/${adGroupId}`,
+          type: "KEYWORD",
+          negative: true,
+          keyword: {
+            text: keywordText,
+            matchType: formattedMatchType,
+          },
+        },
+      },
+    ],
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "developer-token": DEVELOPER_TOKEN!,
+      Authorization: `Bearer ${accessToken}`,
+      "login-customer-id": managerCustomerId,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+
+  if (data.error) {
+    console.error(
+      "[Google Ads Mutate Error - Ad Group]",
+      JSON.stringify(data.error, null, 2),
+    );
+    throw new Error(
+      `Failed to add ad group negative keyword: ${data.error.message}`,
+    );
+  }
+
+  return data;
 }
 
 /**
