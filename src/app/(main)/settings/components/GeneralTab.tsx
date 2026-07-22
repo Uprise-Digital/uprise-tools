@@ -627,6 +627,68 @@ export function GeneralTab({
           </CardContent>
         </Card>
 
+        {/* NEGATIVE KEYWORDING CARD */}
+        {connection && (
+          <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                <SlidersHorizontal className="w-4 h-4 text-indigo-500" />
+                Negative Keywording Options
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Configure which match types the AI agent is allowed to suggest
+                when scanning query traffic.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Disabling a match type prevents the AI suggester from generating
+                or applying negative exclusions of that specific type.
+              </p>
+              <div className="flex flex-wrap gap-6 pt-1 select-none">
+                <label className="flex items-center gap-3 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={broadEnabled}
+                    disabled={updatingOptions}
+                    onChange={(e) =>
+                      handleToggleKeywordOptions("broad", e.target.checked)
+                    }
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4.5 w-4.5 cursor-pointer"
+                  />
+                  <span>Enable Broad Match</span>
+                </label>
+
+                <label className="flex items-center gap-3 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={phraseEnabled}
+                    disabled={updatingOptions}
+                    onChange={(e) =>
+                      handleToggleKeywordOptions("phrase", e.target.checked)
+                    }
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4.5 w-4.5 cursor-pointer"
+                  />
+                  <span>Enable Phrase Match</span>
+                </label>
+
+                <label className="flex items-center gap-3 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={exactEnabled}
+                    disabled={updatingOptions}
+                    onChange={(e) =>
+                      handleToggleKeywordOptions("exact", e.target.checked)
+                    }
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4.5 w-4.5 cursor-pointer"
+                  />
+                  <span>Enable Exact Match</span>
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* PROFILE SETTINGS CARD */}
         <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
