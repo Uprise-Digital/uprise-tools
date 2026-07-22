@@ -4,6 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
+import { withBypassTenantDb } from "@/db/db-helper";
 import {
   adAccounts,
   googleAdsConnections,
@@ -11,7 +12,6 @@ import {
   organization,
 } from "@/db/schema";
 import { withTenantContext } from "@/db/tenant-db";
-import { withBypassTenantDb } from "@/db/db-helper";
 import { auth } from "@/lib/auth";
 
 async function getAccessToken(refreshToken: string) {

@@ -260,7 +260,7 @@ export default function NegativesClientWorkspace({
         if (res.pushedDirectly === 0) {
           toast.success(
             "Analysis complete: No new wasteful search terms were detected. Your target campaigns are already optimized!",
-            { duration: 5000 }
+            { duration: 5000 },
           );
         } else {
           toast.success(
@@ -271,7 +271,7 @@ export default function NegativesClientWorkspace({
         if (res.newSuggestionsAdded === 0) {
           toast.success(
             "Analysis complete: No new wasteful search terms were detected. Your target campaigns are already optimized!",
-            { duration: 5000 }
+            { duration: 5000 },
           );
         } else {
           toast.success(

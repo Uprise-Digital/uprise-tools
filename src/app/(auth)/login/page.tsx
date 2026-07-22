@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheck, Sparkles, Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";

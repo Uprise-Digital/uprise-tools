@@ -367,7 +367,7 @@ export async function generateRevivalPlanAction(
     const parsedPlan = JSON.parse(jsonString);
 
     // Save/upsert to database
-    let savedRecord;
+    let savedRecord: any;
     try {
       const existing = await withBypassTenantDb(async (tx) => {
         return await tx.query.pipelineRevivalPlans.findFirst({
