@@ -11,6 +11,7 @@ import {
   organization,
 } from "@/db/schema";
 import { withTenantContext } from "@/db/tenant-db";
+import { withBypassTenantDb } from "@/db/db-helper";
 import { auth } from "@/lib/auth";
 
 async function getAccessToken(refreshToken: string) {
@@ -340,6 +341,140 @@ export async function updateOrganizationNameAction(payload: {
   }
 }
 
+export async function refreshAdAccountsMetadataInternal(orgId: string) {
+  const conn = await db.query.googleAdsConnections.findFirst({
+    where: eq(googleAdsConnections.organizationId, orgId),
+  });
+
+  if (!conn) {
+    throw new Error(
+      "Google Ads connection not found. Please connect your manager account first.",
+    );
+  }
+
+  const { decryptToken } = await import("@/lib/crypto");
+  const decToken = decryptToken(conn.refreshToken);
+  const accessToken = await getAccessToken(decToken);
+  const sanitizedId = conn.managerCustomerId.replace(/-/g, "");
+
+  const DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+
+  const query = `
+    SELECT
+      customer_client.id,
+      customer_client.descriptive_name,
+      customer_client.currency_code,
+      customer_client.time_zone,
+      customer_client.status
+    FROM customer_client
+    WHERE customer_client.level <= 1
+      AND customer_client.manager = false
+  `;
+
+  const searchRes = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN || "",
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": sanitizedId,
+      },
+      body: JSON.stringify({ query }),
+    },
+  );
+  const searchData = await searchRes.json();
+  if (searchData.error) {
+    throw new Error(
+      `Failed to fetch live client accounts: ${searchData.error.message}`,
+    );
+  }
+
+  const results = searchData.results || [];
+  const googleIdsInApi = results
+    .map((row: any) => row.customerClient?.id?.toString())
+    .filter(Boolean) as string[];
+
+  await withTenantContext(orgId, async (tx) => {
+    // Deactivate/archive accounts in our database that are NOT in Google Ads API response (delinked)
+    if (googleIdsInApi.length > 0) {
+      await tx
+        .update(adAccounts)
+        .set({
+          isActive: false,
+          googleStatus: "DELINKED",
+          syncStatus: "failed",
+          syncError: "Account delinked from Google Ads MCC connection",
+        })
+        .where(
+          and(
+            eq(adAccounts.connectionId, conn.id),
+            eq(adAccounts.organizationId, orgId),
+            sql`${adAccounts.googleAccountId} NOT IN (${sql.join(
+              googleIdsInApi.map((id) => sql`${id}`),
+              sql`, `,
+            )})`,
+          ),
+        );
+    }
+
+    for (const row of results) {
+      const client = row.customerClient;
+      if (client) {
+        const clientIdStr = client.id.toString();
+        const liveStatus = client.status || "ENABLED";
+
+        if (conn.autoAddAccounts) {
+          const shouldBeActive =
+            conn.autoSyncScope === "ACTIVE_ONLY"
+              ? liveStatus === "ENABLED"
+              : true;
+
+          await tx
+            .insert(adAccounts)
+            .values({
+              googleAccountId: clientIdStr,
+              name: client.descriptiveName || `Client Account (${client.id})`,
+              currencyCode: client.currencyCode || "AUD",
+              timeZone: client.timeZone || "Australia/Melbourne",
+              googleStatus: liveStatus,
+              organizationId: orgId,
+              connectionId: conn.id,
+              isActive: shouldBeActive,
+            })
+            .onConflictDoUpdate({
+              target: adAccounts.googleAccountId,
+              set: {
+                name: client.descriptiveName || `Client Account (${client.id})`,
+                currencyCode: client.currencyCode || "AUD",
+                timeZone: client.timeZone || "Australia/Melbourne",
+                googleStatus: liveStatus,
+                isActive: shouldBeActive,
+              },
+            });
+        } else {
+          await tx
+            .update(adAccounts)
+            .set({
+              name: client.descriptiveName || `Client Account (${client.id})`,
+              currencyCode: client.currencyCode || "AUD",
+              timeZone: client.timeZone || "Australia/Melbourne",
+              googleStatus: liveStatus,
+              isActive: liveStatus === "ENABLED",
+            })
+            .where(
+              and(
+                eq(adAccounts.googleAccountId, clientIdStr),
+                eq(adAccounts.organizationId, orgId),
+              ),
+            );
+        }
+      }
+    }
+  });
+}
+
 export async function refreshAdAccountsMetadataAction() {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -364,143 +499,50 @@ export async function refreshAdAccountsMetadataAction() {
   }
 
   try {
-    const conn = await db.query.googleAdsConnections.findFirst({
-      where: eq(googleAdsConnections.organizationId, orgId),
-    });
-
-    if (!conn) {
-      throw new Error(
-        "Google Ads connection not found. Please connect your manager account first.",
-      );
-    }
-
-    const { decryptToken } = await import("@/lib/crypto");
-    const decToken = decryptToken(conn.refreshToken);
-    const accessToken = await getAccessToken(decToken);
-    const sanitizedId = conn.managerCustomerId.replace(/-/g, "");
-
-    const DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
-
-    const query = `
-      SELECT
-        customer_client.id,
-        customer_client.descriptive_name,
-        customer_client.currency_code,
-        customer_client.time_zone,
-        customer_client.status
-      FROM customer_client
-      WHERE customer_client.level <= 1
-        AND customer_client.manager = false
-    `;
-
-    const searchRes = await fetch(
-      `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "developer-token": DEVELOPER_TOKEN || "",
-          Authorization: `Bearer ${accessToken}`,
-          "login-customer-id": sanitizedId,
-        },
-        body: JSON.stringify({ query }),
-      },
-    );
-    const searchData = await searchRes.json();
-    if (searchData.error) {
-      throw new Error(
-        `Failed to fetch live client accounts: ${searchData.error.message}`,
-      );
-    }
-
-    const results = searchData.results || [];
-    const googleIdsInApi = results
-      .map((row: any) => row.customerClient?.id?.toString())
-      .filter(Boolean) as string[];
-
-    await withTenantContext(orgId, async (tx) => {
-      // Deactivate/archive accounts in our database that are NOT in Google Ads API response (delinked)
-      if (googleIdsInApi.length > 0) {
-        await tx
-          .update(adAccounts)
-          .set({
-            isActive: false,
-            googleStatus: "DELINKED",
-            syncStatus: "failed",
-            syncError: "Account delinked from Google Ads MCC connection",
-          })
-          .where(
-            and(
-              eq(adAccounts.connectionId, conn.id),
-              eq(adAccounts.organizationId, orgId),
-              sql`${adAccounts.googleAccountId} NOT IN (${sql.join(
-                googleIdsInApi.map((id) => sql`${id}`),
-                sql`, `,
-              )})`,
-            ),
-          );
-      }
-
-      for (const row of results) {
-        const client = row.customerClient;
-        if (client) {
-          const clientIdStr = client.id.toString();
-          const liveStatus = client.status || "ENABLED";
-
-          if (conn.autoAddAccounts) {
-            const shouldBeActive =
-              conn.autoSyncScope === "ACTIVE_ONLY"
-                ? liveStatus === "ENABLED"
-                : true;
-
-            await tx
-              .insert(adAccounts)
-              .values({
-                googleAccountId: clientIdStr,
-                name: client.descriptiveName || `Client Account (${client.id})`,
-                currencyCode: client.currencyCode || "AUD",
-                timeZone: client.timeZone || "Australia/Melbourne",
-                googleStatus: liveStatus,
-                organizationId: orgId,
-                connectionId: conn.id,
-                isActive: shouldBeActive,
-              })
-              .onConflictDoUpdate({
-                target: adAccounts.googleAccountId,
-                set: {
-                  name:
-                    client.descriptiveName || `Client Account (${client.id})`,
-                  currencyCode: client.currencyCode || "AUD",
-                  timeZone: client.timeZone || "Australia/Melbourne",
-                  googleStatus: liveStatus,
-                  isActive: shouldBeActive,
-                },
-              });
-          } else {
-            await tx
-              .update(adAccounts)
-              .set({
-                name: client.descriptiveName || `Client Account (${client.id})`,
-                currencyCode: client.currencyCode || "AUD",
-                timeZone: client.timeZone || "Australia/Melbourne",
-                googleStatus: liveStatus,
-                isActive: liveStatus === "ENABLED",
-              })
-              .where(
-                and(
-                  eq(adAccounts.googleAccountId, clientIdStr),
-                  eq(adAccounts.organizationId, orgId),
-                ),
-              );
-          }
-        }
-      }
-    });
-
+    await refreshAdAccountsMetadataInternal(orgId);
     revalidatePath("/settings");
     return { success: true };
   } catch (error: any) {
     console.error("Failed to refresh ad accounts metadata:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * System action to loop through all active connections and sync their ad accounts metadata.
+ * Bypasses RLS since it's run via a background system cron job.
+ */
+export async function syncAllConnectionsMetadataAction() {
+  try {
+    const connections = await withBypassTenantDb(async (tx) => {
+      return await tx.query.googleAdsConnections.findMany({
+        where: eq(googleAdsConnections.status, "active"),
+      });
+    });
+
+    console.log(
+      `[Sync Accounts Cron] Found ${connections.length} active connections to process.`,
+    );
+
+    let successCount = 0;
+    for (const conn of connections) {
+      try {
+        console.log(
+          `[Sync Accounts Cron] Syncing accounts for connection ID ${conn.id} (Org: ${conn.organizationId})...`,
+        );
+        await refreshAdAccountsMetadataInternal(conn.organizationId);
+        successCount++;
+      } catch (err: any) {
+        console.error(
+          `[Sync Accounts Cron] Failed to sync connection ID ${conn.id}:`,
+          err,
+        );
+      }
+    }
+
+    return { success: true, processedCount: connections.length, successCount };
+  } catch (error: any) {
+    console.error("[syncAllConnectionsMetadataAction Error]:", error);
     return { success: false, error: error.message };
   }
 }
