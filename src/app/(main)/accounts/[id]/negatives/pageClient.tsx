@@ -326,11 +326,15 @@ export default function NegativesClientWorkspace({
     customScope?: "global" | "campaign" | "adgroup",
   ) => {
     setStatusLoaders((prev) => ({ ...prev, [suggestionId]: true }));
+    const item = suggestions.find((s) => s.id === suggestionId);
+    const customCampaignId = item?.customCampaignId;
+
     const res = await updateSuggestionStatusAction(
       suggestionId,
       status,
       customMatchType,
       customScope,
+      customCampaignId,
     );
     if (res.success) {
       toast.success(`Keyword marked as ${status}`);
@@ -362,6 +366,18 @@ export default function NegativesClientWorkspace({
     setSuggestions((prev) =>
       prev.map((s) =>
         s.id === suggestionId ? { ...s, customScope: newScope } : s,
+      ),
+    );
+  };
+
+  // Custom campaign selector helper for UI card
+  const handleCustomCampaignChange = (
+    suggestionId: number,
+    campaignId: string,
+  ) => {
+    setSuggestions((prev) =>
+      prev.map((s) =>
+        s.id === suggestionId ? { ...s, customCampaignId: campaignId } : s,
       ),
     );
   };
@@ -399,6 +415,11 @@ export default function NegativesClientWorkspace({
     const loader = statusLoaders[item.id] || false;
     const finalScope =
       item.customScope || (item.campaignId === "ALL" ? "global" : "campaign");
+    const targetCampaignId =
+      item.customCampaignId ||
+      (item.campaignId !== "ALL"
+        ? item.campaignId
+        : item.triggerCampaignId || campaignList[0]?.id || "");
 
     return (
       <Card
@@ -489,45 +510,79 @@ export default function NegativesClientWorkspace({
           </div>
 
           {/* Target Scope Dropdown */}
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-400 font-bold uppercase">
-              Target Scope
-            </span>
-            <select
-              value={finalScope}
-              onChange={(e) =>
-                handleScopeChange(item.id, e.target.value as any)
-              }
-              className="text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-600 font-semibold focus:outline-none w-full"
-            >
-              <option value="global">🌍 Global (Account-wide)</option>
-              {item.campaignId !== "ALL" && (
-                <option value="campaign">📋 Campaign Level</option>
-              )}
-              {item.adGroupId && (
-                <option value="adgroup">🎯 Ad Group: {item.adGroupName}</option>
-              )}
-            </select>
-          </div>
-
-          {/* Ad Group Context & campaign info */}
-          <div className="space-y-1 pt-1 border-t border-slate-100">
-            <div
-              className="text-[10px] text-slate-400 font-semibold truncate"
-              title={item.campaignName}
-            >
-              Campaign:{" "}
-              <span className="text-slate-600">{item.campaignName}</span>
-            </div>
-            {item.adGroupName && (
-              <div
-                className="text-[10px] text-slate-400 font-semibold truncate"
-                title={item.adGroupName}
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <span className="text-[10px] text-slate-400 font-bold uppercase">
+                Target Scope
+              </span>
+              <select
+                value={finalScope}
+                onChange={(e) =>
+                  handleScopeChange(item.id, e.target.value as any)
+                }
+                className="text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-600 font-semibold focus:outline-none w-full"
               >
-                Ad Group (Ad Set):{" "}
-                <span className="text-slate-600">{item.adGroupName}</span>
+                <option value="global">Global (Account-wide)</option>
+                {(item.campaignId !== "ALL" ||
+                  item.triggerCampaignId ||
+                  campaignList.length > 0) && (
+                  <option value="campaign">Campaign Level</option>
+                )}
+                {item.adGroupId && (
+                  <option value="adgroup">Ad Group: {item.adGroupName}</option>
+                )}
+              </select>
+            </div>
+
+            {/* Campaign Selection Sub-dropdown if "campaign" scope is selected */}
+            {finalScope === "campaign" && campaignList.length > 0 && (
+              <div className="space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold uppercase">
+                  Select Target Campaign
+                </span>
+                <select
+                  value={targetCampaignId}
+                  onChange={(e) =>
+                    handleCustomCampaignChange(item.id, e.target.value)
+                  }
+                  className="text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-600 font-semibold focus:outline-none w-full"
+                >
+                  {campaignList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
+
+            {/* Ad Group Context & campaign info */}
+            <div className="space-y-1 pt-1 border-t border-slate-100">
+              <div
+                className="text-[10px] text-slate-400 font-semibold truncate"
+                title={
+                  item.campaignName === "All Campaigns"
+                    ? item.triggerCampaignName || "All Campaigns"
+                    : item.campaignName
+                }
+              >
+                Triggering Campaign:{" "}
+                <span className="text-slate-600">
+                  {item.campaignName === "All Campaigns"
+                    ? item.triggerCampaignName || "All Campaigns"
+                    : item.campaignName}
+                </span>
+              </div>
+              {item.adGroupName && (
+                <div
+                  className="text-[10px] text-slate-400 font-semibold truncate"
+                  title={item.adGroupName}
+                >
+                  Triggering Ad Group:{" "}
+                  <span className="text-slate-600">{item.adGroupName}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Error logging (if a prior auto-push failed) */}

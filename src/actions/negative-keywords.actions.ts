@@ -336,6 +336,8 @@ export async function generateSuggestionsInternal(
           campaignName: s.campaignName,
           adGroupId,
           adGroupName,
+          triggerCampaignId: originalTerm?.campaignId || null,
+          triggerCampaignName: originalTerm?.campaignName || null,
           rationale: s.rationale,
           status: "approved",
           searchQuery: s.searchQuery,
@@ -361,6 +363,8 @@ export async function generateSuggestionsInternal(
           campaignName: s.campaignName,
           adGroupId,
           adGroupName,
+          triggerCampaignId: originalTerm?.campaignId || null,
+          triggerCampaignName: originalTerm?.campaignName || null,
           rationale: s.rationale,
           status: "pending",
           searchQuery: s.searchQuery,
@@ -383,6 +387,8 @@ export async function generateSuggestionsInternal(
         campaignName: s.campaignName,
         adGroupId,
         adGroupName,
+        triggerCampaignId: originalTerm?.campaignId || null,
+        triggerCampaignName: originalTerm?.campaignName || null,
         rationale: s.rationale,
         status: "pending",
         searchQuery: s.searchQuery,
@@ -463,6 +469,7 @@ export async function updateSuggestionStatusAction(
   status: "approved" | "denied" | "archived",
   customMatchType?: "broad" | "phrase" | "exact",
   customScope?: "global" | "campaign" | "adgroup",
+  customCampaignId?: string,
 ) {
   const session = await getSession();
   if (!session) throw new Error("Unauthorized");
@@ -513,6 +520,13 @@ export async function updateSuggestionStatusAction(
           );
         }
       } else if (scopeToUse === "adgroup" && suggestion.adGroupId) {
+        if (suggestion.campaignId === "ALL") {
+          finalCampaignId = suggestion.triggerCampaignId || "ALL";
+          finalCampaignName = suggestion.triggerCampaignName || "All Campaigns";
+        } else {
+          finalCampaignId = suggestion.campaignId;
+          finalCampaignName = suggestion.campaignName;
+        }
         finalAdGroupId = suggestion.adGroupId;
         finalAdGroupName = suggestion.adGroupName;
 
@@ -524,11 +538,39 @@ export async function updateSuggestionStatusAction(
         );
       } else {
         // Campaign Scope
-        if (finalCampaignId === "ALL") {
-          throw new Error(
-            "Cannot apply to Campaign scope: original suggestion is account-wide.",
-          );
+        let targetCampaignId = customCampaignId || finalCampaignId;
+        let targetCampaignName = finalCampaignName;
+
+        if (targetCampaignId === "ALL") {
+          if (suggestion.triggerCampaignId) {
+            targetCampaignId = suggestion.triggerCampaignId;
+            targetCampaignName =
+              suggestion.triggerCampaignName || "Trigger Campaign";
+          } else {
+            throw new Error(
+              "Cannot apply to Campaign scope: no campaign selected or triggering campaign details not found.",
+            );
+          }
         }
+
+        finalCampaignId = targetCampaignId;
+        if (customCampaignId) {
+          const campaigns = await fetchAccountCampaigns(
+            suggestion.account.googleAccountId,
+          );
+          const selectedCamp = campaigns.find(
+            (c: any) => c.id === customCampaignId,
+          );
+          if (selectedCamp) {
+            finalCampaignName = selectedCamp.name;
+          }
+        } else if (
+          suggestion.campaignId === "ALL" &&
+          suggestion.triggerCampaignName
+        ) {
+          finalCampaignName = suggestion.triggerCampaignName;
+        }
+
         finalAdGroupId = null;
         finalAdGroupName = null;
 
