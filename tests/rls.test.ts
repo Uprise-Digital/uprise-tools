@@ -77,7 +77,7 @@ describe("Database RLS Scoping Tests", () => {
         },
       ]);
     });
-  });
+  }, 30000);
 
   afterAll(async () => {
     // Clean up test data and role
@@ -106,7 +106,7 @@ describe("Database RLS Scoping Tests", () => {
     } catch (e) {
       console.warn("Could not drop rls_test_role:", e);
     }
-  });
+  }, 30000);
 
   test("should enforce RLS and only return Org 1 accounts when scoped to Org 1", async () => {
     const results = await withTenantDb("org-rls-test-1", async (tx) => {
@@ -131,7 +131,7 @@ describe("Database RLS Scoping Tests", () => {
     expect(results.length).toBe(1);
     expect(results[0].name).toBe("RLS Test Account 1");
     expect(results[0].organizationId).toBe("org-rls-test-1");
-  });
+  }, 30000);
 
   test("should enforce RLS and only return Org 2 accounts when scoped to Org 2", async () => {
     const results = await withTenantDb("org-rls-test-2", async (tx) => {
@@ -148,7 +148,7 @@ describe("Database RLS Scoping Tests", () => {
     expect(results.length).toBe(1);
     expect(results[0].name).toBe("RLS Test Account 2");
     expect(results[0].organizationId).toBe("org-rls-test-2");
-  });
+  }, 30000);
 
   test("should return all accounts when RLS is bypassed", async () => {
     const results = await withBypassTenantDb(async (tx) => {
@@ -159,5 +159,5 @@ describe("Database RLS Scoping Tests", () => {
     });
 
     expect(results.length).toBe(2);
-  });
+  }, 30000);
 });

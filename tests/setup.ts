@@ -1,4 +1,8 @@
 /* biome-ignore-all lint/suspicious/noExplicitAny: mocked types */
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env.local" });
+
 import { afterAll, beforeAll, vi } from "vitest";
 
 // ============================================================================
@@ -38,6 +42,19 @@ vi.mock("@/lib/auth", () => ({
 // 2. MOCK DRIZZLE DATABASE INSTANCE
 // ============================================================================
 const mockDbQuery = {
+  organization: {
+    findFirst: vi.fn().mockResolvedValue({
+      id: "org-test-uprise",
+      name: "Test Org",
+    }),
+  },
+  member: {
+    findFirst: vi.fn().mockResolvedValue({
+      id: "member-test-id",
+      userId: "test-user-id",
+      organizationId: "org-test-uprise",
+    }),
+  },
   aiUsageSettings: {
     findFirst: vi.fn().mockResolvedValue({
       id: 1,
