@@ -96,6 +96,44 @@ export async function generateNegativeKeywordSuggestions({
     }
   }
 
+  // Extract core service keywords to prevent AI from negating them
+  let coreKeywordsList: string[] = [];
+  if (clientName) {
+    coreKeywordsList = coreKeywordsList.concat(
+      clientName
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && w !== "and" && w !== "the"),
+    );
+  }
+  if (targetNotes) {
+    try {
+      const parsed = JSON.parse(targetNotes);
+      if (parsed && parsed.serviceScope) {
+        const scopes = Array.isArray(parsed.serviceScope)
+          ? parsed.serviceScope
+          : [parsed.serviceScope];
+        for (const s of scopes) {
+          coreKeywordsList = coreKeywordsList.concat(
+            s
+              .toLowerCase()
+              .split(/[\s,]+/)
+              .filter(
+                (w: string) => w.length > 2 && w !== "and" && w !== "the",
+              ),
+          );
+        }
+      }
+    } catch {}
+  }
+  const coreKeywordsUnique = Array.from(
+    new Set(
+      coreKeywordsList
+        .map((k) => k.trim().replace(/[^\w]/g, ""))
+        .filter((k) => k.length > 2),
+    ),
+  );
+
   // Format historical decisions for presentation
   const previouslyDenied = historicalDecisions.filter(
     (d) => d.status === "denied",
@@ -106,7 +144,7 @@ export async function generateNegativeKeywordSuggestions({
 
   const prompt = `
     You are an elite Google Ads Performance Director at Uprise Digital.
-    Your task is to review a search terms report for a client and identify wasteful, irrelevant, or non-converting search queries that should be added as campaign-level or account-wide negative keywords.
+    Your task is to review a search terms report for a client and identify wasteful, irrelevant, or non-converting search queries that should be added as negative keywords.
     
     CLIENT INFORMATION:
     - Name: ${clientName}
@@ -116,6 +154,11 @@ export async function generateNegativeKeywordSuggestions({
     CRITICAL RULE (BRAND SAFETY):
     Do NOT suggest adding the client's own brand name or any close variants of it as a negative keyword.
     Client Brand Name: "${clientName}"
+
+    CORE SERVICE SAFETY & STATISTICAL SIGNIFICANCE:
+    - Client's core service words: ${JSON.stringify(coreKeywordsUnique)}
+    - NEVER suggest negating a core service keyword/word as a negative keyword (broad/phrase/exact) just because it has low or zero conversions, unless it has a statistically significant amount of wasted spend (e.g. > 10 clicks).
+    - High-intent geographic searches (e.g. "demolition sydney" or "solar installation melbourne") within target service areas must be protected and NEVER negated.
 
     EXISTING NEGATIVE KEYWORDS (Already excluded, do not suggest these):
     ${existingNegatives.slice(0, 150).join(", ") || "None"}
@@ -144,8 +187,11 @@ export async function generateNegativeKeywordSuggestions({
     WASTED SEARCH TERMS TO EVALUATE:
     ${JSON.stringify(filteredWastedTerms, null, 2)}
     
-    EVALUATION INSTRUCTIONS (BE EXTRA THOROUGH):
-    You must evaluate EVERY SINGLE query in the wasted search terms list. Run an exhaustive pass over all terms.
+    EVALUATION INSTRUCTIONS:
+    You must evaluate every single query in the wasted search terms list, but only suggest a negative keyword if there is clear, undeniable intent mismatch (e.g. competitors, wrong location, out-of-scope service). Do NOT penalize or negate highly relevant queries just because they lack conversions in this period.
+    
+    Consolidate Negatives: Always target the root cause of the waste. If multiple wasted search terms share the same bad root word (e.g. a competitor name), suggest ONLY the root word as a phrase match. Do not generate multiple overlapping or redundant suggestions for the same competitor.
+
     Identify and suggest negative keywords based on the targeting persona details and historical decisions:
     1. Competitor Brands: Any query referencing other local/national companies, contractors, or specific brand names.
     2. Geographic Waste: Any query targeting a region outside the client's service area (e.g. if the client operates on the East Coast of Australia, queries containing "perth", "western australia", "adelaide", "wa" are waste).
@@ -157,6 +203,7 @@ export async function generateNegativeKeywordSuggestions({
     You must choose the recommended negative match type based on these strict guidelines:
     - BROAD Match: Use ONLY for single, universally wasteful terms that indicate 100% wrong intent across the board (e.g. "jobs", "hire", "rental", "diy", "courses", "classes", "resume").
     - PHRASE Match: Use for competitor names (e.g. "walsh", "napoli") and specific geographic cities/states outside the service area (e.g. "perth", "gold coast", "canberra"). This prevents queries like "perth demolition contractors" from triggering ads.
+    - Root Word Isolation for Competitors: When negating competitor brand names, you MUST isolate the unique identifying word(s) of the competitor. NEVER include the client's core service keywords inside a phrase match negative. (For example, if the competitor is 'Solargain', suggest "gain" or "solargain", NEVER "solar gain". If the competitor is 'Digga Group Demolition', suggest "digga", NEVER "digga group demolition").
     - EXACT Match: Use for queries that are close to the target service but are wasteful in this exact context (e.g., "[trench excavation meaning]" or "[fibreglass pool removal]"). This blocks the specific wasted search while protecting broad terms.
     
     CAMPAIGN SCOPE (CROSS-CAMPAIGN REASONING):

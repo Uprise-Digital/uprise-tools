@@ -177,12 +177,30 @@ export default function NegativesClientWorkspace({
     setIsLoadingLiveNegs(false);
   }, [account.id]);
 
+  // Load campaigns list asynchronously
+  const loadCampaigns = useCallback(async () => {
+    setIsLoadingCampaigns(true);
+    const res = await getAccountCampaignsAction(account.id);
+    if (res.success && res.data) {
+      setCampaignList(res.data);
+    } else {
+      toast.error(res.error || "Failed to load campaigns list.");
+    }
+    setIsLoadingCampaigns(false);
+  }, [account.id]);
+
   useEffect(() => {
     loadDBSuggestions();
     if (account.isActive) {
       loadLiveActiveNegatives();
+      loadCampaigns();
     }
-  }, [loadDBSuggestions, loadLiveActiveNegatives, account.isActive]);
+  }, [
+    loadDBSuggestions,
+    loadLiveActiveNegatives,
+    loadCampaigns,
+    account.isActive,
+  ]);
 
   // Handle Toggle Turbo Mode
   const handleTurboToggleClick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -239,13 +257,27 @@ export default function NegativesClientWorkspace({
       if (res.warning) {
         toast.warning(res.warning, { duration: 6000 });
       } else if (turboMode) {
-        toast.success(
-          `Success! Generated and automatically pushed ${res.pushedDirectly} negative keywords.`,
-        );
+        if (res.pushedDirectly === 0) {
+          toast.success(
+            "Analysis complete: No new wasteful search terms were detected. Your target campaigns are already optimized!",
+            { duration: 5000 }
+          );
+        } else {
+          toast.success(
+            `Success! Generated and automatically pushed ${res.pushedDirectly} negative keywords.`,
+          );
+        }
       } else {
-        toast.success(
-          `Success! Generated ${res.newSuggestionsAdded} new suggestions for review.`,
-        );
+        if (res.newSuggestionsAdded === 0) {
+          toast.success(
+            "Analysis complete: No new wasteful search terms were detected. Your target campaigns are already optimized!",
+            { duration: 5000 }
+          );
+        } else {
+          toast.success(
+            `Success! Generated ${res.newSuggestionsAdded} new suggestions for review.`,
+          );
+        }
       }
       // Reload both lists
       await Promise.all([loadDBSuggestions(), loadLiveActiveNegatives()]);
@@ -269,18 +301,6 @@ export default function NegativesClientWorkspace({
       toast.error(res.error || "Failed to run deduplication.");
     }
     setIsDeduplicating(false);
-  };
-
-  // Load campaigns list asynchronously
-  const loadCampaigns = async () => {
-    setIsLoadingCampaigns(true);
-    const res = await getAccountCampaignsAction(account.id);
-    if (res.success && res.data) {
-      setCampaignList(res.data);
-    } else {
-      toast.error(res.error || "Failed to load campaigns list.");
-    }
-    setIsLoadingCampaigns(false);
   };
 
   // Open the Manual Add Modal and load campaign drop-down list
@@ -517,10 +537,11 @@ export default function NegativesClientWorkspace({
               </span>
               <select
                 value={finalScope}
+                disabled={isLoadingCampaigns}
                 onChange={(e) =>
                   handleScopeChange(item.id, e.target.value as any)
                 }
-                className="text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-600 font-semibold focus:outline-none w-full"
+                className="text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-600 font-semibold focus:outline-none w-full disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
               >
                 <option value="global">Global (Account-wide)</option>
                 {(item.campaignId !== "ALL" ||
@@ -535,24 +556,33 @@ export default function NegativesClientWorkspace({
             </div>
 
             {/* Campaign Selection Sub-dropdown if "campaign" scope is selected */}
-            {finalScope === "campaign" && campaignList.length > 0 && (
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  Select Target Campaign
-                </span>
-                <select
-                  value={targetCampaignId}
-                  onChange={(e) =>
-                    handleCustomCampaignChange(item.id, e.target.value)
-                  }
-                  className="text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-600 font-semibold focus:outline-none w-full"
-                >
-                  {campaignList.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+            {!isLoadingCampaigns &&
+              finalScope === "campaign" &&
+              campaignList.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">
+                    Select Target Campaign
+                  </span>
+                  <select
+                    value={targetCampaignId}
+                    onChange={(e) =>
+                      handleCustomCampaignChange(item.id, e.target.value)
+                    }
+                    className="text-xs bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-600 font-semibold focus:outline-none w-full"
+                  >
+                    {campaignList.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+            {isLoadingCampaigns && (
+              <div className="text-[10px] text-slate-500 font-semibold flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded px-2 py-1">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                Loading campaign scopes...
               </div>
             )}
 
@@ -890,8 +920,8 @@ export default function NegativesClientWorkspace({
                           <div className="flex items-center gap-3 border-b border-slate-100 pb-2">
                             <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
                               {campaignName === "All Campaigns"
-                                ? "🌍 Global / Account-Wide Exclusions"
-                                : `📋 Campaign: ${campaignName}`}
+                                ? "Global / Account-Wide Exclusions"
+                                : `Campaign: ${campaignName}`}
                             </h3>
                             <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
                               {items.length} suggestions
