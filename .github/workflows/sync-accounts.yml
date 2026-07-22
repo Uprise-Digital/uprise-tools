@@ -1,0 +1,20 @@
+name: Nightly Accounts Auto-Discovery Sync
+
+on:
+  # Runs once daily at midnight UTC (10 AM AEST / 11 AM AEDT Melbourne time)
+  schedule:
+    - cron: '0 0 * * *'
+
+  # Allows manual workflow execution from the GitHub Actions dashboard
+  workflow_dispatch:
+
+jobs:
+  sync-accounts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Auto-Discovery API Route
+        run: |
+          curl -f -s -S -X POST "${{ secrets.PRODUCTION_APP_URL }}/api/cron/sync-accounts" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json"
