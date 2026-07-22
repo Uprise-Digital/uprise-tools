@@ -14,6 +14,7 @@ import {
   DollarSign,
   Download,
   Eye,
+  FileText,
   Info,
   LineChart,
   Loader2,
@@ -45,6 +46,7 @@ import {
 } from "@/actions/agency.actions";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { saveAccountTriageSettingsAction } from "@/actions/triage-settings.actions";
+import { saveAccountPersonaAction } from "@/actions/negative-keywords.actions";
 import { AiInsights } from "@/components/ai-insights";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,6 +81,7 @@ interface ClientDashboardProps {
     googleStatus: string;
     syncStatus: string | null;
     syncError: string | null;
+    targetNotes: string | null;
   };
   orgDefaults: {
     criticalSpendThreshold: number;
@@ -135,6 +138,20 @@ export default function ClientDashboard({
   // Configuration Sheet State
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Extract clean text notes from targetNotes
+  const getInitialNotesText = () => {
+    if (!account.targetNotes) return "";
+    try {
+      const parsed = JSON.parse(account.targetNotes);
+      if (parsed && typeof parsed === "object") {
+        return parsed.notes ?? "";
+      }
+      return account.targetNotes;
+    } catch {
+      return account.targetNotes;
+    }
+  };
+
   const [formState, setFormState] = useState({
     criticalSpendThreshold:
       initialSettings?.criticalSpendThreshold?.toString() ?? "",
@@ -149,6 +166,7 @@ export default function ClientDashboard({
     anomalyConversionsChangeThreshold:
       initialSettings?.anomalyConversionsChangeThreshold?.toString() ?? "",
     includeInBriefing: account.includeInBriefing,
+    targetNotes: getInitialNotesText(),
   });
 
   const [campaignSearch, setCampaignSearch] = useState("");
@@ -353,54 +371,81 @@ export default function ClientDashboard({
       anomalySpendChangeThreshold: "",
       anomalyConversionsChangeThreshold: "",
       includeInBriefing: true,
+      targetNotes: "",
     });
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    const toastId = toast.loading("Saving client threshold overrides...");
+    const toastId = toast.loading(
+      "Saving client threshold overrides and notes...",
+    );
 
     try {
-      const res = await saveAccountTriageSettingsAction(account.id, {
-        id: initialSettings?.id ?? null,
-        criticalSpendThreshold:
-          formState.criticalSpendThreshold === ""
-            ? null
-            : parseFloat(formState.criticalSpendThreshold),
-        criticalConversionsThreshold:
-          formState.criticalConversionsThreshold === ""
-            ? null
-            : parseInt(formState.criticalConversionsThreshold, 10),
-        ctrHighThreshold:
-          formState.ctrHighThreshold === ""
-            ? null
-            : parseFloat(formState.ctrHighThreshold),
-        ctrHighSpendThreshold:
-          formState.ctrHighSpendThreshold === ""
-            ? null
-            : parseFloat(formState.ctrHighSpendThreshold),
-        cpcHighThreshold:
-          formState.cpcHighThreshold === ""
-            ? null
-            : parseFloat(formState.cpcHighThreshold),
-        anomalySpendChangeThreshold:
-          formState.anomalySpendChangeThreshold === ""
-            ? null
-            : parseFloat(formState.anomalySpendChangeThreshold),
-        anomalyConversionsChangeThreshold:
-          formState.anomalyConversionsChangeThreshold === ""
-            ? null
-            : parseFloat(formState.anomalyConversionsChangeThreshold),
-        includeInBriefing: formState.includeInBriefing,
-      });
+      let finalNotes = formState.targetNotes;
+      if (account.targetNotes) {
+        try {
+          const parsed = JSON.parse(account.targetNotes);
+          if (parsed && typeof parsed === "object") {
+            parsed.notes = formState.targetNotes;
+            finalNotes = JSON.stringify(parsed);
+          }
+        } catch {
+          finalNotes = JSON.stringify({ notes: formState.targetNotes });
+        }
+      } else {
+        finalNotes = JSON.stringify({ notes: formState.targetNotes });
+      }
 
-      if (res.success) {
-        toast.success("Client overrides saved successfully!", { id: toastId });
+      const [resTriage, resNotes] = await Promise.all([
+        saveAccountTriageSettingsAction(account.id, {
+          id: initialSettings?.id ?? null,
+          criticalSpendThreshold:
+            formState.criticalSpendThreshold === ""
+              ? null
+              : parseFloat(formState.criticalSpendThreshold),
+          criticalConversionsThreshold:
+            formState.criticalConversionsThreshold === ""
+              ? null
+              : parseInt(formState.criticalConversionsThreshold, 10),
+          ctrHighThreshold:
+            formState.ctrHighThreshold === ""
+              ? null
+              : parseFloat(formState.ctrHighThreshold),
+          ctrHighSpendThreshold:
+            formState.ctrHighSpendThreshold === ""
+              ? null
+              : parseFloat(formState.ctrHighSpendThreshold),
+          cpcHighThreshold:
+            formState.cpcHighThreshold === ""
+              ? null
+              : parseFloat(formState.cpcHighThreshold),
+          anomalySpendChangeThreshold:
+            formState.anomalySpendChangeThreshold === ""
+              ? null
+              : parseFloat(formState.anomalySpendChangeThreshold),
+          anomalyConversionsChangeThreshold:
+            formState.anomalyConversionsChangeThreshold === ""
+              ? null
+              : parseFloat(formState.anomalyConversionsChangeThreshold),
+          includeInBriefing: formState.includeInBriefing,
+        }),
+        saveAccountPersonaAction(account.id, finalNotes),
+      ]);
+
+      if (resTriage.success && resNotes.success) {
+        toast.success("Client overrides and notes saved successfully!", {
+          id: toastId,
+        });
         setIsConfigOpen(false);
         router.refresh();
       } else {
-        throw new Error(res.error || "Failed to save overrides");
+        const errorMsg =
+          resTriage.error ||
+          resNotes.error ||
+          "Failed to save overrides or notes";
+        throw new Error(errorMsg);
       }
     } catch (error) {
       const errMsg =
@@ -769,6 +814,36 @@ export default function ClientDashboard({
                             this percent (e.g. -25.0).
                           </p>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* CLIENT NOTES / TARGETING PERSONA */}
+                    <div className="space-y-4 pt-2">
+                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                        <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                        Targeting Notes / Buyer Persona
+                      </h3>
+                      <div className="space-y-1.5">
+                        <Label
+                          htmlFor="accountNotes"
+                          className="text-xs font-semibold text-slate-700"
+                        >
+                          Client Account Notes
+                        </Label>
+                        <textarea
+                          id="accountNotes"
+                          placeholder="Enter details about target buyer persona, service boundaries, or specific account instructions..."
+                          value={formState.targetNotes}
+                          onChange={(e) =>
+                            handleInputChange("targetNotes", e.target.value)
+                          }
+                          className="flex min-h-[100px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600/20 focus-visible:border-indigo-600 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                        <p className="text-[10px] text-slate-400">
+                          These notes are used by the AI agent to verify query
+                          intent alignment and avoid improper negative
+                          suggestions.
+                        </p>
                       </div>
                     </div>
 

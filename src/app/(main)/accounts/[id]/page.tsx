@@ -51,6 +51,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
     googleStatus: account.googleStatus,
     syncStatus: account.syncStatus,
     syncError: account.syncError,
+    targetNotes: account.targetNotes,
   };
 
   return (
