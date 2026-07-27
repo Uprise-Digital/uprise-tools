@@ -19,7 +19,7 @@ To let us create, monitor, and optimize your Google Ads campaigns, please follow
 
 <GoogleAdsIdForm />
 
-![Google Ads Customer ID Location](/images/docs/google-ads/media__1783932034420.png)
+![Google Ads Customer ID Location](/images/docs/google-ads/google-ads-customer-id.png)
 
 <div class="my-6 p-5 bg-indigo-50/80 border border-indigo-100 rounded-2xl flex items-start gap-4">
   <div class="flex-shrink-0 text-indigo-600 mt-0.5 animate-pulse">
@@ -41,17 +41,18 @@ Before you can accept our connection request, Google Ads security policies requi
 
 1. Go to your Google Ads Dashboard again.
 2. In the left-side navigation menu, click on **Admin** (gear icon) and select **Access and security**.
+
+![Google Ads Access and Security navigation](/images/docs/google-ads/google-ads-access-security.png)
+
 3. Click on the **Security** tab from the top navigation bar.
 4. Scroll down to the **Allowed Domains** section, then click on the drop-down arrow to expand it.
 
-![Google Ads Security Allowed Domains settings](/images/docs/google-ads/media__1783934356839.png)
+![Google Ads Security Allowed Domains settings](/images/docs/google-ads/google-ads-allowed-domains.png)
 
 5. Click **Add Domain**.
 6. In the blank field (where it displays `example.com`), type:
    **`uprisedigital.com.au`**
 7. Click **Save** to apply the security update.
-
-![Add uprisedigital.com.au to Allowed Domains list](/images/docs/google-ads/media__1783935684866.png)
 
 <div class="my-6 p-5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-4">
   <div class="flex-shrink-0 text-amber-600 mt-0.5">
@@ -75,3 +76,5 @@ Once you have Whitelisted our domain, approve our pending connection link to com
 2. Look for the pending connection request from **Uprise Digital (Manager ID: 874-625-2766)**.
 3. Click **Accept**, then click **Grant Access**.
 4. *Note: Google Ads might prompt you to verify the account for security purposes. Please complete the prompt and click **Grant Access** again to finalize connection.*
+
+![Accept Uprise Digital Manager connection request](/images/docs/google-ads/google-ads-accept-request.png)
