@@ -597,6 +597,7 @@ export async function sendOnboardingEmailAction(
     const emailResult = await resend.emails.send({
       from: "Uprise Digital <reports@uprisedigital.com.au>",
       to: [record.contactEmail],
+      replyTo: settings?.welcomeEmailReplyTo || undefined,
       subject,
       text,
       html,

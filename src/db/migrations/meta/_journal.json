@@ -64,6 +64,13 @@
       "when": 1784527371911,
       "tag": "0008_cold_reaper",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785122456238,
+      "tag": "0009_bitter_scourge",
+      "breakpoints": true
     }
   ]
 }

@@ -113,6 +113,7 @@ export async function getOnboardingSettingsAction() {
         notionError: record.notionError || "",
         welcomeEmailSubject: record.welcomeEmailSubject || "",
         welcomeEmailTemplate: record.welcomeEmailTemplate || "",
+        welcomeEmailReplyTo: record.welcomeEmailReplyTo || "",
         workflowConfig: record.workflowConfig || defaultWorkflow,
       },
     };
@@ -159,6 +160,7 @@ export async function saveOnboardingSettingsAction(data: {
   notionTemplatePageId?: string;
   welcomeEmailSubject: string;
   welcomeEmailTemplate: string;
+  welcomeEmailReplyTo?: string;
   workflowConfig?: any;
 }) {
   try {
@@ -266,6 +268,7 @@ export async function saveOnboardingSettingsAction(data: {
           notionError,
           welcomeEmailSubject: data.welcomeEmailSubject || null,
           welcomeEmailTemplate: data.welcomeEmailTemplate || null,
+          welcomeEmailReplyTo: data.welcomeEmailReplyTo || null,
           workflowConfig: data.workflowConfig || null,
           updatedAt: new Date(),
         })
@@ -286,6 +289,7 @@ export async function saveOnboardingSettingsAction(data: {
         notionError,
         welcomeEmailSubject: data.welcomeEmailSubject || null,
         welcomeEmailTemplate: data.welcomeEmailTemplate || null,
+        welcomeEmailReplyTo: data.welcomeEmailReplyTo || null,
         workflowConfig: data.workflowConfig || defaultWorkflow,
       });
     }

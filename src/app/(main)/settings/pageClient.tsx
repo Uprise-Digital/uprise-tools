@@ -108,6 +108,7 @@ interface SettingsClientProps {
     notionError: string;
     welcomeEmailSubject: string;
     welcomeEmailTemplate: string;
+    welcomeEmailReplyTo: string;
     workflowConfig: any;
   } | null;
   initialAiUsageStats: any;

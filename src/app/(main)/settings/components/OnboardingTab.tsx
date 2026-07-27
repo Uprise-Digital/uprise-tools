@@ -61,6 +61,7 @@ interface OnboardingTabProps {
     notionError: string;
     welcomeEmailSubject: string;
     welcomeEmailTemplate: string;
+    welcomeEmailReplyTo: string;
     workflowConfig: any;
   } | null;
   orgName: string;
@@ -440,6 +441,9 @@ Founder | ${orgName}`;
   );
   const [welcomeEmailTemplate, setWelcomeEmailTemplate] = useState(
     onboardingSettings?.welcomeEmailTemplate || defaultBody,
+  );
+  const [welcomeEmailReplyTo, setWelcomeEmailReplyTo] = useState(
+    onboardingSettings?.welcomeEmailReplyTo || "",
   );
 
   const [isOnboardingSaving, setIsOnboardingSaving] = useState(false);
@@ -844,6 +848,7 @@ Founder | ${orgName}`;
         notionApiKey,
         welcomeEmailSubject,
         welcomeEmailTemplate,
+        welcomeEmailReplyTo,
         workflowConfig: {
           nodes: cleanedNodes,
           edges: cleanedEdges,
@@ -1724,6 +1729,25 @@ Founder | ${orgName}`;
                     className="text-xs bg-white"
                     placeholder="Welcome to our agency - Let's get started!"
                   />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="email-reply-to"
+                    className="text-xs font-bold text-slate-700"
+                  >
+                    Reply-To Email Address
+                  </Label>
+                  <Input
+                    id="email-reply-to"
+                    value={welcomeEmailReplyTo}
+                    onChange={(e) => setWelcomeEmailReplyTo(e.target.value)}
+                    className="text-xs bg-white"
+                    placeholder="e.g. hello@youragency.com"
+                  />
+                  <p className="text-[10px] text-slate-400 font-medium leading-none">
+                    If left blank, replies will go to the default sender address.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">
