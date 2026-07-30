@@ -12,6 +12,7 @@ import {
   backgroundTasks,
   member,
 } from "@/db/schema";
+import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 import { auth } from "@/lib/auth";
 import {
@@ -238,7 +239,7 @@ export async function getOrGenerateAgencyAiInsightsAction(
     try {
       response = await generateContentTracked(
         {
-          model: "gemini-3.5-flash",
+          model: GEMINI_MODEL_LOW,
           contents: prompt,
           config: { responseMimeType: "application/json" },
         },

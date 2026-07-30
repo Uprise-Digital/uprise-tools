@@ -1,3 +1,4 @@
+import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 
 interface SearchTermInput {
@@ -300,7 +301,7 @@ export async function generateNegativeKeywordSuggestions({
 
     const result = await generateContentTracked(
       {
-        model: "gemini-3.5-flash",
+        model: GEMINI_MODEL_LOW,
         contents: prompt,
         config: {
           responseMimeType: "application/json",

@@ -1,3 +1,4 @@
+import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 
 /**
@@ -31,7 +32,7 @@ export async function generateReportInsights(data: any) {
   try {
     const result = await generateContentTracked(
       {
-        model: "gemini-2.5-flash",
+        model: GEMINI_MODEL_LOW,
         contents: prompt,
         config: { responseMimeType: "application/json" },
       },
@@ -82,7 +83,7 @@ export async function generateEmailBody(data: any) {
   try {
     const result = await generateContentTracked(
       {
-        model: "gemini-2.5-flash",
+        model: GEMINI_MODEL_LOW,
         contents: prompt,
         config: { responseMimeType: "application/json" },
       },
@@ -237,7 +238,7 @@ export async function generateMorningBriefingText(data: {
   try {
     const result = await generateContentTracked(
       {
-        model: "gemini-2.5-flash",
+        model: GEMINI_MODEL_LOW,
         contents: prompt,
         config: { responseMimeType: "application/json" },
       },

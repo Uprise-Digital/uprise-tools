@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import TurndownService from "turndown";
 import { db } from "@/db";
 import { adAccounts, threatMatrixAudits } from "@/db/schema";
+import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 import {
   fetchTopClientLandingPage,
@@ -450,7 +451,7 @@ export async function generateThreatMatrixAction(
 
     const result = await generateContentTracked(
       {
-        model: "gemini-1.5-flash", // Corrected model version
+        model: GEMINI_MODEL_LOW,
         contents: prompt,
         config: { responseMimeType: "application/json" },
       },

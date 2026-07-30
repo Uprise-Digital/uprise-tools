@@ -6,6 +6,7 @@ import { getBriefingSettingsAction } from "@/actions/briefing-settings.actions";
 import { db } from "@/db";
 import { withBypassTenantDb } from "@/db/db-helper";
 import { pipelineRevivalPlans, salesReminderSettings, user } from "@/db/schema";
+import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 import { logEmail } from "@/lib/audit";
 import { auth } from "@/lib/auth";
@@ -344,7 +345,7 @@ export async function generateRevivalPlanAction(
 
     const result = await generateContentTracked(
       {
-        model: "gemini-flash-latest",
+        model: GEMINI_MODEL_LOW,
         contents: prompt,
         config: { responseMimeType: "application/json" },
       },
@@ -474,7 +475,7 @@ export async function generateTranscriptSummaryAction(transcript: string) {
 
     const result = await generateContentTracked(
       {
-        model: "gemini-flash-latest",
+        model: GEMINI_MODEL_LOW,
         contents: prompt,
       },
       {

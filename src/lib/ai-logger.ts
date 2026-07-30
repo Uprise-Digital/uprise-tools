@@ -13,6 +13,8 @@ import {
 import { auth } from "@/lib/auth";
 import { getMelbourneTodayStr } from "@/lib/date-utils";
 
+import { GEMINI_MODEL_HIGH, GEMINI_MODEL_LOW } from "@/lib/ai-config";
+
 // Shared GoogleGenAI instance using the env key
 export const googleAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -21,6 +23,8 @@ export const DEFAULT_PRICING: Record<
   string,
   { inputCostPerMillion: number; outputCostPerMillion: number }
 > = {
+  [GEMINI_MODEL_LOW]: { inputCostPerMillion: 1.5, outputCostPerMillion: 9.0 },
+  [GEMINI_MODEL_HIGH]: { inputCostPerMillion: 1.5, outputCostPerMillion: 9.0 },
   "gemini-3.5-flash": { inputCostPerMillion: 1.5, outputCostPerMillion: 9.0 },
   "gemini-3.5-live-translate-preview": {
     inputCostPerMillion: 3.5,

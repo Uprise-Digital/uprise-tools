@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { db } from "@/db";
 import { aiInsightsCache } from "@/db/schema";
+import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 
 export async function getOrGenerateAiInsightsAction(
@@ -158,7 +159,7 @@ export async function getOrGenerateAiInsightsAction(
   try {
     const result = await generateContentTracked(
       {
-        model: "gemini-3.5-flash",
+        model: GEMINI_MODEL_LOW,
         contents: prompt,
         config: { responseMimeType: "application/json" },
       },
@@ -252,7 +253,7 @@ export async function generateAgencyAiInsightsAction(portfolioData: any) {
   try {
     const result = await generateContentTracked(
       {
-        model: "gemini-3.5-flash",
+        model: GEMINI_MODEL_LOW,
         contents: prompt,
         config: { responseMimeType: "application/json" },
       },

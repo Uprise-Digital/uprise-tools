@@ -10,6 +10,7 @@ import {
   campaignLandingPages,
   landingPageAudits,
 } from "@/db/schema";
+import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 import { auth } from "@/lib/auth";
 import { fetchCampaignLandingPages } from "@/lib/google-ads";
@@ -776,7 +777,7 @@ export async function runLandingPageAuditInternal(
 
   const result = await generateContentTracked(
     {
-      model: "gemini-3.5-flash",
+      model: GEMINI_MODEL_LOW,
       contents,
       config: { responseMimeType: "application/json" },
     },
