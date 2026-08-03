@@ -313,6 +313,154 @@ function CustomNotionNode({ id, data }: any) {
   );
 }
 
+function CustomMondayNode({ id, data }: any) {
+  const { deleteElements, getEdges } = useReactFlow();
+  const edges = getEdges();
+  const activeChain = getActiveWorkflowChain(edges);
+  const isActive = activeChain.includes(id);
+
+  return (
+    <div
+      className={cn(
+        "relative bg-white border rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 group cursor-pointer",
+        isActive
+          ? "border-l-rose-500 border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+          : "border-l-slate-400 border-slate-200 opacity-60 grayscale",
+      )}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        className={cn(
+          "w-2.5 h-2.5 border-2 border-white rounded-full !left-[-5px]",
+          isActive ? "bg-emerald-500" : "bg-slate-300",
+        )}
+      />
+      <div className="w-10 h-10 shrink-0 bg-rose-50 rounded-lg flex items-center justify-center border border-rose-100">
+        <img
+          src="/images/logos/monday.svg"
+          alt="Monday.com"
+          className="w-5.5 h-5.5 select-none"
+        />
+      </div>
+      <div className="text-left flex-1 min-w-0">
+        <p className="text-[9px] font-extrabold text-rose-600 uppercase tracking-wider">
+          Monday.com
+        </p>
+        <p className="text-[11px] font-bold text-slate-800 leading-tight truncate">
+          {data.label || "Monday.com Automation"}
+        </p>
+        <div className="text-[8px] text-slate-500 font-medium mt-1 leading-relaxed border-t pt-1 border-slate-100 space-y-0.5">
+          <div>
+            Mode:{" "}
+            <span className="font-bold text-slate-700 capitalize">
+              {data.mode?.replace(/-/g, " ") || "create item"}
+            </span>
+          </div>
+          {data.boardId && (
+            <div className="truncate">
+              Board:{" "}
+              <span className="font-mono text-slate-600">{data.boardId}</span>
+            </div>
+          )}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          deleteElements({ nodes: [{ id }] });
+        }}
+        className="nodrag absolute -top-2 -right-2 w-5.5 h-5.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold transition-transform transform hover:scale-110"
+      >
+        ✕
+      </button>
+      <Handle
+        type="source"
+        position={Position.Right}
+        className={cn(
+          "w-2.5 h-2.5 border-2 border-white rounded-full !right-[-5px]",
+          isActive ? "bg-emerald-500" : "bg-slate-300",
+        )}
+      />
+    </div>
+  );
+}
+
+function CustomGhlNode({ id, data }: any) {
+  const { deleteElements, getEdges } = useReactFlow();
+  const edges = getEdges();
+  const activeChain = getActiveWorkflowChain(edges);
+  const isActive = activeChain.includes(id);
+
+  return (
+    <div
+      className={cn(
+        "relative bg-white border rounded-xl shadow-sm p-3.5 min-w-[210px] flex items-center gap-3 font-sans transition-all hover:shadow-md border-l-4 group cursor-pointer",
+        isActive
+          ? "border-l-amber-500 border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+          : "border-l-slate-400 border-slate-200 opacity-60 grayscale",
+      )}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        className={cn(
+          "w-2.5 h-2.5 border-2 border-white rounded-full !left-[-5px]",
+          isActive ? "bg-emerald-500" : "bg-slate-300",
+        )}
+      />
+      <div className="w-10 h-10 shrink-0 bg-amber-50 rounded-lg flex items-center justify-center border border-amber-100">
+        <img
+          src="/images/logos/ghl.svg"
+          alt="GoHighLevel"
+          className="w-5.5 h-5.5 select-none"
+        />
+      </div>
+      <div className="text-left flex-1 min-w-0">
+        <p className="text-[9px] font-extrabold text-amber-600 uppercase tracking-wider">
+          GoHighLevel CRM
+        </p>
+        <p className="text-[11px] font-bold text-slate-800 leading-tight truncate">
+          {data.label || "GHL CRM Automation"}
+        </p>
+        <div className="text-[8px] text-slate-500 font-medium mt-1 leading-relaxed border-t pt-1 border-slate-100 space-y-0.5">
+          <div>
+            Mode:{" "}
+            <span className="font-bold text-slate-700 capitalize">
+              {data.mode?.replace(/-/g, " ") || "update stage"}
+            </span>
+          </div>
+          {data.stageId && (
+            <div className="truncate">
+              Stage:{" "}
+              <span className="font-mono text-slate-600">{data.stageId}</span>
+            </div>
+          )}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          deleteElements({ nodes: [{ id }] });
+        }}
+        className="nodrag absolute -top-2 -right-2 w-5.5 h-5.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md border border-white cursor-pointer z-50 text-[10px] font-bold transition-transform transform hover:scale-110"
+      >
+        ✕
+      </button>
+      <Handle
+        type="source"
+        position={Position.Right}
+        className={cn(
+          "w-2.5 h-2.5 border-2 border-white rounded-full !right-[-5px]",
+          isActive ? "bg-emerald-500" : "bg-slate-300",
+        )}
+      />
+    </div>
+  );
+}
+
 function CustomEmailNode({ id, data }: any) {
   const { deleteElements, getEdges } = useReactFlow();
   const edges = getEdges();
@@ -376,6 +524,8 @@ const nodeTypes = {
   customTrigger: CustomTriggerNode,
   customDrive: CustomDriveNode,
   customNotion: CustomNotionNode,
+  customMonday: CustomMondayNode,
+  customGhl: CustomGhlNode,
   customEmail: CustomEmailNode,
 };
 
@@ -410,6 +560,28 @@ function OnboardingTabContent({
   const [notionError, setNotionError] = useState(
     onboardingSettings?.notionError ?? "",
   );
+
+  const [mondayEnabled, setMondayEnabled] = useState(
+    (onboardingSettings as any)?.workflowConfig?.integrations?.mondayEnabled ?? false,
+  );
+  const [mondayApiKey, setMondayApiKey] = useState(
+    (onboardingSettings as any)?.workflowConfig?.integrations?.mondayApiKey ?? "",
+  );
+  const [mondayBoardId, setMondayBoardId] = useState(
+    (onboardingSettings as any)?.workflowConfig?.integrations?.mondayBoardId ?? "",
+  );
+  const [showMondayKey, setShowMondayKey] = useState(false);
+
+  const [ghlEnabled, setGhlEnabled] = useState(
+    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlEnabled ?? false,
+  );
+  const [ghlApiKey, setGhlApiKey] = useState(
+    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlApiKey ?? "",
+  );
+  const [ghlLocationId, setGhlLocationId] = useState(
+    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlLocationId ?? "",
+  );
+  const [showGhlKey, setShowGhlKey] = useState(false);
 
   const defaultSubject = `Welcome to ${orgName} - Let's get started!`;
   const defaultBody = `Hi {{primary_contact_name}},
@@ -509,6 +681,31 @@ Founder | ${orgName}`;
               n.data?.pageNamePattern ||
               "Uprise Digital x {{client_name}} - Client Dashboard",
             pageIcon: n.data?.pageIcon || "🚀",
+            ...n.data,
+          };
+        } else if (n.id === "monday") {
+          type = "customMonday";
+          n.data = {
+            label: "Monday.com Automation",
+            mode: n.data?.mode || "create-item",
+            boardId: n.data?.boardId || mondayBoardId || "",
+            itemNamePattern:
+              n.data?.itemNamePattern || "Client Onboarding - {{client_name}}",
+            groupId: n.data?.groupId || "",
+            defaultStatus: n.data?.defaultStatus || "Working on it",
+            ...n.data,
+          };
+        } else if (n.id === "ghl") {
+          type = "customGhl";
+          n.data = {
+            label: "GHL CRM Automation",
+            mode: n.data?.mode || "update-opportunity-stage",
+            pipelineId: n.data?.pipelineId || "",
+            stageId: n.data?.stageId || "",
+            tagNaming: n.data?.tagNaming || "onboarded-client",
+            noteTemplate:
+              n.data?.noteTemplate ||
+              "Client {{client_name}} onboarded via Uprise Tools.",
             ...n.data,
           };
         } else if (type === "output" || n.id === "email") type = "customEmail";
@@ -649,7 +846,9 @@ Founder | ${orgName}`;
     );
   };
 
-  const handleAddNode = (nodeType: "google-drive" | "notion" | "email") => {
+  const handleAddNode = (
+    nodeType: "google-drive" | "notion" | "monday" | "ghl" | "email",
+  ) => {
     const exists = nodes.some((n) => n.id === nodeType);
     if (exists) {
       toast.warning(`${nodeType} node already exists on canvas.`);
@@ -689,10 +888,34 @@ Founder | ${orgName}`;
         pageNamePattern: "Uprise Digital x {{client_name}} - Client Dashboard",
         pageIcon: "🚀",
       };
+    } else if (nodeType === "monday") {
+      type = "customMonday";
+      label = "Monday.com Automation";
+      x = 860;
+      data = {
+        label,
+        mode: "create-item",
+        boardId: mondayBoardId || "",
+        itemNamePattern: "Client Onboarding - {{client_name}}",
+        groupId: "",
+        defaultStatus: "Working on it",
+      };
+    } else if (nodeType === "ghl") {
+      type = "customGhl";
+      label = "GHL CRM Automation";
+      x = 1140;
+      data = {
+        label,
+        mode: "update-opportunity-stage",
+        pipelineId: "",
+        stageId: "",
+        tagNaming: "onboarded-client",
+        noteTemplate: "Client {{client_name}} onboarded via Uprise Tools.",
+      };
     } else if (nodeType === "email") {
       type = "customEmail";
       label = "Send Welcome Email";
-      x = 860;
+      x = 1420;
     }
 
     const newNode = {
@@ -832,6 +1055,14 @@ Founder | ${orgName}`;
           templatePageId: node.data?.templatePageId || "",
           pageNamePattern: node.data?.pageNamePattern || "",
           pageIcon: node.data?.pageIcon || "",
+          boardId: node.data?.boardId || "",
+          itemNamePattern: node.data?.itemNamePattern || "",
+          groupId: node.data?.groupId || "",
+          defaultStatus: node.data?.defaultStatus || "",
+          pipelineId: node.data?.pipelineId || "",
+          stageId: node.data?.stageId || "",
+          tagNaming: node.data?.tagNaming || "",
+          noteTemplate: node.data?.noteTemplate || "",
         },
       }));
 
@@ -852,6 +1083,14 @@ Founder | ${orgName}`;
         workflowConfig: {
           nodes: cleanedNodes,
           edges: cleanedEdges,
+          integrations: {
+            mondayEnabled,
+            mondayApiKey,
+            mondayBoardId,
+            ghlEnabled,
+            ghlApiKey,
+            ghlLocationId,
+          },
         },
       });
 
@@ -969,6 +1208,32 @@ Founder | ${orgName}`;
                       className="w-4 h-4"
                     />
                     Notion Dashboard
+                  </Button>
+                  <Button
+                    onClick={() => handleAddNode("monday")}
+                    disabled={nodes.some((n) => n.id === "monday")}
+                    variant="outline"
+                    className="w-full text-left justify-start font-bold text-xs h-9 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer flex gap-2"
+                  >
+                    <img
+                      src="/images/logos/monday.svg"
+                      alt=""
+                      className="w-4 h-4"
+                    />
+                    Monday.com
+                  </Button>
+                  <Button
+                    onClick={() => handleAddNode("ghl")}
+                    disabled={nodes.some((n) => n.id === "ghl")}
+                    variant="outline"
+                    className="w-full text-left justify-start font-bold text-xs h-9 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer flex gap-2"
+                  >
+                    <img
+                      src="/images/logos/ghl.svg"
+                      alt=""
+                      className="w-4 h-4"
+                    />
+                    GoHighLevel CRM
                   </Button>
                   <div className="h-px bg-slate-100 my-1 w-full" />
                   <Button
@@ -1497,6 +1762,258 @@ Founder | ${orgName}`;
                 })()}
               </div>
             )}
+
+            {/* DOCKED SIDEBAR FOR MONDAY NODE */}
+            {selectedNodeId === "monday" && (
+              <div className="w-80 border-l border-slate-200 p-5 overflow-y-auto bg-white flex flex-col h-[450px] shrink-0 font-sans text-xs">
+                <div className="flex items-center justify-between pb-3 border-b mb-4">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <img src="/images/logos/monday.svg" alt="" className="w-4 h-4" />
+                    Monday Node Settings
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedNodeId(null)}
+                    className="h-6 w-6 p-0 text-slate-400 hover:text-slate-650 rounded-full"
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                {(() => {
+                  const mondayNode = nodes.find((n) => n.id === "monday");
+                  if (!mondayNode) {
+                    return (
+                      <p className="text-slate-400 text-center py-6">
+                        Node not found.
+                      </p>
+                    );
+                  }
+                  const mondayData = (mondayNode.data || {}) as any;
+
+                  const mode = mondayData.mode || "create-item";
+                  const boardId = mondayData.boardId || "";
+                  const itemNamePattern =
+                    mondayData.itemNamePattern ||
+                    "Client Onboarding - {{client_name}}";
+                  const groupId = mondayData.groupId || "";
+                  const defaultStatus = mondayData.defaultStatus || "Working on it";
+
+                  return (
+                    <div className="space-y-4 flex-1">
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Automation Mode
+                        </Label>
+                        <select
+                          value={mode}
+                          onChange={(e) =>
+                            updateNodeData("monday", "mode", e.target.value)
+                          }
+                          className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
+                        >
+                          <option value="create-item">Create Board Item</option>
+                          <option value="create-subitem">Create Sub-item</option>
+                          <option value="duplicate-board">
+                            Duplicate Board Template
+                          </option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Board ID (Destination)
+                        </Label>
+                        <Input
+                          value={boardId}
+                          onChange={(e) =>
+                            updateNodeData("monday", "boardId", e.target.value)
+                          }
+                          placeholder="e.g. 1234567890"
+                          className="text-xs bg-white font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Item Naming Pattern
+                        </Label>
+                        <Input
+                          value={itemNamePattern}
+                          onChange={(e) =>
+                            updateNodeData(
+                              "monday",
+                              "itemNamePattern",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="e.g. Onboarding - {{client_name}}"
+                          className="text-xs bg-white"
+                        />
+                        <p className="text-[9px] text-slate-400">
+                          Supports: <code>{"{{client_name}}"}</code>
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Group / Section ID (Optional)
+                        </Label>
+                        <Input
+                          value={groupId}
+                          onChange={(e) =>
+                            updateNodeData("monday", "groupId", e.target.value)
+                          }
+                          placeholder="e.g. topics"
+                          className="text-xs bg-white font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Default Status Label
+                        </Label>
+                        <Input
+                          value={defaultStatus}
+                          onChange={(e) =>
+                            updateNodeData(
+                              "monday",
+                              "defaultStatus",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="e.g. Working on it"
+                          className="text-xs bg-white"
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* DOCKED SIDEBAR FOR GHL NODE */}
+            {selectedNodeId === "ghl" && (
+              <div className="w-80 border-l border-slate-200 p-5 overflow-y-auto bg-white flex flex-col h-[450px] shrink-0 font-sans text-xs">
+                <div className="flex items-center justify-between pb-3 border-b mb-4">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <img src="/images/logos/ghl.svg" alt="" className="w-4 h-4" />
+                    GoHighLevel Node Settings
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedNodeId(null)}
+                    className="h-6 w-6 p-0 text-slate-400 hover:text-slate-650 rounded-full"
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                {(() => {
+                  const ghlNode = nodes.find((n) => n.id === "ghl");
+                  if (!ghlNode) {
+                    return (
+                      <p className="text-slate-400 text-center py-6">
+                        Node not found.
+                      </p>
+                    );
+                  }
+                  const ghlData = (ghlNode.data || {}) as any;
+
+                  const mode = ghlData.mode || "update-opportunity-stage";
+                  const pipelineId = ghlData.pipelineId || "";
+                  const stageId = ghlData.stageId || "";
+                  const tagNaming = ghlData.tagNaming || "onboarded-client";
+                  const noteTemplate =
+                    ghlData.noteTemplate ||
+                    "Client {{client_name}} onboarded via Uprise Tools.";
+
+                  return (
+                    <div className="space-y-4 flex-1">
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Automation Mode
+                        </Label>
+                        <select
+                          value={mode}
+                          onChange={(e) =>
+                            updateNodeData("ghl", "mode", e.target.value)
+                          }
+                          className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
+                        >
+                          <option value="update-opportunity-stage">
+                            Update Opportunity Stage
+                          </option>
+                          <option value="create-contact-note">
+                            Create Contact Note
+                          </option>
+                          <option value="add-tag">Add Contact Tag</option>
+                          <option value="create-contact">Create Contact</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Target Pipeline ID
+                        </Label>
+                        <Input
+                          value={pipelineId}
+                          onChange={(e) =>
+                            updateNodeData("ghl", "pipelineId", e.target.value)
+                          }
+                          placeholder="e.g. ghl_pipeline_123"
+                          className="text-xs bg-white font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Target Stage ID
+                        </Label>
+                        <Input
+                          value={stageId}
+                          onChange={(e) =>
+                            updateNodeData("ghl", "stageId", e.target.value)
+                          }
+                          placeholder="e.g. Active Onboarding"
+                          className="text-xs bg-white font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Tag Naming
+                        </Label>
+                        <Input
+                          value={tagNaming}
+                          onChange={(e) =>
+                            updateNodeData("ghl", "tagNaming", e.target.value)
+                          }
+                          placeholder="e.g. onboarded-client"
+                          className="text-xs bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-slate-700 font-bold">
+                          Contact Note Template
+                        </Label>
+                        <textarea
+                          value={noteTemplate}
+                          onChange={(e) =>
+                            updateNodeData("ghl", "noteTemplate", e.target.value)
+                          }
+                          className="w-full min-h-[80px] text-xs font-mono p-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none resize-y"
+                          placeholder="Client {{client_name}} onboarded..."
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1696,6 +2213,194 @@ Founder | ${orgName}`;
                   Your Notion integration secret key. Make sure the parent page
                   is shared with this integration.
                 </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* MONDAY INTEGRATION CARD */}
+        <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50 border-b border-slate-100 p-5 flex flex-row items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-sm font-bold flex flex-wrap items-center gap-2 text-slate-800">
+                <img src="/images/logos/monday.svg" alt="" className="w-4 h-4" />
+                Monday.com Onboarding Integration
+                {mondayEnabled && mondayApiKey ? (
+                  <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                    </span>
+                    Connected & Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-650 border border-slate-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    Unconfigured
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Creates onboarding items, tasks, and project workflows on Monday.com boards.
+              </CardDescription>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={mondayEnabled}
+                onChange={(e) => setMondayEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-650" />
+            </label>
+          </CardHeader>
+          <CardContent
+            className={cn(
+              "p-4 space-y-4 transition-opacity duration-200",
+              !mondayEnabled && "opacity-60",
+            )}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="mondayApiKey"
+                  className="text-xs font-bold text-slate-700"
+                >
+                  Monday API Token
+                </Label>
+                <div className="relative flex items-center">
+                  <Input
+                    id="mondayApiKey"
+                    type={showMondayKey ? "text" : "password"}
+                    value={mondayApiKey}
+                    onChange={(e) => setMondayApiKey(e.target.value)}
+                    disabled={!mondayEnabled}
+                    className="text-xs bg-white font-mono pr-10"
+                    placeholder="eyJhbGciOi..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMondayKey(!showMondayKey)}
+                    disabled={!mondayEnabled}
+                    className="absolute right-3 text-slate-400 hover:text-slate-650 cursor-pointer"
+                  >
+                    {showMondayKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="mondayBoardId"
+                  className="text-xs font-bold text-slate-700"
+                >
+                  Default Board ID
+                </Label>
+                <Input
+                  id="mondayBoardId"
+                  value={mondayBoardId}
+                  onChange={(e) => setMondayBoardId(e.target.value)}
+                  disabled={!mondayEnabled}
+                  className="text-xs bg-white font-mono"
+                  placeholder="e.g. 1234567890"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* GHL INTEGRATION CARD */}
+        <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50 border-b border-slate-100 p-5 flex flex-row items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-sm font-bold flex flex-wrap items-center gap-2 text-slate-800">
+                <img src="/images/logos/ghl.svg" alt="" className="w-4 h-4" />
+                GoHighLevel Onboarding Integration
+                {ghlEnabled && (ghlLocationId || ghlApiKey) ? (
+                  <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                    </span>
+                    Connected & Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-650 border border-slate-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    Unconfigured
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Syncs client onboarding records, updates opportunity pipeline stages, and appends CRM notes in GoHighLevel.
+              </CardDescription>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={ghlEnabled}
+                onChange={(e) => setGhlEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-650" />
+            </label>
+          </CardHeader>
+          <CardContent
+            className={cn(
+              "p-4 space-y-4 transition-opacity duration-200",
+              !ghlEnabled && "opacity-60",
+            )}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="ghlLocationId"
+                  className="text-xs font-bold text-slate-700"
+                >
+                  Location ID
+                </Label>
+                <Input
+                  id="ghlLocationId"
+                  value={ghlLocationId}
+                  onChange={(e) => setGhlLocationId(e.target.value)}
+                  disabled={!ghlEnabled}
+                  className="text-xs bg-white font-mono"
+                  placeholder="e.g. loc_xyz123"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="ghlApiKey"
+                  className="text-xs font-bold text-slate-700"
+                >
+                  API Key / Bearer Token
+                </Label>
+                <div className="relative flex items-center">
+                  <Input
+                    id="ghlApiKey"
+                    type={showGhlKey ? "text" : "password"}
+                    value={ghlApiKey}
+                    onChange={(e) => setGhlApiKey(e.target.value)}
+                    disabled={!ghlEnabled}
+                    className="text-xs bg-white font-mono pr-10"
+                    placeholder="pit_..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowGhlKey(!showGhlKey)}
+                    disabled={!ghlEnabled}
+                    className="absolute right-3 text-slate-400 hover:text-slate-650 cursor-pointer"
+                  >
+                    {showGhlKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </CardContent>
