@@ -2,14 +2,19 @@
 
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock,
+  Copy,
   ExternalLink,
   HelpCircle,
   Info,
   Link as LinkIcon,
   Loader2,
   Mail,
+  Pencil,
   Play,
   RefreshCw,
   Search,
@@ -127,6 +132,8 @@ export default function ClientsDirectoryClient() {
   const [selectedAdAccountId, setSelectedAdAccountId] = useState<string>("");
   const [isLinkingAccount, setIsLinkingAccount] = useState(false);
   const [isRetryingGhl, setIsRetryingGhl] = useState(false);
+  const [copiedField, setCopiedField] = useState<"subject" | "body" | "full" | null>(null);
+  const [isEditingEmailTemplate, setIsEditingEmailTemplate] = useState(false);
 
   // Load clients and accounts
   const loadData = useCallback(async () => {
@@ -1261,39 +1268,151 @@ export default function ClientsDirectoryClient() {
                   <Mail className="h-3.5 w-3.5" /> Email Onboarding Outbox
                 </h3>
 
+                {/* Collapsible Email Subject & Body Editor */}
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingEmailTemplate(!isEditingEmailTemplate)}
+                    className="w-full flex items-center justify-between text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2.5 hover:bg-slate-50 transition-all cursor-pointer shadow-sm"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Pencil className="w-3.5 h-3.5 text-indigo-600" />
+                      Edit Email Subject & Body Template
+                    </span>
+                    {isEditingEmailTemplate ? (
+                      <ChevronUp className="w-4 h-4 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                    )}
+                  </button>
+
+                  {isEditingEmailTemplate && (
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-3 transition-all animate-in fade-in duration-150">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                          Email Subject
+                        </label>
+                        <Input
+                          value={emailSubject}
+                          onChange={(e) => setEmailSubject(e.target.value)}
+                          className="bg-white border-slate-200 text-xs h-9 rounded-lg text-slate-800"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                          Email Body Template
+                        </label>
+                        <textarea
+                          value={emailBody}
+                          onChange={(e) => setEmailBody(e.target.value)}
+                          className="w-full min-h-[160px] text-xs font-mono p-3 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 outline-none leading-relaxed text-slate-700 resize-y"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dynamic Template Preview (Always Visible) */}
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                      Email Subject
-                    </label>
-                    <Input
-                      value={emailSubject}
-                      onChange={(e) => setEmailSubject(e.target.value)}
-                      className="bg-white border-slate-200 text-xs h-9 rounded-lg text-slate-800"
-                    />
-                  </div>
+                    <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        Dynamic Template Preview
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(emailSubject);
+                            setCopiedField("subject");
+                            toast.success("Email subject copied to clipboard!");
+                            setTimeout(() => setCopiedField(null), 2000);
+                          }}
+                          className="h-6 px-2 text-[10px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
+                          title="Copy Email Subject"
+                        >
+                          {copiedField === "subject" ? (
+                            <Check className="h-3 w-3 text-emerald-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-slate-400" />
+                          )}
+                          Subject
+                        </Button>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                      Email Body Template
-                    </label>
-                    <textarea
-                      value={emailBody}
-                      onChange={(e) => setEmailBody(e.target.value)}
-                      className="w-full min-h-[160px] text-xs font-mono p-3 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 outline-none leading-relaxed text-slate-700 resize-y"
-                    />
-                  </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const compiled = compileOnboardingEmail({
+                              primaryContactName: selectedClient.primaryContactName,
+                              clientName: selectedClient.clientName,
+                              driveFolderLink: editDrive || "#",
+                              notionDashboardLink: editNotion || "#",
+                              signalGroupLink: editSignal || "#",
+                              googleAdsAccess: selectedClient.googleAdsAccess,
+                              metaAdsAccess: selectedClient.metaAdsAccess,
+                              customTemplate: emailBody || undefined,
+                            });
+                            navigator.clipboard.writeText(compiled.text);
+                            setCopiedField("body");
+                            toast.success("Compiled email body copied!");
+                            setTimeout(() => setCopiedField(null), 2000);
+                          }}
+                          className="h-6 px-2 text-[10px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
+                          title="Copy Email Body Text"
+                        >
+                          {copiedField === "body" ? (
+                            <Check className="h-3 w-3 text-emerald-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-slate-400" />
+                          )}
+                          Body
+                        </Button>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                      Dynamic Template Preview
-                    </label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const compiled = compileOnboardingEmail({
+                              primaryContactName: selectedClient.primaryContactName,
+                              clientName: selectedClient.clientName,
+                              driveFolderLink: editDrive || "#",
+                              notionDashboardLink: editNotion || "#",
+                              signalGroupLink: editSignal || "#",
+                              googleAdsAccess: selectedClient.googleAdsAccess,
+                              metaAdsAccess: selectedClient.metaAdsAccess,
+                              customTemplate: emailBody || undefined,
+                            });
+                            const fullContent = `To: ${selectedClient.contactEmail}\nSubject: ${emailSubject}\n\n${compiled.text}`;
+                            navigator.clipboard.writeText(fullContent);
+                            setCopiedField("full");
+                            toast.success("Full onboarding email copied!");
+                            setTimeout(() => setCopiedField(null), 2000);
+                          }}
+                          className="h-6 px-2 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
+                          title="Copy Full Email (To, Subject & Body)"
+                        >
+                          {copiedField === "full" ? (
+                            <Check className="h-3 w-3 text-emerald-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-indigo-600" />
+                          )}
+                          Full Email
+                        </Button>
+                      </div>
+                    </div>
+
                     <div className="border border-slate-200 rounded-xl bg-slate-50 p-4 h-64 overflow-y-auto text-xs text-slate-800 space-y-3 select-none">
                       <div className="border-b border-slate-200 pb-2 mb-2">
                         <p className="text-[10px] text-slate-500">
                           To: {selectedClient.contactEmail}
                         </p>
-                        <p className="text-[10px] text-slate-500">
+                        <p className="text-[10px] text-slate-700 font-semibold">
                           Subject: {emailSubject}
                         </p>
                       </div>
