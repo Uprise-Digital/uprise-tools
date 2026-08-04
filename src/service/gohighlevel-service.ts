@@ -391,33 +391,91 @@ export interface GhlSnapshot {
   type?: string;
 }
 
-/**
- * Fetches snapshots/templates from GoHighLevel Agency API.
- */
 export async function getGhlSnapshots(): Promise<GhlSnapshot[]> {
   const apiKey = process.env.GHL_API_KEY;
+  const locationId = process.env.GHL_LOCATION_ID;
   if (!apiKey) {
     return [];
   }
+
+  const results: GhlSnapshot[] = [];
+
+  // Helper to append snapshots safely without duplicates
+  const addSnapshots = (items: any[], defaultType: string) => {
+    for (const s of items) {
+      const id = s.id || s.snapshotId || s.templateId;
+      if (id && !results.some((r) => r.id === id)) {
+        results.push({
+          id,
+          name: s.name || s.title || "GHL Snapshot Template",
+          type: s.type || defaultType,
+        });
+      }
+    }
+  };
+
+  // 1. Try company snapshots with companyId (Works with Agency API Keys)
+  let companyId = process.env.GHL_COMPANY_ID;
+  if (!companyId && locationId) {
+    try {
+      const locRes = await fetch(
+        `${GHL_API_BASE}/locations/${encodeURIComponent(locationId)}`,
+        { headers: getGhlHeaders() },
+      );
+      if (locRes.ok) {
+        const locData = await locRes.json();
+        companyId = locData.location?.companyId || locData.companyId;
+      }
+    } catch (e) {
+      console.warn("Error fetching location companyId:", e);
+    }
+  }
+
+  if (companyId) {
+    try {
+      const res = await fetch(
+        `${GHL_API_BASE}/snapshots/?companyId=${encodeURIComponent(companyId)}`,
+        { headers: getGhlHeaders() },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        addSnapshots(data.snapshots || data.templates || [], "agency");
+      }
+    } catch (err) {
+      console.warn("Company snapshots fetch error:", err);
+    }
+  }
+
+  // 2. Try location templates endpoint (Works with Location API Keys)
+  if (locationId) {
+    try {
+      const res = await fetch(
+        `${GHL_API_BASE}/locations/${encodeURIComponent(locationId)}/templates`,
+        { headers: getGhlHeaders() },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        addSnapshots(data.templates || [], "location");
+      }
+    } catch (err) {
+      console.warn("Location templates fetch error:", err);
+    }
+  }
+
+  // 3. Fallback: Try raw agency snapshots endpoint
   try {
     const res = await fetch(`${GHL_API_BASE}/snapshots/`, {
       headers: getGhlHeaders(),
     });
-    if (!res.ok) {
-      console.warn(`GHL Snapshots fetch returned status ${res.status}`);
-      return [];
+    if (res.ok) {
+      const data = await res.json();
+      addSnapshots(data.snapshots || data.templates || [], "agency");
     }
-    const data = await res.json();
-    const snapshots = data.snapshots || data.templates || [];
-    return snapshots.map((s: any) => ({
-      id: s.id || s.snapshotId,
-      name: s.name || s.title || "Unnamed Template",
-      type: s.type,
-    }));
-  } catch (error) {
-    console.warn("Error fetching GHL snapshots:", error);
-    return [];
+  } catch (err) {
+    console.warn("Agency snapshots fetch error:", err);
   }
+
+  return results;
 }
 
 /**

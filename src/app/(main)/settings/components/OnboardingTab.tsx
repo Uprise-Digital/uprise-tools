@@ -2061,16 +2061,30 @@ Founder | ${orgName}`;
                         mode === "create-sub-account-from-template") && (
                         <>
                           {mode === "create-sub-account-from-template" && (
-                            <div className="space-y-1.5 border-b pb-3 mb-2">
-                              <Label className="text-slate-700 font-bold flex items-center justify-between">
-                                <span>GHL Template / Snapshot</span>
-                                {loadingSnapshots && (
-                                  <span className="text-[10px] text-indigo-600 animate-pulse font-normal">
-                                    Loading...
-                                  </span>
-                                )}
-                              </Label>
-                              {ghlSnapshots.length > 0 ? (
+                            <div className="space-y-2 border-b pb-3 mb-2">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-slate-700 font-bold">
+                                  GHL Template / Snapshot ID
+                                </Label>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setLoadingSnapshots(true);
+                                    getGhlSnapshotsAction().then((res) => {
+                                      if (res.success && res.snapshots) {
+                                        setGhlSnapshots(res.snapshots);
+                                      }
+                                      setLoadingSnapshots(false);
+                                    });
+                                  }}
+                                  className="h-5 px-1.5 text-[9px] text-indigo-650 hover:text-indigo-800"
+                                >
+                                  {loadingSnapshots ? "Loading..." : "Refresh"}
+                                </Button>
+                              </div>
+                              {ghlSnapshots.length > 0 && (
                                 <select
                                   value={snapshotId}
                                   onChange={(e) =>
@@ -2078,25 +2092,24 @@ Founder | ${orgName}`;
                                   }
                                   className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
                                 >
-                                  <option value="">-- Select GHL Template --</option>
+                                  <option value="">-- Select Loaded Template --</option>
                                   {ghlSnapshots.map((s) => (
                                     <option key={s.id} value={s.id}>
                                       {s.name} ({s.id})
                                     </option>
                                   ))}
                                 </select>
-                              ) : (
-                                <Input
-                                  value={snapshotId}
-                                  onChange={(e) =>
-                                    updateNodeData("ghl", "snapshotId", e.target.value)
-                                  }
-                                  placeholder="Enter Snapshot/Template ID (e.g. snp_123)"
-                                  className="text-xs bg-white font-mono"
-                                />
                               )}
+                              <Input
+                                value={snapshotId}
+                                onChange={(e) =>
+                                  updateNodeData("ghl", "snapshotId", e.target.value)
+                                }
+                                placeholder="Enter Snapshot/Template ID (e.g. snp_xyz123)"
+                                className="text-xs bg-white font-mono"
+                              />
                               <p className="text-[9px] text-slate-400">
-                                Select or enter the GHL snapshot ID to clone.
+                                Enter or select the GoHighLevel Snapshot ID to clone.
                               </p>
                             </div>
                           )}

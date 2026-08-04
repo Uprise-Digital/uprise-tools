@@ -408,6 +408,11 @@ async function executeOnboardingPipeline(
       const mode = ghlData.mode || "update-opportunity-stage";
 
       try {
+        await db
+          .update(clientOnboardings)
+          .set({ ghlStatus: "in_progress", ghlError: null })
+          .where(eq(clientOnboardings.id, onboardingId));
+
         if (
           mode === "create-sub-account" ||
           mode === "create-sub-account-from-template"
@@ -420,6 +425,14 @@ async function executeOnboardingPipeline(
             city: ghlData.city || "",
             snapshotId: ghlData.snapshotId || undefined,
           });
+          await db
+            .update(clientOnboardings)
+            .set({
+              ghlSubAccountId: subAcc.id,
+              ghlStatus: "success",
+              ghlError: null,
+            })
+            .where(eq(clientOnboardings.id, onboardingId));
           console.log(
             `[GHL Automation] Created Sub-Account ${subAcc.id} (${subAcc.name})${
               ghlData.snapshotId ? ` from Snapshot ${ghlData.snapshotId}` : ""
@@ -431,21 +444,25 @@ async function executeOnboardingPipeline(
             email: record.contactEmail,
             tags: ghlData.tagNaming ? [ghlData.tagNaming] : ["onboarded-client"],
           });
-          if (createdContact?.id && !record.ghlContactId) {
-            await db
-              .update(clientOnboardings)
-              .set({ ghlContactId: createdContact.id })
-              .where(eq(clientOnboardings.id, onboardingId));
-          }
+          await db
+            .update(clientOnboardings)
+            .set({
+              ghlContactId: createdContact?.id || record.ghlContactId,
+              ghlStatus: "success",
+              ghlError: null,
+            })
+            .where(eq(clientOnboardings.id, onboardingId));
         } else if (mode === "add-tag") {
           const contactId = record.ghlContactId;
           const tag = ghlData.tagNaming || "onboarded-client";
           if (contactId) {
             await addGhlContactTag(contactId, tag);
+            await db
+              .update(clientOnboardings)
+              .set({ ghlStatus: "success", ghlError: null })
+              .where(eq(clientOnboardings.id, onboardingId));
           } else {
-            console.warn(
-              "[GHL Automation] Cannot add tag: No ghlContactId on client record.",
-            );
+            throw new Error("No ghlContactId found on client onboarding record");
           }
         } else if (mode === "create-contact-note") {
           const contactId = record.ghlContactId;
@@ -458,10 +475,12 @@ async function executeOnboardingPipeline(
             .replace(/\{\{\s*contact_email\s*\}\}/g, record.contactEmail);
           if (contactId) {
             await createContactNote(contactId, body);
+            await db
+              .update(clientOnboardings)
+              .set({ ghlStatus: "success", ghlError: null })
+              .where(eq(clientOnboardings.id, onboardingId));
           } else {
-            console.warn(
-              "[GHL Automation] Cannot create note: No ghlContactId on client record.",
-            );
+            throw new Error("No ghlContactId found on client onboarding record");
           }
         } else if (mode === "create-task") {
           const contactId = record.ghlContactId;
@@ -481,10 +500,12 @@ async function executeOnboardingPipeline(
 
           if (contactId) {
             await createGhlTask(contactId, { title, body, dueDate });
+            await db
+              .update(clientOnboardings)
+              .set({ ghlStatus: "success", ghlError: null })
+              .where(eq(clientOnboardings.id, onboardingId));
           } else {
-            console.warn(
-              "[GHL Automation] Cannot create task: No ghlContactId on client record.",
-            );
+            throw new Error("No ghlContactId found on client onboarding record");
           }
         } else if (mode === "update-opportunity-stage") {
           const oppId = record.ghlOpportunityId;
@@ -494,14 +515,23 @@ async function executeOnboardingPipeline(
             "active_client_stage";
           if (oppId) {
             await updateGhlOpportunityStage(oppId, stageId);
+            await db
+              .update(clientOnboardings)
+              .set({ ghlStatus: "success", ghlError: null })
+              .where(eq(clientOnboardings.id, onboardingId));
           } else {
-            console.warn(
-              "[GHL Automation] Cannot update stage: No ghlOpportunityId on client record.",
-            );
+            throw new Error("No ghlOpportunityId found on client onboarding record");
           }
         }
       } catch (ghlErr: any) {
         console.error(`[GHL Automation Error]: ${ghlErr.message}`);
+        await db
+          .update(clientOnboardings)
+          .set({
+            ghlStatus: "failed",
+            ghlError: ghlErr.message || String(ghlErr),
+          })
+          .where(eq(clientOnboardings.id, onboardingId));
       }
     }
 
@@ -813,5 +843,148 @@ export async function finalizeOnboardingAction(onboardingId: number) {
   } catch (error: any) {
     console.error("finalizeOnboardingAction error:", error);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Retries the configured GHL automation task for a client onboarding record.
+ */
+export async function retryGhlAutomationAction(onboardingId: number) {
+  try {
+    const record = await db.query.clientOnboardings.findFirst({
+      where: eq(clientOnboardings.id, onboardingId),
+    });
+    if (!record) return { success: false, error: "Client record not found" };
+
+    const settings = await db.query.organizationOnboardingSettings.findFirst({
+      where: eq(
+        organizationOnboardingSettings.organizationId,
+        record.organizationId,
+      ),
+    });
+    if (!settings)
+      return { success: false, error: "Onboarding settings not found" };
+
+    await db
+      .update(clientOnboardings)
+      .set({ ghlStatus: "in_progress", ghlError: null })
+      .where(eq(clientOnboardings.id, onboardingId));
+
+    const ghlNode = (settings.workflowConfig as any)?.nodes?.find(
+      (n: any) => n.id === "ghl",
+    );
+    const ghlData = ghlNode?.data || {};
+    const mode = ghlData.mode || "update-opportunity-stage";
+
+    if (
+      mode === "create-sub-account" ||
+      mode === "create-sub-account-from-template"
+    ) {
+      const subAcc = await createGhlSubAccount({
+        name: record.clientName,
+        timezone: ghlData.timezone || "Australia/Sydney",
+        country: ghlData.country || "AU",
+        address: ghlData.address || "",
+        city: ghlData.city || "",
+        snapshotId: ghlData.snapshotId || undefined,
+      });
+      await db
+        .update(clientOnboardings)
+        .set({
+          ghlSubAccountId: subAcc.id,
+          ghlStatus: "success",
+          ghlError: null,
+        })
+        .where(eq(clientOnboardings.id, onboardingId));
+    } else if (mode === "create-contact") {
+      const createdContact = await createGhlContact({
+        name: record.primaryContactName || record.clientName,
+        email: record.contactEmail,
+        tags: ghlData.tagNaming ? [ghlData.tagNaming] : ["onboarded-client"],
+      });
+      await db
+        .update(clientOnboardings)
+        .set({
+          ghlContactId: createdContact?.id || record.ghlContactId,
+          ghlStatus: "success",
+          ghlError: null,
+        })
+        .where(eq(clientOnboardings.id, onboardingId));
+    } else if (mode === "add-tag") {
+      const contactId = record.ghlContactId;
+      const tag = ghlData.tagNaming || "onboarded-client";
+      if (!contactId)
+        throw new Error("No GHL Contact ID found for client record");
+      await addGhlContactTag(contactId, tag);
+      await db
+        .update(clientOnboardings)
+        .set({ ghlStatus: "success", ghlError: null })
+        .where(eq(clientOnboardings.id, onboardingId));
+    } else if (mode === "create-contact-note") {
+      const contactId = record.ghlContactId;
+      if (!contactId)
+        throw new Error("No GHL Contact ID found for client record");
+      let body =
+        ghlData.noteTemplate ||
+        "Client {{client_name}} onboarded via Uprise Tools.";
+      body = body
+        .replace(/\{\{\s*client_name\s*\}\}/g, record.clientName)
+        .replace(/\{\{\s*primary_contact_name\s*\}\}/g, record.primaryContactName)
+        .replace(/\{\{\s*contact_email\s*\}\}/g, record.contactEmail);
+      await createContactNote(contactId, body);
+      await db
+        .update(clientOnboardings)
+        .set({ ghlStatus: "success", ghlError: null })
+        .where(eq(clientOnboardings.id, onboardingId));
+    } else if (mode === "create-task") {
+      const contactId = record.ghlContactId;
+      if (!contactId)
+        throw new Error("No GHL Contact ID found for client record");
+      let title = ghlData.taskTitle || "Onboarding Task for {{client_name}}";
+      let body =
+        ghlData.taskBody || "Complete onboarding setup for {{client_name}}.";
+      title = title.replace(/\{\{\s*client_name\s*\}\}/g, record.clientName);
+      body = body
+        .replace(/\{\{\s*client_name\s*\}\}/g, record.clientName)
+        .replace(/\{\{\s*primary_contact_name\s*\}\}/g, record.primaryContactName);
+
+      const dueDays = parseInt(ghlData.dueDays || "7", 10);
+      const dueDate = new Date(
+        Date.now() + (isNaN(dueDays) ? 7 : dueDays) * 24 * 60 * 60 * 1000,
+      ).toISOString();
+
+      await createGhlTask(contactId, { title, body, dueDate });
+      await db
+        .update(clientOnboardings)
+        .set({ ghlStatus: "success", ghlError: null })
+        .where(eq(clientOnboardings.id, onboardingId));
+    } else if (mode === "update-opportunity-stage") {
+      const oppId = record.ghlOpportunityId;
+      if (!oppId)
+        throw new Error("No GHL Opportunity ID found for client record");
+      const stageId =
+        ghlData.stageId ||
+        process.env.GHL_ACTIVE_STAGE_ID ||
+        "active_client_stage";
+      await updateGhlOpportunityStage(oppId, stageId);
+      await db
+        .update(clientOnboardings)
+        .set({ ghlStatus: "success", ghlError: null })
+        .where(eq(clientOnboardings.id, onboardingId));
+    }
+
+    revalidatePath("/clients");
+    return { success: true };
+  } catch (err: any) {
+    console.error("retryGhlAutomationAction error:", err);
+    await db
+      .update(clientOnboardings)
+      .set({
+        ghlStatus: "failed",
+        ghlError: err.message || String(err),
+      })
+      .where(eq(clientOnboardings.id, onboardingId));
+    revalidatePath("/clients");
+    return { success: false, error: err.message || String(err) };
   }
 }

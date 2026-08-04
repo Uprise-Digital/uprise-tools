@@ -1,13 +1,17 @@
 "use client";
 
 import {
+  AlertCircle,
   CheckCircle2,
+  Clock,
   ExternalLink,
+  HelpCircle,
   Info,
   Link as LinkIcon,
   Loader2,
   Mail,
   Play,
+  RefreshCw,
   Search,
   Send,
   SlidersHorizontal,
@@ -26,6 +30,7 @@ import {
   deleteClientOnboardingAction,
   finalizeOnboardingAction,
   getClientOnboardingsAction,
+  retryGhlAutomationAction,
   runOnboardingPipelineAction,
   sendOnboardingEmailAction,
   updateClientOnboardingAction,
@@ -45,7 +50,7 @@ import {
 import { compileOnboardingEmail } from "@/lib/onboarding-email";
 import { cn } from "@/lib/utils";
 
-interface ClientRecord {
+export interface ClientRecord {
   id: number;
   clientName: string;
   primaryContactName: string;
@@ -60,6 +65,9 @@ interface ClientRecord {
   metaAdsStatus: string;
   ghlContactId: string | null;
   ghlOpportunityId: string | null;
+  ghlSubAccountId?: string | null;
+  ghlStatus?: string | null;
+  ghlError?: string | null;
   createdAt: Date;
   updatedAt: Date;
   adAccounts?: { id: number; name: string; googleAccountId: string }[];
@@ -118,6 +126,7 @@ export default function ClientsDirectoryClient() {
   // Link ad account modal state
   const [selectedAdAccountId, setSelectedAdAccountId] = useState<string>("");
   const [isLinkingAccount, setIsLinkingAccount] = useState(false);
+  const [isRetryingGhl, setIsRetryingGhl] = useState(false);
 
   // Load clients and accounts
   const loadData = useCallback(async () => {
@@ -464,6 +473,25 @@ export default function ClientsDirectoryClient() {
       toast.error("Error finalizing onboarding.");
     } finally {
       setIsFinalizing(false);
+    }
+  };
+
+  const handleRetryGhl = async () => {
+    if (!selectedClient) return;
+    setIsRetryingGhl(true);
+    try {
+      const res = await retryGhlAutomationAction(selectedClient.id);
+      if (res.success) {
+        toast.success("GoHighLevel CRM automation re-executed successfully!");
+        loadData();
+      } else {
+        toast.error(`GHL Retry Failed: ${res.error}`);
+        loadData();
+      }
+    } catch (err: any) {
+      toast.error(`Error retrying GHL automation: ${err.message}`);
+    } finally {
+      setIsRetryingGhl(false);
     }
   };
 
@@ -1091,6 +1119,141 @@ export default function ClientsDirectoryClient() {
                   </Button>
                 </div>
               </div>
+
+              {/* GoHighLevel CRM Automation Section */}
+              {(() => {
+                const config = onboardingSettings?.workflowConfig;
+                const nodes = config?.nodes || [];
+                const edges = config?.edges || [];
+                const outgoingMap = new Map<string, string>();
+                for (const e of edges) {
+                  if (e.source && e.target) outgoingMap.set(e.source, e.target);
+                }
+                const chain: string[] = [];
+                let current = "trigger";
+                while (current && !chain.includes(current)) {
+                  chain.push(current);
+                  current = outgoingMap.get(current) || "";
+                }
+                const isGhlInWorkflow =
+                  chain.includes("ghl") || nodes.some((n: any) => n.id === "ghl");
+
+                if (!isGhlInWorkflow) return null;
+
+                const ghlNode = nodes.find((n: any) => n.id === "ghl");
+                const ghlMode = ghlNode?.data?.mode || "update-opportunity-stage";
+
+                return (
+                  <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <img src="/images/logos/ghl.svg" alt="" className="w-4 h-4" />
+                        GoHighLevel CRM Automation
+                      </h4>
+                      {selectedClient.ghlStatus === "success" && (
+                        <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Completed
+                        </span>
+                      )}
+                      {selectedClient.ghlStatus === "failed" && (
+                        <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> Failed
+                        </span>
+                      )}
+                      {selectedClient.ghlStatus === "in_progress" && (
+                        <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                          <RefreshCw className="w-3 h-3 animate-spin" /> In Progress
+                        </span>
+                      )}
+                      {(!selectedClient.ghlStatus ||
+                        selectedClient.ghlStatus === "pending") && (
+                        <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Pending
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-2 py-1 inline-block">
+                      Task Mode: <span className="text-slate-800 font-bold capitalize">{ghlMode.replace(/-/g, " ")}</span>
+                    </div>
+
+                    {selectedClient.ghlStatus === "success" && (
+                      <div className="space-y-2">
+                        <p className="text-[11px] text-slate-600">
+                          CRM automation task executed successfully during client onboarding.
+                        </p>
+                        {selectedClient.ghlSubAccountId && (
+                          <a
+                            href={`https://app.gohighlevel.com/location/${selectedClient.ghlSubAccountId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline bg-white p-2 rounded-lg border border-slate-200 w-full justify-between"
+                          >
+                            <span>Open GHL Sub-Account Location</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        {selectedClient.ghlContactId && !selectedClient.ghlSubAccountId && (
+                          <div className="text-[10px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200">
+                            Contact ID: {selectedClient.ghlContactId}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedClient.ghlStatus === "failed" && (
+                      <div className="space-y-2">
+                        <div className="bg-rose-50 border border-rose-200 rounded-lg p-2.5 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[11px] font-semibold text-rose-800">
+                              Automation Encountered an Issue
+                            </p>
+                            {selectedClient.ghlError && (
+                              <span
+                                title={selectedClient.ghlError}
+                                className="cursor-help text-rose-500 hover:text-rose-700 p-0.5"
+                              >
+                                <HelpCircle className="w-3.5 h-3.5" />
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-rose-600 leading-snug line-clamp-2">
+                            {selectedClient.ghlError ||
+                              "Sub-account or CRM API provisioning failed. Check credentials and retry."}
+                          </p>
+                        </div>
+
+                        <Button
+                          onClick={handleRetryGhl}
+                          disabled={isRetryingGhl}
+                          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-1.5 px-3 rounded-lg cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCw className={cn("w-3.5 h-3.5", isRetryingGhl && "animate-spin")} />
+                          {isRetryingGhl ? "Retrying Automation..." : "Retry GHL Automation Task"}
+                        </Button>
+                      </div>
+                    )}
+
+                    {(!selectedClient.ghlStatus ||
+                      selectedClient.ghlStatus === "pending" ||
+                      selectedClient.ghlStatus === "in_progress") && (
+                      <div className="flex items-center justify-between pt-1 gap-2">
+                        <p className="text-[11px] text-slate-500 flex-1">
+                          Trigger or retry configured GHL task for this client.
+                        </p>
+                        <Button
+                          onClick={handleRetryGhl}
+                          disabled={isRetryingGhl}
+                          variant="outline"
+                          className="text-xs h-7 px-2.5 font-bold cursor-pointer shrink-0"
+                        >
+                          {isRetryingGhl ? "Running..." : "Run Task"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Email Outbox & Live Preview */}
               <div className="border-t border-slate-200 pt-4 space-y-4">
