@@ -391,14 +391,23 @@ export interface GhlSnapshot {
   type?: string;
 }
 
-export async function getGhlSnapshots(): Promise<GhlSnapshot[]> {
-  const apiKey = process.env.GHL_API_KEY;
-  const locationId = process.env.GHL_LOCATION_ID;
+export async function getGhlSnapshots(
+  customApiKey?: string,
+  customLocationId?: string,
+  customCompanyId?: string,
+): Promise<GhlSnapshot[]> {
+  const apiKey = customApiKey || process.env.GHL_API_KEY;
+  const locationId = customLocationId || process.env.GHL_LOCATION_ID;
   if (!apiKey) {
     return [];
   }
 
   const results: GhlSnapshot[] = [];
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    Version: "2021-04-15",
+    "Content-Type": "application/json",
+  };
 
   // Helper to append snapshots safely without duplicates
   const addSnapshots = (items: any[], defaultType: string) => {
@@ -415,16 +424,18 @@ export async function getGhlSnapshots(): Promise<GhlSnapshot[]> {
   };
 
   // 1. Try company snapshots with companyId (Works with Agency API Keys)
-  let companyId = process.env.GHL_COMPANY_ID;
-  if (!companyId && locationId) {
+  let companyId =
+    customCompanyId || process.env.GHL_COMPANY_ID || "BwvkM3wHfHWTcRf9EO3t";
+  if (locationId) {
     try {
       const locRes = await fetch(
         `${GHL_API_BASE}/locations/${encodeURIComponent(locationId)}`,
-        { headers: getGhlHeaders() },
+        { headers },
       );
       if (locRes.ok) {
         const locData = await locRes.json();
-        companyId = locData.location?.companyId || locData.companyId;
+        const foundCompId = locData.location?.companyId || locData.companyId;
+        if (foundCompId) companyId = foundCompId;
       }
     } catch (e) {
       console.warn("Error fetching location companyId:", e);
@@ -435,7 +446,7 @@ export async function getGhlSnapshots(): Promise<GhlSnapshot[]> {
     try {
       const res = await fetch(
         `${GHL_API_BASE}/snapshots/?companyId=${encodeURIComponent(companyId)}`,
-        { headers: getGhlHeaders() },
+        { headers },
       );
       if (res.ok) {
         const data = await res.json();

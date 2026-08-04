@@ -1,6 +1,6 @@
 "use server";
 
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
@@ -78,13 +78,33 @@ export async function getClientOnboardingsAction() {
     const { orgId } = await getSessionOrgId();
     if (!orgId) return { success: false, error: "No active organization" };
 
-    const records = await db.query.clientOnboardings.findMany({
-      where: eq(clientOnboardings.organizationId, orgId),
-      orderBy: [desc(clientOnboardings.createdAt)],
-      with: {
-        adAccounts: true,
-      },
-    });
+    // Auto-migrate new GHL columns if missing in Postgres DB schema
+    try {
+      await db.execute(
+        sql`ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_sub_account_id" text;
+            ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_status" text DEFAULT 'pending';
+            ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_error" text;`,
+      );
+    } catch (migErr) {
+      console.warn("GHL columns migration check warning:", migErr);
+    }
+
+    let records: any[] = [];
+    try {
+      records = await db.query.clientOnboardings.findMany({
+        where: eq(clientOnboardings.organizationId, orgId),
+        orderBy: [desc(clientOnboardings.createdAt)],
+        with: {
+          adAccounts: true,
+        },
+      });
+    } catch (queryErr) {
+      console.warn("Retrying clientOnboardings query fallback:", queryErr);
+      records = await db.query.clientOnboardings.findMany({
+        where: eq(clientOnboardings.organizationId, orgId),
+        orderBy: [desc(clientOnboardings.createdAt)],
+      });
+    }
 
     return { success: true, clients: records };
   } catch (error: any) {

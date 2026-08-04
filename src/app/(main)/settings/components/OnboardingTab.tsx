@@ -583,6 +583,9 @@ function OnboardingTabContent({
   const [ghlLocationId, setGhlLocationId] = useState(
     (onboardingSettings as any)?.workflowConfig?.integrations?.ghlLocationId ?? "",
   );
+  const [ghlCompanyId, setGhlCompanyId] = useState(
+    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlCompanyId ?? "BwvkM3wHfHWTcRf9EO3t",
+  );
   const [showGhlKey, setShowGhlKey] = useState(false);
 
   const [ghlSnapshots, setGhlSnapshots] = useState<
@@ -591,16 +594,16 @@ function OnboardingTabContent({
   const [loadingSnapshots, setLoadingSnapshots] = useState(false);
 
   useEffect(() => {
-    if (ghlEnabled && ghlSnapshots.length === 0 && !loadingSnapshots) {
+    if (ghlSnapshots.length === 0 && !loadingSnapshots) {
       setLoadingSnapshots(true);
-      getGhlSnapshotsAction().then((res) => {
+      getGhlSnapshotsAction(ghlApiKey, ghlLocationId, ghlCompanyId).then((res) => {
         if (res.success && res.snapshots) {
           setGhlSnapshots(res.snapshots);
         }
         setLoadingSnapshots(false);
       });
     }
-  }, [ghlEnabled, ghlSnapshots.length, loadingSnapshots]);
+  }, [ghlApiKey, ghlLocationId, ghlCompanyId, ghlSnapshots.length, loadingSnapshots]);
 
 
   const defaultSubject = `Welcome to ${orgName} - Let's get started!`;
@@ -1173,6 +1176,7 @@ Founder | ${orgName}`;
             ghlEnabled,
             ghlApiKey,
             ghlLocationId,
+            ghlCompanyId,
           },
         },
       });
@@ -2072,7 +2076,7 @@ Founder | ${orgName}`;
                                   size="sm"
                                   onClick={() => {
                                     setLoadingSnapshots(true);
-                                    getGhlSnapshotsAction().then((res) => {
+                                    getGhlSnapshotsAction(ghlApiKey, ghlLocationId, ghlCompanyId).then((res) => {
                                       if (res.success && res.snapshots) {
                                         setGhlSnapshots(res.snapshots);
                                       }
@@ -2622,7 +2626,7 @@ Founder | ${orgName}`;
               !ghlEnabled && "opacity-60",
             )}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label
                   htmlFor="ghlLocationId"
@@ -2636,7 +2640,23 @@ Founder | ${orgName}`;
                   onChange={(e) => setGhlLocationId(e.target.value)}
                   disabled={!ghlEnabled}
                   className="text-xs bg-white font-mono"
-                  placeholder="e.g. loc_xyz123"
+                  placeholder="e.g. 4DzNF3tH5ln9gwq7GtjW"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="ghlCompanyId"
+                  className="text-xs font-bold text-slate-700"
+                >
+                  Agency Company ID
+                </Label>
+                <Input
+                  id="ghlCompanyId"
+                  value={ghlCompanyId}
+                  onChange={(e) => setGhlCompanyId(e.target.value)}
+                  disabled={!ghlEnabled}
+                  className="text-xs bg-white font-mono"
+                  placeholder="e.g. BwvkM3wHfHWTcRf9EO3t"
                 />
               </div>
               <div className="space-y-1.5">

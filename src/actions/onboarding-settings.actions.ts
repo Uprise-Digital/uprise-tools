@@ -11,9 +11,13 @@ import { verifyDriveFolderAccess } from "@/service/google-drive-service";
 import { getGhlSnapshots } from "@/service/gohighlevel-service";
 import { verifyNotionConnection } from "@/service/notion-service";
 
-export async function getGhlSnapshotsAction() {
+export async function getGhlSnapshotsAction(
+  apiKey?: string,
+  locationId?: string,
+  companyId?: string,
+) {
   try {
-    const snapshots = await getGhlSnapshots();
+    const snapshots = await getGhlSnapshots(apiKey, locationId, companyId);
     return { success: true, snapshots };
   } catch (err: any) {
     console.error("getGhlSnapshotsAction error:", err);
