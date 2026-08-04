@@ -68,19 +68,20 @@ interface OnboardingTabProps {
   orgId: string;
 }
 
-// Global path reachability helper for linear traversal
+// Global path reachability helper for single linear sequence traversal
 export function getActiveWorkflowChain(edges: any[]): string[] {
+  if (!Array.isArray(edges)) return ["trigger"];
   const activeIds: string[] = ["trigger"];
   let currentId = "trigger";
   const visited = new Set<string>([currentId]);
 
   while (true) {
     const outgoing = edges.filter((e: any) => e.source === currentId);
-    if (outgoing.length !== 1) {
+    if (outgoing.length === 0) {
       break;
     }
     const nextId = outgoing[0].target;
-    if (visited.has(nextId)) {
+    if (!nextId || visited.has(nextId)) {
       break;
     }
     visited.add(nextId);
@@ -825,7 +826,14 @@ Founder | ${orgName}`;
 
   const onConnect = useCallback(
     (params: any) =>
-      setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+      setEdges((eds) => {
+        // Enforce strict 1-to-1 linear chain (no branching):
+        // Remove any existing edge originating from source OR pointing to target
+        const pruned = eds.filter(
+          (e) => e.source !== params.source && e.target !== params.target,
+        );
+        return addEdge({ ...params, animated: true }, pruned);
+      }),
     [setEdges],
   );
 
@@ -926,6 +934,47 @@ Founder | ${orgName}`;
     };
 
     setNodes((nds) => [...nds, newNode]);
+
+    // Automatically slot the new node into the single linear sequence before 'email'
+    setEdges((eds) => {
+      const activeChain = getActiveWorkflowChain(eds);
+      const edgeToEmail = eds.find((e) => e.target === "email");
+
+      if (edgeToEmail && nodeType !== "email") {
+        const prevSource = edgeToEmail.source;
+        const filtered = eds.filter((e) => e.id !== edgeToEmail.id);
+        return [
+          ...filtered,
+          {
+            id: `e-${prevSource}-${nodeType}`,
+            source: prevSource,
+            target: nodeType,
+            animated: true,
+          },
+          {
+            id: `e-${nodeType}-email`,
+            source: nodeType,
+            target: "email",
+            animated: true,
+          },
+        ];
+      } else if (activeChain.length > 0 && (nodeType as string) !== "trigger") {
+        const lastActive = activeChain[activeChain.length - 1];
+        if (lastActive !== nodeType) {
+          return [
+            ...eds.filter((e) => e.source !== lastActive),
+            {
+              id: `e-${lastActive}-${nodeType}`,
+              source: lastActive,
+              target: nodeType,
+              animated: true,
+            },
+          ];
+        }
+      }
+      return eds;
+    });
+
     toast.success(`Added ${nodeType} node to flowchart.`);
   };
 

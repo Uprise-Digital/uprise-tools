@@ -30,17 +30,18 @@ import { createClientDriveFolder } from "@/service/google-drive-service";
 import { createClientNotionDashboard } from "@/service/notion-service";
 
 function getActiveWorkflowChain(edges: any[]): string[] {
+  if (!Array.isArray(edges)) return ["trigger"];
   const activeIds: string[] = ["trigger"];
   let currentId = "trigger";
   const visited = new Set<string>([currentId]);
 
   while (true) {
     const outgoing = edges.filter((e: any) => e.source === currentId);
-    if (outgoing.length !== 1) {
+    if (outgoing.length === 0) {
       break;
     }
     const nextId = outgoing[0].target;
-    if (visited.has(nextId)) {
+    if (!nextId || visited.has(nextId)) {
       break;
     }
     visited.add(nextId);
