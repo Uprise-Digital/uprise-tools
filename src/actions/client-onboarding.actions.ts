@@ -421,6 +421,11 @@ async function executeOnboardingPipeline(
       ? activeChain.includes("ghl")
       : false;
     if (ghlEnabled) {
+      const ghlIntegrations = (settings?.workflowConfig as any)?.integrations || {};
+      const ghlApiKey = ghlIntegrations.ghlApiKey;
+      const ghlLocationId = ghlIntegrations.ghlLocationId;
+      const ghlCompanyId = ghlIntegrations.ghlCompanyId;
+
       const ghlNode = (settings?.workflowConfig as any)?.nodes?.find(
         (n: any) => n.id === "ghl",
       );
@@ -444,6 +449,8 @@ async function executeOnboardingPipeline(
             address: ghlData.address || "",
             city: ghlData.city || "",
             snapshotId: ghlData.snapshotId || undefined,
+            apiKey: ghlApiKey,
+            companyId: ghlCompanyId,
           });
           await db
             .update(clientOnboardings)
@@ -463,6 +470,8 @@ async function executeOnboardingPipeline(
             name: record.primaryContactName || record.clientName,
             email: record.contactEmail,
             tags: ghlData.tagNaming ? [ghlData.tagNaming] : ["onboarded-client"],
+            locationId: ghlLocationId,
+            apiKey: ghlApiKey,
           });
           await db
             .update(clientOnboardings)
@@ -476,7 +485,7 @@ async function executeOnboardingPipeline(
           const contactId = record.ghlContactId;
           const tag = ghlData.tagNaming || "onboarded-client";
           if (contactId) {
-            await addGhlContactTag(contactId, tag);
+            await addGhlContactTag(contactId, tag, ghlApiKey);
             await db
               .update(clientOnboardings)
               .set({ ghlStatus: "success", ghlError: null })
@@ -494,7 +503,7 @@ async function executeOnboardingPipeline(
             .replace(/\{\{\s*primary_contact_name\s*\}\}/g, record.primaryContactName)
             .replace(/\{\{\s*contact_email\s*\}\}/g, record.contactEmail);
           if (contactId) {
-            await createContactNote(contactId, body);
+            await createContactNote(contactId, body, ghlApiKey);
             await db
               .update(clientOnboardings)
               .set({ ghlStatus: "success", ghlError: null })
@@ -519,7 +528,15 @@ async function executeOnboardingPipeline(
           ).toISOString();
 
           if (contactId) {
-            await createGhlTask(contactId, { title, body, dueDate });
+            await createGhlTask(
+              contactId,
+              {
+                title,
+                body,
+                dueDate,
+              },
+              ghlApiKey,
+            );
             await db
               .update(clientOnboardings)
               .set({ ghlStatus: "success", ghlError: null })
@@ -528,19 +545,14 @@ async function executeOnboardingPipeline(
             throw new Error("No ghlContactId found on client onboarding record");
           }
         } else if (mode === "update-opportunity-stage") {
-          const oppId = record.ghlOpportunityId;
-          const stageId =
-            ghlData.stageId ||
-            process.env.GHL_ACTIVE_STAGE_ID ||
-            "active_client_stage";
-          if (oppId) {
-            await updateGhlOpportunityStage(oppId, stageId);
+          const opportunityId = record.ghlOpportunityId;
+          const stageId = ghlData.targetStageId;
+          if (opportunityId && stageId) {
+            await updateGhlOpportunityStage(opportunityId, stageId, ghlApiKey);
             await db
               .update(clientOnboardings)
               .set({ ghlStatus: "success", ghlError: null })
               .where(eq(clientOnboardings.id, onboardingId));
-          } else {
-            throw new Error("No ghlOpportunityId found on client onboarding record");
           }
         }
       } catch (ghlErr: any) {
@@ -890,6 +902,11 @@ export async function retryGhlAutomationAction(onboardingId: number) {
       .set({ ghlStatus: "in_progress", ghlError: null })
       .where(eq(clientOnboardings.id, onboardingId));
 
+    const ghlIntegrations = (settings.workflowConfig as any)?.integrations || {};
+    const ghlApiKey = ghlIntegrations.ghlApiKey;
+    const ghlLocationId = ghlIntegrations.ghlLocationId;
+    const ghlCompanyId = ghlIntegrations.ghlCompanyId;
+
     const ghlNode = (settings.workflowConfig as any)?.nodes?.find(
       (n: any) => n.id === "ghl",
     );
@@ -907,6 +924,8 @@ export async function retryGhlAutomationAction(onboardingId: number) {
         address: ghlData.address || "",
         city: ghlData.city || "",
         snapshotId: ghlData.snapshotId || undefined,
+        apiKey: ghlApiKey,
+        companyId: ghlCompanyId,
       });
       await db
         .update(clientOnboardings)
@@ -921,6 +940,8 @@ export async function retryGhlAutomationAction(onboardingId: number) {
         name: record.primaryContactName || record.clientName,
         email: record.contactEmail,
         tags: ghlData.tagNaming ? [ghlData.tagNaming] : ["onboarded-client"],
+        locationId: ghlLocationId,
+        apiKey: ghlApiKey,
       });
       await db
         .update(clientOnboardings)
@@ -935,7 +956,7 @@ export async function retryGhlAutomationAction(onboardingId: number) {
       const tag = ghlData.tagNaming || "onboarded-client";
       if (!contactId)
         throw new Error("No GHL Contact ID found for client record");
-      await addGhlContactTag(contactId, tag);
+      await addGhlContactTag(contactId, tag, ghlApiKey);
       await db
         .update(clientOnboardings)
         .set({ ghlStatus: "success", ghlError: null })
@@ -951,7 +972,7 @@ export async function retryGhlAutomationAction(onboardingId: number) {
         .replace(/\{\{\s*client_name\s*\}\}/g, record.clientName)
         .replace(/\{\{\s*primary_contact_name\s*\}\}/g, record.primaryContactName)
         .replace(/\{\{\s*contact_email\s*\}\}/g, record.contactEmail);
-      await createContactNote(contactId, body);
+      await createContactNote(contactId, body, ghlApiKey);
       await db
         .update(clientOnboardings)
         .set({ ghlStatus: "success", ghlError: null })
@@ -973,7 +994,7 @@ export async function retryGhlAutomationAction(onboardingId: number) {
         Date.now() + (isNaN(dueDays) ? 7 : dueDays) * 24 * 60 * 60 * 1000,
       ).toISOString();
 
-      await createGhlTask(contactId, { title, body, dueDate });
+      await createGhlTask(contactId, { title, body, dueDate }, ghlApiKey);
       await db
         .update(clientOnboardings)
         .set({ ghlStatus: "success", ghlError: null })
@@ -982,11 +1003,8 @@ export async function retryGhlAutomationAction(onboardingId: number) {
       const oppId = record.ghlOpportunityId;
       if (!oppId)
         throw new Error("No GHL Opportunity ID found for client record");
-      const stageId =
-        ghlData.stageId ||
-        process.env.GHL_ACTIVE_STAGE_ID ||
-        "active_client_stage";
-      await updateGhlOpportunityStage(oppId, stageId);
+      const stageId = ghlData.targetStageId || ghlData.stageId;
+      await updateGhlOpportunityStage(oppId, stageId, ghlApiKey);
       await db
         .update(clientOnboardings)
         .set({ ghlStatus: "success", ghlError: null })

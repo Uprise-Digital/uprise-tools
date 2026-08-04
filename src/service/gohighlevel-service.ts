@@ -19,10 +19,10 @@ export interface GhlOpportunity {
 
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
 
-function getGhlHeaders() {
-  const apiKey = process.env.GHL_API_KEY;
+function getGhlHeaders(customApiKey?: string) {
+  const apiKey = customApiKey || process.env.GHL_API_KEY;
   if (!apiKey) {
-    throw new Error("GoHighLevel API Key (GHL_API_KEY) is not configured.");
+    throw new Error("GoHighLevel API Key is not configured in Onboarding Settings.");
   }
   return {
     Authorization: `Bearer ${apiKey}`,
@@ -74,19 +74,14 @@ export async function searchGhlContacts(query: string): Promise<GhlContact[]> {
 export async function updateGhlOpportunityStage(
   opportunityId: string,
   stageId: string,
+  customApiKey?: string,
 ): Promise<boolean> {
-  const apiKey = process.env.GHL_API_KEY;
-  if (!apiKey) {
-    throw new Error("GoHighLevel API Key (GHL_API_KEY) is not configured.");
-  }
-
   try {
+    const headers = getGhlHeaders(customApiKey);
     // In GHL v2 we first need to fetch the opportunity to obtain its pipelineId
     const getRes = await fetch(
       `${GHL_API_BASE}/opportunities/${opportunityId}`,
-      {
-        headers: getGhlHeaders(),
-      },
+      { headers },
     );
     if (!getRes.ok) {
       const errorText = await getRes.text().catch(() => "");
@@ -101,7 +96,7 @@ export async function updateGhlOpportunityStage(
 
     const res = await fetch(`${GHL_API_BASE}/opportunities/${opportunityId}`, {
       method: "PUT",
-      headers: getGhlHeaders(),
+      headers,
       body: JSON.stringify({
         pipelineId: opportunity.pipelineId,
         stageId: stageId,
@@ -300,13 +295,14 @@ export async function getContactNotes(contactId: string): Promise<GhlNote[]> {
 export async function createContactNote(
   contactId: string,
   body: string,
+  apiKey?: string,
 ): Promise<boolean> {
   try {
     const res = await fetch(
       `${GHL_API_BASE}/contacts/${encodeURIComponent(contactId)}/notes`,
       {
         method: "POST",
-        headers: getGhlHeaders(),
+        headers: getGhlHeaders(apiKey),
         body: JSON.stringify({ body }),
       },
     );
@@ -503,9 +499,14 @@ export async function createGhlSubAccount(data: {
   website?: string;
   timezone?: string;
   snapshotId?: string;
+  apiKey?: string;
+  companyId?: string;
 }): Promise<{ id: string; name: string }> {
   try {
+    const companyId =
+      data.companyId || process.env.GHL_COMPANY_ID || "BwvkM3wHfHWTcRf9EO3t";
     const bodyPayload: any = {
+      companyId,
       name: data.name,
       phone: data.phone || "",
       address: data.address || "",
@@ -521,7 +522,7 @@ export async function createGhlSubAccount(data: {
     }
     const res = await fetch(`${GHL_API_BASE}/locations/`, {
       method: "POST",
-      headers: getGhlHeaders(),
+      headers: getGhlHeaders(data.apiKey),
       body: JSON.stringify(bodyPayload),
     });
     if (!res.ok) {
@@ -551,6 +552,7 @@ export async function createGhlContact(data: {
   email: string;
   phone?: string;
   tags?: string[];
+  apiKey?: string;
 }): Promise<GhlContact> {
   try {
     const locationId = data.locationId || process.env.GHL_LOCATION_ID;
@@ -565,7 +567,7 @@ export async function createGhlContact(data: {
     }
     const res = await fetch(`${GHL_API_BASE}/contacts/`, {
       method: "POST",
-      headers: getGhlHeaders(),
+      headers: getGhlHeaders(data.apiKey),
       body: JSON.stringify(bodyPayload),
     });
     if (!res.ok) {
@@ -594,6 +596,7 @@ export async function createGhlContact(data: {
 export async function addGhlContactTag(
   contactId: string,
   tags: string | string[],
+  apiKey?: string,
 ): Promise<boolean> {
   try {
     const tagArray = Array.isArray(tags) ? tags : [tags];
@@ -601,7 +604,7 @@ export async function addGhlContactTag(
       `${GHL_API_BASE}/contacts/${encodeURIComponent(contactId)}/tags`,
       {
         method: "POST",
-        headers: getGhlHeaders(),
+        headers: getGhlHeaders(apiKey),
         body: JSON.stringify({ tags: tagArray }),
       },
     );
@@ -629,6 +632,7 @@ export async function createGhlTask(
     dueDate?: string;
     assignedTo?: string;
   },
+  apiKey?: string,
 ): Promise<boolean> {
   try {
     const defaultDueDate = new Date(
@@ -638,7 +642,7 @@ export async function createGhlTask(
       `${GHL_API_BASE}/contacts/${encodeURIComponent(contactId)}/tasks`,
       {
         method: "POST",
-        headers: getGhlHeaders(),
+        headers: getGhlHeaders(apiKey),
         body: JSON.stringify({
           title: task.title,
           body: task.body || "",
