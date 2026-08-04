@@ -408,16 +408,22 @@ async function executeOnboardingPipeline(
       const mode = ghlData.mode || "update-opportunity-stage";
 
       try {
-        if (mode === "create-sub-account") {
+        if (
+          mode === "create-sub-account" ||
+          mode === "create-sub-account-from-template"
+        ) {
           const subAcc = await createGhlSubAccount({
             name: record.clientName,
             timezone: ghlData.timezone || "Australia/Sydney",
             country: ghlData.country || "AU",
             address: ghlData.address || "",
             city: ghlData.city || "",
+            snapshotId: ghlData.snapshotId || undefined,
           });
           console.log(
-            `[GHL Automation] Created Sub-Account ${subAcc.id} (${subAcc.name})`,
+            `[GHL Automation] Created Sub-Account ${subAcc.id} (${subAcc.name})${
+              ghlData.snapshotId ? ` from Snapshot ${ghlData.snapshotId}` : ""
+            }`,
           );
         } else if (mode === "create-contact") {
           const createdContact = await createGhlContact({

@@ -385,6 +385,41 @@ export async function getGhlContactDetails(
   }
 }
 
+export interface GhlSnapshot {
+  id: string;
+  name: string;
+  type?: string;
+}
+
+/**
+ * Fetches snapshots/templates from GoHighLevel Agency API.
+ */
+export async function getGhlSnapshots(): Promise<GhlSnapshot[]> {
+  const apiKey = process.env.GHL_API_KEY;
+  if (!apiKey) {
+    return [];
+  }
+  try {
+    const res = await fetch(`${GHL_API_BASE}/snapshots/`, {
+      headers: getGhlHeaders(),
+    });
+    if (!res.ok) {
+      console.warn(`GHL Snapshots fetch returned status ${res.status}`);
+      return [];
+    }
+    const data = await res.json();
+    const snapshots = data.snapshots || data.templates || [];
+    return snapshots.map((s: any) => ({
+      id: s.id || s.snapshotId,
+      name: s.name || s.title || "Unnamed Template",
+      type: s.type,
+    }));
+  } catch (error) {
+    console.warn("Error fetching GHL snapshots:", error);
+    return [];
+  }
+}
+
 /**
  * Creates a new Sub-Account (Location) in GoHighLevel using Agency API key/token.
  */
@@ -398,22 +433,27 @@ export async function createGhlSubAccount(data: {
   postalCode?: string;
   website?: string;
   timezone?: string;
+  snapshotId?: string;
 }): Promise<{ id: string; name: string }> {
   try {
+    const bodyPayload: any = {
+      name: data.name,
+      phone: data.phone || "",
+      address: data.address || "",
+      city: data.city || "",
+      state: data.state || "",
+      country: data.country || "AU",
+      postalCode: data.postalCode || "",
+      website: data.website || "",
+      timezone: data.timezone || "Australia/Sydney",
+    };
+    if (data.snapshotId) {
+      bodyPayload.snapshotId = data.snapshotId;
+    }
     const res = await fetch(`${GHL_API_BASE}/locations/`, {
       method: "POST",
       headers: getGhlHeaders(),
-      body: JSON.stringify({
-        name: data.name,
-        phone: data.phone || "",
-        address: data.address || "",
-        city: data.city || "",
-        state: data.state || "",
-        country: data.country || "AU",
-        postalCode: data.postalCode || "",
-        website: data.website || "",
-        timezone: data.timezone || "Australia/Sydney",
-      }),
+      body: JSON.stringify(bodyPayload),
     });
     if (!res.ok) {
       const errorText = await res.text().catch(() => "");

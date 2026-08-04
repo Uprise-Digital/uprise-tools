@@ -8,7 +8,19 @@ import { member, organizationOnboardingSettings } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { decryptToken, encryptToken } from "@/lib/crypto";
 import { verifyDriveFolderAccess } from "@/service/google-drive-service";
+import { getGhlSnapshots } from "@/service/gohighlevel-service";
 import { verifyNotionConnection } from "@/service/notion-service";
+
+export async function getGhlSnapshotsAction() {
+  try {
+    const snapshots = await getGhlSnapshots();
+    return { success: true, snapshots };
+  } catch (err: any) {
+    console.error("getGhlSnapshotsAction error:", err);
+    return { success: false, error: err.message, snapshots: [] };
+  }
+}
+
 
 async function getSessionOrgId() {
   const session = await auth.api.getSession({

@@ -24,11 +24,12 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import "@xyflow/react/dist/style.css";
 import {
   disconnectGoogleDriveAction,
+  getGhlSnapshotsAction,
   saveOnboardingSettingsAction,
 } from "@/actions/onboarding-settings.actions";
 import { Button } from "@/components/ui/button";
@@ -584,6 +585,24 @@ function OnboardingTabContent({
   );
   const [showGhlKey, setShowGhlKey] = useState(false);
 
+  const [ghlSnapshots, setGhlSnapshots] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [loadingSnapshots, setLoadingSnapshots] = useState(false);
+
+  useEffect(() => {
+    if (ghlEnabled && ghlSnapshots.length === 0 && !loadingSnapshots) {
+      setLoadingSnapshots(true);
+      getGhlSnapshotsAction().then((res) => {
+        if (res.success && res.snapshots) {
+          setGhlSnapshots(res.snapshots);
+        }
+        setLoadingSnapshots(false);
+      });
+    }
+  }, [ghlEnabled, ghlSnapshots.length, loadingSnapshots]);
+
+
   const defaultSubject = `Welcome to ${orgName} - Let's get started!`;
   const defaultBody = `Hi {{primary_contact_name}},
 
@@ -634,55 +653,70 @@ Founder | ${orgName}`;
         if (type === "input" || n.id === "trigger") type = "customTrigger";
         else if (n.id === "google-drive") {
           type = "customDrive";
+          const mode =
+            n.data?.mode ||
+            (onboardingSettings?.googleDriveTemplateFolderId
+              ? "copy-template"
+              : "empty-folder");
+          const parentFolderId =
+            n.data?.parentFolderId ||
+            onboardingSettings?.googleDriveParentFolderId ||
+            "";
+          const templateFolderId =
+            n.data?.templateFolderId ||
+            onboardingSettings?.googleDriveTemplateFolderId ||
+            "";
+          const folderNamePattern =
+            n.data?.folderNamePattern || "{{client_name}} Onboarding";
+          const shareEmails = n.data?.shareEmails || "{{contact_email}}";
+          const shareRole = n.data?.shareRole || "writer";
+          const subfolders = n.data?.subfolders || [
+            "/Briefs",
+            "/Creatives",
+            "/Reports",
+          ];
+          const docRules = n.data?.docRules || [];
+
           n.data = {
             label: "Google Drive Automation",
-            mode:
-              n.data?.mode ||
-              (onboardingSettings?.googleDriveTemplateFolderId
-                ? "copy-template"
-                : "empty-folder"),
-            parentFolderId:
-              n.data?.parentFolderId ||
-              onboardingSettings?.googleDriveParentFolderId ||
-              "",
-            templateFolderId:
-              n.data?.templateFolderId ||
-              onboardingSettings?.googleDriveTemplateFolderId ||
-              "",
-            folderNamePattern:
-              n.data?.folderNamePattern || "{{client_name}} Onboarding",
-            shareEmails: n.data?.shareEmails || "{{contact_email}}",
-            shareRole: n.data?.shareRole || "writer",
-            subfolders: n.data?.subfolders || [
-              "/Briefs",
-              "/Creatives",
-              "/Reports",
-            ],
-            docRules: n.data?.docRules || [],
             ...n.data,
+            mode,
+            parentFolderId,
+            templateFolderId,
+            folderNamePattern,
+            shareEmails,
+            shareRole,
+            subfolders,
+            docRules,
           };
         } else if (n.id === "notion") {
           type = "customNotion";
+          const mode =
+            n.data?.mode ||
+            (onboardingSettings?.notionTemplatePageId
+              ? "copy-page"
+              : "create-blank-page");
+          const parentPageId =
+            n.data?.parentPageId ||
+            onboardingSettings?.notionParentPageId ||
+            "";
+          const templatePageId =
+            n.data?.templatePageId ||
+            onboardingSettings?.notionTemplatePageId ||
+            "";
+          const pageNamePattern =
+            n.data?.pageNamePattern ||
+            "Uprise Digital x {{client_name}} - Client Dashboard";
+          const pageIcon = n.data?.pageIcon || "🚀";
+
           n.data = {
             label: "Notion Dashboard Automation",
-            mode:
-              n.data?.mode ||
-              (onboardingSettings?.notionTemplatePageId
-                ? "copy-page"
-                : "create-blank-page"),
-            parentPageId:
-              n.data?.parentPageId ||
-              onboardingSettings?.notionParentPageId ||
-              "",
-            templatePageId:
-              n.data?.templatePageId ||
-              onboardingSettings?.notionTemplatePageId ||
-              "",
-            pageNamePattern:
-              n.data?.pageNamePattern ||
-              "Uprise Digital x {{client_name}} - Client Dashboard",
-            pageIcon: n.data?.pageIcon || "🚀",
             ...n.data,
+            mode,
+            parentPageId,
+            templatePageId,
+            pageNamePattern,
+            pageIcon,
           };
         } else if (n.id === "monday") {
           type = "customMonday";
@@ -1984,6 +2018,7 @@ Founder | ${orgName}`;
                     ghlData.taskBody ||
                     "Review onboarding assets and initiate campaign setup for {{client_name}}.";
                   const dueDays = ghlData.dueDays || "7";
+                  const snapshotId = ghlData.snapshotId || "";
                   const timezone = ghlData.timezone || "Australia/Sydney";
                   const country = ghlData.country || "AU";
                   const address = ghlData.address || "";
@@ -2002,8 +2037,11 @@ Founder | ${orgName}`;
                           }
                           className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer font-medium"
                         >
+                          <option value="create-sub-account-from-template">
+                            Create Sub-Account from Template
+                          </option>
                           <option value="create-sub-account">
-                            Create Sub-Account (Location)
+                            Create Blank Sub-Account (Location)
                           </option>
                           <option value="create-task">
                             Create CRM Task
@@ -2019,8 +2057,50 @@ Founder | ${orgName}`;
                         </select>
                       </div>
 
-                      {mode === "create-sub-account" && (
+                      {(mode === "create-sub-account" ||
+                        mode === "create-sub-account-from-template") && (
                         <>
+                          {mode === "create-sub-account-from-template" && (
+                            <div className="space-y-1.5 border-b pb-3 mb-2">
+                              <Label className="text-slate-700 font-bold flex items-center justify-between">
+                                <span>GHL Template / Snapshot</span>
+                                {loadingSnapshots && (
+                                  <span className="text-[10px] text-indigo-600 animate-pulse font-normal">
+                                    Loading...
+                                  </span>
+                                )}
+                              </Label>
+                              {ghlSnapshots.length > 0 ? (
+                                <select
+                                  value={snapshotId}
+                                  onChange={(e) =>
+                                    updateNodeData("ghl", "snapshotId", e.target.value)
+                                  }
+                                  className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
+                                >
+                                  <option value="">-- Select GHL Template --</option>
+                                  {ghlSnapshots.map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.name} ({s.id})
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <Input
+                                  value={snapshotId}
+                                  onChange={(e) =>
+                                    updateNodeData("ghl", "snapshotId", e.target.value)
+                                  }
+                                  placeholder="Enter Snapshot/Template ID (e.g. snp_123)"
+                                  className="text-xs bg-white font-mono"
+                                />
+                              )}
+                              <p className="text-[9px] text-slate-400">
+                                Select or enter the GHL snapshot ID to clone.
+                              </p>
+                            </div>
+                          )}
+
                           <div className="space-y-1.5">
                             <Label className="text-slate-700 font-bold">
                               Timezone
