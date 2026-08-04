@@ -384,3 +384,171 @@ export async function getGhlContactDetails(
     return null;
   }
 }
+
+/**
+ * Creates a new Sub-Account (Location) in GoHighLevel using Agency API key/token.
+ */
+export async function createGhlSubAccount(data: {
+  name: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+  website?: string;
+  timezone?: string;
+}): Promise<{ id: string; name: string }> {
+  try {
+    const res = await fetch(`${GHL_API_BASE}/locations/`, {
+      method: "POST",
+      headers: getGhlHeaders(),
+      body: JSON.stringify({
+        name: data.name,
+        phone: data.phone || "",
+        address: data.address || "",
+        city: data.city || "",
+        state: data.state || "",
+        country: data.country || "AU",
+        postalCode: data.postalCode || "",
+        website: data.website || "",
+        timezone: data.timezone || "Australia/Sydney",
+      }),
+    });
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(
+        `GHL Sub-Account creation failed (${res.status}): ${res.statusText || errorText}`,
+      );
+    }
+    const resData = await res.json();
+    const loc = resData.location || resData;
+    return {
+      id: loc.id || loc.locationId,
+      name: loc.name || data.name,
+    };
+  } catch (error) {
+    console.error("Error creating GHL sub-account:", error);
+    throw error;
+  }
+}
+
+/**
+ * Creates a new contact in GoHighLevel CRM.
+ */
+export async function createGhlContact(data: {
+  locationId?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  tags?: string[];
+}): Promise<GhlContact> {
+  try {
+    const locationId = data.locationId || process.env.GHL_LOCATION_ID;
+    const bodyPayload: any = {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      tags: data.tags || [],
+    };
+    if (locationId) {
+      bodyPayload.locationId = locationId;
+    }
+    const res = await fetch(`${GHL_API_BASE}/contacts/`, {
+      method: "POST",
+      headers: getGhlHeaders(),
+      body: JSON.stringify(bodyPayload),
+    });
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(
+        `GHL Contact creation failed (${res.status}): ${res.statusText || errorText}`,
+      );
+    }
+    const resData = await res.json();
+    const c = resData.contact || resData;
+    return {
+      id: c.id,
+      name: `${c.firstName || ""} ${c.lastName || ""}`.trim() || c.name || data.name,
+      email: c.email || data.email,
+      phone: c.phone || data.phone,
+    };
+  } catch (error) {
+    console.error("Error creating GHL contact:", error);
+    throw error;
+  }
+}
+
+/**
+ * Adds tag(s) to an existing contact in GoHighLevel.
+ */
+export async function addGhlContactTag(
+  contactId: string,
+  tags: string | string[],
+): Promise<boolean> {
+  try {
+    const tagArray = Array.isArray(tags) ? tags : [tags];
+    const res = await fetch(
+      `${GHL_API_BASE}/contacts/${encodeURIComponent(contactId)}/tags`,
+      {
+        method: "POST",
+        headers: getGhlHeaders(),
+        body: JSON.stringify({ tags: tagArray }),
+      },
+    );
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(
+        `Failed to add tag to GHL contact (${res.status}): ${res.statusText || errorText}`,
+      );
+    }
+    return true;
+  } catch (error) {
+    console.error(`Error adding tag to GHL contact ${contactId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Creates a task for a contact in GoHighLevel CRM.
+ */
+export async function createGhlTask(
+  contactId: string,
+  task: {
+    title: string;
+    body?: string;
+    dueDate?: string;
+    assignedTo?: string;
+  },
+): Promise<boolean> {
+  try {
+    const defaultDueDate = new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const res = await fetch(
+      `${GHL_API_BASE}/contacts/${encodeURIComponent(contactId)}/tasks`,
+      {
+        method: "POST",
+        headers: getGhlHeaders(),
+        body: JSON.stringify({
+          title: task.title,
+          body: task.body || "",
+          dueDate: task.dueDate || defaultDueDate,
+          completed: false,
+          assignedTo: task.assignedTo || undefined,
+        }),
+      },
+    );
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(
+        `Failed to create GHL task (${res.status}): ${res.statusText || errorText}`,
+      );
+    }
+    return true;
+  } catch (error) {
+    console.error(`Error creating GHL task for contact ${contactId}:`, error);
+    throw error;
+  }
+}
+

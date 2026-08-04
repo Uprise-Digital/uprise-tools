@@ -17,7 +17,15 @@ import { logAction, logEmail } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import { decryptToken } from "@/lib/crypto";
 import { compileOnboardingEmail } from "@/lib/onboarding-email";
-import { updateGhlOpportunityStage } from "@/service/gohighlevel-service";
+import {
+  addGhlContactTag,
+  createContactNote,
+  createGhlContact,
+  createGhlSubAccount,
+  createGhlTask,
+  updateGhlOpportunityStage,
+} from "@/service/gohighlevel-service";
+
 import { createClientDriveFolder } from "@/service/google-drive-service";
 import { createClientNotionDashboard } from "@/service/notion-service";
 
@@ -387,8 +395,112 @@ async function executeOnboardingPipeline(
       notionDashboardLink = "";
     }
 
-    // 4. Signal Link
+    // 4. GoHighLevel CRM Automation Execution
+    const ghlEnabled = settings?.workflowConfig
+      ? activeChain.includes("ghl")
+      : false;
+    if (ghlEnabled) {
+      const ghlNode = (settings?.workflowConfig as any)?.nodes?.find(
+        (n: any) => n.id === "ghl",
+      );
+      const ghlData = ghlNode?.data || {};
+      const mode = ghlData.mode || "update-opportunity-stage";
+
+      try {
+        if (mode === "create-sub-account") {
+          const subAcc = await createGhlSubAccount({
+            name: record.clientName,
+            timezone: ghlData.timezone || "Australia/Sydney",
+            country: ghlData.country || "AU",
+            address: ghlData.address || "",
+            city: ghlData.city || "",
+          });
+          console.log(
+            `[GHL Automation] Created Sub-Account ${subAcc.id} (${subAcc.name})`,
+          );
+        } else if (mode === "create-contact") {
+          const createdContact = await createGhlContact({
+            name: record.primaryContactName || record.clientName,
+            email: record.contactEmail,
+            tags: ghlData.tagNaming ? [ghlData.tagNaming] : ["onboarded-client"],
+          });
+          if (createdContact?.id && !record.ghlContactId) {
+            await db
+              .update(clientOnboardings)
+              .set({ ghlContactId: createdContact.id })
+              .where(eq(clientOnboardings.id, onboardingId));
+          }
+        } else if (mode === "add-tag") {
+          const contactId = record.ghlContactId;
+          const tag = ghlData.tagNaming || "onboarded-client";
+          if (contactId) {
+            await addGhlContactTag(contactId, tag);
+          } else {
+            console.warn(
+              "[GHL Automation] Cannot add tag: No ghlContactId on client record.",
+            );
+          }
+        } else if (mode === "create-contact-note") {
+          const contactId = record.ghlContactId;
+          let body =
+            ghlData.noteTemplate ||
+            "Client {{client_name}} onboarded via Uprise Tools.";
+          body = body
+            .replace(/\{\{\s*client_name\s*\}\}/g, record.clientName)
+            .replace(/\{\{\s*primary_contact_name\s*\}\}/g, record.primaryContactName)
+            .replace(/\{\{\s*contact_email\s*\}\}/g, record.contactEmail);
+          if (contactId) {
+            await createContactNote(contactId, body);
+          } else {
+            console.warn(
+              "[GHL Automation] Cannot create note: No ghlContactId on client record.",
+            );
+          }
+        } else if (mode === "create-task") {
+          const contactId = record.ghlContactId;
+          let title = ghlData.taskTitle || "Onboarding Task for {{client_name}}";
+          let body =
+            ghlData.taskBody ||
+            "Complete onboarding setup for {{client_name}}.";
+          title = title.replace(/\{\{\s*client_name\s*\}\}/g, record.clientName);
+          body = body
+            .replace(/\{\{\s*client_name\s*\}\}/g, record.clientName)
+            .replace(/\{\{\s*primary_contact_name\s*\}\}/g, record.primaryContactName);
+
+          const dueDays = parseInt(ghlData.dueDays || "7", 10);
+          const dueDate = new Date(
+            Date.now() + (isNaN(dueDays) ? 7 : dueDays) * 24 * 60 * 60 * 1000,
+          ).toISOString();
+
+          if (contactId) {
+            await createGhlTask(contactId, { title, body, dueDate });
+          } else {
+            console.warn(
+              "[GHL Automation] Cannot create task: No ghlContactId on client record.",
+            );
+          }
+        } else if (mode === "update-opportunity-stage") {
+          const oppId = record.ghlOpportunityId;
+          const stageId =
+            ghlData.stageId ||
+            process.env.GHL_ACTIVE_STAGE_ID ||
+            "active_client_stage";
+          if (oppId) {
+            await updateGhlOpportunityStage(oppId, stageId);
+          } else {
+            console.warn(
+              "[GHL Automation] Cannot update stage: No ghlOpportunityId on client record.",
+            );
+          }
+        }
+      } catch (ghlErr: any) {
+        console.error(`[GHL Automation Error]: ${ghlErr.message}`);
+      }
+    }
+
+    // 5. Signal Link
     const signalGroupLink = `https://signal.group/#CjVKB-${slug}-mock-chat`;
+
 
     await db
       .update(clientOnboardings)

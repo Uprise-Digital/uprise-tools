@@ -1929,6 +1929,16 @@ Founder | ${orgName}`;
                   const noteTemplate =
                     ghlData.noteTemplate ||
                     "Client {{client_name}} onboarded via Uprise Tools.";
+                  const taskTitle =
+                    ghlData.taskTitle || "Onboarding Setup: {{client_name}}";
+                  const taskBody =
+                    ghlData.taskBody ||
+                    "Review onboarding assets and initiate campaign setup for {{client_name}}.";
+                  const dueDays = ghlData.dueDays || "7";
+                  const timezone = ghlData.timezone || "Australia/Sydney";
+                  const country = ghlData.country || "AU";
+                  const address = ghlData.address || "";
+                  const city = ghlData.city || "";
 
                   return (
                     <div className="space-y-4 flex-1">
@@ -1941,8 +1951,14 @@ Founder | ${orgName}`;
                           onChange={(e) =>
                             updateNodeData("ghl", "mode", e.target.value)
                           }
-                          className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
+                          className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer font-medium"
                         >
+                          <option value="create-sub-account">
+                            Create Sub-Account (Location)
+                          </option>
+                          <option value="create-task">
+                            Create CRM Task
+                          </option>
                           <option value="update-opportunity-stage">
                             Update Opportunity Stage
                           </option>
@@ -1954,63 +1970,173 @@ Founder | ${orgName}`;
                         </select>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label className="text-slate-700 font-bold">
-                          Target Pipeline ID
-                        </Label>
-                        <Input
-                          value={pipelineId}
-                          onChange={(e) =>
-                            updateNodeData("ghl", "pipelineId", e.target.value)
-                          }
-                          placeholder="e.g. ghl_pipeline_123"
-                          className="text-xs bg-white font-mono"
-                        />
-                      </div>
+                      {mode === "create-sub-account" && (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label className="text-slate-700 font-bold">
+                              Timezone
+                            </Label>
+                            <Input
+                              value={timezone}
+                              onChange={(e) =>
+                                updateNodeData("ghl", "timezone", e.target.value)
+                              }
+                              placeholder="e.g. Australia/Sydney"
+                              className="text-xs bg-white"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-slate-700 font-bold">
+                              Country Code
+                            </Label>
+                            <Input
+                              value={country}
+                              onChange={(e) =>
+                                updateNodeData("ghl", "country", e.target.value)
+                              }
+                              placeholder="e.g. AU or US"
+                              className="text-xs bg-white"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-slate-700 font-bold">
+                              Address (Optional)
+                            </Label>
+                            <Input
+                              value={address}
+                              onChange={(e) =>
+                                updateNodeData("ghl", "address", e.target.value)
+                              }
+                              placeholder="e.g. 100 Market St"
+                              className="text-xs bg-white"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-slate-700 font-bold">
+                              City (Optional)
+                            </Label>
+                            <Input
+                              value={city}
+                              onChange={(e) =>
+                                updateNodeData("ghl", "city", e.target.value)
+                              }
+                              placeholder="e.g. Sydney"
+                              className="text-xs bg-white"
+                            />
+                          </div>
+                        </>
+                      )}
 
-                      <div className="space-y-1.5">
-                        <Label className="text-slate-700 font-bold">
-                          Target Stage ID
-                        </Label>
-                        <Input
-                          value={stageId}
-                          onChange={(e) =>
-                            updateNodeData("ghl", "stageId", e.target.value)
-                          }
-                          placeholder="e.g. Active Onboarding"
-                          className="text-xs bg-white font-mono"
-                        />
-                      </div>
+                      {mode === "create-task" && (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label className="text-slate-700 font-bold">
+                              Task Title Template
+                            </Label>
+                            <Input
+                              value={taskTitle}
+                              onChange={(e) =>
+                                updateNodeData("ghl", "taskTitle", e.target.value)
+                              }
+                              placeholder="e.g. Onboarding Setup: {{client_name}}"
+                              className="text-xs bg-white"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-slate-700 font-bold">
+                              Task Details Template
+                            </Label>
+                            <textarea
+                              value={taskBody}
+                              onChange={(e) =>
+                                updateNodeData("ghl", "taskBody", e.target.value)
+                              }
+                              className="w-full min-h-[70px] text-xs font-mono p-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none resize-y"
+                              placeholder="Complete campaign checklist..."
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-slate-700 font-bold">
+                              Due In (Days)
+                            </Label>
+                            <Input
+                              type="number"
+                              value={dueDays}
+                              onChange={(e) =>
+                                updateNodeData("ghl", "dueDays", e.target.value)
+                              }
+                              placeholder="7"
+                              className="text-xs bg-white"
+                            />
+                          </div>
+                        </>
+                      )}
 
-                      <div className="space-y-1.5">
-                        <Label className="text-slate-700 font-bold">
-                          Tag Naming
-                        </Label>
-                        <Input
-                          value={tagNaming}
-                          onChange={(e) =>
-                            updateNodeData("ghl", "tagNaming", e.target.value)
-                          }
-                          placeholder="e.g. onboarded-client"
-                          className="text-xs bg-white"
-                        />
-                      </div>
+                      {mode === "update-opportunity-stage" && (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label className="text-slate-700 font-bold">
+                              Target Pipeline ID
+                            </Label>
+                            <Input
+                              value={pipelineId}
+                              onChange={(e) =>
+                                updateNodeData("ghl", "pipelineId", e.target.value)
+                              }
+                              placeholder="e.g. ghl_pipeline_123"
+                              className="text-xs bg-white font-mono"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-slate-700 font-bold">
+                              Target Stage ID
+                            </Label>
+                            <Input
+                              value={stageId}
+                              onChange={(e) =>
+                                updateNodeData("ghl", "stageId", e.target.value)
+                              }
+                              placeholder="e.g. Active Onboarding"
+                              className="text-xs bg-white font-mono"
+                            />
+                          </div>
+                        </>
+                      )}
 
-                      <div className="space-y-1.5">
-                        <Label className="text-slate-700 font-bold">
-                          Contact Note Template
-                        </Label>
-                        <textarea
-                          value={noteTemplate}
-                          onChange={(e) =>
-                            updateNodeData("ghl", "noteTemplate", e.target.value)
-                          }
-                          className="w-full min-h-[80px] text-xs font-mono p-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none resize-y"
-                          placeholder="Client {{client_name}} onboarded..."
-                        />
-                      </div>
+                      {(mode === "add-tag" || mode === "create-contact") && (
+                        <div className="space-y-1.5">
+                          <Label className="text-slate-700 font-bold">
+                            Tag Naming
+                          </Label>
+                          <Input
+                            value={tagNaming}
+                            onChange={(e) =>
+                              updateNodeData("ghl", "tagNaming", e.target.value)
+                            }
+                            placeholder="e.g. onboarded-client"
+                            className="text-xs bg-white"
+                          />
+                        </div>
+                      )}
+
+                      {mode === "create-contact-note" && (
+                        <div className="space-y-1.5">
+                          <Label className="text-slate-700 font-bold">
+                            Contact Note Template
+                          </Label>
+                          <textarea
+                            value={noteTemplate}
+                            onChange={(e) =>
+                              updateNodeData("ghl", "noteTemplate", e.target.value)
+                            }
+                            className="w-full min-h-[80px] text-xs font-mono p-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none resize-y"
+                            placeholder="Client {{client_name}} onboarded..."
+                          />
+                        </div>
+                      )}
                     </div>
                   );
+
                 })()}
               </div>
             )}
