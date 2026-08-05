@@ -188,7 +188,7 @@ async function shareFolder(
           role: role === "writer" ? "writer" : "reader",
           emailAddress: trimmed,
         },
-        sendNotificationEmail: false,
+        sendNotificationEmail: true,
       });
     } catch (err: any) {
       console.warn(`Failed to share folder with ${trimmed}:`, err.message);

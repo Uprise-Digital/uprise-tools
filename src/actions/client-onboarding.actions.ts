@@ -328,8 +328,8 @@ async function executeOnboardingPipeline(
         mode,
         folderNamePattern: driveData.folderNamePattern,
         subfolders: driveData.subfolders,
-        shareEmails: driveData.shareEmails,
-        shareRole: driveData.shareRole,
+        shareEmails: driveData.shareEmails ?? "{{contact_email}}",
+        shareRole: driveData.shareRole ?? "writer",
         docRules: driveData.docRules,
         clientEmail: record.contactEmail,
       };
