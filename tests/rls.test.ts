@@ -30,6 +30,16 @@ describe("Database RLS Scoping Tests", () => {
     await db.execute(
       sql`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rls_test_role`,
     );
+    await db.execute(sql`
+      ALTER TABLE ad_accounts ENABLE ROW LEVEL SECURITY;
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ad_accounts' AND policyname = 'tenant_isolation_policy') THEN
+          CREATE POLICY tenant_isolation_policy ON ad_accounts FOR ALL USING (current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true));
+        END IF;
+      END
+      $$;
+    `);
 
     // 2. Clean up any leftover test data
     await withBypassTenantDb(async (tx) => {
