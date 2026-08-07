@@ -187,25 +187,13 @@ export function HeroSection() {
               Trusted by performance teams at:
             </span>
 
-            {/* Clean Monochrome Agency Logos (Match Seka Reference Image) */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-8 items-center w-full md:w-auto opacity-75 grayscale hover:grayscale-0 transition-all">
-              <span className="text-lg font-black tracking-tight text-slate-800 text-center">
+            {/* Clean Monochrome Agency Logos */}
+            <div className="flex items-center gap-12 opacity-80 transition-all">
+              <span className="text-xl font-black tracking-tight text-slate-800">
                 Propia
               </span>
-              <span className="text-lg font-black tracking-widest text-slate-800 text-center uppercase">
-                SHUFFLE
-              </span>
-              <span className="text-lg font-black tracking-tight text-slate-800 text-center">
-                JLL
-              </span>
-              <span className="text-lg font-black tracking-tight text-slate-800 text-center">
+              <span className="text-xl font-black tracking-wider text-slate-800 uppercase">
                 UPRISE
-              </span>
-              <span className="text-lg font-black tracking-tight text-slate-800 text-center italic">
-                Bega
-              </span>
-              <span className="text-lg font-black tracking-tight text-slate-800 text-center lowercase">
-                tendr
               </span>
             </div>
           </div>
