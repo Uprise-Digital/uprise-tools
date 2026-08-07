@@ -202,47 +202,52 @@ export const clientOnboardings = pgTable(
 ).enableRLS();
 
 // --- 3. GOOGLE ADS CORE ---
-export const adAccounts = pgTable("ad_accounts", {
-  id: serial("id").primaryKey(),
-  organizationId: text("organization_id").notNull().default("default-org"),
-  connectionId: integer("connection_id").references(
-    () => googleAdsConnections.id,
-    { onDelete: "cascade" },
-  ),
-  googleAccountId: text("google_account_id").notNull().unique(),
-  name: text("name").notNull(),
-  websiteUrl: text("website_url"), // <-- NEW: Required for the Threat Matrix
-  currencyCode: text("currency_code").default("AUD"),
-  timeZone: text("time_zone").default("Australia/Melbourne"),
-  isActive: boolean("is_active").default(true).notNull(),
-  googleStatus: text("google_status").default("ENABLED").notNull(),
-  lastSyncedAt: timestamp("last_synced_at").defaultNow(),
-  syncStatus: text("sync_status"),
-  syncError: text("sync_error"),
-  includeInBriefing: boolean("include_in_briefing").default(true).notNull(),
-  negativeKeywordTurboMode: boolean("negative_keyword_turbo_mode")
-    .default(false)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const adAccounts = pgTable(
+  "ad_accounts",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id").notNull().default("default-org"),
+    connectionId: integer("connection_id").references(
+      () => googleAdsConnections.id,
+      { onDelete: "cascade" },
+    ),
+    googleAccountId: text("google_account_id").notNull().unique(),
+    name: text("name").notNull(),
+    websiteUrl: text("website_url"), // <-- NEW: Required for the Threat Matrix
+    currencyCode: text("currency_code").default("AUD"),
+    timeZone: text("time_zone").default("Australia/Melbourne"),
+    isActive: boolean("is_active").default(true).notNull(),
+    googleStatus: text("google_status").default("ENABLED").notNull(),
+    lastSyncedAt: timestamp("last_synced_at").defaultNow(),
+    syncStatus: text("sync_status"),
+    syncError: text("sync_error"),
+    includeInBriefing: boolean("include_in_briefing").default(true).notNull(),
+    negativeKeywordTurboMode: boolean("negative_keyword_turbo_mode")
+      .default(false)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
 
-  targetCpa: decimal("target_cpa", { precision: 10, scale: 2 }),
-  targetRoas: decimal("target_roas", { precision: 5, scale: 2 }),
-  monthlyBudgetCap: decimal("monthly_budget_cap", { precision: 10, scale: 2 }),
-  targetNotes: text("target_notes"),
-  clientOnboardingId: integer("client_onboarding_id").references(
-    () => clientOnboardings.id,
-    { onDelete: "set null" },
-  ),
-  lastNegativeGenerationExplanation: text(
-    "last_negative_generation_explanation",
-  ),
-},
-() => [
-  pgPolicy("tenant_isolation_policy", {
-    for: "all",
-    using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
-  }),
-],
+    targetCpa: decimal("target_cpa", { precision: 10, scale: 2 }),
+    targetRoas: decimal("target_roas", { precision: 5, scale: 2 }),
+    monthlyBudgetCap: decimal("monthly_budget_cap", {
+      precision: 10,
+      scale: 2,
+    }),
+    targetNotes: text("target_notes"),
+    clientOnboardingId: integer("client_onboarding_id").references(
+      () => clientOnboardings.id,
+      { onDelete: "set null" },
+    ),
+    lastNegativeGenerationExplanation: text(
+      "last_negative_generation_explanation",
+    ),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
 ).enableRLS();
 
 export const accountMetrics = pgTable(

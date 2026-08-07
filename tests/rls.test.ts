@@ -21,9 +21,7 @@ describe("Database RLS Scoping Tests", () => {
       END
       $$;
     `);
-    await db.execute(
-      sql`GRANT USAGE ON SCHEMA public TO rls_test_role`,
-    );
+    await db.execute(sql`GRANT USAGE ON SCHEMA public TO rls_test_role`);
     await db.execute(
       sql`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rls_test_role`,
     );
