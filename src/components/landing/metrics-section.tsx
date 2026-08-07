@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, Clock, DollarSign, ShieldCheck } from "lucide-react";
+import { Clock, DollarSign, ShieldCheck, TrendingUp } from "lucide-react";
 
 export function MetricsSection() {
   const metrics = [
@@ -49,7 +49,9 @@ export function MetricsSection() {
                 key={index}
                 className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-6 text-left relative overflow-hidden group hover:border-slate-700 transition-all shadow-xl"
               >
-                <div className={`h-12 w-12 rounded-xl ${item.bg} border flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}>
+                <div
+                  className={`h-12 w-12 rounded-xl ${item.bg} border flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}
+                >
                   <Icon className={`h-6 w-6 ${item.color}`} />
                 </div>
                 <div className="text-4xl font-black text-white tracking-tight mb-1">

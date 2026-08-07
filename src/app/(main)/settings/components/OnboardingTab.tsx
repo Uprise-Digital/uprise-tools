@@ -564,27 +564,33 @@ function OnboardingTabContent({
   );
 
   const [mondayEnabled, setMondayEnabled] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.mondayEnabled ?? false,
+    (onboardingSettings as any)?.workflowConfig?.integrations?.mondayEnabled ??
+      false,
   );
   const [mondayApiKey, setMondayApiKey] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.mondayApiKey ?? "",
+    (onboardingSettings as any)?.workflowConfig?.integrations?.mondayApiKey ??
+      "",
   );
   const [mondayBoardId, setMondayBoardId] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.mondayBoardId ?? "",
+    (onboardingSettings as any)?.workflowConfig?.integrations?.mondayBoardId ??
+      "",
   );
   const [showMondayKey, setShowMondayKey] = useState(false);
 
   const [ghlEnabled, setGhlEnabled] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlEnabled ?? false,
+    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlEnabled ??
+      false,
   );
   const [ghlApiKey, setGhlApiKey] = useState(
     (onboardingSettings as any)?.workflowConfig?.integrations?.ghlApiKey ?? "",
   );
   const [ghlLocationId, setGhlLocationId] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlLocationId ?? "",
+    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlLocationId ??
+      "",
   );
   const [ghlCompanyId, setGhlCompanyId] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlCompanyId ?? "BwvkM3wHfHWTcRf9EO3t",
+    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlCompanyId ??
+      "BwvkM3wHfHWTcRf9EO3t",
   );
   const [showGhlKey, setShowGhlKey] = useState(false);
 
@@ -596,15 +602,22 @@ function OnboardingTabContent({
   useEffect(() => {
     if (ghlSnapshots.length === 0 && !loadingSnapshots) {
       setLoadingSnapshots(true);
-      getGhlSnapshotsAction(ghlApiKey, ghlLocationId, ghlCompanyId).then((res) => {
-        if (res.success && res.snapshots) {
-          setGhlSnapshots(res.snapshots);
-        }
-        setLoadingSnapshots(false);
-      });
+      getGhlSnapshotsAction(ghlApiKey, ghlLocationId, ghlCompanyId).then(
+        (res) => {
+          if (res.success && res.snapshots) {
+            setGhlSnapshots(res.snapshots);
+          }
+          setLoadingSnapshots(false);
+        },
+      );
     }
-  }, [ghlApiKey, ghlLocationId, ghlCompanyId, ghlSnapshots.length, loadingSnapshots]);
-
+  }, [
+    ghlApiKey,
+    ghlLocationId,
+    ghlCompanyId,
+    ghlSnapshots.length,
+    loadingSnapshots,
+  ]);
 
   const defaultSubject = `Welcome to ${orgName} - Let's get started!`;
   const defaultBody = `Hi {{primary_contact_name}},
@@ -1855,7 +1868,11 @@ Founder | ${orgName}`;
               <div className="w-80 border-l border-slate-200 p-5 overflow-y-auto bg-white flex flex-col h-[450px] shrink-0 font-sans text-xs">
                 <div className="flex items-center justify-between pb-3 border-b mb-4">
                   <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                    <img src="/images/logos/monday.svg" alt="" className="w-4 h-4" />
+                    <img
+                      src="/images/logos/monday.svg"
+                      alt=""
+                      className="w-4 h-4"
+                    />
                     Monday Node Settings
                   </span>
                   <Button
@@ -1885,7 +1902,8 @@ Founder | ${orgName}`;
                     mondayData.itemNamePattern ||
                     "Client Onboarding - {{client_name}}";
                   const groupId = mondayData.groupId || "";
-                  const defaultStatus = mondayData.defaultStatus || "Working on it";
+                  const defaultStatus =
+                    mondayData.defaultStatus || "Working on it";
 
                   return (
                     <div className="space-y-4 flex-1">
@@ -1901,7 +1919,9 @@ Founder | ${orgName}`;
                           className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
                         >
                           <option value="create-item">Create Board Item</option>
-                          <option value="create-subitem">Create Sub-item</option>
+                          <option value="create-subitem">
+                            Create Sub-item
+                          </option>
                           <option value="duplicate-board">
                             Duplicate Board Template
                           </option>
@@ -1985,7 +2005,11 @@ Founder | ${orgName}`;
               <div className="w-80 border-l border-slate-200 p-5 overflow-y-auto bg-white flex flex-col h-[450px] shrink-0 font-sans text-xs">
                 <div className="flex items-center justify-between pb-3 border-b mb-4">
                   <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                    <img src="/images/logos/ghl.svg" alt="" className="w-4 h-4" />
+                    <img
+                      src="/images/logos/ghl.svg"
+                      alt=""
+                      className="w-4 h-4"
+                    />
                     GoHighLevel Node Settings
                   </span>
                   <Button
@@ -2047,9 +2071,7 @@ Founder | ${orgName}`;
                           <option value="create-sub-account">
                             Create Blank Sub-Account (Location)
                           </option>
-                          <option value="create-task">
-                            Create CRM Task
-                          </option>
+                          <option value="create-task">Create CRM Task</option>
                           <option value="update-opportunity-stage">
                             Update Opportunity Stage
                           </option>
@@ -2076,7 +2098,11 @@ Founder | ${orgName}`;
                                   size="sm"
                                   onClick={() => {
                                     setLoadingSnapshots(true);
-                                    getGhlSnapshotsAction(ghlApiKey, ghlLocationId, ghlCompanyId).then((res) => {
+                                    getGhlSnapshotsAction(
+                                      ghlApiKey,
+                                      ghlLocationId,
+                                      ghlCompanyId,
+                                    ).then((res) => {
                                       if (res.success && res.snapshots) {
                                         setGhlSnapshots(res.snapshots);
                                       }
@@ -2092,11 +2118,17 @@ Founder | ${orgName}`;
                                 <select
                                   value={snapshotId}
                                   onChange={(e) =>
-                                    updateNodeData("ghl", "snapshotId", e.target.value)
+                                    updateNodeData(
+                                      "ghl",
+                                      "snapshotId",
+                                      e.target.value,
+                                    )
                                   }
                                   className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 outline-none font-medium cursor-pointer"
                                 >
-                                  <option value="">-- Select Loaded Template --</option>
+                                  <option value="">
+                                    -- Select Loaded Template --
+                                  </option>
                                   {ghlSnapshots.map((s) => (
                                     <option key={s.id} value={s.id}>
                                       {s.name} ({s.id})
@@ -2107,13 +2139,18 @@ Founder | ${orgName}`;
                               <Input
                                 value={snapshotId}
                                 onChange={(e) =>
-                                  updateNodeData("ghl", "snapshotId", e.target.value)
+                                  updateNodeData(
+                                    "ghl",
+                                    "snapshotId",
+                                    e.target.value,
+                                  )
                                 }
                                 placeholder="Enter Snapshot/Template ID (e.g. snp_xyz123)"
                                 className="text-xs bg-white font-mono"
                               />
                               <p className="text-[9px] text-slate-400">
-                                Enter or select the GoHighLevel Snapshot ID to clone.
+                                Enter or select the GoHighLevel Snapshot ID to
+                                clone.
                               </p>
                             </div>
                           )}
@@ -2125,7 +2162,11 @@ Founder | ${orgName}`;
                             <Input
                               value={timezone}
                               onChange={(e) =>
-                                updateNodeData("ghl", "timezone", e.target.value)
+                                updateNodeData(
+                                  "ghl",
+                                  "timezone",
+                                  e.target.value,
+                                )
                               }
                               placeholder="e.g. Australia/Sydney"
                               className="text-xs bg-white"
@@ -2182,7 +2223,11 @@ Founder | ${orgName}`;
                             <Input
                               value={taskTitle}
                               onChange={(e) =>
-                                updateNodeData("ghl", "taskTitle", e.target.value)
+                                updateNodeData(
+                                  "ghl",
+                                  "taskTitle",
+                                  e.target.value,
+                                )
                               }
                               placeholder="e.g. Onboarding Setup: {{client_name}}"
                               className="text-xs bg-white"
@@ -2195,7 +2240,11 @@ Founder | ${orgName}`;
                             <textarea
                               value={taskBody}
                               onChange={(e) =>
-                                updateNodeData("ghl", "taskBody", e.target.value)
+                                updateNodeData(
+                                  "ghl",
+                                  "taskBody",
+                                  e.target.value,
+                                )
                               }
                               className="w-full min-h-[70px] text-xs font-mono p-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none resize-y"
                               placeholder="Complete campaign checklist..."
@@ -2227,7 +2276,11 @@ Founder | ${orgName}`;
                             <Input
                               value={pipelineId}
                               onChange={(e) =>
-                                updateNodeData("ghl", "pipelineId", e.target.value)
+                                updateNodeData(
+                                  "ghl",
+                                  "pipelineId",
+                                  e.target.value,
+                                )
                               }
                               placeholder="e.g. ghl_pipeline_123"
                               className="text-xs bg-white font-mono"
@@ -2273,7 +2326,11 @@ Founder | ${orgName}`;
                           <textarea
                             value={noteTemplate}
                             onChange={(e) =>
-                              updateNodeData("ghl", "noteTemplate", e.target.value)
+                              updateNodeData(
+                                "ghl",
+                                "noteTemplate",
+                                e.target.value,
+                              )
                             }
                             className="w-full min-h-[80px] text-xs font-mono p-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none resize-y"
                             placeholder="Client {{client_name}} onboarded..."
@@ -2282,7 +2339,6 @@ Founder | ${orgName}`;
                       )}
                     </div>
                   );
-
                 })()}
               </div>
             )}
@@ -2495,7 +2551,11 @@ Founder | ${orgName}`;
           <CardHeader className="bg-slate-50 border-b border-slate-100 p-5 flex flex-row items-center justify-between">
             <div className="flex-1 min-w-0">
               <CardTitle className="text-sm font-bold flex flex-wrap items-center gap-2 text-slate-800">
-                <img src="/images/logos/monday.svg" alt="" className="w-4 h-4" />
+                <img
+                  src="/images/logos/monday.svg"
+                  alt=""
+                  className="w-4 h-4"
+                />
                 Monday.com Onboarding Integration
                 {mondayEnabled && mondayApiKey ? (
                   <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -2513,7 +2573,8 @@ Founder | ${orgName}`;
                 )}
               </CardTitle>
               <CardDescription className="text-xs">
-                Creates onboarding items, tasks, and project workflows on Monday.com boards.
+                Creates onboarding items, tasks, and project workflows on
+                Monday.com boards.
               </CardDescription>
             </div>
             <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -2607,7 +2668,8 @@ Founder | ${orgName}`;
                 )}
               </CardTitle>
               <CardDescription className="text-xs">
-                Syncs client onboarding records, updates opportunity pipeline stages, and appends CRM notes in GoHighLevel.
+                Syncs client onboarding records, updates opportunity pipeline
+                stages, and appends CRM notes in GoHighLevel.
               </CardDescription>
             </div>
             <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -2739,7 +2801,8 @@ Founder | ${orgName}`;
                     placeholder="e.g. hello@youragency.com"
                   />
                   <p className="text-[10px] text-slate-400 font-medium leading-none">
-                    If left blank, replies will go to the default sender address.
+                    If left blank, replies will go to the default sender
+                    address.
                   </p>
                 </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
+import { CheckCircle, Lock, Shield, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { Sparkles, Shield, Lock, CheckCircle } from "lucide-react";
 
 export function LandingFooter() {
   return (
@@ -19,7 +19,9 @@ export function LandingFooter() {
               </span>
             </Link>
             <p className="text-slate-400 leading-relaxed">
-              The automated PPC command operating system for modern performance agencies. Threat matrix audits, AI morning briefings, and turbo negative keyword management.
+              The automated PPC command operating system for modern performance
+              agencies. Threat matrix audits, AI morning briefings, and turbo
+              negative keyword management.
             </p>
           </div>
 
@@ -29,10 +31,38 @@ export function LandingFooter() {
               Product
             </div>
             <ul className="space-y-2">
-              <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
-              <li><a href="#threat-matrix" className="hover:text-white transition-colors">Threat Matrix</a></li>
-              <li><a href="#pricing" className="hover:text-white transition-colors">Pricing Tiers</a></li>
-              <li><Link href="/docs" className="hover:text-white transition-colors">Documentation</Link></li>
+              <li>
+                <a
+                  href="#features"
+                  className="hover:text-white transition-colors"
+                >
+                  Features
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#threat-matrix"
+                  className="hover:text-white transition-colors"
+                >
+                  Threat Matrix
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#pricing"
+                  className="hover:text-white transition-colors"
+                >
+                  Pricing Tiers
+                </a>
+              </li>
+              <li>
+                <Link
+                  href="/docs"
+                  className="hover:text-white transition-colors"
+                >
+                  Documentation
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -42,10 +72,30 @@ export function LandingFooter() {
               Integrations
             </div>
             <ul className="space-y-2">
-              <li><span className="text-slate-300 flex items-center gap-1.5"><CheckCircle className="h-3 w-3 text-emerald-400" /> Google Ads API v23</span></li>
-              <li><span className="text-slate-300 flex items-center gap-1.5"><CheckCircle className="h-3 w-3 text-emerald-400" /> GoHighLevel API v2</span></li>
-              <li><span className="text-slate-300 flex items-center gap-1.5"><CheckCircle className="h-3 w-3 text-emerald-400" /> Resend & React Email</span></li>
-              <li><span className="text-slate-300 flex items-center gap-1.5"><CheckCircle className="h-3 w-3 text-emerald-400" /> Model Context Protocol (MCP)</span></li>
+              <li>
+                <span className="text-slate-300 flex items-center gap-1.5">
+                  <CheckCircle className="h-3 w-3 text-emerald-400" /> Google
+                  Ads API v23
+                </span>
+              </li>
+              <li>
+                <span className="text-slate-300 flex items-center gap-1.5">
+                  <CheckCircle className="h-3 w-3 text-emerald-400" />{" "}
+                  GoHighLevel API v2
+                </span>
+              </li>
+              <li>
+                <span className="text-slate-300 flex items-center gap-1.5">
+                  <CheckCircle className="h-3 w-3 text-emerald-400" /> Resend &
+                  React Email
+                </span>
+              </li>
+              <li>
+                <span className="text-slate-300 flex items-center gap-1.5">
+                  <CheckCircle className="h-3 w-3 text-emerald-400" /> Model
+                  Context Protocol (MCP)
+                </span>
+              </li>
             </ul>
           </div>
 
@@ -55,7 +105,8 @@ export function LandingFooter() {
               Security & Privacy
             </div>
             <p className="text-slate-400 leading-relaxed">
-              256-bit AES token encryption at rest. Google OAuth standard access permissions.
+              256-bit AES token encryption at rest. Google OAuth standard access
+              permissions.
             </p>
             <div className="flex items-center gap-3 pt-2 text-slate-300">
               <span className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-[10px]">
@@ -73,9 +124,18 @@ export function LandingFooter() {
             © {new Date().getFullYear()} Uprise Tools. All rights reserved.
           </div>
           <div className="flex items-center gap-6">
-            <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
-            <Link href="/docs" className="hover:text-white transition-colors">Security Overview</Link>
+            <Link
+              href="/privacy"
+              className="hover:text-white transition-colors"
+            >
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="hover:text-white transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/docs" className="hover:text-white transition-colors">
+              Security Overview
+            </Link>
           </div>
         </div>
       </div>

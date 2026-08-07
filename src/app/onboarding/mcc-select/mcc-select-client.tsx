@@ -6,8 +6,8 @@ import {
   fetchSubAccountsForPreviewAction,
   linkManagerAccountAction,
 } from "@/actions/onboarding.actions";
-import { Button } from "@/components/ui/button";
 import { OnboardingStepper } from "@/components/onboarding-stepper";
+import { Button } from "@/components/ui/button";
 
 interface SubAccount {
   id: string;
@@ -416,7 +416,11 @@ export default function MccSelectClient({
                   className="block w-full px-3.5 py-3 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-xl text-sm transition-all outline-none"
                 >
                   {initialAccounts.map((acc) => (
-                    <option key={acc.id} value={acc.id} className="bg-slate-950">
+                    <option
+                      key={acc.id}
+                      value={acc.id}
+                      className="bg-slate-950"
+                    >
                       {acc.name} ({formatCustomerId(acc.id)}){" "}
                       {acc.manager ? "[Manager]" : ""}
                     </option>

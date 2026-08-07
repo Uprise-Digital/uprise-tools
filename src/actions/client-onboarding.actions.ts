@@ -421,7 +421,8 @@ async function executeOnboardingPipeline(
       ? activeChain.includes("ghl")
       : false;
     if (ghlEnabled) {
-      const ghlIntegrations = (settings?.workflowConfig as any)?.integrations || {};
+      const ghlIntegrations =
+        (settings?.workflowConfig as any)?.integrations || {};
       const ghlApiKey = ghlIntegrations.ghlApiKey;
       const ghlLocationId = ghlIntegrations.ghlLocationId;
       const ghlCompanyId = ghlIntegrations.ghlCompanyId;
@@ -469,7 +470,9 @@ async function executeOnboardingPipeline(
           const createdContact = await createGhlContact({
             name: record.primaryContactName || record.clientName,
             email: record.contactEmail,
-            tags: ghlData.tagNaming ? [ghlData.tagNaming] : ["onboarded-client"],
+            tags: ghlData.tagNaming
+              ? [ghlData.tagNaming]
+              : ["onboarded-client"],
             locationId: ghlLocationId,
             apiKey: ghlApiKey,
           });
@@ -491,7 +494,9 @@ async function executeOnboardingPipeline(
               .set({ ghlStatus: "success", ghlError: null })
               .where(eq(clientOnboardings.id, onboardingId));
           } else {
-            throw new Error("No ghlContactId found on client onboarding record");
+            throw new Error(
+              "No ghlContactId found on client onboarding record",
+            );
           }
         } else if (mode === "create-contact-note") {
           const contactId = record.ghlContactId;
@@ -500,7 +505,10 @@ async function executeOnboardingPipeline(
             "Client {{client_name}} onboarded via Uprise Tools.";
           body = body
             .replace(/\{\{\s*client_name\s*\}\}/g, record.clientName)
-            .replace(/\{\{\s*primary_contact_name\s*\}\}/g, record.primaryContactName)
+            .replace(
+              /\{\{\s*primary_contact_name\s*\}\}/g,
+              record.primaryContactName,
+            )
             .replace(/\{\{\s*contact_email\s*\}\}/g, record.contactEmail);
           if (contactId) {
             await createContactNote(contactId, body, ghlApiKey);
@@ -509,18 +517,27 @@ async function executeOnboardingPipeline(
               .set({ ghlStatus: "success", ghlError: null })
               .where(eq(clientOnboardings.id, onboardingId));
           } else {
-            throw new Error("No ghlContactId found on client onboarding record");
+            throw new Error(
+              "No ghlContactId found on client onboarding record",
+            );
           }
         } else if (mode === "create-task") {
           const contactId = record.ghlContactId;
-          let title = ghlData.taskTitle || "Onboarding Task for {{client_name}}";
+          let title =
+            ghlData.taskTitle || "Onboarding Task for {{client_name}}";
           let body =
             ghlData.taskBody ||
             "Complete onboarding setup for {{client_name}}.";
-          title = title.replace(/\{\{\s*client_name\s*\}\}/g, record.clientName);
+          title = title.replace(
+            /\{\{\s*client_name\s*\}\}/g,
+            record.clientName,
+          );
           body = body
             .replace(/\{\{\s*client_name\s*\}\}/g, record.clientName)
-            .replace(/\{\{\s*primary_contact_name\s*\}\}/g, record.primaryContactName);
+            .replace(
+              /\{\{\s*primary_contact_name\s*\}\}/g,
+              record.primaryContactName,
+            );
 
           const dueDays = parseInt(ghlData.dueDays || "7", 10);
           const dueDate = new Date(
@@ -542,7 +559,9 @@ async function executeOnboardingPipeline(
               .set({ ghlStatus: "success", ghlError: null })
               .where(eq(clientOnboardings.id, onboardingId));
           } else {
-            throw new Error("No ghlContactId found on client onboarding record");
+            throw new Error(
+              "No ghlContactId found on client onboarding record",
+            );
           }
         } else if (mode === "update-opportunity-stage") {
           const opportunityId = record.ghlOpportunityId;
@@ -569,7 +588,6 @@ async function executeOnboardingPipeline(
 
     // 5. Signal Link
     const signalGroupLink = `https://signal.group/#CjVKB-${slug}-mock-chat`;
-
 
     await db
       .update(clientOnboardings)
@@ -902,7 +920,8 @@ export async function retryGhlAutomationAction(onboardingId: number) {
       .set({ ghlStatus: "in_progress", ghlError: null })
       .where(eq(clientOnboardings.id, onboardingId));
 
-    const ghlIntegrations = (settings.workflowConfig as any)?.integrations || {};
+    const ghlIntegrations =
+      (settings.workflowConfig as any)?.integrations || {};
     const ghlApiKey = ghlIntegrations.ghlApiKey;
     const ghlLocationId = ghlIntegrations.ghlLocationId;
     const ghlCompanyId = ghlIntegrations.ghlCompanyId;
@@ -970,7 +989,10 @@ export async function retryGhlAutomationAction(onboardingId: number) {
         "Client {{client_name}} onboarded via Uprise Tools.";
       body = body
         .replace(/\{\{\s*client_name\s*\}\}/g, record.clientName)
-        .replace(/\{\{\s*primary_contact_name\s*\}\}/g, record.primaryContactName)
+        .replace(
+          /\{\{\s*primary_contact_name\s*\}\}/g,
+          record.primaryContactName,
+        )
         .replace(/\{\{\s*contact_email\s*\}\}/g, record.contactEmail);
       await createContactNote(contactId, body, ghlApiKey);
       await db
@@ -987,7 +1009,10 @@ export async function retryGhlAutomationAction(onboardingId: number) {
       title = title.replace(/\{\{\s*client_name\s*\}\}/g, record.clientName);
       body = body
         .replace(/\{\{\s*client_name\s*\}\}/g, record.clientName)
-        .replace(/\{\{\s*primary_contact_name\s*\}\}/g, record.primaryContactName);
+        .replace(
+          /\{\{\s*primary_contact_name\s*\}\}/g,
+          record.primaryContactName,
+        );
 
       const dueDays = parseInt(ghlData.dueDays || "7", 10);
       const dueDate = new Date(

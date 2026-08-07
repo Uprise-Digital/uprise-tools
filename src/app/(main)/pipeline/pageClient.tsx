@@ -26,7 +26,6 @@ import {
   generateRevivalPlanAction,
   generateTranscriptSummaryAction,
   getContactNotesAction,
-  getGhlContactDetailsAction,
   getPipelineDashboardDataAction,
   getSavedRevivalPlanAction,
   updateSalesReminderSettingsAction,

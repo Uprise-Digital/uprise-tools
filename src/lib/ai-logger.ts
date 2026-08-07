@@ -1,19 +1,16 @@
 import { GoogleGenAI } from "@google/genai";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { headers } from "next/headers";
-import { db } from "@/db";
 import { withBypassTenantDb } from "@/db/db-helper";
 import {
   aiModelPricing,
   aiUsageSettings,
   member,
-  organization,
   usageLogs,
 } from "@/db/schema";
+import { GEMINI_MODEL_HIGH, GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { auth } from "@/lib/auth";
 import { getMelbourneTodayStr } from "@/lib/date-utils";
-
-import { GEMINI_MODEL_HIGH, GEMINI_MODEL_LOW } from "@/lib/ai-config";
 
 // Shared GoogleGenAI instance using the env key
 export const googleAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });

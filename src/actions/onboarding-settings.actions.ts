@@ -7,8 +7,8 @@ import { db } from "@/db";
 import { member, organizationOnboardingSettings } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { decryptToken, encryptToken } from "@/lib/crypto";
-import { verifyDriveFolderAccess } from "@/service/google-drive-service";
 import { getGhlSnapshots } from "@/service/gohighlevel-service";
+import { verifyDriveFolderAccess } from "@/service/google-drive-service";
 import { verifyNotionConnection } from "@/service/notion-service";
 
 export async function getGhlSnapshotsAction(
@@ -24,7 +24,6 @@ export async function getGhlSnapshotsAction(
     return { success: false, error: err.message, snapshots: [] };
   }
 }
-
 
 async function getSessionOrgId() {
   const session = await auth.api.getSession({

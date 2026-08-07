@@ -130,7 +130,7 @@ export async function generateNegativeKeywordSuggestions({
   if (targetNotes) {
     try {
       const parsed = JSON.parse(targetNotes);
-      if (parsed && parsed.serviceScope) {
+      if (parsed?.serviceScope) {
         const scopes = Array.isArray(parsed.serviceScope)
           ? parsed.serviceScope
           : [parsed.serviceScope];

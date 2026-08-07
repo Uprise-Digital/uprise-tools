@@ -5,25 +5,28 @@ dotenv.config({ path: ".env.local" });
 
 /**
  * GA4 Hardware-Specific Device Breakdown Script
- * 
+ *
  * Google Analytics 4 (GA4) captures hardware-specific device strings via HTTP User-Agent / Client-Hints
  * when users arrive on your landing pages from Google Ads (google / cpc).
- * 
+ *
  * Required OAuth Scope: https://www.googleapis.com/auth/analytics.readonly
  */
 
-const REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN || process.env.GOOGLE_ADS_REFRESH_TOKEN;
+const REFRESH_TOKEN =
+  process.env.GOOGLE_REFRESH_TOKEN || process.env.GOOGLE_ADS_REFRESH_TOKEN;
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 // Specify one or multiple GA4 Property IDs (e.g. ['312345678', '409876543'])
-const GA4_PROPERTY_IDS: string[] = process.env.GA4_PROPERTY_IDS 
-  ? process.env.GA4_PROPERTY_IDS.split(",") 
+const GA4_PROPERTY_IDS: string[] = process.env.GA4_PROPERTY_IDS
+  ? process.env.GA4_PROPERTY_IDS.split(",")
   : [];
 
 async function getAccessToken(): Promise<string> {
   if (!REFRESH_TOKEN || !CLIENT_ID || !CLIENT_SECRET) {
-    throw new Error("Missing OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN) in .env.local");
+    throw new Error(
+      "Missing OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN) in .env.local",
+    );
   }
 
   const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -39,12 +42,17 @@ async function getAccessToken(): Promise<string> {
 
   const data = (await response.json()) as any;
   if (data.error) {
-    throw new Error(`Token refresh failed: ${data.error_description || data.error}`);
+    throw new Error(
+      `Token refresh failed: ${data.error_description || data.error}`,
+    );
   }
   return data.access_token;
 }
 
-export async function fetchHardwareBreakdownForProperty(propertyId: string, accessToken: string) {
+export async function fetchHardwareBreakdownForProperty(
+  propertyId: string,
+  accessToken: string,
+) {
   const cleanId = propertyId.trim().replace("properties/", "");
   const url = `https://analyticsdata.googleapis.com/v1beta/properties/${cleanId}:runReport`;
 
@@ -53,23 +61,23 @@ export async function fetchHardwareBreakdownForProperty(propertyId: string, acce
     dimensions: [
       { name: "deviceModel" },
       { name: "mobileDeviceBranding" },
-      { name: "operatingSystem" }
+      { name: "operatingSystem" },
     ],
     metrics: [
       { name: "sessions" },
       { name: "conversions" },
-      { name: "totalRevenue" }
+      { name: "totalRevenue" },
     ],
     dimensionFilter: {
       filter: {
         fieldName: "sessionSourceMedium",
         stringFilter: {
           matchType: "CONTAINS",
-          value: "google / cpc"
-        }
-      }
+          value: "google / cpc",
+        },
+      },
     },
-    limit: 100
+    limit: 100,
   };
 
   const res = await fetch(url, {
@@ -83,7 +91,9 @@ export async function fetchHardwareBreakdownForProperty(propertyId: string, acce
 
   const data = (await res.json()) as any;
   if (data.error) {
-    console.error(`Error querying GA4 Property ${cleanId}: ${data.error.message}`);
+    console.error(
+      `Error querying GA4 Property ${cleanId}: ${data.error.message}`,
+    );
     return null;
   }
 
@@ -91,23 +101,35 @@ export async function fetchHardwareBreakdownForProperty(propertyId: string, acce
 }
 
 async function main() {
-  console.log("=== GA4 Hardware-Specific Device Breakdown (Google Ads Traffic) ===");
+  console.log(
+    "=== GA4 Hardware-Specific Device Breakdown (Google Ads Traffic) ===",
+  );
 
   if (GA4_PROPERTY_IDS.length === 0) {
-    console.log("\n[Notice] No GA4 Property IDs provided in env variable GA4_PROPERTY_IDS.");
-    console.log("Usage: Add GA4_PROPERTY_IDS=123456789,987654321 to .env.local or pass property IDs.");
+    console.log(
+      "\n[Notice] No GA4 Property IDs provided in env variable GA4_PROPERTY_IDS.",
+    );
+    console.log(
+      "Usage: Add GA4_PROPERTY_IDS=123456789,987654321 to .env.local or pass property IDs.",
+    );
     return;
   }
 
   const accessToken = await getAccessToken();
 
-  const hardwareAggregates: Record<string, { sessions: number; conversions: number; revenue: number }> = {};
+  const hardwareAggregates: Record<
+    string,
+    { sessions: number; conversions: number; revenue: number }
+  > = {};
   let totalAgencySessions = 0;
   let totalAgencyConversions = 0;
 
   for (const propId of GA4_PROPERTY_IDS) {
     console.log(`\nQuerying GA4 Property: ${propId}...`);
-    const reportData = await fetchHardwareBreakdownForProperty(propId, accessToken);
+    const reportData = await fetchHardwareBreakdownForProperty(
+      propId,
+      accessToken,
+    );
     if (!reportData || !reportData.rows) continue;
 
     for (const row of reportData.rows) {
@@ -139,17 +161,25 @@ async function main() {
   console.log("=============================================\n");
 
   console.log(`Total Sessions: ${totalAgencySessions.toLocaleString()}`);
-  console.log(`Total Conversions: ${totalAgencyConversions.toLocaleString()}\n`);
+  console.log(
+    `Total Conversions: ${totalAgencyConversions.toLocaleString()}\n`,
+  );
 
   const sortedHardware = Object.entries(hardwareAggregates)
     .sort((a, b) => b[1].sessions - a[1].sessions)
     .map(([device, m]) => ({
       "Hardware Model": device,
       Sessions: m.sessions.toLocaleString(),
-      "Session Share": totalAgencySessions > 0 ? ((m.sessions / totalAgencySessions) * 100).toFixed(2) + "%" : "0%",
+      "Session Share":
+        totalAgencySessions > 0
+          ? `${((m.sessions / totalAgencySessions) * 100).toFixed(2)}%`
+          : "0%",
       Conversions: m.conversions.toLocaleString(),
-      "Conv Share": totalAgencyConversions > 0 ? ((m.conversions / totalAgencyConversions) * 100).toFixed(2) + "%" : "0%",
-      Revenue: `$${m.revenue.toFixed(2)}`
+      "Conv Share":
+        totalAgencyConversions > 0
+          ? `${((m.conversions / totalAgencyConversions) * 100).toFixed(2)}%`
+          : "0%",
+      Revenue: `$${m.revenue.toFixed(2)}`,
     }));
 
   console.table(sortedHardware);

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { ArrowRight, Check, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { Check, Sparkles, ArrowRight } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 export function PricingSection() {
@@ -14,7 +14,8 @@ export function PricingSection() {
       id: "starter",
       priceMonthly: "$49",
       priceAnnual: "$39",
-      description: "Ideal for boutique agencies managing up to 10 Google Ads client accounts.",
+      description:
+        "Ideal for boutique agencies managing up to 10 Google Ads client accounts.",
       features: [
         "Up to 10 Google Ads Accounts",
         "Automated Daily Briefings",
@@ -30,7 +31,8 @@ export function PricingSection() {
       id: "pro",
       priceMonthly: "$199",
       priceAnnual: "$159",
-      description: "For fast-growing agencies needing automated threat matrix & AI briefings.",
+      description:
+        "For fast-growing agencies needing automated threat matrix & AI briefings.",
       features: [
         "Up to 50 Google Ads Accounts",
         "Threat Matrix Real-Time Anomaly Scanner",
@@ -47,7 +49,8 @@ export function PricingSection() {
       id: "scale",
       priceMonthly: "$499",
       priceAnnual: "$399",
-      description: "For enterprise agencies managing large MCC portfolios with custom branding.",
+      description:
+        "For enterprise agencies managing large MCC portfolios with custom branding.",
       features: [
         "Unlimited Google Ads Accounts",
         "Full Multi-Tenant White-Labeling",
@@ -77,12 +80,15 @@ export function PricingSection() {
             </span>
           </h2>
           <p className="text-slate-300 text-base sm:text-lg leading-relaxed">
-            All plans include a 14-day risk-free trial. Upgrade, downgrade, or cancel anytime with one click.
+            All plans include a 14-day risk-free trial. Upgrade, downgrade, or
+            cancel anytime with one click.
           </p>
 
           {/* Billing Cycle Toggle */}
           <div className="flex items-center justify-center gap-3 mt-8">
-            <span className={`text-sm font-semibold ${!isAnnual ? "text-white" : "text-slate-400"}`}>
+            <span
+              className={`text-sm font-semibold ${!isAnnual ? "text-white" : "text-slate-400"}`}
+            >
               Monthly Billing
             </span>
             <button
@@ -95,7 +101,9 @@ export function PricingSection() {
                 }`}
               />
             </button>
-            <span className={`text-sm font-semibold flex items-center gap-1.5 ${isAnnual ? "text-white" : "text-slate-400"}`}>
+            <span
+              className={`text-sm font-semibold flex items-center gap-1.5 ${isAnnual ? "text-white" : "text-slate-400"}`}
+            >
               Annual Billing
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-extrabold border border-emerald-500/30">
                 SAVE 20%
@@ -124,20 +132,33 @@ export function PricingSection() {
                 )}
 
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-2">{tier.name}</h3>
+                  <h3 className="text-xl font-bold text-white mb-2">
+                    {tier.name}
+                  </h3>
                   <p className="text-xs text-slate-400 leading-relaxed mb-6 font-medium">
                     {tier.description}
                   </p>
 
                   <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-4xl sm:text-5xl font-black text-white">{price}</span>
-                    <span className="text-slate-400 text-sm font-medium">/ month</span>
-                    {isAnnual && <span className="text-xs text-slate-500 ml-1">billed yearly</span>}
+                    <span className="text-4xl sm:text-5xl font-black text-white">
+                      {price}
+                    </span>
+                    <span className="text-slate-400 text-sm font-medium">
+                      / month
+                    </span>
+                    {isAnnual && (
+                      <span className="text-xs text-slate-500 ml-1">
+                        billed yearly
+                      </span>
+                    )}
                   </div>
 
                   <div className="space-y-3 border-t border-slate-800/80 pt-6 mb-8 text-left">
                     {tier.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-center gap-3 text-xs sm:text-sm text-slate-300 font-medium">
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 text-xs sm:text-sm text-slate-300 font-medium"
+                      >
                         <div className="h-4 w-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
                           <Check className="h-3 w-3" />
                         </div>

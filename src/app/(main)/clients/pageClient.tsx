@@ -132,7 +132,9 @@ export default function ClientsDirectoryClient() {
   const [selectedAdAccountId, setSelectedAdAccountId] = useState<string>("");
   const [isLinkingAccount, setIsLinkingAccount] = useState(false);
   const [isRetryingGhl, setIsRetryingGhl] = useState(false);
-  const [copiedField, setCopiedField] = useState<"subject" | "body" | "full" | null>(null);
+  const [copiedField, setCopiedField] = useState<
+    "subject" | "body" | "full" | null
+  >(null);
   const [isEditingEmailTemplate, setIsEditingEmailTemplate] = useState(false);
 
   // Load clients and accounts
@@ -1143,18 +1145,24 @@ export default function ClientsDirectoryClient() {
                   current = outgoingMap.get(current) || "";
                 }
                 const isGhlInWorkflow =
-                  chain.includes("ghl") || nodes.some((n: any) => n.id === "ghl");
+                  chain.includes("ghl") ||
+                  nodes.some((n: any) => n.id === "ghl");
 
                 if (!isGhlInWorkflow) return null;
 
                 const ghlNode = nodes.find((n: any) => n.id === "ghl");
-                const ghlMode = ghlNode?.data?.mode || "update-opportunity-stage";
+                const ghlMode =
+                  ghlNode?.data?.mode || "update-opportunity-stage";
 
                 return (
                   <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <img src="/images/logos/ghl.svg" alt="" className="w-4 h-4" />
+                        <img
+                          src="/images/logos/ghl.svg"
+                          alt=""
+                          className="w-4 h-4"
+                        />
                         GoHighLevel CRM Automation
                       </h4>
                       {selectedClient.ghlStatus === "success" && (
@@ -1169,7 +1177,8 @@ export default function ClientsDirectoryClient() {
                       )}
                       {selectedClient.ghlStatus === "in_progress" && (
                         <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
-                          <RefreshCw className="w-3 h-3 animate-spin" /> In Progress
+                          <RefreshCw className="w-3 h-3 animate-spin" /> In
+                          Progress
                         </span>
                       )}
                       {(!selectedClient.ghlStatus ||
@@ -1181,13 +1190,17 @@ export default function ClientsDirectoryClient() {
                     </div>
 
                     <div className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-2 py-1 inline-block">
-                      Task Mode: <span className="text-slate-800 font-bold capitalize">{ghlMode.replace(/-/g, " ")}</span>
+                      Task Mode:{" "}
+                      <span className="text-slate-800 font-bold capitalize">
+                        {ghlMode.replace(/-/g, " ")}
+                      </span>
                     </div>
 
                     {selectedClient.ghlStatus === "success" && (
                       <div className="space-y-2">
                         <p className="text-[11px] text-slate-600">
-                          CRM automation task executed successfully during client onboarding.
+                          CRM automation task executed successfully during
+                          client onboarding.
                         </p>
                         {selectedClient.ghlSubAccountId && (
                           <a
@@ -1200,11 +1213,12 @@ export default function ClientsDirectoryClient() {
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
                         )}
-                        {selectedClient.ghlContactId && !selectedClient.ghlSubAccountId && (
-                          <div className="text-[10px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200">
-                            Contact ID: {selectedClient.ghlContactId}
-                          </div>
-                        )}
+                        {selectedClient.ghlContactId &&
+                          !selectedClient.ghlSubAccountId && (
+                            <div className="text-[10px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200">
+                              Contact ID: {selectedClient.ghlContactId}
+                            </div>
+                          )}
                       </div>
                     )}
 
@@ -1235,8 +1249,15 @@ export default function ClientsDirectoryClient() {
                           disabled={isRetryingGhl}
                           className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-1.5 px-3 rounded-lg cursor-pointer flex items-center justify-center gap-1.5"
                         >
-                          <RefreshCw className={cn("w-3.5 h-3.5", isRetryingGhl && "animate-spin")} />
-                          {isRetryingGhl ? "Retrying Automation..." : "Retry GHL Automation Task"}
+                          <RefreshCw
+                            className={cn(
+                              "w-3.5 h-3.5",
+                              isRetryingGhl && "animate-spin",
+                            )}
+                          />
+                          {isRetryingGhl
+                            ? "Retrying Automation..."
+                            : "Retry GHL Automation Task"}
                         </Button>
                       </div>
                     )}
@@ -1272,7 +1293,9 @@ export default function ClientsDirectoryClient() {
                 <div className="space-y-2">
                   <button
                     type="button"
-                    onClick={() => setIsEditingEmailTemplate(!isEditingEmailTemplate)}
+                    onClick={() =>
+                      setIsEditingEmailTemplate(!isEditingEmailTemplate)
+                    }
                     className="w-full flex items-center justify-between text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2.5 hover:bg-slate-50 transition-all cursor-pointer shadow-sm"
                   >
                     <span className="flex items-center gap-1.5">
@@ -1348,7 +1371,8 @@ export default function ClientsDirectoryClient() {
                           size="sm"
                           onClick={() => {
                             const compiled = compileOnboardingEmail({
-                              primaryContactName: selectedClient.primaryContactName,
+                              primaryContactName:
+                                selectedClient.primaryContactName,
                               clientName: selectedClient.clientName,
                               driveFolderLink: editDrive || "#",
                               notionDashboardLink: editNotion || "#",
@@ -1379,7 +1403,8 @@ export default function ClientsDirectoryClient() {
                           size="sm"
                           onClick={() => {
                             const compiled = compileOnboardingEmail({
-                              primaryContactName: selectedClient.primaryContactName,
+                              primaryContactName:
+                                selectedClient.primaryContactName,
                               clientName: selectedClient.clientName,
                               driveFolderLink: editDrive || "#",
                               notionDashboardLink: editNotion || "#",

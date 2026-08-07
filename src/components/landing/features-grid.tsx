@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import {
-  ShieldAlert,
-  Mail,
-  Zap,
+  ArrowUpRight,
+  Check,
   Globe,
   Kanban,
-  Check,
+  Mail,
+  ShieldAlert,
   Sparkles,
-  ArrowUpRight,
+  Zap,
 } from "lucide-react";
+import { useState } from "react";
 
 export function FeaturesGrid() {
   const [activeTab, setActiveTab] = useState(0);
@@ -70,7 +70,8 @@ export function FeaturesGrid() {
         badge: "32 Negative Keywords Ready",
         metric: "Estimated Savings: $1,450/mo",
         action: "1-Click API Apply",
-        detail: "Blocked queries: 'free plumbing repair', 'plumbing jobs melbourne'.",
+        detail:
+          "Blocked queries: 'free plumbing repair', 'plumbing jobs melbourne'.",
       },
     },
     {
@@ -89,7 +90,8 @@ export function FeaturesGrid() {
         badge: "Audit Score: 88/100",
         metric: "Trust Score: High",
         action: "CTA Optimization Suggested",
-        detail: "Competitor 'PlumbFast' is outranking on '24/7 Service' positioning.",
+        detail:
+          "Competitor 'PlumbFast' is outranking on '24/7 Service' positioning.",
       },
     },
     {
@@ -129,7 +131,8 @@ export function FeaturesGrid() {
             </span>
           </h2>
           <p className="text-slate-300 text-base sm:text-lg leading-relaxed">
-            Replace fragmented scripts, manual reporting tools, and tedious keyword reviews with one unified, automated command center.
+            Replace fragmented scripts, manual reporting tools, and tedious
+            keyword reviews with one unified, automated command center.
           </p>
         </div>
 
@@ -148,7 +151,9 @@ export function FeaturesGrid() {
                     : "bg-slate-900/60 text-slate-400 hover:text-white border-slate-800 hover:bg-slate-800/80"
                 }`}
               >
-                <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-400"}`} />
+                <Icon
+                  className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-400"}`}
+                />
                 <span>{item.title}</span>
               </button>
             );
@@ -172,7 +177,10 @@ export function FeaturesGrid() {
 
               <div className="space-y-3 pt-2">
                 {features[activeTab].highlights.map((highlight, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-sm text-slate-200 font-medium">
+                  <div
+                    key={idx}
+                    className="flex items-center gap-3 text-sm text-slate-200 font-medium"
+                  >
                     <div className="h-5 w-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
                       <Check className="h-3 w-3" />
                     </div>

@@ -1,17 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import {
+  Activity,
   ArrowRight,
-  TrendingUp,
-  ShieldAlert,
-  Zap,
-  CheckCircle2,
-  Sparkles,
   BarChart3,
   Bot,
-  Activity,
+  CheckCircle2,
+  ShieldAlert,
+  Sparkles,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function HeroSection() {
@@ -25,7 +25,9 @@ export function HeroSection() {
         {/* Pill Badge */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 text-xs font-semibold backdrop-blur-md mb-8 shadow-lg shadow-indigo-500/10 animate-fade-in">
           <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
-          <span>The Next-Gen PPC Operating System for Performance Agencies</span>
+          <span>
+            The Next-Gen PPC Operating System for Performance Agencies
+          </span>
           <span className="bg-indigo-500/20 text-indigo-200 px-2 py-0.5 rounded-full text-[10px] font-bold border border-indigo-400/20">
             v2.0 LIVE
           </span>
@@ -41,7 +43,10 @@ export function HeroSection() {
 
         {/* Subtitle */}
         <p className="text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed mb-10 font-normal">
-          Uprise Tools syncs your Google Ads MCC portfolio in real time — detecting wasted spend, generating negative keywords on turbo, monitoring landing page breaks, and dispatching automated AI morning briefings directly to your clients.
+          Uprise Tools syncs your Google Ads MCC portfolio in real time —
+          detecting wasted spend, generating negative keywords on turbo,
+          monitoring landing page breaks, and dispatching automated AI morning
+          briefings directly to your clients.
         </p>
 
         {/* CTA Button Group */}
@@ -73,13 +78,16 @@ export function HeroSection() {
         {/* Key Feature Checkmarks */}
         <div className="flex flex-wrap items-center justify-center gap-6 text-xs sm:text-sm text-slate-400 font-medium mb-16">
           <span className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" /> No Credit Card Required
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" /> No Credit Card
+            Required
           </span>
           <span className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" /> 2-Minute Google Ads MCC OAuth
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" /> 2-Minute
+            Google Ads MCC OAuth
           </span>
           <span className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Multi-Tenant Agency White-Labeling
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Multi-Tenant
+            Agency White-Labeling
           </span>
         </div>
 
@@ -98,7 +106,8 @@ export function HeroSection() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1.5 text-emerald-400 bg-emerald-950/50 border border-emerald-500/20 px-2.5 py-1 rounded-full text-[11px] font-semibold">
-                  <Activity className="h-3 w-3 animate-pulse" /> Live Portfolio Sync
+                  <Activity className="h-3 w-3 animate-pulse" /> Live Portfolio
+                  Sync
                 </span>
               </div>
             </div>
@@ -113,9 +122,12 @@ export function HeroSection() {
                   </span>
                   <BarChart3 className="h-4 w-4 text-indigo-400" />
                 </div>
-                <div className="text-2xl font-black text-white">$142,890.00</div>
+                <div className="text-2xl font-black text-white">
+                  $142,890.00
+                </div>
                 <div className="flex items-center gap-1 text-xs text-emerald-400 font-semibold mt-1">
-                  <TrendingUp className="h-3.5 w-3.5" /> +14.2% conversions vs last week
+                  <TrendingUp className="h-3.5 w-3.5" /> +14.2% conversions vs
+                  last week
                 </div>
               </div>
 
@@ -127,7 +139,9 @@ export function HeroSection() {
                   </span>
                   <ShieldAlert className="h-4 w-4 text-rose-400" />
                 </div>
-                <div className="text-2xl font-black text-rose-300">$18,420.50</div>
+                <div className="text-2xl font-black text-rose-300">
+                  $18,420.50
+                </div>
                 <div className="flex items-center gap-1 text-xs text-rose-400 font-semibold mt-1">
                   ⚡ 342 negative keywords added
                 </div>
@@ -141,7 +155,9 @@ export function HeroSection() {
                   </span>
                   <Bot className="h-4 w-4 text-violet-400" />
                 </div>
-                <div className="text-2xl font-black text-violet-300">1,248 Emails</div>
+                <div className="text-2xl font-black text-violet-300">
+                  1,248 Emails
+                </div>
                 <div className="flex items-center gap-1 text-xs text-violet-400 font-semibold mt-1">
                   ✨ 99.4% client delivery score
                 </div>
@@ -162,11 +178,14 @@ export function HeroSection() {
                     </span>
                   </div>
                   <div className="text-xs text-slate-300 mt-0.5">
-                    Gemini AI automatically identified 14 non-converting search terms and excluded them. Saved ~$430/day.
+                    Gemini AI automatically identified 14 non-converting search
+                    terms and excluded them. Saved ~$430/day.
                   </div>
                 </div>
               </div>
-              <span className="text-[11px] font-mono text-slate-400">Just now</span>
+              <span className="text-[11px] font-mono text-slate-400">
+                Just now
+              </span>
             </div>
           </div>
         </div>

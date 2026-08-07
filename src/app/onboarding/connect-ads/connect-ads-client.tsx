@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { OnboardingStepper } from "@/components/onboarding-stepper";
+import { Button } from "@/components/ui/button";
 
 interface ConnectAdsClientProps {
   orgId: string;
@@ -46,10 +46,10 @@ export default function ConnectAdsClient({
               Connect Google Ads
             </h2>
             <p className="mt-4 text-base text-slate-300 leading-relaxed text-left">
-              To pull performance data and run audits, Uprise needs access to your
-              Google Ads account. We recommend creating a dedicated Google account
-              just for this — it keeps access stable even if staff change, and you
-              can revoke it anytime with one click.
+              To pull performance data and run audits, Uprise needs access to
+              your Google Ads account. We recommend creating a dedicated Google
+              account just for this — it keeps access stable even if staff
+              change, and you can revoke it anytime with one click.
             </p>
           </div>
 
@@ -115,7 +115,8 @@ export default function ConnectAdsClient({
                 <strong>Create a new Google account</strong> — e.g.{" "}
                 <code className="text-indigo-300 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-900/30">
                   ads-tools@youragency.com
-                </code>.
+                </code>
+                .
               </p>
             </li>
             <li className="flex gap-3 items-start">
@@ -132,8 +133,8 @@ export default function ConnectAdsClient({
                 3
               </span>
               <p className="pt-0.5">
-                Click <strong>Invite others</strong>, enter the new account's email,
-                and set access level to <strong>Standard</strong>.
+                Click <strong>Invite others</strong>, enter the new account's
+                email, and set access level to <strong>Standard</strong>.
               </p>
             </li>
             <li className="flex gap-3 items-start">
@@ -149,7 +150,8 @@ export default function ConnectAdsClient({
                 5
               </span>
               <p className="pt-0.5">
-                <strong>Click Connect below</strong> to sign in with that account.
+                <strong>Click Connect below</strong> to sign in with that
+                account.
               </p>
             </li>
           </ol>

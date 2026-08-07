@@ -22,7 +22,9 @@ const GHL_API_BASE = "https://services.leadconnectorhq.com";
 function getGhlHeaders(customApiKey?: string) {
   const apiKey = customApiKey || process.env.GHL_API_KEY;
   if (!apiKey) {
-    throw new Error("GoHighLevel API Key is not configured in Onboarding Settings.");
+    throw new Error(
+      "GoHighLevel API Key is not configured in Onboarding Settings.",
+    );
   }
   return {
     Authorization: `Bearer ${apiKey}`,
@@ -580,7 +582,10 @@ export async function createGhlContact(data: {
     const c = resData.contact || resData;
     return {
       id: c.id,
-      name: `${c.firstName || ""} ${c.lastName || ""}`.trim() || c.name || data.name,
+      name:
+        `${c.firstName || ""} ${c.lastName || ""}`.trim() ||
+        c.name ||
+        data.name,
       email: c.email || data.email,
       phone: c.phone || data.phone,
     };
@@ -664,4 +669,3 @@ export async function createGhlTask(
     throw error;
   }
 }
-

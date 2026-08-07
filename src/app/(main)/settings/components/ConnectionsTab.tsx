@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { ArrowRight, Link2, Plus, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { Link2, RefreshCw, CheckCircle2, AlertCircle, Plus, ArrowRight } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 interface ConnectionsTabProps {
@@ -33,7 +33,8 @@ export function ConnectionsTab({ connection, orgId }: ConnectionsTabProps) {
           Google Ads & Data Connections
         </h2>
         <p className="text-xs text-slate-400 mt-1">
-          Manage your Google Ads OAuth credentials and connected MCC manager accounts.
+          Manage your Google Ads OAuth credentials and connected MCC manager
+          accounts.
         </p>
       </div>
 
@@ -80,7 +81,9 @@ export function ConnectionsTab({ connection, orgId }: ConnectionsTabProps) {
                 asChild
                 className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5"
               >
-                <Link href={`/onboarding/mcc-select?connectionId=${connection.id}&orgId=${orgId}`}>
+                <Link
+                  href={`/onboarding/mcc-select?connectionId=${connection.id}&orgId=${orgId}`}
+                >
                   Import Accounts
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
@@ -102,7 +105,9 @@ export function ConnectionsTab({ connection, orgId }: ConnectionsTabProps) {
               <p className="text-slate-400">
                 Currently syncing{" "}
                 <strong className="text-indigo-400">
-                  {connection.autoSyncScope === "ALL" ? "All Accounts" : "Active Accounts Only"}
+                  {connection.autoSyncScope === "ALL"
+                    ? "All Accounts"
+                    : "Active Accounts Only"}
                 </strong>
                 .
               </p>
@@ -114,9 +119,12 @@ export function ConnectionsTab({ connection, orgId }: ConnectionsTabProps) {
           <div className="h-12 w-12 rounded-full bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center mx-auto">
             <Plus className="h-6 w-6" />
           </div>
-          <h3 className="text-lg font-bold text-white">No Google Ads Connection Found</h3>
+          <h3 className="text-lg font-bold text-white">
+            No Google Ads Connection Found
+          </h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Connect your Google Ads Manager (MCC) account to start pulling client metrics, threat audits, and negative keyword suggestions.
+            Connect your Google Ads Manager (MCC) account to start pulling
+            client metrics, threat audits, and negative keyword suggestions.
           </p>
           <Button
             onClick={handleConnectOAuth}

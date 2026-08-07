@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createOrganizationAction } from "@/actions/onboarding.actions";
-import { Button } from "@/components/ui/button";
 import { OnboardingStepper } from "@/components/onboarding-stepper";
+import { Button } from "@/components/ui/button";
 
 interface OnboardingClientProps {
   initialUser: {
@@ -17,7 +17,10 @@ const COMMON_TIMEZONES = [
   { value: "America/New_York", label: "Eastern Time (US & Canada) - EST/EDT" },
   { value: "America/Chicago", label: "Central Time (US & Canada) - CST/CDT" },
   { value: "America/Denver", label: "Mountain Time (US & Canada) - MST/MDT" },
-  { value: "America/Los_Angeles", label: "Pacific Time (US & Canada) - PST/PDT" },
+  {
+    value: "America/Los_Angeles",
+    label: "Pacific Time (US & Canada) - PST/PDT",
+  },
   { value: "Europe/London", label: "London / Dublin (GMT/BST)" },
   { value: "Europe/Paris", label: "Paris / Berlin / Amsterdam (CET/CEST)" },
   { value: "Australia/Sydney", label: "Sydney / Melbourne (AEST/AEDT)" },
@@ -151,7 +154,11 @@ export default function OnboardingClient({
                 className="mt-1 block w-full px-3 py-2.5 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 text-white rounded-xl text-xs transition-all outline-none"
               >
                 {COMMON_TIMEZONES.map((tz) => (
-                  <option key={tz.value} value={tz.value} className="bg-slate-900 text-white">
+                  <option
+                    key={tz.value}
+                    value={tz.value}
+                    className="bg-slate-900 text-white"
+                  >
                     {tz.label}
                   </option>
                 ))}
@@ -171,7 +178,11 @@ export default function OnboardingClient({
                 className="mt-1 block w-full px-3 py-2.5 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 text-white rounded-xl text-xs transition-all outline-none"
               >
                 {COMMON_CURRENCIES.map((cur) => (
-                  <option key={cur.value} value={cur.value} className="bg-slate-900 text-white">
+                  <option
+                    key={cur.value}
+                    value={cur.value}
+                    className="bg-slate-900 text-white"
+                  >
                     {cur.label}
                   </option>
                 ))}

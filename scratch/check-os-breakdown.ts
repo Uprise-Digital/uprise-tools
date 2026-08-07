@@ -28,29 +28,40 @@ async function run() {
   const accessToken = await getAccessToken();
 
   // Fetch client accounts
-  const mccRes = await fetch(`https://googleads.googleapis.com/v23/customers/${MANAGER_ID}/googleAds:search`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "developer-token": DEVELOPER_TOKEN!,
-      Authorization: `Bearer ${accessToken}`,
-      "login-customer-id": MANAGER_ID!,
-    },
-    body: JSON.stringify({
-      query: `
+  const mccRes = await fetch(
+    `https://googleads.googleapis.com/v23/customers/${MANAGER_ID}/googleAds:search`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "developer-token": DEVELOPER_TOKEN!,
+        Authorization: `Bearer ${accessToken}`,
+        "login-customer-id": MANAGER_ID!,
+      },
+      body: JSON.stringify({
+        query: `
         SELECT customer_client.id, customer_client.descriptive_name
         FROM customer_client
         WHERE customer_client.level <= 1
           AND customer_client.status = 'ENABLED'
           AND customer_client.manager = false
       `,
-    }),
-  });
+      }),
+    },
+  );
 
   const mccData = (await mccRes.json()) as any;
   const clients = mccData.results || [];
 
-  const osTotals: Record<string, { clicks: number; impressions: number; costMicros: number; conversions: number }> = {};
+  const osTotals: Record<
+    string,
+    {
+      clicks: number;
+      impressions: number;
+      costMicros: number;
+      conversions: number;
+    }
+  > = {};
   let totalClicks = 0;
   let totalImpressions = 0;
   let totalCostMicros = 0;
@@ -75,16 +86,19 @@ async function run() {
     `;
 
     try {
-      const res = await fetch(`https://googleads.googleapis.com/v23/customers/${custId}/googleAds:search`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "developer-token": DEVELOPER_TOKEN!,
-          Authorization: `Bearer ${accessToken}`,
-          "login-customer-id": MANAGER_ID!,
+      const res = await fetch(
+        `https://googleads.googleapis.com/v23/customers/${custId}/googleAds:search`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "developer-token": DEVELOPER_TOKEN!,
+            Authorization: `Bearer ${accessToken}`,
+            "login-customer-id": MANAGER_ID!,
+          },
+          body: JSON.stringify({ query: osQuery }),
         },
-        body: JSON.stringify({ query: osQuery }),
-      });
+      );
       const data = (await res.json()) as any;
       if (data.error) {
         // Fallback or log error
@@ -94,10 +108,11 @@ async function run() {
 
       const rows = data.results || [];
       for (const row of rows) {
-        const opType = row.operatingSystemVersionConstant?.operatorType || "UNKNOWN";
+        const opType =
+          row.operatingSystemVersionConstant?.operatorType || "UNKNOWN";
         const major = row.operatingSystemVersionConstant?.osMajorVersion || "";
         const minor = row.operatingSystemVersionConstant?.osMinorVersion || "";
-        const osName = `${opType} ${major}${minor ? "." + minor : ""}`.trim();
+        const osName = `${opType} ${major}${minor ? `.${minor}` : ""}`.trim();
 
         const clicks = Number(row.metrics?.clicks || 0);
         const imps = Number(row.metrics?.impressions || 0);
@@ -105,7 +120,12 @@ async function run() {
         const convs = Number(row.metrics?.conversions || 0);
 
         if (!osTotals[osName]) {
-          osTotals[osName] = { clicks: 0, impressions: 0, costMicros: 0, conversions: 0 };
+          osTotals[osName] = {
+            clicks: 0,
+            impressions: 0,
+            costMicros: 0,
+            conversions: 0,
+          };
         }
         osTotals[osName].clicks += clicks;
         osTotals[osName].impressions += imps;
@@ -126,7 +146,9 @@ async function run() {
   console.log("GOOGLE ADS OPERATING SYSTEM BREAKDOWN (LAST 30 DAYS)");
   console.log("=============================================\n");
   console.log(`Total Clicks in OS View: ${totalClicks}`);
-  console.log(`Total Spend in OS View: $${(totalCostMicros / 1_000_000).toFixed(2)}`);
+  console.log(
+    `Total Spend in OS View: $${(totalCostMicros / 1_000_000).toFixed(2)}`,
+  );
 
   console.table(
     Object.entries(osTotals)
@@ -134,11 +156,14 @@ async function run() {
       .map(([os, m]) => ({
         "OS Version": os,
         Clicks: m.clicks.toLocaleString(),
-        "Click Share": totalClicks > 0 ? ((m.clicks / totalClicks) * 100).toFixed(2) + "%" : "0%",
+        "Click Share":
+          totalClicks > 0
+            ? `${((m.clicks / totalClicks) * 100).toFixed(2)}%`
+            : "0%",
         Impressions: m.impressions.toLocaleString(),
         Spend: `$${(m.costMicros / 1_000_000).toFixed(2)}`,
         Conversions: m.conversions.toFixed(1),
-      }))
+      })),
   );
 }
 

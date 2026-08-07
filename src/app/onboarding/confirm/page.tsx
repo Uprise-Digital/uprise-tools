@@ -1,9 +1,9 @@
+import { Activity, CheckCircle2 } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { OnboardingStepper } from "@/components/onboarding-stepper";
-import { Activity, CheckCircle2 } from "lucide-react";
+import { auth } from "@/lib/auth";
 
 export default async function ConfirmPage({
   searchParams,
@@ -54,13 +54,16 @@ export default async function ConfirmPage({
                 Syncing 30-Day Historical Google Ads Data
               </span>
               <p className="text-slate-300">
-                Your selected client accounts are importing in the background. Metrics, campaign triage settings, and AI threat audits will populate automatically in your dashboard.
+                Your selected client accounts are importing in the background.
+                Metrics, campaign triage settings, and AI threat audits will
+                populate automatically in your dashboard.
               </p>
             </div>
           </div>
 
           <p className="text-xs text-slate-400 leading-relaxed text-left">
-            Uprise Tools can now monitor accounts linked to your Google Ads manager account. You can manage or revoke access anytime from your{" "}
+            Uprise Tools can now monitor accounts linked to your Google Ads
+            manager account. You can manage or revoke access anytime from your{" "}
             <a
               href="https://myaccount.google.com/permissions"
               target="_blank"
@@ -68,7 +71,8 @@ export default async function ConfirmPage({
               className="text-indigo-400 hover:underline inline-flex items-center gap-0.5"
             >
               Google Account Security page ↗
-            </a>.
+            </a>
+            .
           </p>
 
           <div className="pt-4">

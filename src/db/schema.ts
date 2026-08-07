@@ -236,7 +236,14 @@ export const adAccounts = pgTable("ad_accounts", {
   lastNegativeGenerationExplanation: text(
     "last_negative_generation_explanation",
   ),
-}).enableRLS();
+},
+() => [
+  pgPolicy("tenant_isolation_policy", {
+    for: "all",
+    using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+  }),
+],
+).enableRLS();
 
 export const accountMetrics = pgTable(
   "account_metrics",

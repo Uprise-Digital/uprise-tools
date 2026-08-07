@@ -207,7 +207,7 @@ export async function generateSuggestionsInternal(
   if (account.targetNotes) {
     try {
       const parsed = JSON.parse(account.targetNotes);
-      if (parsed && parsed.serviceScope) {
+      if (parsed?.serviceScope) {
         servicesToSearch = Array.isArray(parsed.serviceScope)
           ? parsed.serviceScope
           : [parsed.serviceScope];

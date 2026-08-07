@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 interface LandingNavProps {
@@ -32,7 +32,10 @@ export function LandingNav({ isLoggedIn = false }: LandingNavProps) {
           <a href="#features" className="hover:text-white transition-colors">
             Features
           </a>
-          <a href="#threat-matrix" className="hover:text-white transition-colors">
+          <a
+            href="#threat-matrix"
+            className="hover:text-white transition-colors"
+          >
             Threat Matrix
           </a>
           <a href="#pricing" className="hover:text-white transition-colors">

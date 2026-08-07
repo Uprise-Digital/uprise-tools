@@ -25,7 +25,9 @@ async function getAccessToken(): Promise<string> {
   });
   const data = (await response.json()) as any;
   if (data.error) {
-    throw new Error(`Token refresh failed: ${data.error_description || data.error}`);
+    throw new Error(
+      `Token refresh failed: ${data.error_description || data.error}`,
+    );
   }
   return data.access_token;
 }
@@ -74,7 +76,15 @@ async function run() {
   console.log(`Found ${clients.length} active client accounts under MCC.`);
 
   // Device aggregators
-  const totalsByDevice: Record<string, { impressions: number; clicks: number; costMicros: number; conversions: number }> = {};
+  const totalsByDevice: Record<
+    string,
+    {
+      impressions: number;
+      clicks: number;
+      costMicros: number;
+      conversions: number;
+    }
+  > = {};
   let totalImpressions = 0;
   let totalClicks = 0;
   let totalCostMicros = 0;
@@ -83,13 +93,22 @@ async function run() {
   const accountBreakdowns: Array<{
     id: string;
     name: string;
-    devices: Record<string, { impressions: number; clicks: number; costMicros: number; conversions: number }>;
+    devices: Record<
+      string,
+      {
+        impressions: number;
+        clicks: number;
+        costMicros: number;
+        conversions: number;
+      }
+    >;
   }> = [];
 
   for (const client of clients) {
     const custId = client.customerClient.id;
-    const custName = client.customerClient.descriptiveName || `Account ${custId}`;
-    
+    const custName =
+      client.customerClient.descriptiveName || `Account ${custId}`;
+
     // Query device performance for LAST_30_DAYS
     const deviceQuery = `
       SELECT
@@ -104,24 +123,37 @@ async function run() {
     `;
 
     try {
-      const devRes = await fetch(`https://googleads.googleapis.com/v23/customers/${custId}/googleAds:search`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "developer-token": DEVELOPER_TOKEN!,
-          Authorization: `Bearer ${accessToken}`,
-          "login-customer-id": MANAGER_ID!,
+      const devRes = await fetch(
+        `https://googleads.googleapis.com/v23/customers/${custId}/googleAds:search`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "developer-token": DEVELOPER_TOKEN!,
+            Authorization: `Bearer ${accessToken}`,
+            "login-customer-id": MANAGER_ID!,
+          },
+          body: JSON.stringify({ query: deviceQuery }),
         },
-        body: JSON.stringify({ query: deviceQuery }),
-      });
+      );
       const devData = (await devRes.json()) as any;
       if (devData.error) {
-        console.warn(`[Warning] Could not query account ${custName} (${custId}): ${devData.error.message}`);
+        console.warn(
+          `[Warning] Could not query account ${custName} (${custId}): ${devData.error.message}`,
+        );
         continue;
       }
 
       const rows = devData.results || [];
-      const acctDeviceMap: Record<string, { impressions: number; clicks: number; costMicros: number; conversions: number }> = {};
+      const acctDeviceMap: Record<
+        string,
+        {
+          impressions: number;
+          clicks: number;
+          costMicros: number;
+          conversions: number;
+        }
+      > = {};
 
       for (const row of rows) {
         const dev = row.segments?.device || "UNKNOWN";
@@ -131,7 +163,12 @@ async function run() {
         const convs = Number(row.metrics?.conversions || 0);
 
         if (!acctDeviceMap[dev]) {
-          acctDeviceMap[dev] = { impressions: 0, clicks: 0, costMicros: 0, conversions: 0 };
+          acctDeviceMap[dev] = {
+            impressions: 0,
+            clicks: 0,
+            costMicros: 0,
+            conversions: 0,
+          };
         }
         acctDeviceMap[dev].impressions += imps;
         acctDeviceMap[dev].clicks += clicks;
@@ -139,7 +176,12 @@ async function run() {
         acctDeviceMap[dev].conversions += convs;
 
         if (!totalsByDevice[dev]) {
-          totalsByDevice[dev] = { impressions: 0, clicks: 0, costMicros: 0, conversions: 0 };
+          totalsByDevice[dev] = {
+            impressions: 0,
+            clicks: 0,
+            costMicros: 0,
+            conversions: 0,
+          };
         }
         totalsByDevice[dev].impressions += imps;
         totalsByDevice[dev].clicks += clicks;
@@ -152,7 +194,11 @@ async function run() {
         totalConversions += convs;
       }
 
-      accountBreakdowns.push({ id: custId, name: custName, devices: acctDeviceMap });
+      accountBreakdowns.push({
+        id: custId,
+        name: custName,
+        devices: acctDeviceMap,
+      });
     } catch (err: any) {
       console.warn(`Error processing ${custName}: ${err.message}`);
     }
@@ -165,31 +211,54 @@ async function run() {
   console.log(`Total Accounts Processed: ${accountBreakdowns.length}`);
   console.log(`Total Impressions: ${totalImpressions.toLocaleString()}`);
   console.log(`Total Clicks: ${totalClicks.toLocaleString()}`);
-  console.log(`Total Spend: $${(totalCostMicros / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-  console.log(`Total Conversions: ${totalConversions.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}\n`);
+  console.log(
+    `Total Spend: $${(totalCostMicros / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  );
+  console.log(
+    `Total Conversions: ${totalConversions.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}\n`,
+  );
 
   console.log("--- DEVICE BREAKDOWN SUMMARY ---");
-  const deviceTable = Object.entries(totalsByDevice).map(([device, metrics]) => {
-    const impShare = totalImpressions > 0 ? ((metrics.impressions / totalImpressions) * 100).toFixed(2) + "%" : "0%";
-    const clickShare = totalClicks > 0 ? ((metrics.clicks / totalClicks) * 100).toFixed(2) + "%" : "0%";
-    const spend = (metrics.costMicros / 1_000_000).toFixed(2);
-    const spendShare = totalCostMicros > 0 ? ((metrics.costMicros / totalCostMicros) * 100).toFixed(2) + "%" : "0%";
-    const convShare = totalConversions > 0 ? ((metrics.conversions / totalConversions) * 100).toFixed(2) + "%" : "0%";
-    const ctr = metrics.impressions > 0 ? ((metrics.clicks / metrics.impressions) * 100).toFixed(2) + "%" : "0%";
+  const deviceTable = Object.entries(totalsByDevice).map(
+    ([device, metrics]) => {
+      const impShare =
+        totalImpressions > 0
+          ? `${((metrics.impressions / totalImpressions) * 100).toFixed(2)}%`
+          : "0%";
+      const clickShare =
+        totalClicks > 0
+          ? `${((metrics.clicks / totalClicks) * 100).toFixed(2)}%`
+          : "0%";
+      const spend = (metrics.costMicros / 1_000_000).toFixed(2);
+      const spendShare =
+        totalCostMicros > 0
+          ? `${((metrics.costMicros / totalCostMicros) * 100).toFixed(2)}%`
+          : "0%";
+      const convShare =
+        totalConversions > 0
+          ? `${((metrics.conversions / totalConversions) * 100).toFixed(2)}%`
+          : "0%";
+      const ctr =
+        metrics.impressions > 0
+          ? `${((metrics.clicks / metrics.impressions) * 100).toFixed(2)}%`
+          : "0%";
 
-    return {
-      Device: device,
-      Impressions: metrics.impressions.toLocaleString(),
-      "Imp Share": impShare,
-      Clicks: metrics.clicks.toLocaleString(),
-      "Click Share": clickShare,
-      "CTR": ctr,
-      "Spend ($)": Number(spend).toLocaleString(undefined, { minimumFractionDigits: 2 }),
-      "Spend Share": spendShare,
-      Conversions: metrics.conversions.toFixed(1),
-      "Conv Share": convShare,
-    };
-  });
+      return {
+        Device: device,
+        Impressions: metrics.impressions.toLocaleString(),
+        "Imp Share": impShare,
+        Clicks: metrics.clicks.toLocaleString(),
+        "Click Share": clickShare,
+        CTR: ctr,
+        "Spend ($)": Number(spend).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+        }),
+        "Spend Share": spendShare,
+        Conversions: metrics.conversions.toFixed(1),
+        "Conv Share": convShare,
+      };
+    },
+  );
 
   console.table(deviceTable);
 
@@ -211,4 +280,6 @@ async function run() {
   });
 }
 
-run().catch((err) => console.error("Fatal Error running device share script:", err));
+run().catch((err) =>
+  console.error("Fatal Error running device share script:", err),
+);

@@ -2,8 +2,6 @@
 
 import { desc, eq, ne } from "drizzle-orm";
 import { headers } from "next/headers";
-import { getBriefingSettingsAction } from "@/actions/briefing-settings.actions";
-import { db } from "@/db";
 import { withBypassTenantDb } from "@/db/db-helper";
 import { pipelineRevivalPlans, salesReminderSettings, user } from "@/db/schema";
 import { GEMINI_MODEL_LOW } from "@/lib/ai-config";

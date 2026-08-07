@@ -3,7 +3,8 @@ import fetch from "node-fetch";
 
 dotenv.config({ path: ".env.local" });
 
-const REFRESH_TOKEN = process.env.GOOGLE_ADS_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN;
+const REFRESH_TOKEN =
+  process.env.GOOGLE_ADS_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN;
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
@@ -23,7 +24,9 @@ async function getAccessToken(): Promise<string> {
   });
   const data = (await response.json()) as any;
   if (data.error) {
-    throw new Error(`Token refresh failed: ${data.error_description || data.error}`);
+    throw new Error(
+      `Token refresh failed: ${data.error_description || data.error}`,
+    );
   }
   return data.access_token;
 }
@@ -35,31 +38,44 @@ async function run() {
 
   // 1. Try GA4 Admin API Account Summaries
   try {
-    const adminRes = await fetch("https://analyticsadmin.googleapis.com/v1beta/accountSummaries", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const adminRes = await fetch(
+      "https://analyticsadmin.googleapis.com/v1beta/accountSummaries",
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
     const adminData = (await adminRes.json()) as any;
 
     if (adminData.error) {
       console.log("GA4 Admin API response error:", adminData.error.message);
     } else {
-      console.log("Account Summaries found:", adminData.accountSummaries?.length || 0);
+      console.log(
+        "Account Summaries found:",
+        adminData.accountSummaries?.length || 0,
+      );
       const properties: Array<{ property: string; displayName: string }> = [];
-      
+
       if (adminData.accountSummaries) {
         for (const acct of adminData.accountSummaries) {
           console.log(`Account: ${acct.displayName} (${acct.name})`);
           if (acct.propertySummaries) {
             for (const prop of acct.propertySummaries) {
-              console.log(`  - Property: ${prop.displayName} (${prop.property})`);
-              properties.push({ property: prop.property, displayName: prop.displayName });
+              console.log(
+                `  - Property: ${prop.displayName} (${prop.property})`,
+              );
+              properties.push({
+                property: prop.property,
+                displayName: prop.displayName,
+              });
             }
           }
         }
       }
 
       if (properties.length > 0) {
-        console.log(`\nFound ${properties.length} GA4 properties. Running Data API device model report...`);
+        console.log(
+          `\nFound ${properties.length} GA4 properties. Running Data API device model report...`,
+        );
         await runGa4DeviceReport(accessToken, properties);
         return;
       }
@@ -69,16 +85,25 @@ async function run() {
   }
 }
 
-async function runGa4DeviceReport(accessToken: string, properties: Array<{ property: string; displayName: string }>) {
-  const hardwareTotals: Record<string, { sessions: number; conversions: number; revenue: number }> = {};
-  const brandTotals: Record<string, { sessions: number; conversions: number }> = {};
+async function runGa4DeviceReport(
+  accessToken: string,
+  properties: Array<{ property: string; displayName: string }>,
+) {
+  const hardwareTotals: Record<
+    string,
+    { sessions: number; conversions: number; revenue: number }
+  > = {};
+  const brandTotals: Record<string, { sessions: number; conversions: number }> =
+    {};
 
   let totalSessions = 0;
   let totalConversions = 0;
 
   for (const { property, displayName } of properties) {
     const propId = property.replace("properties/", "");
-    console.log(`\nQuerying GA4 Data API for property ${displayName} (${propId})...`);
+    console.log(
+      `\nQuerying GA4 Data API for property ${displayName} (${propId})...`,
+    );
 
     // Filter specifically for Google Ads traffic (sessionSourceMedium contains google / cpc)
     const reportBody = {
@@ -86,49 +111,57 @@ async function runGa4DeviceReport(accessToken: string, properties: Array<{ prope
       dimensions: [
         { name: "deviceModel" },
         { name: "mobileDeviceBranding" },
-        { name: "operatingSystem" }
+        { name: "operatingSystem" },
       ],
       metrics: [
         { name: "sessions" },
         { name: "conversions" },
-        { name: "totalRevenue" }
+        { name: "totalRevenue" },
       ],
       dimensionFilter: {
         filter: {
           fieldName: "sessionSourceMedium",
           stringFilter: {
             matchType: "CONTAINS",
-            value: "google / cpc"
-          }
-        }
+            value: "google / cpc",
+          },
+        },
       },
-      limit: 100
+      limit: 100,
     };
 
     try {
-      const dataRes = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+      const dataRes = await fetch(
+        `https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(reportBody),
         },
-        body: JSON.stringify(reportBody),
-      });
+      );
 
       const data = (await dataRes.json()) as any;
       if (data.error) {
-        console.warn(`  [Warning] GA4 Data API error for property ${displayName}:`, data.error.message);
+        console.warn(
+          `  [Warning] GA4 Data API error for property ${displayName}:`,
+          data.error.message,
+        );
         continue;
       }
 
       const rows = data.rows || [];
-      console.log(`  Retrieved ${rows.length} hardware model entries for ${displayName}.`);
+      console.log(
+        `  Retrieved ${rows.length} hardware model entries for ${displayName}.`,
+      );
 
       for (const row of rows) {
         const model = row.dimensionValues?.[0]?.value || "Unknown Model";
         const brand = row.dimensionValues?.[1]?.value || "Unknown Brand";
         const os = row.dimensionValues?.[2]?.value || "Unknown OS";
-        
+
         const sessions = Number(row.metricValues?.[0]?.value || 0);
         const convs = Number(row.metricValues?.[1]?.value || 0);
         const rev = Number(row.metricValues?.[2]?.value || 0);
@@ -157,11 +190,17 @@ async function runGa4DeviceReport(accessToken: string, properties: Array<{ prope
   }
 
   console.log("\n=============================================");
-  console.log("AGENCY GA4 HARDWARE SPECIFIC DEVICE BREAKDOWN (GOOGLE ADS TRAFFIC)");
+  console.log(
+    "AGENCY GA4 HARDWARE SPECIFIC DEVICE BREAKDOWN (GOOGLE ADS TRAFFIC)",
+  );
   console.log("=============================================\n");
 
-  console.log(`Total Google Ads Sessions (GA4): ${totalSessions.toLocaleString()}`);
-  console.log(`Total Google Ads Conversions (GA4): ${totalConversions.toLocaleString()}\n`);
+  console.log(
+    `Total Google Ads Sessions (GA4): ${totalSessions.toLocaleString()}`,
+  );
+  console.log(
+    `Total Google Ads Conversions (GA4): ${totalConversions.toLocaleString()}\n`,
+  );
 
   console.log("--- TOP HARDWARE MODELS ---");
   const modelTable = Object.entries(hardwareTotals)
@@ -170,10 +209,16 @@ async function runGa4DeviceReport(accessToken: string, properties: Array<{ prope
     .map(([model, m]) => ({
       "Hardware Model": model,
       Sessions: m.sessions.toLocaleString(),
-      "Session Share": totalSessions > 0 ? ((m.sessions / totalSessions) * 100).toFixed(2) + "%" : "0%",
+      "Session Share":
+        totalSessions > 0
+          ? `${((m.sessions / totalSessions) * 100).toFixed(2)}%`
+          : "0%",
       Conversions: m.conversions.toLocaleString(),
-      "Conv Share": totalConversions > 0 ? ((m.conversions / totalConversions) * 100).toFixed(2) + "%" : "0%",
-      Revenue: `$${m.revenue.toFixed(2)}`
+      "Conv Share":
+        totalConversions > 0
+          ? `${((m.conversions / totalConversions) * 100).toFixed(2)}%`
+          : "0%",
+      Revenue: `$${m.revenue.toFixed(2)}`,
     }));
 
   console.table(modelTable);
@@ -184,9 +229,15 @@ async function runGa4DeviceReport(accessToken: string, properties: Array<{ prope
     .map(([brand, m]) => ({
       Brand: brand,
       Sessions: m.sessions.toLocaleString(),
-      "Session Share": totalSessions > 0 ? ((m.sessions / totalSessions) * 100).toFixed(2) + "%" : "0%",
+      "Session Share":
+        totalSessions > 0
+          ? `${((m.sessions / totalSessions) * 100).toFixed(2)}%`
+          : "0%",
       Conversions: m.conversions.toLocaleString(),
-      "Conv Share": totalConversions > 0 ? ((m.conversions / totalConversions) * 100).toFixed(2) + "%" : "0%"
+      "Conv Share":
+        totalConversions > 0
+          ? `${((m.conversions / totalConversions) * 100).toFixed(2)}%`
+          : "0%",
     }));
 
   console.table(brandTable);
