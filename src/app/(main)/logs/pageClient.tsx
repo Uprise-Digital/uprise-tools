@@ -110,6 +110,11 @@ export default function LogsClient({
 
   // Debounce search update to URL search params
   useEffect(() => {
+    const currentSearch = searchParams.get("search") || "";
+    if (searchInput === currentSearch) {
+      return;
+    }
+
     const handler = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
       if (searchInput) {
@@ -257,8 +262,46 @@ export default function LogsClient({
   };
 
   const totalPages = Math.ceil(totalCount / limit);
-  const startRange = (page - 1) * limit + 1;
+  const startRange = totalCount === 0 ? 0 : (page - 1) * limit + 1;
   const endRange = Math.min(page * limit, totalCount);
+
+  const getPaginationRange = (currentPage: number, total: number) => {
+    const siblingCount = 1;
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
+    const rightSiblingIndex = Math.min(currentPage + siblingCount, total);
+
+    const shouldShowLeftDots = leftSiblingIndex > 2;
+    const shouldShowRightDots = rightSiblingIndex < total - 1;
+
+    if (!shouldShowLeftDots && shouldShowRightDots) {
+      const leftItemCount = 3 + 2 * siblingCount;
+      const leftRange = Array.from({ length: leftItemCount }, (_, i) => i + 1);
+      return [...leftRange, "...", total];
+    }
+
+    if (shouldShowLeftDots && !shouldShowRightDots) {
+      const rightItemCount = 3 + 2 * siblingCount;
+      const rightRange = Array.from(
+        { length: rightItemCount },
+        (_, i) => total - rightItemCount + i + 1,
+      );
+      return [1, "...", ...rightRange];
+    }
+
+    if (shouldShowLeftDots && shouldShowRightDots) {
+      const middleRange = Array.from(
+        { length: rightSiblingIndex - leftSiblingIndex + 1 },
+        (_, i) => leftSiblingIndex + i,
+      );
+      return [1, "...", ...middleRange, "...", total];
+    }
+
+    return Array.from({ length: total }, (_, i) => i + 1);
+  };
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto p-4 md:p-6 font-sans">
@@ -641,33 +684,30 @@ export default function LogsClient({
               <ChevronLeft className="w-4 h-4" />
             </Button>
 
-            {Array.from({ length: totalPages }).map((_, index) => {
-              const pageNum = index + 1;
-              if (
-                pageNum === 1 ||
-                pageNum === totalPages ||
-                Math.abs(pageNum - page) <= 1
-              ) {
+            {getPaginationRange(page, totalPages).map((item, idx) => {
+              if (item === "...") {
                 return (
-                  <Button
-                    key={pageNum}
-                    variant={page === pageNum ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setPage(pageNum)}
-                    className="h-8 w-8 text-xs border-slate-200"
+                  <span
+                    key={`ellipsis-${idx}`}
+                    className="text-slate-400 px-1 font-semibold select-none"
                   >
-                    {pageNum}
-                  </Button>
-                );
-              }
-              if (pageNum === 2 || pageNum === totalPages - 1) {
-                return (
-                  <span key={pageNum} className="text-slate-300 px-1">
                     ...
                   </span>
                 );
               }
-              return null;
+
+              const pageNum = item as number;
+              return (
+                <Button
+                  key={pageNum}
+                  variant={page === pageNum ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setPage(pageNum)}
+                  className="h-8 w-8 text-xs border-slate-200"
+                >
+                  {pageNum}
+                </Button>
+              );
             })}
 
             <Button
