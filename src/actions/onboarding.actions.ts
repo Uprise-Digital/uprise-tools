@@ -42,6 +42,8 @@ export async function createOrganizationAction(payload: {
   name: string;
   description: string;
   autoJoinDomain: boolean;
+  defaultTimezone?: string;
+  defaultCurrency?: string;
 }) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -61,6 +63,8 @@ export async function createOrganizationAction(payload: {
   const metadata = JSON.stringify({
     description: payload.description,
     autoJoinDomain: payload.autoJoinDomain ? userDomain : null,
+    defaultTimezone: payload.defaultTimezone || "America/New_York",
+    defaultCurrency: payload.defaultCurrency || "USD",
   });
 
   // 1. Insert organization
