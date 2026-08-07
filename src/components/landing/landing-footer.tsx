@@ -134,28 +134,28 @@ export function LandingFooter() {
             </h4>
             <ul className="space-y-2.5 text-xs font-medium">
               <li>
-                <a
+                <Link
                   href="/privacy"
                   className="hover:text-slate-900 transition-colors"
                 >
                   Privacy Policy
-                </a>
+                </Link>
               </li>
               <li>
-                <a
+                <Link
                   href="/terms"
                   className="hover:text-slate-900 transition-colors"
                 >
                   Terms of Service
-                </a>
+                </Link>
               </li>
               <li>
-                <a
+                <Link
                   href="/security"
                   className="hover:text-slate-900 transition-colors"
                 >
                   Security & RLS
-                </a>
+                </Link>
               </li>
               <li>
                 <a
