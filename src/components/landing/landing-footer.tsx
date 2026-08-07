@@ -1,141 +1,181 @@
 "use client";
 
-import { CheckCircle, Lock, Shield, Sparkles } from "lucide-react";
+import { Lock, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 export function LandingFooter() {
   return (
-    <footer className="border-t border-slate-800/80 bg-slate-950 text-slate-400 text-xs py-12">
+    <footer className="bg-white text-slate-600 border-t border-slate-200 py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-          {/* Brand Col */}
-          <div className="space-y-4 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="h-8 w-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
-                <Sparkles className="h-4 w-4" />
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 pb-12 border-b border-slate-200">
+          {/* Brand & Security */}
+          <div className="md:col-span-5 text-left">
+            <Link href="/" className="flex items-center gap-3 mb-4">
+              <div className="h-8 w-8 bg-black text-white rounded-lg flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-white" />
               </div>
-              <span className="text-base font-black text-white tracking-tight">
+              <span className="text-xl font-bold text-slate-900">
                 Uprise Tools
               </span>
             </Link>
-            <p className="text-slate-400 leading-relaxed">
-              The automated PPC command operating system for modern performance
-              agencies. Threat matrix audits, AI morning briefings, and turbo
-              negative keyword management.
+            <p className="text-xs text-slate-500 leading-relaxed max-w-sm mb-6 font-normal">
+              The Next-Gen PPC Command Operating System for Performance
+              Agencies. Automating Google Ads threat matrix audits, turbo
+              negative keyword management, and daily executive briefings.
             </p>
+
+            {/* Security Badges */}
+            <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-700">
+              <span className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-3 py-1 rounded-md">
+                <ShieldCheck className="h-3.5 w-3.5 text-slate-900" /> AES-256
+                Encrypted
+              </span>
+              <span className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-3 py-1 rounded-md">
+                <Lock className="h-3.5 w-3.5 text-slate-900" /> Google OAuth 2.0
+                Verified
+              </span>
+            </div>
           </div>
 
-          {/* Product Links */}
-          <div className="space-y-3">
-            <div className="font-bold text-white uppercase text-[11px] tracking-wider">
-              Product
-            </div>
-            <ul className="space-y-2">
+          {/* Links Column 1 */}
+          <div className="md:col-span-3 text-left">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">
+              Product Features
+            </h4>
+            <ul className="space-y-2.5 text-xs font-medium">
               <li>
                 <a
-                  href="#features"
-                  className="hover:text-white transition-colors"
+                  href="#threat-matrix"
+                  className="hover:text-slate-900 transition-colors"
                 >
-                  Features
+                  Threat Matrix Anomaly Scanner
                 </a>
               </li>
               <li>
                 <a
-                  href="#threat-matrix"
-                  className="hover:text-white transition-colors"
+                  href="#features"
+                  className="hover:text-slate-900 transition-colors"
                 >
-                  Threat Matrix
+                  AI Morning Executive Briefings
                 </a>
+              </li>
+              <li>
+                <a
+                  href="#features"
+                  className="hover:text-slate-900 transition-colors"
+                >
+                  Turbo Negative Keywords
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#features"
+                  className="hover:text-slate-900 transition-colors"
+                >
+                  Landing Page & SERP Audits
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#features"
+                  className="hover:text-slate-900 transition-colors"
+                >
+                  GoHighLevel Onboarding Engine
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Links Column 2 */}
+          <div className="md:col-span-2 text-left">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">
+              Resources
+            </h4>
+            <ul className="space-y-2.5 text-xs font-medium">
+              <li>
+                <Link
+                  href="/docs"
+                  className="hover:text-slate-900 transition-colors"
+                >
+                  Documentation
+                </Link>
               </li>
               <li>
                 <a
                   href="#pricing"
-                  className="hover:text-white transition-colors"
+                  className="hover:text-slate-900 transition-colors"
                 >
-                  Pricing Tiers
+                  Agency Pricing
                 </a>
               </li>
               <li>
                 <Link
-                  href="/docs"
-                  className="hover:text-white transition-colors"
+                  href="/login"
+                  className="hover:text-slate-900 transition-colors"
                 >
-                  Documentation
+                  Agency Login
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/signup"
+                  className="hover:text-slate-900 transition-colors"
+                >
+                  Start Free Trial
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Integration Links */}
-          <div className="space-y-3">
-            <div className="font-bold text-white uppercase text-[11px] tracking-wider">
-              Integrations
-            </div>
-            <ul className="space-y-2">
+          {/* Links Column 3 */}
+          <div className="md:col-span-2 text-left">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">
+              Legal & Support
+            </h4>
+            <ul className="space-y-2.5 text-xs font-medium">
               <li>
-                <span className="text-slate-300 flex items-center gap-1.5">
-                  <CheckCircle className="h-3 w-3 text-emerald-400" /> Google
-                  Ads API v23
-                </span>
+                <a
+                  href="/privacy"
+                  className="hover:text-slate-900 transition-colors"
+                >
+                  Privacy Policy
+                </a>
               </li>
               <li>
-                <span className="text-slate-300 flex items-center gap-1.5">
-                  <CheckCircle className="h-3 w-3 text-emerald-400" />{" "}
-                  GoHighLevel API v2
-                </span>
+                <a
+                  href="/terms"
+                  className="hover:text-slate-900 transition-colors"
+                >
+                  Terms of Service
+                </a>
               </li>
               <li>
-                <span className="text-slate-300 flex items-center gap-1.5">
-                  <CheckCircle className="h-3 w-3 text-emerald-400" /> Resend &
-                  React Email
-                </span>
+                <a
+                  href="/security"
+                  className="hover:text-slate-900 transition-colors"
+                >
+                  Security & RLS
+                </a>
               </li>
               <li>
-                <span className="text-slate-300 flex items-center gap-1.5">
-                  <CheckCircle className="h-3 w-3 text-emerald-400" /> Model
-                  Context Protocol (MCP)
-                </span>
+                <a
+                  href="mailto:support@uprisedigital.com.au"
+                  className="hover:text-slate-900 transition-colors"
+                >
+                  Support Email
+                </a>
               </li>
             </ul>
           </div>
-
-          {/* Trust & Security */}
-          <div className="space-y-3">
-            <div className="font-bold text-white uppercase text-[11px] tracking-wider">
-              Security & Privacy
-            </div>
-            <p className="text-slate-400 leading-relaxed">
-              256-bit AES token encryption at rest. Google OAuth standard access
-              permissions.
-            </p>
-            <div className="flex items-center gap-3 pt-2 text-slate-300">
-              <span className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-[10px]">
-                <Shield className="h-3 w-3 text-indigo-400" /> AES-256
-              </span>
-              <span className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-[10px]">
-                <Lock className="h-3 w-3 text-emerald-400" /> OAuth 2.0
-              </span>
-            </div>
-          </div>
         </div>
 
-        <div className="border-t border-slate-900 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
+        {/* Bottom Bar */}
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 font-medium">
           <div>
-            © {new Date().getFullYear()} Uprise Tools. All rights reserved.
+            © {new Date().getFullYear()} Uprise Digital. All rights reserved.
           </div>
-          <div className="flex items-center gap-6">
-            <Link
-              href="/privacy"
-              className="hover:text-white transition-colors"
-            >
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="hover:text-white transition-colors">
-              Terms of Service
-            </Link>
-            <Link href="/docs" className="hover:text-white transition-colors">
-              Security Overview
-            </Link>
+          <div className="mt-4 sm:mt-0">
+            Tailored for Performance Agencies in Australia & Global
           </div>
         </div>
       </div>

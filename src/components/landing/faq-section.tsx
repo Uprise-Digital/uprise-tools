@@ -1,74 +1,71 @@
 "use client";
 
-import { ChevronDown, HelpCircle } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 export function FAQSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
   const faqs = [
     {
-      question: "How does Uprise Tools connect to my Google Ads accounts?",
-      answer:
-        "Uprise Tools uses official Google Ads API OAuth 2.0. You simply sign in with your Google account that has access to your Google Ads Manager (MCC) account. We only request read and standard campaign edit permissions required for audits and negative keyword updates.",
+      q: "How does Uprise Tools connect to our Google Ads MCC portfolio?",
+      a: "Uprise Tools uses official Google Ads API OAuth 2.0. In Step 2 of our onboarding wizard, your agency admin logs in with your Google MCC credentials. We automatically fetch all active customer sub-accounts without needing developer tokens or manual CSV exports.",
     },
     {
-      question: "Can I customize the automated AI Morning Briefings?",
-      answer:
-        "Yes! You can specify recipient email addresses, dispatch times, target metrics, custom AI instructions, and white-label branding for each client organization.",
+      q: "Are client executive AI morning briefings customizable?",
+      a: "Yes! You can configure specific AI prompts, delivery schedules (e.g., 7:00 AM daily), white-label branding, and client email recipient routing per account.",
     },
     {
-      question: "What happens if a client account has a spend anomaly?",
-      answer:
-        "The Google Ads Threat Matrix flags any abnormal spend spike or CPC increase immediately. Depending on your alert rule configuration, Uprise can send instant email alerts, execute automated negative keyword exclusions, or trigger webhooks to your team.",
+      q: "How does the Threat Matrix detect wasted ad spend?",
+      a: "Our background anomaly engine evaluates hourly performance metrics against historical baselines. It flags sudden CPC spikes, zero-conversion spend burns, broken landing page URLs, and impression share losses in real time.",
     },
     {
-      question: "Can I manage multiple agency client workspaces?",
-      answer:
-        "Absolutely. Uprise Tools is built with native multi-tenancy. You can create separate workspaces for each client or brand, invite team members with role-based access, and switch between orgs seamlessly.",
+      q: "Can we manage multi-tenant permissions for different team members?",
+      a: "Absoluty. Uprise Tools enforces database PostgreSQL Row-Level Security (RLS). You can invite account managers, media buyers, and agency executives with granular role-based access control.",
     },
     {
-      question: "Is there a long-term contract or setup fee?",
-      answer:
-        "No long-term contracts! All plans come with a 14-day free trial, and you can change or cancel your subscription anytime directly from your dashboard billing settings.",
+      q: "Is there a setup fee or contract commitment?",
+      a: "No setup fees or long-term contracts. You start with a 14-day free trial, and you can upgrade, downgrade, or cancel anytime from your settings portal.",
     },
   ];
 
-  const [openIdx, setOpenIdx] = useState<number | null>(0);
-
   return (
-    <section className="py-20 relative bg-slate-950">
+    <section className="py-20 bg-slate-50 border-b border-slate-200">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-400 text-xs font-semibold mb-3">
-            <HelpCircle className="h-3.5 w-3.5 text-indigo-400" />
-            <span>Got Questions?</span>
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+        {/* Title - SOLID BLACK */}
+        <div className="text-center mb-14">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-4">
             Frequently Asked Questions
           </h2>
+          <p className="text-base text-slate-600 font-normal">
+            Everything you need to know about our agency PPC command OS.
+          </p>
         </div>
 
+        {/* Accordion List */}
         <div className="space-y-4">
-          {faqs.map((faq, idx) => {
-            const isOpen = openIdx === idx;
+          {faqs.map((faq, index) => {
+            const isOpen = openIndex === index;
             return (
               <div
-                key={idx}
-                className="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden transition-all"
+                key={index}
+                className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm transition-all"
               >
                 <button
-                  onClick={() => setOpenIdx(isOpen ? null : idx)}
-                  className="w-full p-5 text-left flex items-center justify-between font-bold text-white text-sm sm:text-base gap-4"
+                  type="button"
+                  onClick={() => setOpenIndex(isOpen ? null : index)}
+                  className="w-full p-6 text-left flex items-center justify-between gap-4 font-bold text-base text-slate-900 hover:text-black transition-colors"
                 >
-                  <span>{faq.question}</span>
+                  <span>{faq.q}</span>
                   <ChevronDown
-                    className={`h-5 w-5 text-indigo-400 shrink-0 transition-transform ${
-                      isOpen ? "rotate-180" : "rotate-0"
+                    className={`h-5 w-5 text-slate-500 shrink-0 transition-transform duration-200 ${
+                      isOpen ? "rotate-180 text-black" : ""
                     }`}
                   />
                 </button>
                 {isOpen && (
-                  <div className="px-5 pb-5 text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800/40 pt-3">
-                    {faq.answer}
+                  <div className="px-6 pb-6 text-sm text-slate-600 leading-relaxed font-normal border-t border-slate-100 pt-4">
+                    {faq.a}
                   </div>
                 )}
               </div>

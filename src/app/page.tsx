@@ -16,7 +16,7 @@ export default async function SaaSPage() {
   const isLoggedIn = !!session;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white selection:bg-indigo-500 selection:text-white font-sans antialiased overflow-x-hidden">
+    <div className="min-h-screen bg-white text-slate-900 selection:bg-black selection:text-white font-sans antialiased overflow-x-hidden">
       {/* Sticky Header Nav */}
       <LandingNav isLoggedIn={isLoggedIn} />
 
