@@ -124,10 +124,21 @@ async function sanitizeBlockForCreate(block: any): Promise<any> {
 
   // 1. Media blocks (image, video, file, pdf, audio)
   if (["image", "video", "file", "pdf", "audio"].includes(type)) {
-    // If original block was type "file" (temporary hosted url), re-host to R2 to prevent 1-hour expiration
+    let sourceUrl: string | null = null;
     if (original.type === "file" && original.file?.url) {
-      const r2Url = await rehostNotionImage(original.file.url);
-      const finalUrl = r2Url || original.file.url;
+      sourceUrl = original.file.url;
+    } else if (
+      original.type === "external" &&
+      original.external?.url &&
+      (original.external.url.includes("amazonaws.com") ||
+        original.external.url.includes("notion-static.com"))
+    ) {
+      sourceUrl = original.external.url;
+    }
+
+    if (sourceUrl) {
+      const r2Url = await rehostNotionImage(sourceUrl);
+      const finalUrl = r2Url || sourceUrl;
       cleanContent.type = "external";
       cleanContent.external = { url: finalUrl };
       delete cleanContent.file;
