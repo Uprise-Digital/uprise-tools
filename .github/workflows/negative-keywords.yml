@@ -3,8 +3,8 @@ name: Nightly Negative Keywords Automation
 on:
   # Runs daily at 18:00 UTC (which corresponds to 4:00 AM AEST / 5:00 AM AEDT Melbourne time)
   # This runs before the morning briefing, ensuring any auto-pushed negatives are recorded
-  schedule:
-    - cron: '0 18 * * *'
+  #schedule:
+  #  - cron: '0 18 * * *'
 
   # Allow manual trigger from the GitHub Actions UI
   workflow_dispatch:
