@@ -55,3 +55,38 @@ export async function uploadImageToR2(
     return null;
   }
 }
+
+/**
+ * Uploads a Buffer to Cloudflare R2.
+ * Returns the public URL of the uploaded object, or null if credentials are missing or upload fails.
+ */
+export async function uploadBufferToR2(
+  buffer: Buffer,
+  fileName: string,
+  contentType: string = "image/png",
+): Promise<string | null> {
+  if (!s3Client || !bucketName || !publicUrl) {
+    console.warn("[R2 Storage] R2 Storage is not configured. Skipping upload.");
+    return null;
+  }
+
+  try {
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: fileName,
+        Body: buffer,
+        ContentType: contentType,
+      }),
+    );
+
+    const cleanPublicUrl = publicUrl.endsWith("/")
+      ? publicUrl.slice(0, -1)
+      : publicUrl;
+    return `${cleanPublicUrl}/${fileName}`;
+  } catch (error) {
+    console.error("[R2 Storage Error] Failed to upload buffer to R2:", error);
+    return null;
+  }
+}
+

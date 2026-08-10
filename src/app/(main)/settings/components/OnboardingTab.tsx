@@ -18,6 +18,7 @@ import {
   Database,
   Eye,
   EyeOff,
+  Info,
   Mail,
   RefreshCw,
   Save,
@@ -32,6 +33,7 @@ import {
   getGhlSnapshotsAction,
   saveOnboardingSettingsAction,
 } from "@/actions/onboarding-settings.actions";
+import { repairNotionImagesAction } from "@/actions/notion-repair.actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -562,6 +564,24 @@ function OnboardingTabContent({
   const [notionError, setNotionError] = useState(
     onboardingSettings?.notionError ?? "",
   );
+  const [isRepairingNotion, setIsRepairingNotion] = useState(false);
+
+  const handleRepairNotionImages = async () => {
+    setIsRepairingNotion(true);
+    toast.info("Scanning and repairing Notion dashboard images...");
+    try {
+      const res = await repairNotionImagesAction();
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error(res.error || "Failed to repair Notion images.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred while repairing images.");
+    } finally {
+      setIsRepairingNotion(false);
+    }
+  };
 
   const [mondayEnabled, setMondayEnabled] = useState(
     (onboardingSettings as any)?.workflowConfig?.integrations?.mondayEnabled ??
@@ -2541,6 +2561,40 @@ Founder | ${orgName}`;
                   Your Notion integration secret key. Make sure the parent page
                   is shared with this integration.
                 </p>
+
+                <div className="mt-3 p-3 bg-amber-50/80 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-start gap-2.5 shadow-sm leading-relaxed">
+                  <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1.5 text-left">
+                    <p className="font-semibold text-amber-950">
+                      Notion Image Hosting & Template Limitation Tip:
+                    </p>
+                    <p className="text-[11px] text-amber-800">
+                      When duplicating Notion pages via API, directly uploaded image files in Notion use temporary AWS S3 URLs that expire after 1 hour. Our system automatically re-hosts template images to Cloudflare R2 storage on copy. Use external image links in your template to avoid manual uploads.
+                    </p>
+                    <div className="pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isRepairingNotion}
+                        onClick={handleRepairNotionImages}
+                        className="h-7 text-[11px] font-semibold bg-white border-amber-300 hover:bg-amber-100 text-amber-900"
+                      >
+                        {isRepairingNotion ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 animate-spin mr-1.5" />
+                            Repairing & Re-hosting Images...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-3 h-3 mr-1.5" />
+                            Retroactively Repair & Re-host Dashboard Images
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>

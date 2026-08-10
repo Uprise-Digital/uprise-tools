@@ -1,4 +1,33 @@
 import { Client } from "@notionhq/client";
+import { uploadBufferToR2 } from "@/lib/storage";
+
+/**
+ * Re-hosts a temporary Notion image/asset to Cloudflare R2 for permanent persistence.
+ */
+async function rehostNotionImage(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = res.headers.get("content-type") || "image/png";
+    const ext =
+      contentType.includes("jpeg") || contentType.includes("jpg")
+        ? "jpg"
+        : contentType.includes("png")
+        ? "png"
+        : contentType.includes("svg")
+        ? "svg"
+        : "png";
+    const fileName = `notion-assets/asset_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(2, 7)}.${ext}`;
+    return await uploadBufferToR2(buffer, fileName, contentType);
+  } catch (err) {
+    console.warn("Failed to rehost Notion image to R2:", err);
+    return null;
+  }
+}
 
 /**
  * Initializes a Notion client using the integration API key.
@@ -55,8 +84,9 @@ const CONTENT_ALLOWLIST: Record<string, string[]> = {
 /**
  * Sanitizes a block for creation, removing read-only metadata fields
  * and stripping null values (such as icon: null or color: null) that fail Notion API validation.
+ * Re-hosts temporary Notion S3 images to Cloudflare R2 if available.
  */
-function sanitizeBlockForCreate(block: any): any {
+async function sanitizeBlockForCreate(block: any): Promise<any> {
   if (!block || !block.type) return block;
   const { type } = block;
 
@@ -94,10 +124,12 @@ function sanitizeBlockForCreate(block: any): any {
 
   // 1. Media blocks (image, video, file, pdf, audio)
   if (["image", "video", "file", "pdf", "audio"].includes(type)) {
-    // If original block was type "file" (temporary hosted url), convert it to "external"
+    // If original block was type "file" (temporary hosted url), re-host to R2 to prevent 1-hour expiration
     if (original.type === "file" && original.file?.url) {
+      const r2Url = await rehostNotionImage(original.file.url);
+      const finalUrl = r2Url || original.file.url;
       cleanContent.type = "external";
-      cleanContent.external = { url: original.file.url };
+      cleanContent.external = { url: finalUrl };
       delete cleanContent.file;
     }
   }
@@ -106,14 +138,20 @@ function sanitizeBlockForCreate(block: any): any {
 
   // Recurse into children if they exist on the tree
   if (cleanContent.children) {
-    cleanContent.children = cleanContent.children
-      .map(sanitizeBlockForCreate)
-      .filter((b: any) => b !== null);
+    const cleanChildren = [];
+    for (const child of cleanContent.children) {
+      const sanitized = await sanitizeBlockForCreate(child);
+      if (sanitized) cleanChildren.push(sanitized);
+    }
+    cleanContent.children = cleanChildren;
   }
   if (block.children) {
-    newBlock.children = block.children
-      .map(sanitizeBlockForCreate)
-      .filter((b: any) => b !== null);
+    const cleanChildren = [];
+    for (const child of block.children) {
+      const sanitized = await sanitizeBlockForCreate(child);
+      if (sanitized) cleanChildren.push(sanitized);
+    }
+    newBlock.children = cleanChildren;
   }
 
   return newBlock;
@@ -142,7 +180,7 @@ async function fetchBlockChildrenRecursive(
         continue;
       }
 
-      const appendableChild = sanitizeBlockForCreate(child);
+      const appendableChild = await sanitizeBlockForCreate(child);
       if (!appendableChild) {
         continue;
       }
@@ -419,7 +457,7 @@ async function duplicateNotionPageBlocks(
           );
         }
       } else {
-        const appendableBlock = sanitizeBlockForCreate(block);
+        const appendableBlock = await sanitizeBlockForCreate(block);
         if (!appendableBlock) {
           continue;
         }
@@ -775,3 +813,102 @@ export async function verifyNotionConnection(
     throw new Error(err.message || "Failed to verify Notion connection.");
   }
 }
+
+/**
+ * Retroactively inspects and replaces all temporary/expiring image URLs on a Notion page
+ * (and its subpages) with permanent Cloudflare R2 URLs.
+ */
+export async function fixNotionPageImagesRecursive(
+  apiKey: string,
+  pageId: string,
+): Promise<{ fixedCount: number; pageCount: number }> {
+  const notion = new Client({ auth: apiKey });
+  let fixedCount = 0;
+  let pageCount = 0;
+
+  async function processPage(containerId: string) {
+    pageCount++;
+    let hasMore = true;
+    let startCursor: string | undefined;
+
+    while (hasMore) {
+      const res: any = await notion.blocks.children.list({
+        block_id: containerId,
+        start_cursor: startCursor,
+        page_size: 100,
+      });
+
+      for (const block of res.results) {
+        if (block.type === "child_page") {
+          try {
+            await processPage(block.id);
+          } catch (childErr: any) {
+            console.warn(`[Notion Repair] Timeout/error scanning subpage ${block.id}:`, childErr.message);
+          }
+        } else if (["image", "file", "video"].includes(block.type)) {
+          const mediaObj = block[block.type];
+          let sourceUrl: string | null = null;
+          let isBroken = false;
+
+          if (mediaObj.type === "file" && mediaObj.file?.url) {
+            sourceUrl = mediaObj.file.url;
+          } else if (
+            mediaObj.type === "external" &&
+            mediaObj.external?.url &&
+            (mediaObj.external.url.includes("amazonaws.com") ||
+              mediaObj.external.url.includes("notion-static.com"))
+          ) {
+            sourceUrl = mediaObj.external.url;
+          } else if (
+            block.type === "image" &&
+            !mediaObj.file?.url &&
+            !mediaObj.external?.url
+          ) {
+            isBroken = true;
+          }
+
+          if (sourceUrl || isBroken) {
+            try {
+              const r2Url = isBroken
+                ? "https://pub-76a2919d321345868f6cb33accae2b1b.r2.dev/notion-assets/asset_1786345003291_zg4re.png"
+                : await rehostNotionImage(sourceUrl!);
+              if (r2Url) {
+                await notion.blocks.update({
+                  block_id: block.id,
+                  [block.type]: {
+                    external: { url: r2Url },
+                  },
+                } as any);
+                fixedCount++;
+                console.log(
+                  `[Notion Repair] Updated ${block.type} block ${block.id} to permanent R2 URL: ${r2Url}`,
+                );
+                await new Promise((r) => setTimeout(r, 150));
+              }
+            } catch (blockErr: any) {
+              console.warn(
+                `[Notion Repair] Failed to update block ${block.id}:`,
+                blockErr.message,
+              );
+            }
+          }
+        }
+
+        if (block.has_children && block.type !== "child_page") {
+          try {
+            await processPage(block.id);
+          } catch (nestedErr: any) {
+            console.warn(`[Notion Repair] Timeout/error scanning children of ${block.id}:`, nestedErr.message);
+          }
+        }
+      }
+
+      hasMore = res.has_more;
+      startCursor = res.next_cursor || undefined;
+    }
+  }
+
+  await processPage(pageId);
+  return { fixedCount, pageCount };
+}
+
