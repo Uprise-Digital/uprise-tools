@@ -44,7 +44,7 @@ An internal, mission-critical digital agency growth OS and automated campaign in
 - **Authentication**: Better Auth (`better-auth`)
 - **AI & Research**: Google GenAI SDK (`@google/genai`), OpenAI SDK, Serper.dev API
 - **External API Integrations**: Google Ads API (`google-ads-api` v23), GoHighLevel API, Notion API (`@notionhq/client`), Resend Email Engine (`resend` + `@react-email`), AWS S3 (`@aws-sdk/client-s3`)
-- **Queueing & Scheduling**: Inngest, Vercel Queue (`@vercel/queue`), Vercel KV, GitHub Actions Workflow Schedules
+- **Queueing & Scheduling**: GitHub Actions Workflow Schedules, Railway API & Worker Services
 - **Tooling & Code Quality**: Vitest, Biome (`@biomejs/biome`), TypeScript 5.9
 
 ---

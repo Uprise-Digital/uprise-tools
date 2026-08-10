@@ -24,7 +24,7 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-// Ensure Vercel allocates maximum time for AI and PDF rendering
+// Ensure max duration is set for AI and PDF rendering
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error(`[Vercel API] Critical failure:`, error);
+    console.error(`[Job API] Critical failure:`, error);
 
     try {
       const adAccId =
@@ -175,7 +175,7 @@ export async function POST(request: Request) {
         error: error.message || "Unknown on-demand job error",
       });
     } catch (logErr) {
-      console.error("[Vercel API] Failed to write failure emailLog:", logErr);
+      console.error("[Job API] Failed to write failure emailLog:", logErr);
     }
 
     // Returning a 500 status code triggers the Cloudflare Worker's 'catch' block
