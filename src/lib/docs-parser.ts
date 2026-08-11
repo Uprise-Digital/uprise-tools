@@ -111,6 +111,12 @@ export function parseMarkdown(filePath: string): ParsedDoc {
     '<li class="ml-4 list-decimal text-slate-600 mb-1.5">$1</li>',
   );
 
+  // Convert horizontal rules (---)
+  html = html.replace(
+    /^---$/gim,
+    '<hr class="my-8 border-t border-slate-200" />',
+  );
+
   // Split into block paragraphs and wrap non-element blocks in <p>
   const blocks = html.split(/\n\s*\n/);
   const parsedBlocks = blocks.map((b) => {
@@ -121,6 +127,7 @@ export function parseMarkdown(filePath: string): ParsedDoc {
       trimmed.startsWith("<h") ||
       trimmed.startsWith("<li") ||
       trimmed.startsWith("<img") ||
+      trimmed.startsWith("<hr") ||
       trimmed.startsWith("<GoogleAdsIdForm") ||
       trimmed.startsWith("<CopyMetaIdButton") ||
       trimmed.startsWith("<div")
