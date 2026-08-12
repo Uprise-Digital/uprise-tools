@@ -446,7 +446,7 @@ export async function generateThreatMatrixAction(
           "client_action_plan": "Write a punchy, 3-bullet-point script the Account Manager can copy/paste to the client explaining exactly what must change on their website today to survive in this specific auction."
         }
         
-        CONSTRAINTS: Be brutal and data-driven. Do not provide generic advice. Quote specific offers or text found in the competitor pages.
+        CONSTRAINTS: Be brutal and data-driven. Always write in UK English spelling and grammar (e.g. optimise, prioritise, programme, behaviour, colour, analyse). Do not provide generic advice. Quote specific offers or text found in the competitor pages.
         `;
 
     const result = await generateContentTracked(

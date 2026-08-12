@@ -555,6 +555,7 @@ export async function updateSuggestionStatusAction(
       const scopeToUse =
         customScope ||
         (suggestion.campaignId === "ALL" ? "global" : "campaign");
+      const googleAccountId = suggestion.account?.googleAccountId || "";
 
       console.log(
         `[Actions] User ${session.user.email} approved keyword "${suggestion.keyword}" (Match: ${finalMatchType}, Scope: ${scopeToUse})`,
@@ -566,12 +567,10 @@ export async function updateSuggestionStatusAction(
         finalAdGroupId = null;
         finalAdGroupName = null;
 
-        const campaigns = await fetchAccountCampaigns(
-          suggestion.account.googleAccountId,
-        );
+        const campaigns = await fetchAccountCampaigns(googleAccountId);
         for (const c of campaigns) {
           await addCampaignNegativeKeyword(
-            suggestion.account.googleAccountId,
+            googleAccountId,
             c.id,
             suggestion.keyword,
             finalMatchType,
@@ -589,7 +588,7 @@ export async function updateSuggestionStatusAction(
         finalAdGroupName = suggestion.adGroupName;
 
         await addAdGroupNegativeKeyword(
-          suggestion.account.googleAccountId,
+          googleAccountId,
           suggestion.adGroupId,
           suggestion.keyword,
           finalMatchType,
@@ -613,9 +612,7 @@ export async function updateSuggestionStatusAction(
 
         finalCampaignId = targetCampaignId;
         if (customCampaignId) {
-          const campaigns = await fetchAccountCampaigns(
-            suggestion.account.googleAccountId,
-          );
+          const campaigns = await fetchAccountCampaigns(googleAccountId);
           const selectedCamp = campaigns.find(
             (c: any) => c.id === customCampaignId,
           );
@@ -633,7 +630,7 @@ export async function updateSuggestionStatusAction(
         finalAdGroupName = null;
 
         await addCampaignNegativeKeyword(
-          suggestion.account.googleAccountId,
+          googleAccountId,
           finalCampaignId,
           suggestion.keyword,
           finalMatchType,

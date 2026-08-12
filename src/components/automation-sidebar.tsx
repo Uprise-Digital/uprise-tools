@@ -21,8 +21,8 @@ import {
   UserCheck,
   X,
 } from "lucide-react";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   deleteReportScheduleAction,
@@ -286,7 +286,8 @@ export function AutomationSidebar({
             </div>
             <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
               <p className="text-sm text-slate-500 leading-relaxed">
-                Generate and download client performance reports. Preview last month's report before sending or select custom dates.
+                Generate and download client performance reports. Preview last
+                month's report before sending or select custom dates.
               </p>
 
               {/* New Date Range Inputs */}
@@ -322,9 +323,18 @@ export function AutomationSidebar({
                   variant="default"
                   onClick={() => {
                     const now = new Date();
-                    const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                    const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
-                    const formatYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                    const firstDay = new Date(
+                      now.getFullYear(),
+                      now.getMonth() - 1,
+                      1,
+                    );
+                    const lastDay = new Date(
+                      now.getFullYear(),
+                      now.getMonth(),
+                      0,
+                    );
+                    const formatYMD = (d: Date) =>
+                      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                     onQuickDownload(formatYMD(firstDay), formatYMD(lastDay));
                   }}
                   disabled={isDownloading}
@@ -334,7 +344,13 @@ export function AutomationSidebar({
                   ) : (
                     <FileDown className="mr-2 h-4 w-4" />
                   )}
-                  Download {new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleString("default", { month: "long" })} Report (Last Month)
+                  Download{" "}
+                  {new Date(
+                    new Date().getFullYear(),
+                    new Date().getMonth() - 1,
+                    1,
+                  ).toLocaleString("default", { month: "long" })}{" "}
+                  Report (Last Month)
                 </Button>
 
                 {/* 2. Download Current Month / Custom Date Button */}
@@ -349,7 +365,11 @@ export function AutomationSidebar({
                   ) : (
                     <FileDown className="mr-2 h-4 w-4 text-slate-500" />
                   )}
-                  Download {startDate && endDate ? "Custom Range" : `${new Date().toLocaleString("default", { month: "long" })} (Current)`} Report
+                  Download{" "}
+                  {startDate && endDate
+                    ? "Custom Range"
+                    : `${new Date().toLocaleString("default", { month: "long" })} (Current)`}{" "}
+                  Report
                 </Button>
               </div>
             </div>
@@ -630,7 +650,8 @@ export function AutomationSidebar({
                   onChange={(e) => setCc(e.target.value)}
                 />
                 <p className="text-[11px] text-slate-500 font-normal leading-normal">
-                  Separate multiple addresses with commas or semicolons (e.g. seyone@uprise.com.au, alex@uprise.com.au).
+                  Separate multiple addresses with commas or semicolons (e.g.
+                  seyone@uprise.com.au, alex@uprise.com.au).
                 </p>
               </div>
 

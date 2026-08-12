@@ -285,6 +285,7 @@ export async function runAdCopyAuditInternal(
     }
 
     CRITICAL CONSTRAINTS:
+    - ALWAYS write in UK English spelling and grammar (e.g. optimise, prioritise, programme, behaviour, colour, analyse).
     - Do NOT include markdown code blocks (e.g. \`\`\`json) in the response text, return ONLY the raw JSON string.
     - Ensure all key names match the schema.
     - Be highly constructive, trade-specific, and include actual text recommendations (do not say "make it look better", suggest specific text).

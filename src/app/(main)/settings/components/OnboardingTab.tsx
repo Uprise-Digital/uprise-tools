@@ -28,12 +28,12 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import "@xyflow/react/dist/style.css";
+import { repairNotionImagesAction } from "@/actions/notion-repair.actions";
 import {
   disconnectGoogleDriveAction,
   getGhlSnapshotsAction,
   saveOnboardingSettingsAction,
 } from "@/actions/onboarding-settings.actions";
-import { repairNotionImagesAction } from "@/actions/notion-repair.actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -2569,7 +2569,12 @@ Founder | ${orgName}`;
                       Notion Image Hosting & Template Limitation Tip:
                     </p>
                     <p className="text-[11px] text-amber-800">
-                      When duplicating Notion pages via API, directly uploaded image files in Notion use temporary AWS S3 URLs that expire after 1 hour. Our system automatically re-hosts template images to Cloudflare R2 storage on copy. Use external image links in your template to avoid manual uploads.
+                      When duplicating Notion pages via API, directly uploaded
+                      image files in Notion use temporary AWS S3 URLs that
+                      expire after 1 hour. Our system automatically re-hosts
+                      template images to Cloudflare R2 storage on copy. Use
+                      external image links in your template to avoid manual
+                      uploads.
                     </p>
                     <div className="pt-1">
                       <Button

@@ -226,6 +226,7 @@ export async function getOrGenerateAgencyAiInsightsAction(
     }
 
     CONSTRAINTS:
+    - ALWAYS write in UK English spelling and grammar (e.g. optimise, prioritise, programme, behaviour, colour, analyse).
     - Base all analysis strictly on the provided JSON figures.
     - Use the PRE-CALCULATED GROUND TRUTH explicitly if it is provided above.
     - If there are no genuine critical fires matching the criteria above, return an empty array [].

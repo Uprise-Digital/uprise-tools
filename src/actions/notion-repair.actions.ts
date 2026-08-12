@@ -1,6 +1,6 @@
 "use server";
 import { db } from "@/db";
-import { organizationOnboardingSettings, clientOnboardings } from "@/db/schema";
+import { clientOnboardings, organizationOnboardingSettings } from "@/db/schema";
 import { decryptToken } from "@/lib/crypto";
 import { fixNotionPageImagesRecursive } from "@/service/notion-service";
 

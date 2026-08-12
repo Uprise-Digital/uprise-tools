@@ -15,10 +15,10 @@ async function rehostNotionImage(url: string): Promise<string | null> {
       contentType.includes("jpeg") || contentType.includes("jpg")
         ? "jpg"
         : contentType.includes("png")
-        ? "png"
-        : contentType.includes("svg")
-        ? "svg"
-        : "png";
+          ? "png"
+          : contentType.includes("svg")
+            ? "svg"
+            : "png";
     const fileName = `notion-assets/asset_${Date.now()}_${Math.random()
       .toString(36)
       .substring(2, 7)}.${ext}`;
@@ -854,7 +854,10 @@ export async function fixNotionPageImagesRecursive(
           try {
             await processPage(block.id);
           } catch (childErr: any) {
-            console.warn(`[Notion Repair] Timeout/error scanning subpage ${block.id}:`, childErr.message);
+            console.warn(
+              `[Notion Repair] Timeout/error scanning subpage ${block.id}:`,
+              childErr.message,
+            );
           }
         } else if (["image", "file", "video"].includes(block.type)) {
           const mediaObj = block[block.type];
@@ -909,7 +912,10 @@ export async function fixNotionPageImagesRecursive(
           try {
             await processPage(block.id);
           } catch (nestedErr: any) {
-            console.warn(`[Notion Repair] Timeout/error scanning children of ${block.id}:`, nestedErr.message);
+            console.warn(
+              `[Notion Repair] Timeout/error scanning children of ${block.id}:`,
+              nestedErr.message,
+            );
           }
         }
       }
@@ -922,4 +928,3 @@ export async function fixNotionPageImagesRecursive(
   await processPage(pageId);
   return { fixedCount, pageCount };
 }
-

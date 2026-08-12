@@ -13,8 +13,8 @@ import {
   fetchAccountLastMonthSummary,
   fetchAccountMonthlySummary,
 } from "@/lib/google-ads";
-import { transformAdsData } from "@/lib/report-utils";
 import { buildReportEmailHtml } from "@/lib/report-email-template";
+import { transformAdsData } from "@/lib/report-utils";
 import { MyReportPDF } from "@/service/pdf-service";
 
 const resend = new Resend(process.env.RESEND_API_KEY);

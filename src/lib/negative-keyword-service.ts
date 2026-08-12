@@ -220,6 +220,7 @@ export async function generateNegativeKeywordSuggestions({
     ${JSON.stringify(filteredAllZeroTerms.slice(0, 40), null, 2)}
     
     EVALUATION & GENERATION INSTRUCTIONS:
+    0. LANGUAGE RULE: Always write all rationales and narrative explanations in UK English spelling and grammar (e.g. optimise, prioritise, programme, behaviour, colour, analyse).
     1. Wasted Search Terms: Evaluate every query in the wasted search terms list. Suggest a negative keyword only if there is clear, undeniable intent mismatch (e.g. competitors, wrong location, out-of-scope service). Do NOT negate highly relevant queries just because they lack conversions.
     2. Proactive Exclusions (Real-Time Web Research): Review the WEB RESEARCH FINDINGS and suggest negative keywords for any queries that represent competitor brand names, out-of-scope services, or low-intent research (like DIY, jobs, or education).
     3. Proactive Exclusions (Creative Industry Defaults): If there are few or no wasted search terms/web research findings, suggest standard proactive negative exclusions that this business type should always block (e.g., jobs, DIY, free, courses, resume, tools). Keep these highly creative but industry-aligned, and strictly ensure they do NOT conflict with client core services.

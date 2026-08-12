@@ -17,8 +17,8 @@ import {
   fetchAccountLastMonthSummary,
   fetchAccountMonthlySummary,
 } from "@/lib/google-ads";
-import { fetchAccountDataFromDb, transformAdsData } from "@/lib/report-utils";
 import { buildReportEmailHtml } from "@/lib/report-email-template";
+import { fetchAccountDataFromDb, transformAdsData } from "@/lib/report-utils";
 import { MyReportPDF } from "@/service/pdf-service";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -54,7 +54,10 @@ export async function executeReportJobDirectly(params: {
         fetchAccountLastMonthSummary(googleAccountId),
       ]);
     } catch (err) {
-      console.warn(`[GAQL API Warning] Falling back for ${googleAccountId}:`, err);
+      console.warn(
+        `[GAQL API Warning] Falling back for ${googleAccountId}:`,
+        err,
+      );
     }
   } else {
     try {

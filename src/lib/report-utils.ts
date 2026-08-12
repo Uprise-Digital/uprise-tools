@@ -1,7 +1,8 @@
 // lib/report-utils.ts
+
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { adPerformanceDaily } from "@/db/schema";
-import { eq } from "drizzle-orm";
 
 const formatMetric = (value: number, decimalPlaces = 2, fallback = "-") => {
   if (
@@ -42,7 +43,16 @@ export async function fetchAccountDataFromDb(googleAccountId: string) {
     if (!rows || rows.length === 0) return null;
 
     // Group by campaign
-    const campaignMap = new Map<string, { name: string; cost: number; clicks: number; impressions: number; conversions: number }>();
+    const campaignMap = new Map<
+      string,
+      {
+        name: string;
+        cost: number;
+        clicks: number;
+        impressions: number;
+        conversions: number;
+      }
+    >();
 
     for (const r of rows) {
       const cId = r.campaignId || r.campaignName;
@@ -76,7 +86,10 @@ export async function fetchAccountDataFromDb(googleAccountId: string) {
 
     return rawSummary;
   } catch (err) {
-    console.warn(`[DB Fetch Error] Could not query adPerformanceDaily for ${googleAccountId}:`, err);
+    console.warn(
+      `[DB Fetch Error] Could not query adPerformanceDaily for ${googleAccountId}:`,
+      err,
+    );
     return null;
   }
 }
@@ -89,7 +102,12 @@ function deriveAccountAudienceMetrics(clientName: string, totalClicks: number) {
   let mobilePct = 58 + (seed % 25); // 58% - 82%
   if (nameLower.includes("plumb") || nameLower.includes("emergency")) {
     mobilePct = 74 + (seed % 12); // 74% - 85%
-  } else if (nameLower.includes("demolition") || nameLower.includes("civil") || nameLower.includes("mining") || nameLower.includes("devo")) {
+  } else if (
+    nameLower.includes("demolition") ||
+    nameLower.includes("civil") ||
+    nameLower.includes("mining") ||
+    nameLower.includes("devo")
+  ) {
     mobilePct = 42 + (seed % 15); // 42% - 56%
   } else if (nameLower.includes("aar")) {
     mobilePct = 61;
@@ -102,15 +120,31 @@ function deriveAccountAudienceMetrics(clientName: string, totalClicks: number) {
   const clicks = totalClicks || 45 + (seed % 150);
 
   const deviceBreakdown = [
-    { device: "Mobile Devices", share: `${mobilePct}%`, clicks: Math.round(clicks * (mobilePct / 100)) },
-    { device: "Desktop Computers", share: `${desktopPct}%`, clicks: Math.round(clicks * (desktopPct / 100)) },
-    { device: "Tablet Devices", share: `${tabletPct}%`, clicks: Math.round(clicks * (tabletPct / 100)) },
+    {
+      device: "Mobile Devices",
+      share: `${mobilePct}%`,
+      clicks: Math.round(clicks * (mobilePct / 100)),
+    },
+    {
+      device: "Desktop Computers",
+      share: `${desktopPct}%`,
+      clicks: Math.round(clicks * (desktopPct / 100)),
+    },
+    {
+      device: "Tablet Devices",
+      share: `${tabletPct}%`,
+      clicks: Math.round(clicks * (tabletPct / 100)),
+    },
   ];
 
   // Dynamically generated impression share (summing to 100%)
   const marketCaptureNum = (52.0 + (seed % 320) / 10).toFixed(1);
   const budgetLostNum = (11.0 + (seed % 140) / 10).toFixed(1);
-  const rankLostNum = (100 - parseFloat(marketCaptureNum) - parseFloat(budgetLostNum)).toFixed(1);
+  const rankLostNum = (
+    100 -
+    parseFloat(marketCaptureNum) -
+    parseFloat(budgetLostNum)
+  ).toFixed(1);
 
   const impressionShare = {
     searchImpressionShare: `${marketCaptureNum}%`,
@@ -120,34 +154,102 @@ function deriveAccountAudienceMetrics(clientName: string, totalClicks: number) {
 
   // Industry-tailored geo regions
   let geoRegions = [
-    { region: "Central Commercial Metro", share: `${48 + (seed % 12)}%`, impressionLevel: "High Relevancy" },
-    { region: "Northern Growth Corridor", share: `${26 + (seed % 8)}%`, impressionLevel: "Strong Relevancy" },
-    { region: "Western Industrial District", share: `${18 + (seed % 6)}%`, impressionLevel: "Expanding Coverage" },
+    {
+      region: "Central Commercial Metro",
+      share: `${48 + (seed % 12)}%`,
+      impressionLevel: "High Relevancy",
+    },
+    {
+      region: "Northern Growth Corridor",
+      share: `${26 + (seed % 8)}%`,
+      impressionLevel: "Strong Relevancy",
+    },
+    {
+      region: "Western Industrial District",
+      share: `${18 + (seed % 6)}%`,
+      impressionLevel: "Expanding Coverage",
+    },
   ];
 
   if (nameLower.includes("plumb")) {
     geoRegions = [
-      { region: "Metro Emergency Radius", share: `${56 + (seed % 10)}%`, impressionLevel: "High Call Intent" },
-      { region: "Suburban Residential Hub", share: `${28 + (seed % 6)}%`, impressionLevel: "Strong Relevancy" },
-      { region: "Outer Coastal District", share: `${14 + (seed % 4)}%`, impressionLevel: "Active Coverage" },
+      {
+        region: "Metro Emergency Radius",
+        share: `${56 + (seed % 10)}%`,
+        impressionLevel: "High Call Intent",
+      },
+      {
+        region: "Suburban Residential Hub",
+        share: `${28 + (seed % 6)}%`,
+        impressionLevel: "Strong Relevancy",
+      },
+      {
+        region: "Outer Coastal District",
+        share: `${14 + (seed % 4)}%`,
+        impressionLevel: "Active Coverage",
+      },
     ];
-  } else if (nameLower.includes("clean") || nameLower.includes("energy") || nameLower.includes("solar")) {
+  } else if (
+    nameLower.includes("clean") ||
+    nameLower.includes("energy") ||
+    nameLower.includes("solar")
+  ) {
     geoRegions = [
-      { region: "Greater Residential Metro", share: `${52 + (seed % 10)}%`, impressionLevel: "High Search Volume" },
-      { region: "Regional Solar Corridor", share: `${30 + (seed % 6)}%`, impressionLevel: "Strong Engagement" },
-      { region: "New Housing Developments", share: `${18 + (seed % 4)}%`, impressionLevel: "Growing Capture" },
+      {
+        region: "Greater Residential Metro",
+        share: `${52 + (seed % 10)}%`,
+        impressionLevel: "High Search Volume",
+      },
+      {
+        region: "Regional Solar Corridor",
+        share: `${30 + (seed % 6)}%`,
+        impressionLevel: "Strong Engagement",
+      },
+      {
+        region: "New Housing Developments",
+        share: `${18 + (seed % 4)}%`,
+        impressionLevel: "Growing Capture",
+      },
     ];
-  } else if (nameLower.includes("demolition") || nameLower.includes("civil") || nameLower.includes("devo")) {
+  } else if (
+    nameLower.includes("demolition") ||
+    nameLower.includes("civil") ||
+    nameLower.includes("devo")
+  ) {
     geoRegions = [
-      { region: "Industrial & Demolition Sites", share: `${58 + (seed % 8)}%`, impressionLevel: "Primary Market" },
-      { region: "Commercial Metro Infrastructure", share: `${27 + (seed % 5)}%`, impressionLevel: "High Intent" },
-      { region: "Regional Redevelopment Corridor", share: `${15 + (seed % 5)}%`, impressionLevel: "Secondary Radius" },
+      {
+        region: "Industrial & Demolition Sites",
+        share: `${58 + (seed % 8)}%`,
+        impressionLevel: "Primary Market",
+      },
+      {
+        region: "Commercial Metro Infrastructure",
+        share: `${27 + (seed % 5)}%`,
+        impressionLevel: "High Intent",
+      },
+      {
+        region: "Regional Redevelopment Corridor",
+        share: `${15 + (seed % 5)}%`,
+        impressionLevel: "Secondary Radius",
+      },
     ];
   } else if (nameLower.includes("kgn") || nameLower.includes("home")) {
     geoRegions = [
-      { region: "Growth Estates & Greenfield", share: `${54 + (seed % 8)}%`, impressionLevel: "Primary Market" },
-      { region: "Established Residential Metro", share: `${31 + (seed % 5)}%`, impressionLevel: "High Relevancy" },
-      { region: "Regional Building Corridor", share: `${15 + (seed % 4)}%`, impressionLevel: "Expanding Reach" },
+      {
+        region: "Growth Estates & Greenfield",
+        share: `${54 + (seed % 8)}%`,
+        impressionLevel: "Primary Market",
+      },
+      {
+        region: "Established Residential Metro",
+        share: `${31 + (seed % 5)}%`,
+        impressionLevel: "High Relevancy",
+      },
+      {
+        region: "Regional Building Corridor",
+        share: `${15 + (seed % 4)}%`,
+        impressionLevel: "Expanding Reach",
+      },
     ];
   }
 
@@ -158,7 +260,11 @@ function deriveAccountAudienceMetrics(clientName: string, totalClicks: number) {
   if (nameLower.includes("plumb")) {
     peakWindow = "Mon – Sun: 24/7 Emergency Window";
     peakTrafficShare = `${84 + (seed % 10)}% High Call Intent`;
-  } else if (nameLower.includes("demolition") || nameLower.includes("civil") || nameLower.includes("devo")) {
+  } else if (
+    nameLower.includes("demolition") ||
+    nameLower.includes("civil") ||
+    nameLower.includes("devo")
+  ) {
     peakWindow = "Mon – Fri: 6:00 AM – 4:30 PM";
     peakTrafficShare = `${82 + (seed % 10)}% Site Operations Hours`;
   } else if (nameLower.includes("energy") || nameLower.includes("solar")) {
@@ -188,7 +294,10 @@ function deriveAccountAudienceMetrics(clientName: string, totalClicks: number) {
   };
 }
 
-export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: any[]) {
+export function deriveAccountAdGroupsAndCopies(
+  clientName: string,
+  campaigns: any[],
+) {
   const seed = getHash(clientName);
   const nameLower = clientName.toLowerCase();
 
@@ -208,7 +317,11 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
       "Burst Pipe Emergency Repairs",
       "Commercial Plumbing & Maintenance",
     ];
-  } else if (nameLower.includes("solar") || nameLower.includes("clean") || nameLower.includes("energy")) {
+  } else if (
+    nameLower.includes("solar") ||
+    nameLower.includes("clean") ||
+    nameLower.includes("energy")
+  ) {
     adGroupNames = [
       "Residential Solar Panels 6.6kW - 10kW",
       "Home Battery Storage Systems",
@@ -216,7 +329,11 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
       "Solar System Upgrades & Inverters",
       "Government Solar Rebate Search",
     ];
-  } else if (nameLower.includes("demolition") || nameLower.includes("civil") || nameLower.includes("devo")) {
+  } else if (
+    nameLower.includes("demolition") ||
+    nameLower.includes("civil") ||
+    nameLower.includes("devo")
+  ) {
     adGroupNames = [
       "Commercial Building Demolition",
       "Class-A Asbestos Removal",
@@ -238,7 +355,10 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
       "Double Storey Home Designs",
       "Knockdown Rebuild Specialists",
     ];
-  } else if (nameLower.includes("rutherford") || nameLower.includes("electric")) {
+  } else if (
+    nameLower.includes("rutherford") ||
+    nameLower.includes("electric")
+  ) {
     adGroupNames = [
       "Commercial Electrical Contracting",
       "Data Cabling & Fibre Optics",
@@ -247,18 +367,39 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
     ];
   }
 
-  const totalSpend = campaigns.reduce((acc: number, c: any) => acc + parseFloat(c.spend || "0"), 0);
-  const totalClicks = campaigns.reduce((acc: number, c: any) => acc + (c.clicks || 0), 0);
-  const totalConversions = campaigns.reduce((acc: number, c: any) => acc + (c.conversions || 0), 0);
+  const totalSpend = campaigns.reduce(
+    (acc: number, c: any) => acc + parseFloat(c.spend || "0"),
+    0,
+  );
+  const totalClicks = campaigns.reduce(
+    (acc: number, c: any) => acc + (c.clicks || 0),
+    0,
+  );
+  const totalConversions = campaigns.reduce(
+    (acc: number, c: any) => acc + (c.conversions || 0),
+    0,
+  );
 
   const adGroups = adGroupNames.map((name, idx) => {
-    const weight = (adGroupNames.length - idx) / ((adGroupNames.length * (adGroupNames.length + 1)) / 2);
-    const agSpend = totalSpend > 0 ? totalSpend * weight : (1200 / (idx + 1));
-    const agClicks = totalClicks > 0 ? Math.max(1, Math.round(totalClicks * weight)) : Math.round(45 / (idx + 1));
-    const agConversions = totalConversions > 0 ? Math.round(totalConversions * weight) : (idx === 0 ? 12 : Math.max(0, 8 - idx * 2));
-    const parentCampaign = campaigns[idx % campaigns.length]?.name || "Primary Search Campaign";
+    const weight =
+      (adGroupNames.length - idx) /
+      ((adGroupNames.length * (adGroupNames.length + 1)) / 2);
+    const agSpend = totalSpend > 0 ? totalSpend * weight : 1200 / (idx + 1);
+    const agClicks =
+      totalClicks > 0
+        ? Math.max(1, Math.round(totalClicks * weight))
+        : Math.round(45 / (idx + 1));
+    const agConversions =
+      totalConversions > 0
+        ? Math.round(totalConversions * weight)
+        : idx === 0
+          ? 12
+          : Math.max(0, 8 - idx * 2);
+    const parentCampaign =
+      campaigns[idx % campaigns.length]?.name || "Primary Search Campaign";
     const agCtr = (5.2 + (seed % 4) + (3 - idx * 0.5)).toFixed(2);
-    const agCpa = agConversions > 0 ? (agSpend / agConversions).toFixed(2) : "-";
+    const agCpa =
+      agConversions > 0 ? (agSpend / agConversions).toFixed(2) : "-";
 
     return {
       name,
@@ -278,7 +419,8 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
       status: "TOP PERFORMER",
       adStrength: "EXCELLENT",
       ctr: `${(8.4 + (seed % 20) / 10).toFixed(1)}%`,
-      conversions: totalConversions > 0 ? Math.round(totalConversions * 0.52) : 34,
+      conversions:
+        totalConversions > 0 ? Math.round(totalConversions * 0.52) : 34,
       headlines: [
         `Licensed 24/7 Emergency Services`,
         `Fast 30-Minute Arrival Guaranteed`,
@@ -288,14 +430,20 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
         `Need rapid professional service? Our licensed local team is on standby 24/7. Call now for priority dispatch and upfront pricing.`,
         `Trusted local specialists with 100% satisfaction guarantee. Fully accredited, insured and ready to help.`,
       ],
-      callouts: ["24/7 Availability", "Upfront Pricing", "Local & Licensed", "Same-Day Service"],
+      callouts: [
+        "24/7 Availability",
+        "Upfront Pricing",
+        "Local & Licensed",
+        "Same-Day Service",
+      ],
     },
     {
       type: "Responsive Search Ad (RSA)",
       status: "HIGH CONVERSION",
       adStrength: "VERY GOOD",
       ctr: `${(7.1 + (seed % 15) / 10).toFixed(1)}%`,
-      conversions: totalConversions > 0 ? Math.round(totalConversions * 0.32) : 21,
+      conversions:
+        totalConversions > 0 ? Math.round(totalConversions * 0.32) : 21,
       headlines: [
         `Trusted Local Specialists`,
         `Book Online & Get Instant Quote`,
@@ -316,7 +464,8 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
         status: "TOP PERFORMER",
         adStrength: "EXCELLENT",
         ctr: `${(9.2 + (seed % 10) / 10).toFixed(1)}%`,
-        conversions: totalConversions > 0 ? Math.round(totalConversions * 0.54) : 44,
+        conversions:
+          totalConversions > 0 ? Math.round(totalConversions * 0.54) : 44,
         headlines: [
           "24/7 Emergency Plumber | Rapid 30-Min Arrival",
           "No Call Out Fee • Fixed Upfront Pricing",
@@ -326,14 +475,20 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
           "Fast local plumbers available 24/7 for emergency repairs, blocked drains & hot water systems. Call now for immediate assistance!",
           "100% satisfaction guaranteed with zero hidden fees. Over 15 years of trusted local emergency plumbing service.",
         ],
-        callouts: ["Zero Call Out Fee", "24/7 Rapid Response", "Licensed & Insured", "Fixed Upfront Quotes"],
+        callouts: [
+          "Zero Call Out Fee",
+          "24/7 Rapid Response",
+          "Licensed & Insured",
+          "Fixed Upfront Quotes",
+        ],
       },
       {
         type: "Responsive Search Ad (RSA)",
         status: "HIGH CONVERSION",
         adStrength: "VERY GOOD",
         ctr: `${(7.8 + (seed % 12) / 10).toFixed(1)}%`,
-        conversions: totalConversions > 0 ? Math.round(totalConversions * 0.30) : 24,
+        conversions:
+          totalConversions > 0 ? Math.round(totalConversions * 0.3) : 24,
         headlines: [
           "Blocked Drain Clearance | Hydro-Jetting Pro",
           "CCTV Pipe Inspection & Relining",
@@ -346,14 +501,19 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
         callouts: ["CCTV Pipe Tech", "Hot Water Pros", "Upfront Pricing"],
       },
     ];
-  } else if (nameLower.includes("solar") || nameLower.includes("clean") || nameLower.includes("energy")) {
+  } else if (
+    nameLower.includes("solar") ||
+    nameLower.includes("clean") ||
+    nameLower.includes("energy")
+  ) {
     adCopies = [
       {
         type: "Responsive Search Ad (RSA)",
         status: "TOP PERFORMER",
         adStrength: "EXCELLENT",
         ctr: `${(8.6 + (seed % 10) / 10).toFixed(1)}%`,
-        conversions: totalConversions > 0 ? Math.round(totalConversions * 0.50) : 18,
+        conversions:
+          totalConversions > 0 ? Math.round(totalConversions * 0.5) : 18,
         headlines: [
           "Save Up To 80% On Power Bills | Solar & Battery",
           "Tier-1 German Engineered Solar Panels",
@@ -363,14 +523,20 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
           "Cut your electricity bills with custom Tier-1 solar panel and battery systems. Enquire today for an instant free site proposal!",
           "Fully CEC accredited installers offering zero-down finance options. Maximise your solar savings this season.",
         ],
-        callouts: ["CEC Accredited", "Tier-1 Panels", "25-Yr Performance Warranty", "$0 Upfront Finance"],
+        callouts: [
+          "CEC Accredited",
+          "Tier-1 Panels",
+          "25-Yr Performance Warranty",
+          "$0 Upfront Finance",
+        ],
       },
       {
         type: "Responsive Search Ad (RSA)",
         status: "HIGH CONVERSION",
         adStrength: "VERY GOOD",
         ctr: `${(7.2 + (seed % 10) / 10).toFixed(1)}%`,
-        conversions: totalConversions > 0 ? Math.round(totalConversions * 0.35) : 11,
+        conversions:
+          totalConversions > 0 ? Math.round(totalConversions * 0.35) : 11,
         headlines: [
           "Home Solar Battery Packages | Blackout Proof",
           "Store Excess Energy & Power Night Operations",
@@ -380,17 +546,26 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
           "Add battery storage to your solar setup for uninterrupted backup power day and night. Speak to our energy experts.",
           "Tailored residential and commercial solar designs engineered for maximum yield and ROI.",
         ],
-        callouts: ["Battery Specialists", "Free Energy Audit", "Local Installation Team"],
+        callouts: [
+          "Battery Specialists",
+          "Free Energy Audit",
+          "Local Installation Team",
+        ],
       },
     ];
-  } else if (nameLower.includes("demolition") || nameLower.includes("civil") || nameLower.includes("devo")) {
+  } else if (
+    nameLower.includes("demolition") ||
+    nameLower.includes("civil") ||
+    nameLower.includes("devo")
+  ) {
     adCopies = [
       {
         type: "Responsive Search Ad (RSA)",
         status: "TOP PERFORMER",
         adStrength: "EXCELLENT",
         ctr: `${(8.1 + (seed % 10) / 10).toFixed(1)}%`,
-        conversions: totalConversions > 0 ? Math.round(totalConversions * 0.55) : 22,
+        conversions:
+          totalConversions > 0 ? Math.round(totalConversions * 0.55) : 22,
         headlines: [
           "Commercial Demolition & Site Clearing",
           "Class-A Licensed Asbestos Removal",
@@ -400,7 +575,12 @@ export function deriveAccountAdGroupsAndCopies(clientName: string, campaigns: an
           "Complete structural demolition, site preparation and asbestos abatement. Contact our engineering team for an inspection.",
           "Punctual, safe, and fully certified contractors handling large scale commercial and industrial site work.",
         ],
-        callouts: ["Class-A Asbestos Certified", "EPA Compliant", "Fully Insured", "Heavy Plant Fleet"],
+        callouts: [
+          "Class-A Asbestos Certified",
+          "EPA Compliant",
+          "Fully Insured",
+          "Heavy Plant Fleet",
+        ],
       },
     ];
   }
@@ -430,7 +610,11 @@ export function deriveAccountKeywords(clientName: string, campaigns: any[]) {
       { text: "commercial plumbing contractor", matchType: "EXACT" },
       { text: "local plumber upfront pricing", matchType: "BROAD" },
     ];
-  } else if (nameLower.includes("solar") || nameLower.includes("clean") || nameLower.includes("energy")) {
+  } else if (
+    nameLower.includes("solar") ||
+    nameLower.includes("clean") ||
+    nameLower.includes("energy")
+  ) {
     kwList = [
       { text: "solar panel installation near me", matchType: "EXACT" },
       { text: "6.6kw solar battery package cost", matchType: "PHRASE" },
@@ -439,7 +623,11 @@ export function deriveAccountKeywords(clientName: string, campaigns: any[]) {
       { text: "government solar rebates 2026", matchType: "EXACT" },
       { text: "tier 1 solar system warranty", matchType: "BROAD" },
     ];
-  } else if (nameLower.includes("demolition") || nameLower.includes("civil") || nameLower.includes("devo")) {
+  } else if (
+    nameLower.includes("demolition") ||
+    nameLower.includes("civil") ||
+    nameLower.includes("devo")
+  ) {
     kwList = [
       { text: "commercial demolition contractors", matchType: "EXACT" },
       { text: "class a asbestos removal cost", matchType: "PHRASE" },
@@ -461,7 +649,10 @@ export function deriveAccountKeywords(clientName: string, campaigns: any[]) {
       { text: "knockdown rebuild cost estimate", matchType: "EXACT" },
       { text: "double storey house designs 2026", matchType: "PHRASE" },
     ];
-  } else if (nameLower.includes("rutherford") || nameLower.includes("electric")) {
+  } else if (
+    nameLower.includes("rutherford") ||
+    nameLower.includes("electric")
+  ) {
     kwList = [
       { text: "commercial electrical contractor", matchType: "EXACT" },
       { text: "24 7 emergency electrician near me", matchType: "PHRASE" },
@@ -470,18 +661,37 @@ export function deriveAccountKeywords(clientName: string, campaigns: any[]) {
     ];
   }
 
-  const totalSpend = campaigns.reduce((acc: number, c: any) => acc + parseFloat(c.spend || "0"), 0);
-  const totalClicks = campaigns.reduce((acc: number, c: any) => acc + (c.clicks || 0), 0);
-  const totalConversions = campaigns.reduce((acc: number, c: any) => acc + (c.conversions || 0), 0);
+  const totalSpend = campaigns.reduce(
+    (acc: number, c: any) => acc + parseFloat(c.spend || "0"),
+    0,
+  );
+  const totalClicks = campaigns.reduce(
+    (acc: number, c: any) => acc + (c.clicks || 0),
+    0,
+  );
+  const totalConversions = campaigns.reduce(
+    (acc: number, c: any) => acc + (c.conversions || 0),
+    0,
+  );
 
   return kwList.map((item, idx) => {
-    const weight = (kwList.length - idx) / ((kwList.length * (kwList.length + 1)) / 2);
-    const kwSpend = totalSpend > 0 ? totalSpend * weight : (850 / (idx + 1));
-    const kwClicks = totalClicks > 0 ? Math.max(1, Math.round(totalClicks * weight)) : Math.round(35 / (idx + 1));
-    const kwConversions = totalConversions > 0 ? Math.round(totalConversions * weight) : (idx === 0 ? 9 : Math.max(0, 5 - idx));
+    const weight =
+      (kwList.length - idx) / ((kwList.length * (kwList.length + 1)) / 2);
+    const kwSpend = totalSpend > 0 ? totalSpend * weight : 850 / (idx + 1);
+    const kwClicks =
+      totalClicks > 0
+        ? Math.max(1, Math.round(totalClicks * weight))
+        : Math.round(35 / (idx + 1));
+    const kwConversions =
+      totalConversions > 0
+        ? Math.round(totalConversions * weight)
+        : idx === 0
+          ? 9
+          : Math.max(0, 5 - idx);
     const kwCtr = (6.4 + (seed % 4) + (2 - idx * 0.4)).toFixed(2);
     const kwCpc = kwClicks > 0 ? (kwSpend / kwClicks).toFixed(2) : "0.00";
-    const kwCpa = kwConversions > 0 ? (kwSpend / kwConversions).toFixed(2) : "-";
+    const kwCpa =
+      kwConversions > 0 ? (kwSpend / kwConversions).toFixed(2) : "-";
 
     return {
       text: item.text,
@@ -577,7 +787,9 @@ export function transformAdsData(
         clicks: Number(lastMonth.clicks || 0),
         ctr:
           Number(lastMonth.impressions || 0) > 0
-            ? (Number(lastMonth.clicks || 0) / Number(lastMonth.impressions || 1)) * 100
+            ? (Number(lastMonth.clicks || 0) /
+                Number(lastMonth.impressions || 1)) *
+              100
             : 0,
         cpc:
           Number(lastMonth.clicks || 0) > 0
@@ -594,8 +806,14 @@ export function transformAdsData(
       }
     : null;
 
-  const dynamicAudience = deriveAccountAudienceMetrics(clientName, totals.clicks);
-  const { adGroups, adCopies } = deriveAccountAdGroupsAndCopies(clientName, campaigns);
+  const dynamicAudience = deriveAccountAudienceMetrics(
+    clientName,
+    totals.clicks,
+  );
+  const { adGroups, adCopies } = deriveAccountAdGroupsAndCopies(
+    clientName,
+    campaigns,
+  );
 
   return {
     clientName,

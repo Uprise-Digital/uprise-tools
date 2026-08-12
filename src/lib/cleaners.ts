@@ -21,4 +21,3 @@ export const parseEmailList = (
     .map((email) => email.trim())
     .filter((email) => email.length > 0);
 };
-

@@ -150,6 +150,7 @@ export async function getOrGenerateAiInsightsAction(
     }
 
     CONSTRAINTS:
+    - ALWAYS write in UK English spelling and grammar (e.g. optimise, prioritise, programme, behaviour, colour, analyse).
     - Base all analysis strictly on the JSON figures.
     - Be authoritative, data-driven, and agency-grade.
     - If spend is NaN or 0, focus analysis on traffic quality.

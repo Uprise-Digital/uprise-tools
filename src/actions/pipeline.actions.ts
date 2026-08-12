@@ -337,6 +337,7 @@ export async function generateRevivalPlanAction(
       }
       
       CONSTRAINTS:
+      - ALWAYS write in UK English spelling and grammar (e.g. optimise, prioritise, programme, behaviour, colour, analyse).
       - Do NOT wrap in markdown block code tags (e.g. \`\`\`json). Output raw json string only.
       - Make the outreach script highly contextual to the ${details.stageName} stage and CRM notes history.
     `;

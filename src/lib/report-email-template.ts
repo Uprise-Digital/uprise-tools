@@ -18,12 +18,14 @@ export function buildReportEmailHtml(data: {
   const ctr = metrics?.ctr ? `${metrics.ctr}%` : "-";
   const monthDisplay = targetMonth || "Monthly";
 
-  const numConversions = parseFloat(String(conversions).replace(/[^0-9.]/g, "")) || 0;
+  const numConversions =
+    parseFloat(String(conversions).replace(/[^0-9.]/g, "")) || 0;
   const numClicks = parseFloat(String(clicks).replace(/[^0-9.]/g, "")) || 0;
 
   const showMetricsSection = numConversions > 0 && numClicks > 0;
 
-  const metricsSectionHtml = showMetricsSection ? `
+  const metricsSectionHtml = showMetricsSection
+    ? `
               <!-- KEY METRICS PREVIEW -->
               <div style="margin-bottom: 28px;">
                 <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 1px; margin-bottom: 12px;">
@@ -55,7 +57,8 @@ export function buildReportEmailHtml(data: {
                   </tr>
                 </table>
               </div>
-  ` : "";
+  `
+    : "";
 
   return `
 <!DOCTYPE html>
@@ -167,4 +170,3 @@ export function buildReportEmailHtml(data: {
 </html>
   `;
 }
-

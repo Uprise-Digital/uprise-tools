@@ -225,7 +225,14 @@ export const MyReportPDF = ({ data }: { data: any }) => {
       <Page size="A4" style={styles.page}>
         <View style={styles.coverPage}>
           <View style={styles.accentBar} />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 16,
+            }}
+          >
             <Text
               style={{
                 fontSize: 8,
@@ -307,7 +314,7 @@ export const MyReportPDF = ({ data }: { data: any }) => {
         <View style={styles.section}>
           <View>
             <Text style={styles.h2}>Executive Summary</Text>
-            
+
             <View
               style={{
                 backgroundColor: "#f8fafc",
@@ -317,17 +324,52 @@ export const MyReportPDF = ({ data }: { data: any }) => {
                 marginBottom: 20,
               }}
             >
-              <Text style={[styles.bodyText, { color: "#334155", marginBottom: 10 }]}>
+              <Text
+                style={[
+                  styles.bodyText,
+                  { color: "#334155", marginBottom: 10 },
+                ]}
+              >
                 {data.ai.summary}
               </Text>
-              
-              <Text style={{ fontSize: 8, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
+
+              <Text
+                style={{
+                  fontSize: 8,
+                  fontWeight: 700,
+                  color: "#64748b",
+                  textTransform: "uppercase",
+                  letterSpacing: 1,
+                  marginBottom: 6,
+                }}
+              >
                 Strategic Key Focus
               </Text>
               {takeawaysList.map((item: string, idx: number) => (
-                <View key={idx} style={{ flexDirection: "row", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
-                  <Text style={{ fontSize: 9, color: "#3b82f6", fontWeight: 700 }}>&bull;</Text>
-                  <Text style={{ fontSize: 8.5, color: "#475569", flex: 1, lineHeight: 1.4 }}>{item}</Text>
+                <View
+                  key={idx}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    gap: 6,
+                    marginTop: 4,
+                  }}
+                >
+                  <Text
+                    style={{ fontSize: 9, color: "#3b82f6", fontWeight: 700 }}
+                  >
+                    &bull;
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 8.5,
+                      color: "#475569",
+                      flex: 1,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {item}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -420,7 +462,9 @@ export const MyReportPDF = ({ data }: { data: any }) => {
               <Text style={styles.colData}>
                 {formatWithSymbol(c.costPerConv, "$")}
               </Text>
-              <Text style={styles.colData}>{formatWithSymbol(c.spend, "$")}</Text>
+              <Text style={styles.colData}>
+                {formatWithSymbol(c.spend, "$")}
+              </Text>
               <Text style={styles.colData}>{c.clicks.toLocaleString()}</Text>
               <Text style={styles.colData}>
                 {formatWithSymbol(c.ctr, "%", false)}
@@ -452,13 +496,17 @@ export const MyReportPDF = ({ data }: { data: any }) => {
               >
                 <View style={styles.keywordWrapper}>
                   <Text style={styles.keywordText}>{ag.name}</Text>
-                  <Text style={{ fontSize: 6.5, color: "#64748b" }}>{ag.campaign}</Text>
+                  <Text style={{ fontSize: 6.5, color: "#64748b" }}>
+                    {ag.campaign}
+                  </Text>
                 </View>
                 <Text style={styles.colData}>{ag.conversions || 0}</Text>
                 <Text style={styles.colData}>
                   {formatWithSymbol(ag.costPerConv, "$")}
                 </Text>
-                <Text style={styles.colData}>{formatWithSymbol(ag.spend, "$")}</Text>
+                <Text style={styles.colData}>
+                  {formatWithSymbol(ag.spend, "$")}
+                </Text>
                 <Text style={styles.colData}>{ag.clicks.toLocaleString()}</Text>
                 <Text style={styles.colData}>
                   {formatWithSymbol(ag.ctr, "%", false)}
@@ -503,7 +551,9 @@ export const MyReportPDF = ({ data }: { data: any }) => {
             >
               <View style={styles.keywordWrapper}>
                 <Text style={styles.keywordText}>{kw.text}</Text>
-                <Text style={styles.badge}>{kw.matchType.replace("_", " ")}</Text>
+                <Text style={styles.badge}>
+                  {kw.matchType.replace("_", " ")}
+                </Text>
               </View>
               <Text style={styles.colData}>{kw.conversions || 0}</Text>
               <Text style={styles.colData}>
@@ -516,7 +566,9 @@ export const MyReportPDF = ({ data }: { data: any }) => {
               <Text style={styles.colData}>
                 {formatWithSymbol(kw.ctr, "%", false)}
               </Text>
-              <Text style={styles.colData}>{formatWithSymbol(kw.cpc, "$")}</Text>
+              <Text style={styles.colData}>
+                {formatWithSymbol(kw.cpc, "$")}
+              </Text>
             </View>
           ))}
 
@@ -535,23 +587,65 @@ export const MyReportPDF = ({ data }: { data: any }) => {
                 }}
               >
                 {/* AD HEADER BADGES */}
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
-                    <Text style={{ fontSize: 7, fontWeight: 700, backgroundColor: "#0f172a", color: "#38bdf8", padding: "2 6", borderRadius: 4, textTransform: "uppercase" }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 6,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: 6,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 7,
+                        fontWeight: 700,
+                        backgroundColor: "#0f172a",
+                        color: "#38bdf8",
+                        padding: "2 6",
+                        borderRadius: 4,
+                        textTransform: "uppercase",
+                      }}
+                    >
                       {ad.status || "TOP PERFORMER"}
                     </Text>
-                    <Text style={{ fontSize: 7, fontWeight: 700, backgroundColor: "#ecfdf5", color: "#059669", padding: "2 6", borderRadius: 4, textTransform: "uppercase" }}>
+                    <Text
+                      style={{
+                        fontSize: 7,
+                        fontWeight: 700,
+                        backgroundColor: "#ecfdf5",
+                        color: "#059669",
+                        padding: "2 6",
+                        borderRadius: 4,
+                        textTransform: "uppercase",
+                      }}
+                    >
                       AD STRENGTH: {ad.adStrength || "EXCELLENT"}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 8, fontWeight: 700, color: "#3b82f6" }}>
-                    {ad.ctr} CTR  •  {ad.conversions} Conversions
+                  <Text
+                    style={{ fontSize: 8, fontWeight: 700, color: "#3b82f6" }}
+                  >
+                    {ad.ctr} CTR • {ad.conversions} Conversions
                   </Text>
                 </View>
 
                 {/* HEADLINES */}
                 <View style={{ marginBottom: 4 }}>
-                  <Text style={{ fontSize: 9, fontWeight: 700, color: "#0f172a", lineHeight: 1.3 }}>
+                  <Text
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      color: "#0f172a",
+                      lineHeight: 1.3,
+                    }}
+                  >
                     {ad.headlines.join("  |  ")}
                   </Text>
                 </View>
@@ -559,16 +653,42 @@ export const MyReportPDF = ({ data }: { data: any }) => {
                 {/* DESCRIPTIONS */}
                 <View style={{ marginBottom: 6 }}>
                   {ad.descriptions.map((desc: string, dIdx: number) => (
-                    <Text key={dIdx} style={{ fontSize: 8, color: "#475569", lineHeight: 1.4, marginTop: 2 }}>
+                    <Text
+                      key={dIdx}
+                      style={{
+                        fontSize: 8,
+                        color: "#475569",
+                        lineHeight: 1.4,
+                        marginTop: 2,
+                      }}
+                    >
                       {desc}
                     </Text>
                   ))}
                 </View>
 
                 {/* ASSETS / CALLOUT EXTENSIONS */}
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    gap: 4,
+                    marginTop: 4,
+                  }}
+                >
                   {(ad.callouts || []).map((callout: string, cIdx: number) => (
-                    <Text key={cIdx} style={{ fontSize: 6.5, fontWeight: 600, color: "#64748b", backgroundColor: "#ffffff", border: "1px solid #cbd5e1", padding: "1 5", borderRadius: 3 }}>
+                    <Text
+                      key={cIdx}
+                      style={{
+                        fontSize: 6.5,
+                        fontWeight: 600,
+                        color: "#64748b",
+                        backgroundColor: "#ffffff",
+                        border: "1px solid #cbd5e1",
+                        padding: "1 5",
+                        borderRadius: 3,
+                      }}
+                    >
                       ✓ {callout}
                     </Text>
                   ))}
@@ -593,20 +713,33 @@ export const MyReportPDF = ({ data }: { data: any }) => {
         <View style={styles.section}>
           <Text style={styles.h2}>Audience & Market Intelligence</Text>
           <Text style={styles.bodyText}>
-            Analyzing target engagement behavior and geographic relevancy to ensure efficient budget allocation toward high-converting market segments.
+            Analyzing target engagement behavior and geographic relevancy to
+            ensure efficient budget allocation toward high-converting market
+            segments.
           </Text>
 
           {/* DEVICE BREAKDOWN SECTION */}
           <View style={{ marginTop: 20, marginBottom: 25 }}>
-            <Text style={{ fontSize: 9.5, fontWeight: 700, color: "#1e293b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+            <Text
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                color: "#1e293b",
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+                marginBottom: 10,
+              }}
+            >
               Device Engagement Breakdown
             </Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
-              {(data.deviceBreakdown || [
-                { device: "Mobile Devices", share: "68%", clicks: 46 },
-                { device: "Desktop Computers", share: "28%", clicks: 19 },
-                { device: "Tablet Devices", share: "4%", clicks: 3 },
-              ]).map((dev: any, idx: number) => (
+              {(
+                data.deviceBreakdown || [
+                  { device: "Mobile Devices", share: "68%", clicks: 46 },
+                  { device: "Desktop Computers", share: "28%", clicks: 19 },
+                  { device: "Tablet Devices", share: "4%", clicks: 3 },
+                ]
+              ).map((dev: any, idx: number) => (
                 <View
                   key={idx}
                   style={{
@@ -618,7 +751,14 @@ export const MyReportPDF = ({ data }: { data: any }) => {
                   }}
                 >
                   <Text style={styles.labelSmall}>{dev.device}</Text>
-                  <Text style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: "#0f172a",
+                      marginTop: 4,
+                    }}
+                  >
                     {dev.share}
                   </Text>
                   <Text style={{ fontSize: 8, color: "#64748b", marginTop: 4 }}>
@@ -631,7 +771,16 @@ export const MyReportPDF = ({ data }: { data: any }) => {
 
           {/* SEARCH IMPRESSION SHARE & MARKET COVERAGE (SILVER-LINED LABELS) */}
           <View style={{ marginBottom: 25 }}>
-            <Text style={{ fontSize: 9.5, fontWeight: 700, color: "#1e293b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+            <Text
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                color: "#1e293b",
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+                marginBottom: 10,
+              }}
+            >
               Search Impression Share & Market Coverage
             </Text>
             <View
@@ -645,26 +794,75 @@ export const MyReportPDF = ({ data }: { data: any }) => {
               }}
             >
               <View>
-                <Text style={{ fontSize: 7.5, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>
+                <Text
+                  style={{
+                    fontSize: 7.5,
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                    fontWeight: 700,
+                  }}
+                >
                   Search Market Capture
                 </Text>
-                <Text style={{ fontSize: 20, fontWeight: 800, color: "#38bdf8", marginTop: 4 }}>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 800,
+                    color: "#38bdf8",
+                    marginTop: 4,
+                  }}
+                >
                   {data.impressionShare?.searchImpressionShare || "64.5%"}
                 </Text>
               </View>
-              <View style={{ borderLeft: "1px solid #334155", paddingLeft: 16 }}>
-                <Text style={{ fontSize: 7.5, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>
+              <View
+                style={{ borderLeft: "1px solid #334155", paddingLeft: 16 }}
+              >
+                <Text
+                  style={{
+                    fontSize: 7.5,
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                    fontWeight: 600,
+                  }}
+                >
                   Scaling Capacity (Budget)
                 </Text>
-                <Text style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc", marginTop: 2 }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#f8fafc",
+                    marginTop: 2,
+                  }}
+                >
                   {data.impressionShare?.budgetLostShare || "18.2%"}
                 </Text>
               </View>
-              <View style={{ borderLeft: "1px solid #334155", paddingLeft: 16 }}>
-                <Text style={{ fontSize: 7.5, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>
+              <View
+                style={{ borderLeft: "1px solid #334155", paddingLeft: 16 }}
+              >
+                <Text
+                  style={{
+                    fontSize: 7.5,
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                    fontWeight: 600,
+                  }}
+                >
                   Positioning Headroom
                 </Text>
-                <Text style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc", marginTop: 2 }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#f8fafc",
+                    marginTop: 2,
+                  }}
+                >
                   {data.impressionShare?.rankLostShare || "17.3%"}
                 </Text>
               </View>
@@ -673,14 +871,37 @@ export const MyReportPDF = ({ data }: { data: any }) => {
 
           {/* GEOGRAPHIC SNAPSHOT */}
           <View style={{ marginBottom: 20 }}>
-            <Text style={{ fontSize: 9.5, fontWeight: 700, color: "#1e293b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+            <Text
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                color: "#1e293b",
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+                marginBottom: 10,
+              }}
+            >
               Geographic Performance Reach
             </Text>
-            {(data.geoPerformance || [
-              { region: "Geelong Commercial Metro", share: "54%", impressionLevel: "High Relevancy" },
-              { region: "Bellarine & Coastal Hub", share: "28%", impressionLevel: "Strong Relevancy" },
-              { region: "Greater Western Corridor", share: "18%", impressionLevel: "Expanding Coverage" },
-            ]).map((geo: any, idx: number) => (
+            {(
+              data.geoPerformance || [
+                {
+                  region: "Geelong Commercial Metro",
+                  share: "54%",
+                  impressionLevel: "High Relevancy",
+                },
+                {
+                  region: "Bellarine & Coastal Hub",
+                  share: "28%",
+                  impressionLevel: "Strong Relevancy",
+                },
+                {
+                  region: "Greater Western Corridor",
+                  share: "18%",
+                  impressionLevel: "Expanding Coverage",
+                },
+              ]
+            ).map((geo: any, idx: number) => (
               <View
                 key={idx}
                 style={{
@@ -693,9 +914,19 @@ export const MyReportPDF = ({ data }: { data: any }) => {
                   borderRadius: 4,
                 }}
               >
-                <Text style={{ fontSize: 8.5, fontWeight: 600, color: "#1e293b" }}>{geo.region}</Text>
-                <Text style={{ fontSize: 8, fontWeight: 700, color: "#3b82f6" }}>{geo.share} Share</Text>
-                <Text style={{ fontSize: 7.5, color: "#64748b" }}>{geo.impressionLevel}</Text>
+                <Text
+                  style={{ fontSize: 8.5, fontWeight: 600, color: "#1e293b" }}
+                >
+                  {geo.region}
+                </Text>
+                <Text
+                  style={{ fontSize: 8, fontWeight: 700, color: "#3b82f6" }}
+                >
+                  {geo.share} Share
+                </Text>
+                <Text style={{ fontSize: 7.5, color: "#64748b" }}>
+                  {geo.impressionLevel}
+                </Text>
               </View>
             ))}
           </View>
@@ -713,11 +944,26 @@ export const MyReportPDF = ({ data }: { data: any }) => {
               }}
             >
               <Text style={styles.labelSmall}>Peak Conversion Window</Text>
-              <Text style={{ fontSize: 10, fontWeight: 700, color: "#0f172a", marginTop: 4 }}>
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#0f172a",
+                  marginTop: 4,
+                }}
+              >
                 {data.dayparting?.peakWindow || "Mon – Fri: 7:30 AM – 5:00 PM"}
               </Text>
-              <Text style={{ fontSize: 7.5, color: "#3b82f6", fontWeight: 600, marginTop: 2 }}>
-                {data.dayparting?.peakTrafficShare || "81% Commercial Traffic Share"}
+              <Text
+                style={{
+                  fontSize: 7.5,
+                  color: "#3b82f6",
+                  fontWeight: 600,
+                  marginTop: 2,
+                }}
+              >
+                {data.dayparting?.peakTrafficShare ||
+                  "81% Commercial Traffic Share"}
               </Text>
             </View>
 
@@ -732,15 +978,37 @@ export const MyReportPDF = ({ data }: { data: any }) => {
               }}
             >
               <Text style={styles.labelSmall}>Campaign Quality Scorecard</Text>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                <Text style={{ fontSize: 8, color: "#475569" }}>Ad Strength:</Text>
-                <Text style={{ fontSize: 8, fontWeight: 700, color: "#059669" }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: 4,
+                }}
+              >
+                <Text style={{ fontSize: 8, color: "#475569" }}>
+                  Ad Strength:
+                </Text>
+                <Text
+                  style={{ fontSize: 8, fontWeight: 700, color: "#059669" }}
+                >
                   {data.healthScorecard?.adStrength || "EXCELLENT"}
                 </Text>
               </View>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
-                <Text style={{ fontSize: 8, color: "#475569" }}>Quality Index:</Text>
-                <Text style={{ fontSize: 8, fontWeight: 700, color: "#3b82f6" }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: 2,
+                }}
+              >
+                <Text style={{ fontSize: 8, color: "#475569" }}>
+                  Quality Index:
+                </Text>
+                <Text
+                  style={{ fontSize: 8, fontWeight: 700, color: "#3b82f6" }}
+                >
                   {data.healthScorecard?.qualityRating || "94 / 100"}
                 </Text>
               </View>
@@ -762,8 +1030,12 @@ export const MyReportPDF = ({ data }: { data: any }) => {
       <Page size="A4" style={styles.page}>
         <View style={styles.backCover}>
           <View style={styles.accentBar} />
-          <Text style={[styles.h2, { textAlign: "center", marginBottom: 6 }]}>Looking Ahead</Text>
-          <Text style={[styles.labelSmall, { marginBottom: 25 }]}>Monthly Strategic Optimization Roadmap</Text>
+          <Text style={[styles.h2, { textAlign: "center", marginBottom: 6 }]}>
+            Looking Ahead
+          </Text>
+          <Text style={[styles.labelSmall, { marginBottom: 25 }]}>
+            Monthly Strategic Optimization Roadmap
+          </Text>
 
           {/* 3-STEP ROADMAP CARDS */}
           <View style={{ width: "100%", maxWidth: 420, gap: 12 }}>
@@ -790,15 +1062,26 @@ export const MyReportPDF = ({ data }: { data: any }) => {
                     alignItems: "center",
                   }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: 700, color: "#ffffff" }}>
+                  <Text
+                    style={{ fontSize: 10, fontWeight: 700, color: "#ffffff" }}
+                  >
                     {idx + 1}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 10, fontWeight: 700, color: "#0f172a", marginBottom: 3 }}>
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: "#0f172a",
+                      marginBottom: 3,
+                    }}
+                  >
                     {step.title}
                   </Text>
-                  <Text style={{ fontSize: 8.5, color: "#64748b", lineHeight: 1.4 }}>
+                  <Text
+                    style={{ fontSize: 8.5, color: "#64748b", lineHeight: 1.4 }}
+                  >
                     {step.description}
                   </Text>
                 </View>

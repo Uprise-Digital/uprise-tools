@@ -14,14 +14,17 @@ describe("cleanCcEmails", () => {
   });
 
   it("should split multiple emails separated by commas", () => {
-    expect(
-      cleanCcEmails("seyone@uprise.com.au, alex@uprise.com.au"),
-    ).toEqual(["seyone@uprise.com.au", "alex@uprise.com.au"]);
+    expect(cleanCcEmails("seyone@uprise.com.au, alex@uprise.com.au")).toEqual([
+      "seyone@uprise.com.au",
+      "alex@uprise.com.au",
+    ]);
   });
 
   it("should split multiple emails separated by semicolons or mixed delimiters", () => {
     expect(
-      cleanCcEmails("seyone@uprise.com.au; alex@uprise.com.au, boss@uprise.com.au"),
+      cleanCcEmails(
+        "seyone@uprise.com.au; alex@uprise.com.au, boss@uprise.com.au",
+      ),
     ).toEqual([
       "seyone@uprise.com.au",
       "alex@uprise.com.au",
@@ -30,8 +33,9 @@ describe("cleanCcEmails", () => {
   });
 
   it("should filter out empty items from trailing delimiters or spaces", () => {
-    expect(
-      cleanCcEmails(" a@b.com , ; c@d.com ; "),
-    ).toEqual(["a@b.com", "c@d.com"]);
+    expect(cleanCcEmails(" a@b.com , ; c@d.com ; ")).toEqual([
+      "a@b.com",
+      "c@d.com",
+    ]);
   });
 });

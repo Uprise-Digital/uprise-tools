@@ -32,12 +32,18 @@ function cleanAndParseJson<T>(rawText: string, fallback: T): T {
         cleaned = cleaned.substring(firstBrace, lastBrace + 1);
       }
       // Replace unescaped literal newlines within double quotes
-      const sanitized = cleaned.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match) => {
-        return match.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
-      });
+      const sanitized = cleaned.replace(
+        /"([^"\\]*(\\.[^"\\]*)*)"/g,
+        (match) => {
+          return match.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
+        },
+      );
       return JSON.parse(sanitized);
     } catch (err2) {
-      console.warn("[cleanAndParseJson] Safe fallback used due to raw JSON parsing structure:", err2);
+      console.warn(
+        "[cleanAndParseJson] Safe fallback used due to raw JSON parsing structure:",
+        err2,
+      );
       return fallback;
     }
   }
@@ -92,11 +98,15 @@ export async function generateReportInsights(data: {
     - Conversions: ${data.metrics?.conversions || 0}
     - Clicks: ${data.metrics?.clicks || 0}
     - CTR: ${data.metrics?.ctr || 0}%
-    - Top Keywords: ${(data.keywords || []).slice(0, 5).map((k: any) => `${k.text} (${k.conversions || 0} conv)`).join(", ")}
+    - Top Keywords: ${(data.keywords || [])
+      .slice(0, 5)
+      .map((k: any) => `${k.text} (${k.conversions || 0} conv)`)
+      .join(", ")}
     
     ${data.customInstructions ? `SPECIAL INSTRUCTIONS: ${data.customInstructions}` : ""}
     
-    CRITICAL TONE RULES:
+    CRITICAL TONE & LANGUAGE RULES:
+    - ALWAYS write in UK English spelling and grammar (e.g. optimise, prioritise, programme, behaviour, colour, lead generation, organisation, analyse).
     - NEVER state negative outcomes or failures (do NOT say "conversions dropped", "0 leads", "CTR decreased", "failed", etc.).
     - ALWAYS reframe positively: focus on establishing brand visibility, gathering conversion intelligence, keyword pruning, and strategic scaling.
     - Write with confidence, expertise, and clarity.
@@ -169,7 +179,8 @@ export async function generateEmailBody(data: any) {
     
     ${customInstructions ? `TONE/FOCUS INSTRUCTIONS: ${customInstructions}` : ""}
     
-    CRITICAL TONE RULES:
+    CRITICAL TONE & LANGUAGE RULES:
+    - ALWAYS write in UK English spelling and grammar (e.g. optimise, prioritise, programme, behaviour, colour, lead generation, organisation, analyse).
     - NEVER state negative outcomes or failures (do NOT say "we didn't get conversions", "no leads", "CTR dropped", etc.).
     - ALWAYS reframe positively: focus on campaign momentum, valuable search data collected, brand presence established, and ongoing strategic optimizations.
     - Keep it strictly to 2-3 sentences.
@@ -248,7 +259,7 @@ export async function generateMorningBriefingText(data: {
 
   const prompt = `
     You are an executive AI Operations Analyst for Uprise Digital agency.
-    Synthesize yesterday's portfolio metrics into an executive morning briefing email for agency leadership.
+    Synthesize yesterday's portfolio metrics into an executive morning briefing email for agency leadership using UK English spelling and grammar (e.g. optimise, prioritise, programme, behaviour, colour, analyse).
 
     CONTEXT DATA:
     - Report Date: ${data.todayDayOfWeek}, ${data.todayDateStr} (analyzing ${data.yesterdayDayOfWeek}, ${data.yesterdayDateStr})
@@ -268,7 +279,9 @@ export async function generateMorningBriefingText(data: {
     DETECTED ANOMALIES & ALERTS (${data.alerts.length}):
     ${
       data.alerts.length > 0
-        ? data.alerts.map((a) => `- [${a.type}] ${a.accountName}: ${a.details}`).join("\n")
+        ? data.alerts
+            .map((a) => `- [${a.type}] ${a.accountName}: ${a.details}`)
+            .join("\n")
         : "None (All accounts performing within expected variance parameters)."
     }
 
@@ -277,7 +290,9 @@ export async function generateMorningBriefingText(data: {
     CELEBRATION HIGHLIGHTS (${data.successes.length}):
     ${
       data.successes.length > 0
-        ? data.successes.map((s) => `- ${s.accountName}: ${s.details}`).join("\n")
+        ? data.successes
+            .map((s) => `- ${s.accountName}: ${s.details}`)
+            .join("\n")
         : "None yesterday."
     }
 

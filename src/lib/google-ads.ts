@@ -374,7 +374,10 @@ export async function fetchAccountDeviceBreakdown(
     const data = await response.json();
     return data.results || [];
   } catch (err) {
-    console.warn(`[Device Breakdown Query] Skipping live fetch for ${googleAccountId}:`, err);
+    console.warn(
+      `[Device Breakdown Query] Skipping live fetch for ${googleAccountId}:`,
+      err,
+    );
     return [];
   }
 }
@@ -415,7 +418,10 @@ export async function fetchAccountImpressionShare(
     const data = await response.json();
     return data.results?.[0]?.metrics || null;
   } catch (err) {
-    console.warn(`[Impression Share Query] Skipping live fetch for ${googleAccountId}:`, err);
+    console.warn(
+      `[Impression Share Query] Skipping live fetch for ${googleAccountId}:`,
+      err,
+    );
     return null;
   }
 }
@@ -459,7 +465,10 @@ export async function fetchAccountGeoPerformance(
     const data = await response.json();
     return data.results || [];
   } catch (err) {
-    console.warn(`[Geo Performance Query] Skipping live fetch for ${googleAccountId}:`, err);
+    console.warn(
+      `[Geo Performance Query] Skipping live fetch for ${googleAccountId}:`,
+      err,
+    );
     return [];
   }
 }
