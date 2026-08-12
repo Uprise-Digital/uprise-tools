@@ -10,11 +10,13 @@ export async function generateReportInsights(data: any) {
 
   const prompt = `
     You are a Senior Google Ads Strategist at Uprise Digital. 
-    Analyze these metrics for the PDF report of "${clientName}":
+    Analyze these performance metrics for the client report of "${clientName}":
     
     - Spend: $${metrics.cost}
-    - Conversions: ${metrics.conversions} (${metrics.conversionsDelta.isPos ? "+" : "-"}${metrics.conversionsDelta.val}%)
+    - Conversions: ${metrics.conversions} (${metrics.conversionsDelta?.isPos ? "+" : "-"}${metrics.conversionsDelta?.val || "0"}%)
     - CPA: $${metrics.costPerConv}
+    - Clicks: ${metrics.clicks}
+    - CTR: ${metrics.ctr}%
     - Top Keywords: ${keywords
       .slice(0, 5)
       .map((k: any) => k.text)
@@ -22,12 +24,39 @@ export async function generateReportInsights(data: any) {
     
     ${customInstructions ? `SPECIAL CLIENT INSTRUCTIONS: ${customInstructions}` : ""}
     
-    TASK:
-    1. Write a 3-sentence Executive Summary. If metrics are negative, maintain a positive, professional outlook focused on optimization.
-    2. Write a 2-sentence "Looking Ahead" strategy.
-    
-    Response MUST be a JSON object: { "summary": "...", "nextSteps": "..." }
-    `;
+    CRITICAL AGENCY TONE & SANITIZATION RULES:
+    1. NEVER use negative or alarming language (do NOT use words like "zero conversions", "no leads", "failed", "poor", "loss", "dropped", "screwed up").
+    2. SILVER LINING REFRAMING:
+       - If conversions are low/zero: Frame as "Initial audience signal acquisition phase", "Building brand authority & search footprint", or "Testing high-intent search clusters to establish baseline benchmarks".
+       - If spend or CPC increased: Frame as "Strategic market share expansion" or "Securing premium position across competitive search auctions".
+       - If CTR or clicks dropped: Frame as "Refining targeting to eliminate unqualified clicks & maximize impression quality".
+    3. Be executive, encouraging, authoritative, and focused on strategic optimization.
+
+    REQUIRED RESPONSE FORMAT (JSON Object):
+    {
+      "summary": "A 3-sentence executive summary emphasizing campaign momentum, strategic positioning, and budget deployment.",
+      "takeaways": [
+        "First key strategic achievement or optimization focus",
+        "Second key strategic achievement or optimization focus",
+        "Third key strategic achievement or optimization focus"
+      ],
+      "actionPlan": [
+        {
+          "title": "Bidding & Auction Optimization",
+          "description": "One sentence on refining bid strategies to capture high-converting search intent."
+        },
+        {
+          "title": "Search Term & Keyword Expansion",
+          "description": "One sentence on pruning negative keywords and scaling top-performing terms."
+        },
+        {
+          "title": "Conversion Path & Audience Tuning",
+          "description": "One sentence on streamlining ad messaging and landing page conversion flow."
+        }
+      ],
+      "statusPill": "AUDIENCE & INTENT BUILD" // 2-4 word uppercase status e.g. "OPTIMIZATION & EXPANSION" or "AUDIENCE BUILD PHASE"
+    }
+  `;
 
   try {
     const result = await generateContentTracked(
@@ -47,9 +76,30 @@ export async function generateReportInsights(data: any) {
     console.error("PDF Insights Error:", error);
     return {
       summary:
-        "Performance remains consistent with a focus on conversion efficiency.",
-      nextSteps:
-        "We will continue monitoring high-intent search terms for budget optimization.",
+        "Campaign activity this period focused on establishing core search visibility and capturing high-intent audience traffic. We are actively leveraging these performance baseline metrics to fine-tune keyword targeting and maximize overall campaign efficiency.",
+      takeaways: [
+        "Established baseline search visibility across core industry keywords.",
+        "Refined keyword bid structures to prioritize high-intent audience searches.",
+        "Streamlined ad copy alignment to improve impression relevancy and click quality.",
+      ],
+      actionPlan: [
+        {
+          title: "Bidding & Auction Realignment",
+          description:
+            "Reallocate budget toward top-performing search auctions to lower acquisition costs.",
+        },
+        {
+          title: "High-Intent Keyword Expansion",
+          description:
+            "Expand exact-match keyword clusters while sculpting negative keywords to eliminate non-converting queries.",
+        },
+        {
+          title: "Conversion Path Optimization",
+          description:
+            "Align ad copy messaging directly with landing page CTAs to enhance conversion rates.",
+        },
+      ],
+      statusPill: "OPTIMIZATION & EXPANSION",
     };
   }
 }
@@ -63,19 +113,21 @@ export async function generateEmailBody(data: any) {
 
   const prompt = `
     You are an Account Manager at Uprise Digital. 
-    Write a short, friendly email to "${clientName}" as an intro to their monthly Google Ads report.
+    Write a short, professional, and encouraging email intro for "${clientName}" to accompany their monthly Google Ads performance report PDF.
     
     Metrics Context:
-    - Conversions: ${metrics.conversions} (${metrics.conversionsDelta.isPos ? "up" : "down"} ${metrics.conversionsDelta.val}%)
+    - Conversions: ${metrics.conversions}
     - Spend: $${metrics.cost}
+    - Clicks: ${metrics.clicks}
     
     ${customInstructions ? `TONE/FOCUS INSTRUCTIONS: ${customInstructions}` : ""}
     
-    TASK:
-    - Keep it under 4 sentences.
-    - Mention that the full report is attached.
-    - Be encouraging and helpful.
-    - Do not use a subject line or sign-off, just the body text.
+    CRITICAL TONE RULES:
+    - NEVER state negative outcomes or failures (do NOT say "we didn't get conversions", "no leads", "CTR dropped", etc.).
+    - ALWAYS reframe positively: focus on campaign momentum, valuable search data collected, brand presence established, and ongoing strategic optimizations.
+    - Keep it strictly to 2-3 sentences.
+    - Mention that the full performance breakdown PDF is attached.
+    - Do NOT include a subject line, greeting (like Hi Paul), or sign-off (like Best regards), just the body text paragraph.
     
     Response MUST be a JSON object: { "emailBody": "..." }
     `;
@@ -97,7 +149,7 @@ export async function generateEmailBody(data: any) {
   } catch (error) {
     console.error("Email Body Error:", error);
     return {
-      emailBody: `Hi there, please find your latest Google Ads performance report attached. We've seen some interesting shifts this month and look forward to discussing the next steps with you.`,
+      emailBody: `I've attached your latest Google Ads performance report for the past month. Our team has been actively optimizing search term targeting and campaign structures to build strong momentum and capture high-intent demand. Please find the detailed metrics breakdown in the attached PDF.`,
     };
   }
 }

@@ -17,7 +17,8 @@ import {
   fetchAccountLastMonthSummary,
   fetchAccountMonthlySummary,
 } from "@/lib/google-ads";
-import { transformAdsData } from "@/lib/report-utils";
+import { fetchAccountDataFromDb, transformAdsData } from "@/lib/report-utils";
+import { buildReportEmailHtml } from "@/lib/report-email-template";
 import { MyReportPDF } from "@/service/pdf-service";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -41,15 +42,34 @@ export async function executeReportJobDirectly(params: {
   });
   if (!schedule) throw new Error(`Schedule ${scheduleId} not found`);
 
-  const [rawSummary, rawKeywords, lastMonth] = await Promise.all([
-    fetchAccountMonthlySummary(googleAccountId),
-    fetchAccountKeywords(googleAccountId),
-    fetchAccountLastMonthSummary(googleAccountId),
-  ]);
+  let rawSummary = await fetchAccountDataFromDb(googleAccountId);
+  let rawKeywords: any[] = [];
+  let lastMonth: any = null;
+
+  if (!rawSummary || rawSummary.length === 0) {
+    try {
+      [rawSummary, rawKeywords, lastMonth] = await Promise.all([
+        fetchAccountMonthlySummary(googleAccountId),
+        fetchAccountKeywords(googleAccountId),
+        fetchAccountLastMonthSummary(googleAccountId),
+      ]);
+    } catch (err) {
+      console.warn(`[GAQL API Warning] Falling back for ${googleAccountId}:`, err);
+    }
+  } else {
+    try {
+      [rawKeywords, lastMonth] = await Promise.all([
+        fetchAccountKeywords(googleAccountId),
+        fetchAccountLastMonthSummary(googleAccountId),
+      ]);
+    } catch (err) {
+      // Optional keyword/comparison fallback
+    }
+  }
 
   const baseData = transformAdsData(
     clientName,
-    rawSummary,
+    rawSummary || [],
     rawKeywords,
     lastMonth,
   );
@@ -74,12 +94,19 @@ export async function executeReportJobDirectly(params: {
   const emailSubjectText =
     schedule.emailSubject || `Performance Report: ${clientName}`;
 
+  const htmlBody = buildReportEmailHtml({
+    clientName,
+    introText: emailAi.emailBody,
+    metrics: baseData.metrics,
+  });
+
   const emailResult = await resend.emails.send({
     from: "Uprise Digital <reports@uprisedigital.com.au>",
     to: schedule.recipientEmail,
     cc: cleanCcEmails(schedule.ccEmails),
     subject: emailSubjectText,
     text: emailAi.emailBody,
+    html: htmlBody,
     attachments: [
       {
         filename: `${clientName.replace(/\s+/g, "_")}_Report.pdf`,

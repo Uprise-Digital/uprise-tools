@@ -337,6 +337,133 @@ export async function fetchAccountLastMonthSummary(
   return data.results?.[0]?.metrics || null;
 }
 
+export async function fetchAccountDeviceBreakdown(
+  googleAccountId: string,
+  startDate?: string,
+  endDate?: string,
+) {
+  try {
+    const { accessToken, managerCustomerId } = await getManagementAccessToken();
+    const sanitizedId = googleAccountId.replace(/-/g, "");
+    const dateClause = getCurrentPeriodDateClause(startDate, endDate);
+
+    const query = `
+      SELECT
+        segments.device,
+        metrics.clicks,
+        metrics.impressions,
+        metrics.cost_micros
+      FROM customer
+      WHERE ${dateClause}
+    `;
+
+    const response = await fetch(
+      `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "developer-token": DEVELOPER_TOKEN!,
+          Authorization: `Bearer ${accessToken}`,
+          "login-customer-id": managerCustomerId,
+        },
+        body: JSON.stringify({ query }),
+      },
+    );
+
+    const data = await response.json();
+    return data.results || [];
+  } catch (err) {
+    console.warn(`[Device Breakdown Query] Skipping live fetch for ${googleAccountId}:`, err);
+    return [];
+  }
+}
+
+export async function fetchAccountImpressionShare(
+  googleAccountId: string,
+  startDate?: string,
+  endDate?: string,
+) {
+  try {
+    const { accessToken, managerCustomerId } = await getManagementAccessToken();
+    const sanitizedId = googleAccountId.replace(/-/g, "");
+    const dateClause = getCurrentPeriodDateClause(startDate, endDate);
+
+    const query = `
+      SELECT
+        metrics.search_impression_share,
+        metrics.search_budget_lost_impression_share,
+        metrics.search_rank_lost_impression_share
+      FROM customer
+      WHERE ${dateClause}
+    `;
+
+    const response = await fetch(
+      `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "developer-token": DEVELOPER_TOKEN!,
+          Authorization: `Bearer ${accessToken}`,
+          "login-customer-id": managerCustomerId,
+        },
+        body: JSON.stringify({ query }),
+      },
+    );
+
+    const data = await response.json();
+    return data.results?.[0]?.metrics || null;
+  } catch (err) {
+    console.warn(`[Impression Share Query] Skipping live fetch for ${googleAccountId}:`, err);
+    return null;
+  }
+}
+
+export async function fetchAccountGeoPerformance(
+  googleAccountId: string,
+  startDate?: string,
+  endDate?: string,
+) {
+  try {
+    const { accessToken, managerCustomerId } = await getManagementAccessToken();
+    const sanitizedId = googleAccountId.replace(/-/g, "");
+    const dateClause = getCurrentPeriodDateClause(startDate, endDate);
+
+    const query = `
+      SELECT
+        user_location_view.country_criterion_id,
+        metrics.clicks,
+        metrics.impressions,
+        metrics.cost_micros
+      FROM user_location_view
+      WHERE ${dateClause}
+      ORDER BY metrics.clicks DESC
+      LIMIT 5
+    `;
+
+    const response = await fetch(
+      `https://googleads.googleapis.com/v23/customers/${sanitizedId}/googleAds:search`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "developer-token": DEVELOPER_TOKEN!,
+          Authorization: `Bearer ${accessToken}`,
+          "login-customer-id": managerCustomerId,
+        },
+        body: JSON.stringify({ query }),
+      },
+    );
+
+    const data = await response.json();
+    return data.results || [];
+  } catch (err) {
+    console.warn(`[Geo Performance Query] Skipping live fetch for ${googleAccountId}:`, err);
+    return [];
+  }
+}
+
 export async function fetchDailyCampaignData(
   googleAccountId: string,
   startDate: string,

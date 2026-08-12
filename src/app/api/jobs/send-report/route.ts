@@ -14,6 +14,7 @@ import {
   fetchAccountMonthlySummary,
 } from "@/lib/google-ads";
 import { transformAdsData } from "@/lib/report-utils";
+import { buildReportEmailHtml } from "@/lib/report-email-template";
 import { MyReportPDF } from "@/service/pdf-service";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -94,6 +95,12 @@ export async function POST(request: Request) {
     const emailSubjectText =
       schedule.emailSubject || `Performance Report: ${clientName}`;
 
+    const htmlBody = buildReportEmailHtml({
+      clientName,
+      introText: emailAi.emailBody,
+      metrics: baseData.metrics,
+    });
+
     // Email Dispatch
     const emailResult = await resend.emails.send({
       from: "Uprise Digital <reports@uprisedigital.com.au>",
@@ -101,6 +108,7 @@ export async function POST(request: Request) {
       cc: cleanCcEmails(schedule.ccEmails),
       subject: emailSubjectText,
       text: emailAi.emailBody,
+      html: htmlBody,
       attachments: [
         {
           filename: `${clientName.replace(/\s+/g, "_")}_Report.pdf`,
