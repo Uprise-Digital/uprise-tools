@@ -77,11 +77,11 @@ export async function executeReportJobDirectly(params: {
   const [pdfAi, emailAi] = await Promise.all([
     generateReportInsights({
       ...baseData,
-      customInstructions: schedule.customAiInstructions,
+      customInstructions: schedule.customAiInstructions ?? undefined,
     }),
     generateEmailBody({
       ...baseData,
-      customInstructions: schedule.customAiInstructions,
+      customInstructions: schedule.customAiInstructions ?? undefined,
     }),
   ]);
 
