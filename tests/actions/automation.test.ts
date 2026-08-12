@@ -93,34 +93,7 @@ describe("Report Automation Actions", () => {
   });
 
   describe("triggerManualQueueTestAction", () => {
-    it("should call fetch with worker URL if authorized", async () => {
-      const mockFetch = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-        ok: true,
-        text: () => Promise.resolve("OK"),
-      } as any);
-
-      const result = await triggerManualQueueTestAction({
-        scheduleId: 42,
-        googleAccountId: "123-456-7890",
-        clientName: "Test Client",
-        isTest: true,
-      });
-
-      expect(result.success).toBe(true);
-      expect(mockFetch).toHaveBeenCalledWith(
-        "https://worker.test.com",
-        expect.objectContaining({
-          method: "POST",
-          headers: expect.objectContaining({
-            Authorization: "Bearer test-secret-key",
-          }),
-        }),
-      );
-    });
-
-    it("should throw an error if CLOUDFLARE_WORKER_URL is missing", async () => {
-      delete process.env.CLOUDFLARE_WORKER_URL;
-
+    it("should return error if schedule not found", async () => {
       const result = await triggerManualQueueTestAction({
         scheduleId: 42,
         googleAccountId: "123-456-7890",
@@ -129,7 +102,7 @@ describe("Report Automation Actions", () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Missing CLOUDFLARE_WORKER_URL");
+      expect(result.error).toContain("Schedule 42 not found");
     });
   });
 

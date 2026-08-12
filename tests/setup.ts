@@ -209,6 +209,10 @@ const mockDbQuery = {
     findMany: vi.fn().mockResolvedValue([]),
     findFirst: vi.fn().mockResolvedValue(null),
   },
+  reportSchedules: {
+    findMany: vi.fn().mockResolvedValue([]),
+    findFirst: vi.fn().mockResolvedValue(null),
+  },
   accountTriageSettings: {
     findFirst: vi.fn().mockResolvedValue({
       id: 1,

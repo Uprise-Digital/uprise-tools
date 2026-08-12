@@ -14,6 +14,7 @@ import {
   Pencil,
   Play,
   Plus,
+  RotateCw,
   Sparkles,
   Trash2,
   User,
@@ -161,10 +162,10 @@ export function AutomationSidebar({
 
       if (result.success) {
         console.log(
-          "✅ [Frontend] Server Action reported success. Message is now in the Cloudflare Queue.",
+          "✅ [Frontend] Server Action reported success. Report sent.",
         );
 
-        toast.success("Test job enqueued! Check Cloudflare logs.", {
+        toast.success("Test report generated and email sent!", {
           id: toastId,
           icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
         });
@@ -437,9 +438,20 @@ export function AutomationSidebar({
                   Sending History
                 </h3>
               </div>
-              <Badge variant="outline" className="font-mono text-xs">
-                {emailLogs.length} Logs
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="font-mono text-xs">
+                  {emailLogs.length} Logs
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-slate-500 hover:text-slate-900 transition-colors"
+                  onClick={() => router.refresh()}
+                  title="Refresh history"
+                >
+                  <RotateCw className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">

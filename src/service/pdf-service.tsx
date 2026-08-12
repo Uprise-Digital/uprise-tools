@@ -401,9 +401,8 @@ export const MyReportPDF = ({ data }: { data: any }) => (
             { textAlign: "center", maxWidth: 350, color: "#94a3b8" },
           ]}
         >
-          Next month, our team will focus on expanding high-performing keyword
-          clusters while tightening bidding strategies on lower-efficiency
-          segments to further maximize your ROAS.
+          {data.ai?.nextSteps ||
+            "Next month, our team will focus on expanding high-performing keyword clusters while tightening bidding strategies on lower-efficiency segments to further maximize your ROAS."}
         </Text>
         <View style={{ marginTop: 60, alignItems: "center" }}>
           <Text style={styles.labelSmall}>Account Managed By</Text>
