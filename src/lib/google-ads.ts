@@ -16,7 +16,7 @@ export function getCurrentPeriodDateClause(
     const cleanEnd = endDate.split("T")[0].trim();
     return `segments.date BETWEEN '${cleanStart}' AND '${cleanEnd}'`;
   }
-  return "segments.date DURING THIS_MONTH";
+  return "segments.date DURING LAST_MONTH";
 }
 
 /**

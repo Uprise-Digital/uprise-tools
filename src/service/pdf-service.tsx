@@ -240,6 +240,20 @@ export const MyReportPDF = ({ data }: { data: any }) => {
             >
               {statusPillText}
             </Text>
+            <Text
+              style={{
+                fontSize: 8,
+                fontWeight: 700,
+                color: "#94a3b8",
+                backgroundColor: "rgba(148, 163, 184, 0.15)",
+                padding: "3 8",
+                borderRadius: 4,
+                textTransform: "uppercase",
+                letterSpacing: 1,
+              }}
+            >
+              {data.targetMonth || "July 2026"}
+            </Text>
           </View>
           <Text style={styles.h1}>Google Ads Performance</Text>
           <Text style={styles.h1}>Report</Text>
@@ -247,17 +261,28 @@ export const MyReportPDF = ({ data }: { data: any }) => {
             {data.clientName}
           </Text>
 
-          <View style={{ marginTop: 100 }}>
+          <View style={{ marginTop: 90 }}>
             <Text style={styles.labelSmall}>Reporting Period</Text>
             <Text
               style={{
-                fontSize: 12,
+                fontSize: 14,
                 marginTop: 6,
-                fontWeight: 400,
+                fontWeight: 700,
                 color: "#ffffff",
+                letterSpacing: -0.3,
               }}
             >
-              {data.dateRange}
+              {data.targetMonth || "July 2026"}
+            </Text>
+            <Text
+              style={{
+                fontSize: 9.5,
+                marginTop: 3,
+                fontWeight: 400,
+                color: "#94a3b8",
+              }}
+            >
+              {data.dateRange || "July 1 – July 31, 2026"}
             </Text>
           </View>
 

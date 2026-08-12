@@ -496,6 +496,21 @@ export function deriveAccountKeywords(clientName: string, campaigns: any[]) {
   });
 }
 
+export function getPreviousMonthInfo() {
+  const now = new Date();
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const monthName = prevMonthDate.toLocaleString("default", { month: "long" });
+  const year = prevMonthDate.getFullYear();
+  const lastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+
+  return {
+    monthName,
+    year,
+    targetMonth: `${monthName} ${year}`,
+    dateRange: `${monthName} 1 – ${monthName} ${lastDay}, ${year}`,
+  };
+}
+
 export function transformAdsData(
   clientName: string,
   rawSummary: any[],
@@ -503,6 +518,7 @@ export function transformAdsData(
   lastMonth: any,
 ) {
   const totals = { cost: 0, clicks: 0, impressions: 0, conversions: 0 };
+  const monthInfo = getPreviousMonthInfo();
 
   const campaigns = (rawSummary || []).map((row: any) => {
     const cost = Number(row.metrics?.costMicros || 0) / 1_000_000;
@@ -583,6 +599,8 @@ export function transformAdsData(
 
   return {
     clientName,
+    targetMonth: monthInfo.targetMonth,
+    dateRange: monthInfo.dateRange,
     metrics: {
       cost: totals.cost.toLocaleString(undefined, { minimumFractionDigits: 2 }),
       clicks: totals.clicks.toLocaleString(),
