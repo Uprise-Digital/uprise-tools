@@ -430,7 +430,7 @@ export const MyReportPDF = ({ data }: { data: any }) => {
           ))}
 
           {/* AD GROUP PERFORMANCE BREAKDOWN */}
-          <View style={{ marginTop: 22 }}>
+          <View style={{ marginTop: 18 }} wrap={false}>
             <Text style={styles.h2}>Ad Group Performance Breakdown</Text>
             <View style={styles.tableHeader}>
               <Text style={styles.colMain}>Ad Group Name</Text>
@@ -521,7 +521,7 @@ export const MyReportPDF = ({ data }: { data: any }) => {
           ))}
 
           {/* TOP PERFORMING AD CREATIVE SHOWCASE */}
-          <View style={{ marginTop: 22 }}>
+          <View style={{ marginTop: 18 }} wrap={false}>
             <Text style={styles.h2}>Top Performing Ad Creative Showcase</Text>
             {(data.adCopies || []).slice(0, 2).map((ad: any, i: number) => (
               <View
@@ -530,10 +530,9 @@ export const MyReportPDF = ({ data }: { data: any }) => {
                   backgroundColor: "#f8fafc",
                   border: "1px solid #e2e8f0",
                   borderRadius: 8,
-                  padding: 12,
-                  marginBottom: 10,
+                  padding: 11,
+                  marginBottom: 8,
                 }}
-                wrap={false}
               >
                 {/* AD HEADER BADGES */}
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
