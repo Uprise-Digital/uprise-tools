@@ -286,8 +286,7 @@ export function AutomationSidebar({
             </div>
             <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
               <p className="text-sm text-slate-500 leading-relaxed">
-                Generate and download the performance report. Leave dates blank
-                to use the standard monthly timeframe.
+                Generate and download client performance reports. Preview last month's report before sending or select custom dates.
               </p>
 
               {/* New Date Range Inputs */}
@@ -316,25 +315,43 @@ export function AutomationSidebar({
                 </div>
               </div>
 
-              <Button
-                className="w-full h-11 shadow-sm"
-                variant="secondary"
-                onClick={() => onQuickDownload(startDate, endDate)} // Pass dates up
-                disabled={isDownloading}
-              >
-                {isDownloading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <FileDown className="mr-2 h-4 w-4" />
-                )}
-                Download{" "}
-                {startDate && endDate
-                  ? "Custom"
-                  : new Date().toLocaleString("default", {
-                      month: "long",
-                    })}{" "}
-                Report
-              </Button>
+              <div className="space-y-2 pt-1">
+                {/* 1. Download Last Month Report Button */}
+                <Button
+                  className="w-full h-10 font-semibold"
+                  variant="default"
+                  onClick={() => {
+                    const now = new Date();
+                    const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+                    const formatYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                    onQuickDownload(formatYMD(firstDay), formatYMD(lastDay));
+                  }}
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileDown className="mr-2 h-4 w-4" />
+                  )}
+                  Download {new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleString("default", { month: "long" })} Report (Last Month)
+                </Button>
+
+                {/* 2. Download Current Month / Custom Date Button */}
+                <Button
+                  className="w-full h-10 font-medium"
+                  variant="outline"
+                  onClick={() => onQuickDownload(startDate, endDate)}
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileDown className="mr-2 h-4 w-4 text-slate-500" />
+                  )}
+                  Download {startDate && endDate ? "Custom Range" : `${new Date().toLocaleString("default", { month: "long" })} (Current)`} Report
+                </Button>
+              </div>
             </div>
           </section>
 

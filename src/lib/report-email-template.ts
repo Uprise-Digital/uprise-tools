@@ -18,59 +18,12 @@ export function buildReportEmailHtml(data: {
   const ctr = metrics?.ctr ? `${metrics.ctr}%` : "-";
   const monthDisplay = targetMonth || "Monthly";
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${monthDisplay} Performance Report - ${clientName}</title>
-</head>
-<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #334155;">
-  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 40px 16px;">
-    <tr>
-      <td align="center">
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);">
-          
-          <!-- BRAND HEADER WITH OFFICIAL LOGO -->
-          <tr>
-            <td style="background-color: #070514; padding: 28px 36px; text-align: left;">
-              <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td>
-                    <!-- OFFICIAL UPRISE LOGO IMAGE -->
-                    <img src="https://uprisedigital.com.au/wp-content/uploads/2025/02/rev4-03-1.webp" alt="Uprise Digital" height="34" style="display: block; border: 0; max-height: 34px; width: auto;" />
-                  </td>
-                  <td align="right" valign="middle">
-                    <div style="display: inline-block; font-size: 10px; font-weight: 600; color: #cbd5e1; background-color: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); padding: 5px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.6px;">
-                      Monthly Performance Report
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+  const numConversions = parseFloat(String(conversions).replace(/[^0-9.]/g, "")) || 0;
+  const numClicks = parseFloat(String(clicks).replace(/[^0-9.]/g, "")) || 0;
 
-          <!-- REPORT TITLE BAR -->
-          <tr>
-            <td style="padding: 28px 36px 16px 36px;">
-              <div style="font-size: 11px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 4px;">
-                Monthly Performance Report &bull; ${monthDisplay}
-              </div>
-              <div style="font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">
-                ${clientName}
-              </div>
-            </td>
-          </tr>
+  const showMetricsSection = numConversions > 0 && numClicks > 0;
 
-          <!-- MAIN CONTENT -->
-          <tr>
-            <td style="padding: 0px 36px 28px 36px;">
-              <!-- INTRO PARAGRAPH -->
-              <div style="font-size: 14.5px; line-height: 1.65; color: #334155; margin-bottom: 28px; background-color: #faf5ff; border: 1px solid #f3e8ff; border-radius: 12px; padding: 18px 20px;">
-                ${introText}
-              </div>
-
+  const metricsSectionHtml = showMetricsSection ? `
               <!-- KEY METRICS PREVIEW -->
               <div style="margin-bottom: 28px;">
                 <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 1px; margin-bottom: 12px;">
@@ -102,6 +55,62 @@ export function buildReportEmailHtml(data: {
                   </tr>
                 </table>
               </div>
+  ` : "";
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${monthDisplay} Performance Report - ${clientName}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #334155;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);">
+          
+          <!-- BRAND HEADER WITH OFFICIAL LOGO -->
+          <tr>
+            <td style="background-color: #070514; padding: 28px 36px; text-align: left;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <!-- OFFICIAL UPRISE LOGO IMAGE (PNG format for universal email compatibility) -->
+                    <img src="https://uprisedigital.com.au/wp-content/uploads/2025/04/rev4-03-1-1.png" alt="Uprise Digital" height="34" style="display: block; border: 0; max-height: 34px; width: auto;" />
+                  </td>
+                  <td align="right" valign="middle">
+                    <div style="display: inline-block; font-size: 10px; font-weight: 600; color: #cbd5e1; background-color: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); padding: 5px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.6px;">
+                      Monthly Performance Report
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- REPORT TITLE BAR -->
+          <tr>
+            <td style="padding: 28px 36px 16px 36px;">
+              <div style="font-size: 11px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 4px;">
+                Monthly Performance Report &bull; ${monthDisplay}
+              </div>
+              <div style="font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">
+                ${clientName}
+              </div>
+            </td>
+          </tr>
+
+          <!-- MAIN CONTENT -->
+          <tr>
+            <td style="padding: 0px 36px 28px 36px;">
+              <!-- INTRO PARAGRAPH -->
+              <div style="font-size: 14.5px; line-height: 1.65; color: #334155; margin-bottom: 28px; background-color: #faf5ff; border: 1px solid #f3e8ff; border-radius: 12px; padding: 18px 20px;">
+                ${introText}
+              </div>
+
+              ${metricsSectionHtml}
 
               <!-- ATTACHMENT NOTICE BOX -->
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #fcfaff; border: 1px solid #e9d5ff; border-left: 4px solid #7c3aed; border-radius: 10px; padding: 16px 18px; margin-bottom: 24px;">
