@@ -73,15 +73,15 @@ export function buildReportEmailHtml(data: {
           
           <!-- BRAND HEADER WITH OFFICIAL LOGO -->
           <tr>
-            <td style="background-color: #070514; padding: 28px 36px; text-align: left;">
+            <td style="background-color: #ffffff; padding: 28px 36px 20px 36px; border-bottom: 1px solid #f1f5f9; text-align: left;">
               <table width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td>
                     <!-- OFFICIAL UPRISE LOGO IMAGE (PNG format for universal email compatibility) -->
-                    <img src="https://uprisedigital.com.au/wp-content/uploads/2025/04/rev4-03-1-1.png" alt="Uprise Digital" height="34" style="display: block; border: 0; max-height: 34px; width: auto;" />
+                    <img src="https://uprisedigital.com.au/wp-content/uploads/2025/04/rev4-03-1-1.png" alt="Uprise Digital" height="38" style="display: block; border: 0; max-height: 38px; width: auto;" />
                   </td>
                   <td align="right" valign="middle">
-                    <div style="display: inline-block; font-size: 10px; font-weight: 600; color: #cbd5e1; background-color: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); padding: 5px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.6px;">
+                    <div style="display: inline-block; font-size: 10px; font-weight: 700; color: #6d28d9; background-color: #f3e8ff; border: 1px solid #e9d5ff; padding: 5px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.6px;">
                       Monthly Performance Report
                     </div>
                   </td>

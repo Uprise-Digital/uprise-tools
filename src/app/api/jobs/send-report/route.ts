@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { reportSchedules } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
 import { logAction, logEmail } from "@/lib/audit";
-import { cleanCcEmails } from "@/lib/cleaners";
+import { cleanCcEmails, parseEmailList } from "@/lib/cleaners";
 import {
   fetchAccountKeywords,
   fetchAccountLastMonthSummary,
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     // Email Dispatch
     const emailResult = await resend.emails.send({
       from: "Uprise Digital <reports@uprisedigital.com.au>",
-      to: schedule.recipientEmail,
+      to: parseEmailList(schedule.recipientEmail),
       cc: cleanCcEmails(schedule.ccEmails),
       subject: emailSubjectText,
       text: emailAi.emailBody,

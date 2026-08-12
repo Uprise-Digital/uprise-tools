@@ -10,3 +10,15 @@ export const cleanCcEmails = (
 
   return emailArray.length > 0 ? emailArray : undefined;
 };
+
+export const parseEmailList = (
+  emailString: string | null | undefined,
+): string[] => {
+  if (!emailString || emailString.trim() === "") return [];
+
+  return emailString
+    .split(/[,;]+/)
+    .map((email) => email.trim())
+    .filter((email) => email.length > 0);
+};
+
