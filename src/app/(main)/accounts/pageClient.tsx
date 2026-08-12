@@ -54,6 +54,7 @@ type AccountWithSchedules = {
   isActive: boolean;
   googleStatus: string;
   reportSchedules: any[];
+  emailLogs?: any[];
 };
 
 interface AccountsClientPageProps {
@@ -741,6 +742,7 @@ export default function AccountsClientPage({
                             name: acc.name,
                           }}
                           initialRules={acc.reportSchedules || []}
+                          initialEmailLogs={acc.emailLogs || []}
                         />
                       </div>
                     </TableCell>

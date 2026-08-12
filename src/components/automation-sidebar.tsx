@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  AlertCircle,
   CheckCircle2,
   Clock,
   Download,
   FileBarChart2,
   FileDown,
+  History,
   Loader2,
   Mail,
   MessageSquareQuote,
@@ -15,9 +17,11 @@ import {
   Sparkles,
   Trash2,
   User,
+  UserCheck,
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   deleteReportScheduleAction,
@@ -59,6 +63,17 @@ interface AutomationRule {
   customMessage?: string;
 }
 
+export interface EmailLog {
+  id: number;
+  recipient: string;
+  subject: string;
+  emailType: string;
+  status: string;
+  error?: string | null;
+  resendId?: string | null;
+  sentAt: string | Date;
+}
+
 interface SidebarProps {
   adAccount: {
     id: number;
@@ -66,6 +81,7 @@ interface SidebarProps {
     googleAccountId: string;
   };
   rules: AutomationRule[];
+  emailLogs?: EmailLog[];
   onQuickDownload: (startDate?: string, endDate?: string) => void; // Updated signature
   isDownloading: boolean;
 }
@@ -73,9 +89,11 @@ interface SidebarProps {
 export function AutomationSidebar({
   adAccount,
   rules,
+  emailLogs = [],
   onQuickDownload,
   isDownloading,
 }: SidebarProps) {
+  const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
   const [testingRuleId, setTestingRuleId] = useState<number | null>(null);
@@ -150,6 +168,7 @@ export function AutomationSidebar({
           id: toastId,
           icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
         });
+        router.refresh();
       } else {
         console.error(
           "❌ [Frontend] Server Action returned a failure state:",
@@ -177,6 +196,7 @@ export function AutomationSidebar({
       if (result.success) {
         toast.success("Schedule deleted", { id: toastId });
         if (editingRuleId === id) resetForm();
+        router.refresh();
       } else throw new Error();
     } catch (error) {
       toast.error("Failed to delete", { id: toastId });
@@ -210,6 +230,7 @@ export function AutomationSidebar({
           id: toastId,
         });
         resetForm();
+        router.refresh();
       } else {
         throw new Error(result.error);
       }
@@ -407,6 +428,97 @@ export function AutomationSidebar({
             </div>
           </section>
 
+          {/* SECTION: SENDING HISTORY */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-slate-900" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+                  Sending History
+                </h3>
+              </div>
+              <Badge variant="outline" className="font-mono text-xs">
+                {emailLogs.length} Logs
+              </Badge>
+            </div>
+
+            <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
+              {emailLogs.length > 0 ? (
+                emailLogs.map((log) => {
+                  const isAuto = log.emailType === "scheduled_report";
+                  const isSuccess = log.status === "success";
+                  const formattedDate = new Date(log.sentAt).toLocaleString(
+                    undefined,
+                    {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    },
+                  );
+
+                  return (
+                    <div
+                      key={log.id}
+                      className="p-3.5 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 transition-colors space-y-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          {isAuto ? (
+                            <Badge className="bg-blue-100 text-blue-800 border-blue-200 font-medium text-[10px] gap-1 px-1.5 py-0.5">
+                              <Clock className="h-3 w-3" /> Auto Schedule
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-purple-100 text-purple-800 border-purple-200 font-medium text-[10px] gap-1 px-1.5 py-0.5">
+                              <UserCheck className="h-3 w-3" /> User Initiated
+                            </Badge>
+                          )}
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            {formattedDate}
+                          </span>
+                        </div>
+
+                        {isSuccess ? (
+                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-medium text-[10px] gap-1">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-600" />{" "}
+                            Success
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-rose-50 text-rose-700 border-rose-200 font-medium text-[10px] gap-1">
+                            <AlertCircle className="h-3 w-3 text-rose-600" />{" "}
+                            Failed
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between text-slate-700 pt-0.5">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <span className="font-semibold truncate">
+                            {log.recipient}
+                          </span>
+                        </div>
+                      </div>
+
+                      {log.error && (
+                        <div className="p-2 bg-rose-50 border border-rose-100 rounded-lg text-rose-700 text-[11px]">
+                          <strong>Error:</strong> {log.error}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-6 border-2 border-dashed rounded-xl bg-slate-50/30">
+                  <p className="text-xs text-slate-400">
+                    No emails sent yet for this account.
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+
           {/* SECTION: NEW/EDIT RULE FORM */}
           <section id="automation-form" className="pb-10">
             <div className="flex items-center justify-between mb-6">
@@ -478,16 +590,19 @@ export function AutomationSidebar({
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-slate-700">
                   CC / BCC
                 </Label>
                 <Input
                   className="h-10"
-                  placeholder="team@uprise.com.au"
+                  placeholder="team@uprise.com.au, alex@uprise.com.au"
                   value={cc}
                   onChange={(e) => setCc(e.target.value)}
                 />
+                <p className="text-[11px] text-slate-500 font-normal leading-normal">
+                  Separate multiple addresses with commas or semicolons (e.g. seyone@uprise.com.au, alex@uprise.com.au).
+                </p>
               </div>
 
               {/* AI TOGGLE SECTION */}

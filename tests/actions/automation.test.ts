@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   deleteReportScheduleAction,
+  getEmailSendingHistoryAction,
   saveReportScheduleAction,
   triggerManualQueueTestAction,
 } from "@/actions/automation.actions";
@@ -129,6 +130,38 @@ describe("Report Automation Actions", () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Missing CLOUDFLARE_WORKER_URL");
+    });
+  });
+
+  describe("getEmailSendingHistoryAction", () => {
+    it("should return email history for an ad account when authorized", async () => {
+      const mockHistory = [
+        {
+          id: 1,
+          recipient: "client@test.com",
+          subject: "Monthly Report",
+          emailType: "scheduled_report",
+          status: "success",
+          sentAt: new Date(),
+        },
+      ];
+      vi.mocked(db.query.emailLogs.findMany).mockResolvedValueOnce(
+        mockHistory as any,
+      );
+
+      const result = await getEmailSendingHistoryAction(1);
+
+      expect(result.success).toBe(true);
+      expect(result.history).toEqual(mockHistory);
+    });
+
+    it("should return failure if unauthorized", async () => {
+      vi.mocked(auth.api.getSession).mockResolvedValueOnce(null);
+
+      const result = await getEmailSendingHistoryAction(1);
+
+      expect(result.success).toBe(false);
+      expect(result.history).toEqual([]);
     });
   });
 });

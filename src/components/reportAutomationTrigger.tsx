@@ -14,12 +14,13 @@ interface AdAccount {
 export function ReportAutomationTrigger({
   adAccount,
   initialRules = [], // Pass these from the server component (AdAccountsPage)
+  initialEmailLogs = [],
 }: {
   adAccount: AdAccount;
   initialRules?: any[];
+  initialEmailLogs?: any[];
 }) {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [rules, setRules] = useState<any[]>(initialRules);
 
   /**
    * Handled here so the logic is shared between the "Quick Export"
@@ -66,7 +67,8 @@ export function ReportAutomationTrigger({
   return (
     <AutomationSidebar
       adAccount={adAccount}
-      rules={rules} // Passing the real (or initial) rules array
+      rules={initialRules} // Passing the real (or initial) rules array
+      emailLogs={initialEmailLogs}
       onQuickDownload={handleQuickDownload}
       isDownloading={isDownloading}
     />

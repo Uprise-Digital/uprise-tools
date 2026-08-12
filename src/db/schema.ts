@@ -445,6 +445,7 @@ export const adAccountRelations = relations(adAccounts, ({ many, one }) => ({
   rules: many(alertRules),
   metrics: many(accountMetrics),
   reportSchedules: many(reportSchedules),
+  emailLogs: many(emailLogs),
   dailyPerformance: many(adPerformanceDaily),
   aiInsights: many(aiInsightsCache),
   threatAudits: many(threatMatrixAudits), // <-- NEW

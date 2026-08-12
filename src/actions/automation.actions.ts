@@ -1,10 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { member, reportSchedules } from "@/db/schema";
+import { emailLogs, member, reportSchedules } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 
@@ -135,5 +135,23 @@ export async function triggerManualQueueTestAction(params: {
   } catch (error: any) {
     console.error("Failed to trigger manual test:", error);
     return { success: false, error: error.message };
+  }
+}
+
+export async function getEmailSendingHistoryAction(adAccountId: number) {
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session) throw new Error("Unauthorized");
+
+    const history = await db.query.emailLogs.findMany({
+      where: eq(emailLogs.adAccountId, adAccountId),
+      orderBy: [desc(emailLogs.sentAt)],
+      limit: 20,
+    });
+
+    return { success: true, history };
+  } catch (error: any) {
+    console.error("Failed to fetch email sending history:", error);
+    return { success: false, error: error.message, history: [] };
   }
 }

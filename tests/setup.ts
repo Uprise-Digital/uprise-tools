@@ -203,8 +203,11 @@ const mockDbQuery = {
       status: "pending",
       campaignId: "camp-1",
       campaignName: "Plumbing Campaign",
-      account: { googleAccountId: "123-456-7890" },
     }),
+  },
+  emailLogs: {
+    findMany: vi.fn().mockResolvedValue([]),
+    findFirst: vi.fn().mockResolvedValue(null),
   },
   accountTriageSettings: {
     findFirst: vi.fn().mockResolvedValue({
