@@ -98,6 +98,7 @@ export async function executeReportJobDirectly(params: {
     clientName,
     introText: emailAi.emailBody,
     metrics: baseData.metrics,
+    targetMonth: baseData.targetMonth,
   });
 
   const emailResult = await resend.emails.send({
