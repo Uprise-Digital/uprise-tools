@@ -724,30 +724,8 @@ export function deriveAccountKeywords(clientName: string, campaigns: any[]) {
   });
 }
 
-export function getPreviousMonthInfo() {
-  const now = new Date();
-  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const monthName = prevMonthDate.toLocaleString("default", { month: "long" });
-  const year = prevMonthDate.getFullYear();
-  const lastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
-
-  const formatYMD = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-  const startDate = formatYMD(prevMonthDate);
-  const endDate = formatYMD(
-    new Date(now.getFullYear(), now.getMonth() - 1, lastDay),
-  );
-
-  return {
-    monthName,
-    year,
-    targetMonth: `${monthName} ${year}`,
-    dateRange: `${monthName} 1 – ${monthName} ${lastDay}, ${year}`,
-    startDate,
-    endDate,
-  };
-}
+import { getPreviousMonthInfo } from "./date-utils";
+export { getPreviousMonthInfo };
 
 export function transformAdsData(
   clientName: string,

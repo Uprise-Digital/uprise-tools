@@ -30,7 +30,7 @@ import {
   saveReportScheduleAction,
   triggerManualQueueTestAction,
 } from "@/actions/automation.actions";
-import { getPreviousMonthInfo } from "@/lib/report-utils";
+import { getPreviousMonthInfo } from "@/lib/date-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
