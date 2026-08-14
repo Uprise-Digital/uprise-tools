@@ -31,11 +31,21 @@ vi.mock("@/lib/google-ads", () => ({
 
 // 4. Mock transform utilities
 vi.mock("@/lib/report-utils", () => ({
+  getPreviousMonthInfo: vi.fn().mockReturnValue({
+    monthName: "July",
+    year: 2026,
+    targetMonth: "July 2026",
+    dateRange: "July 1 – July 31, 2026",
+    startDate: "2026-07-01",
+    endDate: "2026-07-31",
+  }),
+  fetchAccountDataFromDb: vi.fn().mockResolvedValue([]),
   transformAdsData: vi.fn().mockReturnValue({
     clientName: "Test Client",
     summary: {},
     keywords: [],
     lastMonth: {},
+    metrics: {},
   }),
 }));
 
