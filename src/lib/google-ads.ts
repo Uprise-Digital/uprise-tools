@@ -207,7 +207,7 @@ export async function fetchAccountMonthlySummary(
             campaign.name
         FROM campaign
         WHERE ${dateClause}
-          AND campaign.status = 'ENABLED'
+          AND metrics.impressions > 0
     `;
 
   const response = await fetch(
@@ -259,7 +259,7 @@ export async function fetchAccountKeywords(
             metrics.cost_per_conversion
         FROM keyword_view
         WHERE ${dateClause}
-          AND ad_group_criterion.status = 'ENABLED'
+          AND metrics.impressions > 0
         ORDER BY metrics.cost_micros DESC
             LIMIT 15
     `;
