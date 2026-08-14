@@ -11,7 +11,11 @@ import {
   fetchAccountLastMonthSummary,
   fetchAccountMonthlySummary,
 } from "@/lib/google-ads";
-import { transformAdsData } from "@/lib/report-utils";
+import {
+  fetchAccountDataFromDb,
+  getPreviousMonthInfo,
+  transformAdsData,
+} from "@/lib/report-utils";
 import { MyReportPDF } from "@/service/pdf-service";
 
 async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
@@ -38,20 +42,41 @@ export async function generateClientReportAction(
   const userId = session.user.id;
 
   try {
-    const dateContext =
-      startDate && endDate
-        ? `${startDate} to ${endDate}`
-        : "standard timeframe";
+    const prevMonth = getPreviousMonthInfo();
+    const effectiveStart = startDate || prevMonth.startDate;
+    const effectiveEnd = endDate || prevMonth.endDate;
+
+    const dateContext = `${effectiveStart} to ${effectiveEnd}`;
     console.log(
       `[Manual Report Gen] Initiating for ${clientName} (${dateContext}) by ${session.user.email}`,
     );
 
     // 2. Fetch raw data in parallel (pass the dates to your fetchers)
-    const [rawSummary, rawKeywords, lastMonth] = await Promise.all([
-      fetchAccountMonthlySummary(googleAccountId, startDate, endDate),
-      fetchAccountKeywords(googleAccountId, startDate, endDate),
-      fetchAccountLastMonthSummary(googleAccountId, startDate, endDate), // You may need to adjust how "last month" logic works for custom ranges
-    ]);
+    let rawSummary: any[] = [];
+    let rawKeywords: any[] = [];
+    let lastMonth: any = null;
+
+    try {
+      [rawSummary, rawKeywords, lastMonth] = await Promise.all([
+        fetchAccountMonthlySummary(googleAccountId, effectiveStart, effectiveEnd),
+        fetchAccountKeywords(googleAccountId, effectiveStart, effectiveEnd),
+        fetchAccountLastMonthSummary(googleAccountId, effectiveStart, effectiveEnd),
+      ]);
+    } catch (err) {
+      console.warn(
+        `[GAQL API Warning] Falling back to DB for ${googleAccountId}:`,
+        err,
+      );
+    }
+
+    if (!rawSummary || rawSummary.length === 0) {
+      rawSummary =
+        (await fetchAccountDataFromDb(
+          googleAccountId,
+          effectiveStart,
+          effectiveEnd,
+        )) || [];
+    }
 
     console.log("Data is", rawSummary, rawKeywords, lastMonth);
 

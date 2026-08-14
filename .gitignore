@@ -39,3 +39,4 @@ next-env.d.ts
 !/src/app/dashboard/team/page.tsx
 
 .env*.local
+/scratch

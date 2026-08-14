@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  Calendar,
   CheckCircle2,
   Clock,
   Download,
@@ -29,6 +30,7 @@ import {
   saveReportScheduleAction,
   triggerManualQueueTestAction,
 } from "@/actions/automation.actions";
+import { getPreviousMonthInfo } from "@/lib/report-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,6 +112,8 @@ export function AutomationSidebar({
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const prevMonthInfo = getPreviousMonthInfo();
 
   const resetForm = () => {
     setEditingRuleId(null);
@@ -268,6 +272,19 @@ export function AutomationSidebar({
                 <SheetDescription className="font-mono text-xs">
                   ID: {adAccount.googleAccountId}
                 </SheetDescription>
+              </div>
+            </div>
+            
+            {/* Active Reporting Period Target Banner */}
+            <div className="mt-4 p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl flex items-start gap-2.5 text-xs text-blue-900">
+              <Calendar className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-blue-950">
+                  Target Reporting Period: {prevMonthInfo.targetMonth}
+                </div>
+                <div className="text-[11px] text-blue-700 mt-0.5 leading-snug">
+                  Automated schedules compiled in {new Date().toLocaleString("default", { month: "long" })} strictly generate and email the full previous calendar month report ({prevMonthInfo.dateRange}).
+                </div>
               </div>
             </div>
           </SheetHeader>

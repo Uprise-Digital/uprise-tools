@@ -18,7 +18,11 @@ import {
   fetchAccountMonthlySummary,
 } from "@/lib/google-ads";
 import { buildReportEmailHtml } from "@/lib/report-email-template";
-import { fetchAccountDataFromDb, transformAdsData } from "@/lib/report-utils";
+import {
+  fetchAccountDataFromDb,
+  getPreviousMonthInfo,
+  transformAdsData,
+} from "@/lib/report-utils";
 import { MyReportPDF } from "@/service/pdf-service";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -42,32 +46,42 @@ export async function executeReportJobDirectly(params: {
   });
   if (!schedule) throw new Error(`Schedule ${scheduleId} not found`);
 
-  let rawSummary = await fetchAccountDataFromDb(googleAccountId);
+  const prevMonth = getPreviousMonthInfo();
+  let rawSummary: any[] | null = null;
   let rawKeywords: any[] = [];
   let lastMonth: any = null;
 
+  try {
+    [rawSummary, rawKeywords, lastMonth] = await Promise.all([
+      fetchAccountMonthlySummary(
+        googleAccountId,
+        prevMonth.startDate,
+        prevMonth.endDate,
+      ),
+      fetchAccountKeywords(
+        googleAccountId,
+        prevMonth.startDate,
+        prevMonth.endDate,
+      ),
+      fetchAccountLastMonthSummary(
+        googleAccountId,
+        prevMonth.startDate,
+        prevMonth.endDate,
+      ),
+    ]);
+  } catch (err) {
+    console.warn(
+      `[GAQL API Warning] Falling back to DB for ${googleAccountId}:`,
+      err,
+    );
+  }
+
   if (!rawSummary || rawSummary.length === 0) {
-    try {
-      [rawSummary, rawKeywords, lastMonth] = await Promise.all([
-        fetchAccountMonthlySummary(googleAccountId),
-        fetchAccountKeywords(googleAccountId),
-        fetchAccountLastMonthSummary(googleAccountId),
-      ]);
-    } catch (err) {
-      console.warn(
-        `[GAQL API Warning] Falling back for ${googleAccountId}:`,
-        err,
-      );
-    }
-  } else {
-    try {
-      [rawKeywords, lastMonth] = await Promise.all([
-        fetchAccountKeywords(googleAccountId),
-        fetchAccountLastMonthSummary(googleAccountId),
-      ]);
-    } catch (err) {
-      // Optional keyword/comparison fallback
-    }
+    rawSummary = await fetchAccountDataFromDb(
+      googleAccountId,
+      prevMonth.startDate,
+      prevMonth.endDate,
+    );
   }
 
   const baseData = transformAdsData(

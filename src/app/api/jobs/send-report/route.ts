@@ -14,7 +14,11 @@ import {
   fetchAccountMonthlySummary,
 } from "@/lib/google-ads";
 import { buildReportEmailHtml } from "@/lib/report-email-template";
-import { transformAdsData } from "@/lib/report-utils";
+import {
+  fetchAccountDataFromDb,
+  getPreviousMonthInfo,
+  transformAdsData,
+} from "@/lib/report-utils";
 import { MyReportPDF } from "@/service/pdf-service";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -59,12 +63,45 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parallel Data Fetching
-    const [rawSummary, rawKeywords, lastMonth] = await Promise.all([
-      fetchAccountMonthlySummary(googleAccountId),
-      fetchAccountKeywords(googleAccountId),
-      fetchAccountLastMonthSummary(googleAccountId),
-    ]);
+    // Parallel Data Fetching with Previous Month Scoping
+    const prevMonth = getPreviousMonthInfo();
+    let rawSummary: any[] = [];
+    let rawKeywords: any[] = [];
+    let lastMonth: any = null;
+
+    try {
+      [rawSummary, rawKeywords, lastMonth] = await Promise.all([
+        fetchAccountMonthlySummary(
+          googleAccountId,
+          prevMonth.startDate,
+          prevMonth.endDate,
+        ),
+        fetchAccountKeywords(
+          googleAccountId,
+          prevMonth.startDate,
+          prevMonth.endDate,
+        ),
+        fetchAccountLastMonthSummary(
+          googleAccountId,
+          prevMonth.startDate,
+          prevMonth.endDate,
+        ),
+      ]);
+    } catch (err) {
+      console.warn(
+        `[GAQL API Warning] Falling back to DB for ${googleAccountId}:`,
+        err,
+      );
+    }
+
+    if (!rawSummary || rawSummary.length === 0) {
+      rawSummary =
+        (await fetchAccountDataFromDb(
+          googleAccountId,
+          prevMonth.startDate,
+          prevMonth.endDate,
+        )) || [];
+    }
 
     const baseData = transformAdsData(
       clientName,

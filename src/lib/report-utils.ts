@@ -1,6 +1,6 @@
 // lib/report-utils.ts
 
-import { eq } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { adPerformanceDaily } from "@/db/schema";
 
@@ -32,13 +32,31 @@ function getHash(str: string): number {
   return Math.abs(hash);
 }
 
-export async function fetchAccountDataFromDb(googleAccountId: string) {
+export async function fetchAccountDataFromDb(
+  googleAccountId: string,
+  startDate?: string,
+  endDate?: string,
+) {
   try {
+    const prevInfo = getPreviousMonthInfo();
+    const cleanStart = startDate
+      ? startDate.split("T")[0].trim()
+      : prevInfo.startDate;
+    const cleanEnd = endDate
+      ? endDate.split("T")[0].trim()
+      : prevInfo.endDate;
+
     const sanitizedId = googleAccountId.replace(/-/g, "");
     const rows = await db
       .select()
       .from(adPerformanceDaily)
-      .where(eq(adPerformanceDaily.googleAccountId, sanitizedId));
+      .where(
+        and(
+          eq(adPerformanceDaily.googleAccountId, sanitizedId),
+          gte(adPerformanceDaily.date, cleanStart),
+          lte(adPerformanceDaily.date, cleanEnd),
+        ),
+      );
 
     if (!rows || rows.length === 0) return null;
 
@@ -713,11 +731,21 @@ export function getPreviousMonthInfo() {
   const year = prevMonthDate.getFullYear();
   const lastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
 
+  const formatYMD = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  const startDate = formatYMD(prevMonthDate);
+  const endDate = formatYMD(
+    new Date(now.getFullYear(), now.getMonth() - 1, lastDay),
+  );
+
   return {
     monthName,
     year,
     targetMonth: `${monthName} ${year}`,
     dateRange: `${monthName} 1 – ${monthName} ${lastDay}, ${year}`,
+    startDate,
+    endDate,
   };
 }
 
