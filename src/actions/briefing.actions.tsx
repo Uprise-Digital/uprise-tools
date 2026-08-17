@@ -610,10 +610,20 @@ export async function buildHtmlBriefing(
     briefing.alerts && briefing.alerts.length > 0
       ? briefing.alerts
           .map((alert: any) => {
-            const borderColor = alert.isCritical ? "#ef4444" : "#f59e0b";
-            const badgeBg = alert.isCritical ? "#fee2e2" : "#fef3c7";
-            const badgeColor = alert.isCritical ? "#991b1b" : "#92400e";
-            const badgeLabel = alert.isCritical ? "CRITICAL ALERT" : "WARNING";
+            const isCritical =
+              alert.isCritical ??
+              (alert.severity === "CRITICAL" || alert.severity === "HIGH");
+            const borderColor = isCritical ? "#ef4444" : "#f59e0b";
+            const badgeBg = isCritical ? "#fee2e2" : "#fef3c7";
+            const badgeColor = isCritical ? "#991b1b" : "#92400e";
+            const badgeLabel = isCritical ? "CRITICAL ALERT" : "WARNING";
+            const stats = alert.statsText || alert.stats || "";
+            const details = (
+              alert.details ||
+              alert.summary ||
+              alert.description ||
+              ""
+            ).trim();
 
             return `
                 <div style="background-color: #ffffff; border-left: 4px solid ${borderColor}; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; border-radius: 0 8px 8px 0; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
@@ -621,12 +631,16 @@ export async function buildHtmlBriefing(
                         ${badgeLabel}
                     </div>
                     <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
-                        ${alert.accountName}
+                        ${alert.accountName || "Account"}
                     </div>
-                    <div style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background-color: #f8fafc; padding: 4px 8px; border-radius: 4px; display: inline-block;">
-                        ${alert.statsText}
-                    </div>
-                    <div style="font-size: 13px; line-height: 1.5; color: #334155;">${alert.details.trim()}</div>
+                    ${
+                      stats
+                        ? `<div style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background-color: #f8fafc; padding: 4px 8px; border-radius: 4px; display: inline-block;">
+                        ${stats}
+                    </div>`
+                        : ""
+                    }
+                    <div style="font-size: 13px; line-height: 1.5; color: #334155;">${details}</div>
                 </div>
             `;
           })
@@ -639,18 +653,30 @@ export async function buildHtmlBriefing(
     briefing.successes && briefing.successes.length > 0
       ? briefing.successes
           .map((success: any) => {
+            const stats = success.statsText || success.stats || "";
+            const details = (
+              success.details ||
+              success.achievement ||
+              success.description ||
+              ""
+            ).trim();
+
             return `
                 <div style="background-color: #ffffff; border-left: 4px solid #10b981; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; border-radius: 0 8px 8px 0; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
                     <div style="display: inline-block; background-color: #d1fae5; color: #065f46; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; letter-spacing: 0.05em;">
                         SUCCESS
                     </div>
                     <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
-                        ${success.accountName}
+                        ${success.accountName || "Account"}
                     </div>
-                    <div style="font-size: 12px; font-weight: 600; color: #047857; margin-bottom: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background-color: #ecfdf5; padding: 4px 8px; border-radius: 4px; display: inline-block;">
-                        ${success.statsText}
-                    </div>
-                    <div style="font-size: 13px; line-height: 1.5; color: #334155;">${success.details.trim()}</div>
+                    ${
+                      stats
+                        ? `<div style="font-size: 12px; font-weight: 600; color: #047857; margin-bottom: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background-color: #ecfdf5; padding: 4px 8px; border-radius: 4px; display: inline-block;">
+                        ${stats}
+                    </div>`
+                        : ""
+                    }
+                    <div style="font-size: 13px; line-height: 1.5; color: #334155;">${details}</div>
                 </div>
             `;
           })
@@ -840,10 +866,20 @@ export async function buildTextBriefing(
     lines.push(`🔴 WHAT NEEDS YOUR ATTENTION TODAY`);
     lines.push(`--------------------------------------`);
     for (const alert of briefing.alerts) {
-      const prefix = alert.isCritical ? "🚨" : "⚠️";
-      lines.push(`${prefix} ${alert.accountName}`);
-      lines.push(`Stats: ${alert.statsText}`);
-      lines.push(`Note:  ${alert.details}`);
+      const isCritical =
+        alert.isCritical ??
+        (alert.severity === "CRITICAL" || alert.severity === "HIGH");
+      const prefix = isCritical ? "🚨" : "⚠️";
+      const stats = alert.statsText || alert.stats || "";
+      const details = (
+        alert.details ||
+        alert.summary ||
+        alert.description ||
+        ""
+      ).trim();
+      lines.push(`${prefix} ${alert.accountName || "Account"}`);
+      if (stats) lines.push(`Stats: ${stats}`);
+      if (details) lines.push(`Note:  ${details}`);
       lines.push("");
     }
   }
@@ -852,9 +888,16 @@ export async function buildTextBriefing(
     lines.push(`🟢 NOTABLE SUCCESSES`);
     lines.push(`--------------------------------------`);
     for (const success of briefing.successes) {
-      lines.push(`✨ ${success.accountName}`);
-      lines.push(`Stats: ${success.statsText}`);
-      lines.push(`Note:  ${success.details}`);
+      const stats = success.statsText || success.stats || "";
+      const details = (
+        success.details ||
+        success.achievement ||
+        success.description ||
+        ""
+      ).trim();
+      lines.push(`✨ ${success.accountName || "Account"}`);
+      if (stats) lines.push(`Stats: ${stats}`);
+      if (details) lines.push(`Note:  ${details}`);
       lines.push("");
     }
   }

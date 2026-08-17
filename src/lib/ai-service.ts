@@ -304,15 +304,17 @@ export async function generateMorningBriefingText(data: {
       "alerts": [
         {
           "accountName": "Account Name",
-          "severity": "CRITICAL" | "WARNING",
-          "summary": "Brief 1-sentence explanation of anomaly."
+          "isCritical": true,
+          "statsText": "Spend: $120.00 | Conv: 0 | CPA: -$0",
+          "details": "Brief 1-sentence explanation of anomaly."
         }
       ],
       "zeroConversionFootnote": "1 sentence contextualizing zero conversion accounts if >0, otherwise empty string.",
       "successes": [
         {
           "accountName": "Account Name",
-          "achievement": "Brief summary of win."
+          "statsText": "Spend: $250.00 | Conv: 4 | CPA: $62.50",
+          "details": "Brief summary of win."
         }
       ],
       "priorityList": [
