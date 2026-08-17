@@ -63,9 +63,11 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
 
   const accountMap = new Map(activeAccountsList.map((a) => [a.id, a]));
 
-  // 3. Fetch yesterday's performance
-  const yesterdayRows = await db.query.adPerformanceDaily.findMany({
-    where: eq(adPerformanceDaily.date, activeDateStr),
+  // 3. Fetch yesterday's performance (bypass RLS for system-wide background briefing)
+  const yesterdayRows = await withBypassTenantDb(async (tx) => {
+    return await tx.query.adPerformanceDaily.findMany({
+      where: eq(adPerformanceDaily.date, activeDateStr),
+    });
   });
 
   // 4. Fetch 30-day baseline performance
@@ -81,11 +83,13 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
   const baselineStartStr = formatUTCDate(baselineStart);
   const baselineEndStr = formatUTCDate(baselineEnd);
 
-  const baselineRows = await db.query.adPerformanceDaily.findMany({
-    where: and(
-      gte(adPerformanceDaily.date, baselineStartStr),
-      lte(adPerformanceDaily.date, baselineEndStr),
-    ),
+  const baselineRows = await withBypassTenantDb(async (tx) => {
+    return await tx.query.adPerformanceDaily.findMany({
+      where: and(
+        gte(adPerformanceDaily.date, baselineStartStr),
+        lte(adPerformanceDaily.date, baselineEndStr),
+      ),
+    });
   });
 
   // 5. Aggregate yesterday's data per account

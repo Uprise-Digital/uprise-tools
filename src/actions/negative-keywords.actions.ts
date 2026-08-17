@@ -598,15 +598,24 @@ export async function updateSuggestionStatusAction(
         let targetCampaignId = customCampaignId || finalCampaignId;
         let targetCampaignName = finalCampaignName;
 
-        if (targetCampaignId === "ALL") {
-          if (suggestion.triggerCampaignId) {
+        if (!targetCampaignId || targetCampaignId === "ALL") {
+          if (
+            suggestion.triggerCampaignId &&
+            suggestion.triggerCampaignId !== "ALL"
+          ) {
             targetCampaignId = suggestion.triggerCampaignId;
             targetCampaignName =
               suggestion.triggerCampaignName || "Trigger Campaign";
           } else {
-            throw new Error(
-              "Cannot apply to Campaign scope: no campaign selected or triggering campaign details not found.",
-            );
+            const campaigns = await fetchAccountCampaigns(googleAccountId);
+            if (campaigns && campaigns.length > 0) {
+              targetCampaignId = campaigns[0].id;
+              targetCampaignName = campaigns[0].name;
+            } else {
+              throw new Error(
+                "Cannot apply to Campaign scope: no active campaigns found in this Google Ads account.",
+              );
+            }
           }
         }
 
