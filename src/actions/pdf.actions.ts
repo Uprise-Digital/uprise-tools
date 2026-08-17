@@ -58,9 +58,17 @@ export async function generateClientReportAction(
 
     try {
       [rawSummary, rawKeywords, lastMonth] = await Promise.all([
-        fetchAccountMonthlySummary(googleAccountId, effectiveStart, effectiveEnd),
+        fetchAccountMonthlySummary(
+          googleAccountId,
+          effectiveStart,
+          effectiveEnd,
+        ),
         fetchAccountKeywords(googleAccountId, effectiveStart, effectiveEnd),
-        fetchAccountLastMonthSummary(googleAccountId, effectiveStart, effectiveEnd),
+        fetchAccountLastMonthSummary(
+          googleAccountId,
+          effectiveStart,
+          effectiveEnd,
+        ),
       ]);
     } catch (err) {
       console.warn(

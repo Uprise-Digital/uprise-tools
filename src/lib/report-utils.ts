@@ -42,9 +42,7 @@ export async function fetchAccountDataFromDb(
     const cleanStart = startDate
       ? startDate.split("T")[0].trim()
       : prevInfo.startDate;
-    const cleanEnd = endDate
-      ? endDate.split("T")[0].trim()
-      : prevInfo.endDate;
+    const cleanEnd = endDate ? endDate.split("T")[0].trim() : prevInfo.endDate;
 
     const sanitizedId = googleAccountId.replace(/-/g, "");
     const rows = await db

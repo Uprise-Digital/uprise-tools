@@ -30,7 +30,6 @@ import {
   saveReportScheduleAction,
   triggerManualQueueTestAction,
 } from "@/actions/automation.actions";
-import { getPreviousMonthInfo } from "@/lib/date-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +51,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
+import { getPreviousMonthInfo } from "@/lib/date-utils";
 
 interface AutomationRule {
   id: number;
@@ -274,7 +274,7 @@ export function AutomationSidebar({
                 </SheetDescription>
               </div>
             </div>
-            
+
             {/* Active Reporting Period Target Banner */}
             <div className="mt-4 p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl flex items-start gap-2.5 text-xs text-blue-900">
               <Calendar className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
@@ -283,7 +283,10 @@ export function AutomationSidebar({
                   Target Reporting Period: {prevMonthInfo.targetMonth}
                 </div>
                 <div className="text-[11px] text-blue-700 mt-0.5 leading-snug">
-                  Automated schedules compiled in {new Date().toLocaleString("default", { month: "long" })} strictly generate and email the full previous calendar month report ({prevMonthInfo.dateRange}).
+                  Automated schedules compiled in{" "}
+                  {new Date().toLocaleString("default", { month: "long" })}{" "}
+                  strictly generate and email the full previous calendar month
+                  report ({prevMonthInfo.dateRange}).
                 </div>
               </div>
             </div>
