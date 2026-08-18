@@ -36,11 +36,12 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url }) => {
-      await resend.emails.send({
-        from: "Agency Alerts <alerts@uprisedigital.com.au>",
+      const { sendSystemEmail } = await import("@/lib/email-service");
+      await sendSystemEmail({
+        templateKey: "team_invite",
         to: user.email,
-        subject: "Reset your password",
-        html: `<p>Hi ${user.name},</p><p>Click the link to reset: <a href="${url}">${url}</a></p>`,
+        customSubject: "Reset your password",
+        customHtml: `<p>Hi ${user.name},</p><p>Click the link to reset your password: <a href="${url}">${url}</a></p>`,
       });
     },
   },

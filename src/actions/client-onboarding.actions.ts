@@ -423,9 +423,16 @@ async function executeOnboardingPipeline(
     if (ghlEnabled) {
       const ghlIntegrations =
         (settings?.workflowConfig as any)?.integrations || {};
-      const ghlApiKey = ghlIntegrations.ghlApiKey;
-      const ghlLocationId = ghlIntegrations.ghlLocationId;
-      const ghlCompanyId = ghlIntegrations.ghlCompanyId;
+      let ghlApiKey = ghlIntegrations.ghlApiKey;
+      if (settings?.ghlApiKey) {
+        try {
+          ghlApiKey = decryptToken(settings.ghlApiKey);
+        } catch (err) {
+          console.error("Failed to decrypt GHL API key from settings:", err);
+        }
+      }
+      const ghlLocationId = settings?.ghlLocationId || ghlIntegrations.ghlLocationId;
+      const ghlCompanyId = settings?.ghlCompanyId || ghlIntegrations.ghlCompanyId;
 
       const ghlNode = (settings?.workflowConfig as any)?.nodes?.find(
         (n: any) => n.id === "ghl",
@@ -769,7 +776,7 @@ export async function sendOnboardingEmailAction(
         const orgRecord = await db.query.organization.findFirst({
           where: eq(organization.id, record.organizationId),
         });
-        const orgName = orgRecord?.name || "Uprise Digital";
+        const orgName = orgRecord?.brandName || orgRecord?.name || "Agency";
 
         const generated = compileOnboardingEmail({
           primaryContactName: record.primaryContactName,
@@ -780,37 +787,39 @@ export async function sendOnboardingEmailAction(
           googleAdsAccess: record.googleAdsAccess,
           metaAdsAccess: record.metaAdsAccess,
           orgName,
+          emailSignature: orgRecord?.emailSignature || undefined,
+          websiteUrl: orgRecord?.websiteUrl || undefined,
+          logoUrl: orgRecord?.logoUrl || orgRecord?.logo || undefined,
         });
         html = html || generated.html;
         text = text || generated.text;
       }
     }
 
-    const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY!);
+    const { sendSystemEmail } = await import("@/lib/email-service");
 
     console.log(
       `[Onboarding] Dispatching onboarding email to ${record.contactEmail}`,
     );
 
-    const emailResult = await resend.emails.send({
-      from: "Uprise Digital <reports@uprisedigital.com.au>",
-      to: [record.contactEmail],
+    const emailResult = await sendSystemEmail({
+      organizationId: record.organizationId,
+      templateKey: "onboarding_welcome",
+      to: record.contactEmail,
       replyTo: settings?.welcomeEmailReplyTo || undefined,
-      subject,
-      text,
-      html,
+      customSubject: subject,
+      customHtml: html,
+      variables: {
+        primary_contact_name: record.primaryContactName,
+        client_name: record.clientName,
+        drive_link: record.driveFolderLink || "",
+        notion_link: record.notionDashboardLink || "",
+        signal_link: record.signalGroupLink || "",
+      },
     });
 
-    if (emailResult.error) {
-      await logEmail({
-        recipient: record.contactEmail,
-        subject,
-        emailType: "client_onboarding",
-        status: "failed",
-        error: emailResult.error.message,
-      });
-      return { success: false, error: emailResult.error.message };
+    if (!emailResult.success) {
+      return { success: false, error: emailResult.error };
     }
 
     // Update Onboarding status to email_sent
@@ -823,14 +832,6 @@ export async function sendOnboardingEmailAction(
       })
       .where(eq(clientOnboardings.id, onboardingId));
 
-    await logEmail({
-      recipient: record.contactEmail,
-      subject,
-      emailType: "client_onboarding",
-      status: "success",
-      resendId: emailResult.data?.id,
-    });
-
     await logAction(
       userId,
       "SEND_ONBOARDING_EMAIL",
@@ -838,7 +839,7 @@ export async function sendOnboardingEmailAction(
       onboardingId,
       {
         recipient: record.contactEmail,
-        resendId: emailResult.data?.id,
+        resendId: emailResult.resendId,
       },
     );
 

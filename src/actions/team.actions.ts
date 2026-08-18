@@ -117,29 +117,20 @@ export async function inviteTeamMemberAction(payload: {
     updatedAt: new Date(),
   });
 
-  // Send email via Resend
-  const { Resend } = await import("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY!);
+  const { sendSystemEmail } = await import("@/lib/email-service");
 
   // Resolve app URL for accept link
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const inviteLink = `${appUrl}/signup?invite=${inviteId}`;
 
-  await resend.emails.send({
-    from: "Agency Alerts <alerts@uprisedigital.com.au>",
+  await sendSystemEmail({
+    organizationId: orgId,
+    templateKey: "team_invite",
     to: payload.email,
-    subject: "You've been invited to join Uprise Tools",
-    html: `
-      <div style="font-family: sans-serif; padding: 24px; color: #1e293b; max-width: 500px; border: 1px solid #e2e8f0; border-radius: 8px;">
-        <h2 style="color: #4f46e5; margin-top: 0;">Join your agency on Uprise Tools</h2>
-        <p>Hi,</p>
-        <p>You have been invited to join the organization on Uprise Tools as a <strong>${payload.role}</strong>.</p>
-        <p style="margin: 24px 0;">
-          <a href="${inviteLink}" style="background-color: #4f46e5; color: white; padding: 10px 18px; text-decoration: none; font-weight: bold; border-radius: 6px; font-size: 14px;">Accept Invitation</a>
-        </p>
-        <p style="font-size: 12px; color: #64748b; margin-top: 32px;">This invitation will expire in 7 days. If you did not expect this invitation, you can safely ignore this email.</p>
-      </div>
-    `,
+    variables: {
+      role: payload.role,
+      invite_url: inviteLink,
+    },
   });
 
   // Audit Log

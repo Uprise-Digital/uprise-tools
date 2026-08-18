@@ -118,13 +118,18 @@ export async function executeReportJobDirectly(params: {
     targetMonth: baseData.targetMonth,
   });
 
-  const emailResult = await resend.emails.send({
-    from: "Uprise Digital <reports@uprisedigital.com.au>",
+  const { sendSystemEmail } = await import("@/lib/email-service");
+
+  const emailResult = await sendSystemEmail({
+    organizationId: schedule.organizationId,
+    templateKey: "client_report",
     to: parseEmailList(schedule.recipientEmail),
-    cc: cleanCcEmails(schedule.ccEmails),
-    subject: emailSubjectText,
-    text: emailAi.emailBody,
-    html: htmlBody,
+    customSubject: emailSubjectText,
+    customHtml: htmlBody,
+    variables: {
+      client_name: clientName,
+      report_url: "",
+    },
     attachments: [
       {
         filename: `${clientName.replace(/\s+/g, "_")}_Report.pdf`,
@@ -133,26 +138,9 @@ export async function executeReportJobDirectly(params: {
     ],
   });
 
-  if (emailResult.error) {
-    await logEmail({
-      adAccountId: schedule.adAccountId,
-      recipient: schedule.recipientEmail,
-      subject: emailSubjectText,
-      emailType: "on_demand_report",
-      status: "failed",
-      error: emailResult.error.message,
-    });
-    throw new Error(`Resend Error: ${emailResult.error.message}`);
+  if (!emailResult.success) {
+    throw new Error(`Email Send Error: ${emailResult.error}`);
   }
-
-  await logEmail({
-    adAccountId: schedule.adAccountId,
-    recipient: schedule.recipientEmail,
-    subject: emailSubjectText,
-    emailType: "on_demand_report",
-    status: "success",
-    resendId: emailResult.data?.id,
-  });
 
   await db
     .update(reportSchedules)
