@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Database,
+  Download,
   Image as ImageIcon,
   Loader2,
   Plus,
@@ -16,6 +17,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
+import { exportOrganizationDataAction } from "@/actions/organization-export.actions";
 import { deleteOrganizationAction } from "@/actions/organization-offboarding.actions";
 import {
   disconnectGoogleAdsAction,
@@ -139,6 +141,42 @@ export function GeneralTab({
       });
     } finally {
       setDeletingOrg(false);
+    }
+  };
+
+  // Data Portability (GDPR Art. 20) State & Handler
+  const [exportingData, setExportingData] = useState(false);
+
+  const handleExportData = async () => {
+    setExportingData(true);
+    const toastId = toast.loading("Compiling tenant data export payload...");
+    try {
+      const res = await exportOrganizationDataAction();
+      if (res.success && res.data && res.filename) {
+        const blob = new Blob([res.data], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = res.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast.success("Tenant data export successfully downloaded.", {
+          id: toastId,
+        });
+      } else {
+        toast.error(res.error || "Failed to export tenant data.", {
+          id: toastId,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An unexpected error occurred.", {
+        id: toastId,
+      });
+    } finally {
+      setExportingData(false);
     }
   };
 
@@ -946,6 +984,46 @@ export function GeneralTab({
                   : "Save Agency Branding"}
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* DATA PORTABILITY & EXPORT (GDPR ART. 20) */}
+        <Card className="py-0 border-indigo-200 shadow-xs overflow-hidden bg-indigo-50/20">
+          <CardHeader className="bg-indigo-50/60 border-b border-indigo-100 p-5">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-indigo-950">
+              <Download className="w-4 h-4 text-indigo-600" />
+              Data Portability & Tenant Export (GDPR Art. 20)
+            </CardTitle>
+            <CardDescription className="text-xs text-indigo-800/80">
+              Download a complete machine-readable JSON archive containing all
+              client records, ad performance datasets, email delivery logs, and
+              integration configurations.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1 max-w-xl">
+              <span className="text-xs font-bold text-slate-800 block">
+                Export all organization data in standard JSON format
+              </span>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Fulfills GDPR Article 20 requirements. Allows owners and admins
+                to securely backup or transfer tenant data anytime.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={
+                exportingData ||
+                (userRole?.toLowerCase() !== "owner" &&
+                  userRole?.toLowerCase() !== "admin")
+              }
+              onClick={handleExportData}
+              className="border-indigo-300 text-indigo-700 hover:bg-indigo-100 font-bold text-xs h-9 px-4 shrink-0 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" />
+              {exportingData ? "Compiling Export..." : "Export Data (.json)"}
+            </Button>
           </CardContent>
         </Card>
 
