@@ -548,27 +548,24 @@ export default function AdAuditClientPage({
                       <TableRow className="border-slate-100">
                         <TableHead
                           onClick={() => handleSort("campaignName")}
-                          className="cursor-pointer font-bold text-xs text-slate-600 hover:text-indigo-600 transition-colors px-6"
+                          className="cursor-pointer font-bold text-xs text-slate-600 hover:text-indigo-600 transition-colors px-4 min-w-[180px]"
                         >
                           Campaign / Ad Group
                         </TableHead>
-                        <TableHead className="font-bold text-xs text-slate-600 px-6">
+                        <TableHead className="font-bold text-xs text-slate-600 px-4">
                           Headlines & Descriptions
                         </TableHead>
                         <TableHead
                           onClick={() => handleSort("adStrength")}
-                          className="cursor-pointer font-bold text-xs text-slate-600 hover:text-indigo-600 transition-colors px-6 text-center"
+                          className="cursor-pointer font-bold text-xs text-slate-600 hover:text-indigo-600 transition-colors px-4 text-center w-[110px]"
                         >
                           Ad Strength
                         </TableHead>
                         <TableHead
                           onClick={() => handleSort("latestAuditScore")}
-                          className="cursor-pointer font-bold text-xs text-slate-600 hover:text-indigo-600 transition-colors px-6 text-center"
+                          className="cursor-pointer font-bold text-xs text-slate-600 hover:text-indigo-600 transition-colors px-4 text-right min-w-[180px]"
                         >
-                          Audit Score
-                        </TableHead>
-                        <TableHead className="text-right font-bold text-xs text-slate-600 px-6">
-                          Actions
+                          Audit Status & Actions
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -580,12 +577,12 @@ export default function AdAuditClientPage({
                             className="hover:bg-slate-50/80 border-slate-100 transition-colors"
                           >
                             {/* Campaign / Ad Group */}
-                            <TableCell className="align-top py-4 px-6 max-w-[220px]">
+                            <TableCell className="align-top py-4 px-4 min-w-[180px]">
                               <div className="space-y-1">
-                                <div className="font-bold text-xs text-slate-800 truncate" title={ad.campaignName}>
+                                <div className="font-bold text-xs text-slate-800 break-words leading-tight" title={ad.campaignName}>
                                   {ad.campaignName}
                                 </div>
-                                <div className="text-[11px] font-semibold text-slate-400 truncate" title={ad.adGroupName}>
+                                <div className="text-[11px] font-semibold text-slate-400 break-words" title={ad.adGroupName}>
                                   {ad.adGroupName}
                                 </div>
                                 {ad.finalUrl && (
@@ -593,17 +590,17 @@ export default function AdAuditClientPage({
                                     href={ad.finalUrl}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="text-[10px] text-indigo-600 hover:underline flex items-center gap-1 font-medium truncate pt-1"
+                                    className="text-[10px] text-indigo-600 hover:underline flex items-center gap-1 font-medium break-all pt-1"
                                   >
                                     <ExternalLink className="h-3 w-3 shrink-0" />
-                                    <span className="truncate">{ad.finalUrl}</span>
+                                    <span className="break-all">{ad.finalUrl}</span>
                                   </a>
                                 )}
                               </div>
                             </TableCell>
 
                             {/* Headlines & Descriptions */}
-                            <TableCell className="align-top py-4 px-6 max-w-[400px]">
+                            <TableCell className="align-top py-4 px-4">
                               <div className="space-y-2">
                                 <div>
                                   <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">
@@ -653,7 +650,7 @@ export default function AdAuditClientPage({
                             </TableCell>
 
                             {/* Ad Strength */}
-                            <TableCell className="align-top py-4 px-6 text-center">
+                            <TableCell className="align-top py-4 px-4 text-center">
                               <Badge
                                 className={`font-black text-[10px] border shadow-none uppercase ${
                                   ad.adStrength === "EXCELLENT"
@@ -669,58 +666,57 @@ export default function AdAuditClientPage({
                               </Badge>
                             </TableCell>
 
-                            {/* Latest Audit Score */}
-                            <TableCell className="align-top py-4 px-6 text-center">
-                              {ad.latestAuditScore !== null && ad.latestAuditScore !== undefined ? (
-                                <div className="space-y-1">
-                                  <Badge
-                                    className={`font-black text-xs border shadow-none ${
-                                      ad.latestAuditScore >= 80
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                        : ad.latestAuditScore >= 60
-                                          ? "bg-amber-50 text-amber-700 border-amber-200"
-                                          : "bg-rose-50 text-rose-700 border-rose-200"
-                                    }`}
-                                  >
-                                    {ad.latestAuditScore}/100
-                                  </Badge>
-                                  {ad.latestAuditDate && (
-                                    <p className="text-[10px] text-slate-400 font-medium">
-                                      {new Date(ad.latestAuditDate).toLocaleDateString()}
-                                    </p>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-slate-400 font-medium italic">
-                                  Not audited
-                                </span>
-                              )}
-                            </TableCell>
+                            {/* Combined Audit Status & Actions */}
+                            <TableCell className="align-top py-4 px-4 text-right">
+                              <div className="flex flex-col items-end gap-2">
+                                {ad.latestAuditScore !== null && ad.latestAuditScore !== undefined ? (
+                                  <div className="space-y-0.5 text-right">
+                                    <Badge
+                                      className={`font-black text-xs border shadow-none ${
+                                        ad.latestAuditScore >= 80
+                                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                          : ad.latestAuditScore >= 60
+                                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                                            : "bg-rose-50 text-rose-700 border-rose-200"
+                                      }`}
+                                    >
+                                      Score: {ad.latestAuditScore}/100
+                                    </Badge>
+                                    {ad.latestAuditDate && (
+                                      <p className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                                        Audited {new Date(ad.latestAuditDate).toLocaleDateString()}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-slate-400 font-medium italic whitespace-nowrap">
+                                    Not audited
+                                  </span>
+                                )}
 
-                            {/* Actions */}
-                            <TableCell className="text-right px-6">
-                              <div className="flex items-center justify-end gap-2">
-                                {ad.latestAuditId && (
+                                <div className="flex items-center gap-1.5 pt-0.5">
+                                  {ad.latestAuditId && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        router.push(`/ad-audit/${ad.latestAuditId}`)
+                                      }
+                                      className="h-7 px-2.5 rounded-lg text-xs font-bold border-slate-200 text-slate-700"
+                                    >
+                                      Details
+                                      <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                                    </Button>
+                                  )}
                                   <Button
                                     size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                      router.push(`/ad-audit/${ad.latestAuditId}`)
-                                    }
-                                    className="h-8 rounded-lg text-xs font-bold border-slate-200 text-slate-700"
+                                    onClick={() => openAuditModal(ad)}
+                                    className="h-7 px-2.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1 shadow-sm"
                                   >
-                                    Details
-                                    <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                                    <Play className="h-3 w-3 fill-current" />
+                                    Audit
                                   </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  onClick={() => openAuditModal(ad)}
-                                  className="h-8 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1 shadow-sm"
-                                >
-                                  <Play className="h-3 w-3 fill-current" />
-                                  Audit
-                                </Button>
+                                </div>
                               </div>
                             </TableCell>
                           </TableRow>
