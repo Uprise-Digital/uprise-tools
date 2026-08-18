@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+process.env.ENCRYPTION_KEY =
+  process.env.ENCRYPTION_KEY ||
+  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
 // Mock DB module for unit testing key resolution
 vi.mock("@/db", () => {
   return {
