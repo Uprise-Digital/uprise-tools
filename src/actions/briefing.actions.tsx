@@ -1,6 +1,8 @@
 "use server";
 
 import { and, eq, gte, lte, ne } from "drizzle-orm";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 import { Resend } from "resend";
 import { db } from "@/db";
 import { withBypassTenantDb } from "@/db/db-helper";
@@ -523,35 +525,32 @@ export async function sendMorningBriefingAction() {
     const htmlBody = buildHtmlBriefing(briefing, dataRes.data.totals, dateStr);
     const textBody = buildTextBriefing(briefing, dataRes.data.totals, dateStr);
 
-    // 4. Dispatch emails via Resend
-    console.log(`Sending Morning Briefing email to: ${emails.join(", ")}`);
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    const orgId = session?.session?.activeOrganizationId;
 
-    const emailResult = await resend.emails.send({
-      from: "Uprise Digital <reports@uprisedigital.com.au>",
+    const { sendSystemEmail } = await import("@/lib/email-service");
+
+    const emailResult = await sendSystemEmail({
+      organizationId: orgId || undefined,
+      templateKey: "daily_briefing",
       to: emails,
-      subject: subject,
-      text: await textBody,
-      html: await htmlBody,
+      customSubject: subject,
+      customHtml: await htmlBody,
+      variables: {
+        date: new Date().toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+      },
     });
 
-    if (emailResult.error) {
-      await logEmail({
-        recipient: emails.join(", "),
-        subject: subject,
-        emailType: "morning_briefing",
-        status: "failed",
-        error: emailResult.error.message,
-      });
-      throw new Error(`Resend Error: ${emailResult.error.message}`);
+    if (!emailResult.success) {
+      throw new Error(`Briefing Dispatch Error: ${emailResult.error}`);
     }
-
-    await logEmail({
-      recipient: emails.join(", "),
-      subject: subject,
-      emailType: "morning_briefing",
-      status: "success",
-      resendId: emailResult.data?.id,
-    });
 
     // 5. Log the audit action
     await logAction(SYSTEM_ACTOR, "DAILY_BRIEFING_SENT", "user", SYSTEM_ACTOR, {
@@ -607,8 +606,8 @@ export async function buildHtmlBriefing(
   totals: any,
   dateStr: string,
 ) {
-  const logoUrl =
-    "https://uprise-tools-production.up.railway.app/logo_white.png";
+  const { getAppUrl } = await import("@/lib/app-url");
+  const logoUrl = `${getAppUrl()}/logo_white.png`;
 
   const alertsHtml =
     briefing.alerts && briefing.alerts.length > 0

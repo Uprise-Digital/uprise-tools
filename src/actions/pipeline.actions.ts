@@ -597,9 +597,8 @@ export async function sendStalledOpportunitiesReminderAction() {
     }
 
     // 4. Compile HTML
-    const appUrl =
-      process.env.BETTER_AUTH_URL ||
-      "https://uprise-tools-production.up.railway.app";
+    const { getAppUrl } = await import("@/lib/app-url");
+    const appUrl = getAppUrl();
 
     let tableRows = "";
     for (const opp of stalledOpps) {
@@ -619,7 +618,7 @@ export async function sendStalledOpportunitiesReminderAction() {
     const htmlBody = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
         <div style="text-align: center; margin-bottom: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
-          <img src="https://uprise-tools-production.up.railway.app/logo_white.png" alt="Uprise Logo" style="height: 36px; filter: invert(1); margin-bottom: 8px;" />
+          <img src="${appUrl}/logo_white.png" alt="Logo" style="height: 36px; filter: invert(1); margin-bottom: 8px;" />
           <h1 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a;">Sales Follow-up Required</h1>
         </div>
 
@@ -658,23 +657,25 @@ export async function sendStalledOpportunitiesReminderAction() {
 
     const subject = `⚠️ Action Required: ${stalledOpps.length} Stalled Sales Opportunities`;
 
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    const orgId = session?.session?.activeOrganizationId;
+
+    const { sendSystemEmail } = await import("@/lib/email-service");
+
     // 5. Send emails
     for (const email of recipients) {
-      const emailResult = await resend.emails.send({
-        from: "Uprise Tools <briefing@uprise.digital>",
+      await sendSystemEmail({
+        organizationId: orgId || undefined,
+        templateKey: "pipeline_digest",
         to: email,
-        subject: subject,
-        html: htmlBody,
-      });
-
-      // Log to email_logs
-      await logEmail({
-        recipient: email,
-        subject: subject,
-        emailType: "morning_briefing",
-        status: emailResult.error ? "failed" : "success",
-        resendId: emailResult.data?.id || null,
-        error: emailResult.error?.message || null,
+        customSubject: subject,
+        customHtml: htmlBody,
+        variables: {
+          stalled_count: String(stalledOpps.length),
+          pipeline_url: `${appUrl}/pipeline`,
+        },
       });
     }
 

@@ -1,3 +1,5 @@
+import { getAppUrl } from "@/lib/app-url";
+
 export function buildReportEmailHtml(data: {
   clientName: string;
   introText: string;
@@ -11,6 +13,7 @@ export function buildReportEmailHtml(data: {
   targetMonth?: string;
 }): string {
   const { clientName, introText, metrics, targetMonth } = data;
+  const appUrl = getAppUrl();
 
   const conversions = metrics?.conversions ?? "0";
   const cost = metrics?.cost ? `$${metrics.cost}` : "-";
@@ -80,8 +83,8 @@ export function buildReportEmailHtml(data: {
               <table width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td>
-                    <!-- OFFICIAL UPRISE LOGO IMAGE (PNG format for universal email compatibility) -->
-                    <img src="https://uprisedigital.com.au/wp-content/uploads/2025/04/rev4-03-1-1.png" alt="Uprise Digital" height="38" style="display: block; border: 0; max-height: 38px; width: auto;" />
+                    <!-- Dynamic Agency Logo Image -->
+                    <img src="${appUrl}/logo_white.png" alt="Agency Logo" height="38" style="display: block; border: 0; max-height: 38px; width: auto;" />
                   </td>
                   <td align="right" valign="middle">
                     <div style="display: inline-block; font-size: 10px; font-weight: 700; color: #6d28d9; background-color: #f3e8ff; border: 1px solid #e9d5ff; padding: 5px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.6px;">
@@ -143,14 +146,14 @@ export function buildReportEmailHtml(data: {
                 <tr>
                   <td>
                     <div style="font-size: 13.5px; font-weight: 800; color: #0f172a;">
-                      The Uprise Digital Team
+                      Performance Team
                     </div>
                     <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
                       Strategy &bull; Marketing &bull; Sales Optimisation
                     </div>
                   </td>
                   <td align="right">
-                    <a href="https://uprisedigital.com.au" style="display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 11px; font-weight: 700; text-decoration: none; padding: 8px 18px; border-radius: 9999px; letter-spacing: 0.3px;">
+                    <a href="${appUrl}" style="display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 11px; font-weight: 700; text-decoration: none; padding: 8px 18px; border-radius: 9999px; letter-spacing: 0.3px;">
                       Visit Website &rarr;
                     </a>
                   </td>

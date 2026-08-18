@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/email-service", () => ({
+  sendSystemEmail: vi.fn().mockResolvedValue({ success: true, resendId: "mock-123" }),
+}));
+
 import {
   generateBriefingAction,
   getBriefingDataAction,

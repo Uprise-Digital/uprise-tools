@@ -13,9 +13,10 @@ import {
   ShieldCheck,
   Terminal,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { rollMcpApiKeyAction } from "@/actions/mcp.actions";
+import { getAppUrl } from "@/lib/app-url";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -321,9 +322,14 @@ export default function McpSettingsClient({
   const [expandedCategory, setExpandedCategory] = useState<string | null>(
     "portfolio",
   );
+  const [baseUrl, setBaseUrl] = useState("http://localhost:3000");
+
+  useEffect(() => {
+    setBaseUrl(getAppUrl());
+  }, []);
 
   const handleCopyConfig = () => {
-    const config = `{\n  "mcpServers": {\n    "agency-os": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "@modelcontextprotocol/client-sse",\n        "--url",\n        "https://uprise-tools-production.up.railway.app/api/mcp",\n        "--header",\n        "Authorization: Bearer ${apiKey}"\n      ]\n    }\n  }\n}`;
+    const config = `{\n  "mcpServers": {\n    "agency-os": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "@modelcontextprotocol/client-sse",\n        "--url",\n        "${baseUrl}/api/mcp",\n        "--header",\n        "Authorization: Bearer ${apiKey}"\n      ]\n    }\n  }\n}`;
     navigator.clipboard.writeText(config);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
@@ -446,7 +452,7 @@ export default function McpSettingsClient({
         "-y",
         "@modelcontextprotocol/client-sse",
         "--url",
-        "https://uprise-tools-production.up.railway.app/api/mcp",
+        "${baseUrl}/api/mcp",
         "--header",
         "Authorization: Bearer ${apiKey}"
       ]
@@ -477,7 +483,7 @@ export default function McpSettingsClient({
                   <div className="flex items-center gap-2">
                     <Input
                       readOnly
-                      value={`https://uprise-tools-production.up.railway.app/api/mcp/mcp?key=${apiKey}`}
+                      value={`${baseUrl}/api/mcp/mcp?key=${apiKey}`}
                       className="font-mono text-xs bg-slate-50 border-slate-200 text-slate-600 h-8"
                     />
                     <Button
@@ -486,7 +492,7 @@ export default function McpSettingsClient({
                       className="text-xs h-8 w-20"
                       onClick={() => {
                         navigator.clipboard.writeText(
-                          `https://uprise-tools-production.up.railway.app/api/mcp/mcp?key=${apiKey}`,
+                          `${baseUrl}/api/mcp/mcp?key=${apiKey}`,
                         );
                         toast.success("Connection URL copied!");
                       }}
