@@ -106,10 +106,10 @@ describe("Client Onboarding Actions", () => {
         metaAdsAccess: true,
       });
 
-      expect(result.text).toContain("google-ads-access");
-      expect(result.text).toContain("meta-ads-access");
-      expect(result.html).toContain("Google Ads Account Access Instructions");
-      expect(result.html).toContain("Meta Ads Account Access Instructions");
+      expect(result.text).toContain("Google Ads account");
+      expect(result.text).toContain("Meta Ads account");
+      expect(result.html).toContain("Google Ads account");
+      expect(result.html).toContain("Meta Ads account");
     });
 
     it("should omit Meta Ads instructions when metaAdsAccess is false", () => {
@@ -123,10 +123,10 @@ describe("Client Onboarding Actions", () => {
         metaAdsAccess: false,
       });
 
-      expect(result.text).toContain("google-ads-access");
-      expect(result.text).not.toContain("meta-ads-access");
-      expect(result.html).toContain("Google Ads Account Access Instructions");
-      expect(result.html).not.toContain("Meta Ads Account Access Instructions");
+      expect(result.text).toContain("Google Ads account");
+      expect(result.text).not.toContain("Meta Ads account");
+      expect(result.html).toContain("Google Ads account");
+      expect(result.html).not.toContain("Meta Ads account");
     });
 
     it("should omit Google Ads instructions when googleAdsAccess is false", () => {
@@ -140,12 +140,10 @@ describe("Client Onboarding Actions", () => {
         metaAdsAccess: true,
       });
 
-      expect(result.text).not.toContain("google-ads-access");
-      expect(result.text).toContain("meta-ads-access");
-      expect(result.html).not.toContain(
-        "Google Ads Account Access Instructions",
-      );
-      expect(result.html).toContain("Meta Ads Account Access Instructions");
+      expect(result.text).not.toContain("Google Ads account");
+      expect(result.text).toContain("Meta Ads account");
+      expect(result.html).not.toContain("Google Ads account");
+      expect(result.html).toContain("Meta Ads account");
     });
   });
 });

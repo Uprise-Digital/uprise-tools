@@ -11,6 +11,9 @@ export function compileOnboardingEmail(params: {
   metaAdsAccess: boolean;
   orgName?: string;
   customTemplate?: string;
+  emailSignature?: string;
+  websiteUrl?: string;
+  logoUrl?: string;
 }) {
   const {
     primaryContactName,
@@ -20,8 +23,11 @@ export function compileOnboardingEmail(params: {
     signalGroupLink,
     googleAdsAccess,
     metaAdsAccess,
-    orgName = "Uprise Digital",
+    orgName = "Agency",
     customTemplate,
+    emailSignature,
+    websiteUrl,
+    logoUrl,
   } = params;
 
   let textBody = "";
@@ -42,7 +48,6 @@ export function compileOnboardingEmail(params: {
       parsedBody = parsedBody.replace(regex, val);
     }
     textBody = parsedBody;
-    // Map custom email body to HTML with line breaks and entities preserved
     const escaped = parsedBody
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -53,14 +58,20 @@ export function compileOnboardingEmail(params: {
     let adsInstructionsHtml = "";
 
     if (googleAdsAccess) {
-      adsInstructionsText += `To grant us access to your Google Ads account, please follow the steps here: https://tools.uprisedigital.com.au/docs/client-guides/google-ads-access\n\n`;
-      adsInstructionsHtml += `<p style="margin-bottom: 12px;">To grant us access to your Google Ads account, please follow the steps here: <a href="https://tools.uprisedigital.com.au/docs/client-guides/google-ads-access" style="color: #4f46e5; text-decoration: underline; font-weight: 600;">Google Ads Account Access Instructions</a></p>`;
+      adsInstructionsText += `To grant us access to your Google Ads account, please follow the steps provided by your onboarding manager.\n\n`;
+      adsInstructionsHtml += `<p style="margin-bottom: 12px;">To grant us access to your Google Ads account, please follow the steps provided by your onboarding manager.</p>`;
     }
 
     if (metaAdsAccess) {
-      adsInstructionsText += `To grant us access to your Meta Ads account, please follow the steps here: https://tools.uprisedigital.com.au/docs/client-guides/meta-ads-access\n\n`;
-      adsInstructionsHtml += `<p style="margin-bottom: 12px;">To grant us access to your Meta Ads account, please follow the steps here: <a href="https://tools.uprisedigital.com.au/docs/client-guides/meta-ads-access" style="color: #4f46e5; text-decoration: underline; font-weight: 600;">Meta Ads Account Access Instructions</a></p>`;
+      adsInstructionsText += `To grant us access to your Meta Ads account, please follow the steps provided by your onboarding manager.\n\n`;
+      adsInstructionsHtml += `<p style="margin-bottom: 12px;">To grant us access to your Meta Ads account, please follow the steps provided by your onboarding manager.</p>`;
     }
+
+    const defaultSignatureText = emailSignature || `${orgName} Team\n${websiteUrl || ""}`;
+    const defaultSignatureHtml = emailSignature
+      ? `<div style="font-size: 13px; color: #475569;">${emailSignature.replace(/\n/g, "<br/>")}</div>`
+      : `<p style="font-size: 14px; font-weight: bold; margin: 0 0 4px 0; color: #0f172a;">${orgName} Team</p>
+  ${websiteUrl ? `<p style="font-size: 12px; color: #64748b; margin: 0;"><a href="${websiteUrl}" style="color: #4f46e5; text-decoration: none;">${websiteUrl}</a></p>` : ""}`;
 
     textBody = `Hi ${primaryContactName},
 
@@ -87,12 +98,10 @@ Feel free to reach out if you have any questions or concerns. Don't hesitate to 
 
 Thank you and have a great day!
 
-Lakshane Fonseka
-Founder | ${orgName}
-+61 426 759 756
-www.uprisedigital.com.au`;
+${defaultSignatureText}`;
 
     htmlBody = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
+  ${logoUrl ? `<div style="margin-bottom: 20px;"><img src="${logoUrl}" alt="${orgName}" style="max-height: 48px; display: block;" /></div>` : ""}
   <p style="font-size: 16px; margin-bottom: 16px;">Hi ${primaryContactName},</p>
   
   <p style="font-size: 16px; margin-bottom: 16px;">Great to have you on board!</p>
@@ -107,7 +116,7 @@ www.uprisedigital.com.au`;
       Please upload all your media assets like photos, videos, and logos (preferably in high-quality PNG format) inside the folder.
     </p>
   </div>
- 
+
   <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; padding: 16px; margin-bottom: 24px; border-radius: 0 8px 8px 0;">
     <p style="margin: 0 0 8px 0; font-weight: 600; color: #0f172a;">2. Client Dashboard</p>
     <p style="margin: 0; font-size: 14px; color: #475569;">You can access the 
@@ -147,10 +156,7 @@ www.uprisedigital.com.au`;
   
   <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
   
-  <p style="font-size: 14px; font-weight: bold; margin: 0 0 4px 0; color: #0f172a;">Lakshane Fonseka</p>
-  <p style="font-size: 12px; color: #64748b; margin: 0 0 4px 0;">Founder | ${orgName}</p>
-  <p style="font-size: 12px; color: #64748b; margin: 0 0 4px 0;">+61 426 759 756</p>
-  <p style="font-size: 12px; color: #64748b; margin: 0;"><a href="https://www.uprisedigital.com.au" style="color: #4f46e5; text-decoration: none;">www.uprisedigital.com.au</a></p>
+  ${defaultSignatureHtml}
 </div>`;
   }
 

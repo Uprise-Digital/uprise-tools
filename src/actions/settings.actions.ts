@@ -666,3 +666,123 @@ export async function updateNegativeKeywordOptionsAction(payload: {
     return { success: false, error: error.message };
   }
 }
+
+export async function getOrganizationBrandingAction() {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    let orgId = session.session.activeOrganizationId;
+    if (!orgId) {
+      const userMember = await db.query.member.findFirst({
+        where: eq(member.userId, session.user.id),
+      });
+      if (userMember) {
+        orgId = userMember.organizationId;
+      }
+    }
+
+    if (!orgId) {
+      return { success: false, error: "No active organization" };
+    }
+
+    const org = await db.query.organization.findFirst({
+      where: eq(organization.id, orgId),
+    });
+
+    if (!org) {
+      return { success: false, error: "Organization not found" };
+    }
+
+    return {
+      success: true,
+      data: {
+        brandName: org.brandName || org.name || "",
+        logoUrl: org.logoUrl || org.logo || "",
+        emailSignature: org.emailSignature || "",
+        websiteUrl: org.websiteUrl || "",
+        supportEmail: org.supportEmail || "",
+      },
+    };
+  } catch (error: any) {
+    console.error("Failed to get organization branding:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateOrganizationBrandingAction(payload: {
+  brandName?: string;
+  logoBase64?: string;
+  emailSignature?: string;
+  websiteUrl?: string;
+  supportEmail?: string;
+}) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    let orgId = session.session.activeOrganizationId;
+    if (!orgId) {
+      const userMember = await db.query.member.findFirst({
+        where: eq(member.userId, session.user.id),
+      });
+      if (userMember) {
+        orgId = userMember.organizationId;
+      }
+    }
+
+    if (!orgId) {
+      return { success: false, error: "No active organization" };
+    }
+
+    let uploadedLogoUrl: string | undefined;
+
+    if (payload.logoBase64) {
+      const { uploadImageToR2 } = await import("@/lib/storage");
+      const cleanBase64 = payload.logoBase64.replace(/^data:image\/\w+;base64,/, "");
+      const fileName = `logos/org_${orgId}_${Date.now()}.png`;
+      const url = await uploadImageToR2(cleanBase64, fileName);
+      if (url) {
+        uploadedLogoUrl = url;
+      }
+    }
+
+    const updates: Record<string, any> = {
+      updatedAt: new Date(),
+    };
+
+    if (payload.brandName !== undefined) updates.brandName = payload.brandName;
+    if (uploadedLogoUrl) {
+      updates.logoUrl = uploadedLogoUrl;
+      updates.logo = uploadedLogoUrl;
+    }
+    if (payload.emailSignature !== undefined) updates.emailSignature = payload.emailSignature;
+    if (payload.websiteUrl !== undefined) updates.websiteUrl = payload.websiteUrl;
+    if (payload.supportEmail !== undefined) updates.supportEmail = payload.supportEmail;
+
+    await db
+      .update(organization)
+      .set(updates)
+      .where(eq(organization.id, orgId));
+
+    revalidatePath("/settings");
+
+    return {
+      success: true,
+      logoUrl: uploadedLogoUrl,
+    };
+  } catch (error: any) {
+    console.error("Failed to update organization branding:", error);
+    return { success: false, error: error.message };
+  }
+}

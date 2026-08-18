@@ -609,8 +609,7 @@ function OnboardingTabContent({
       "",
   );
   const [ghlCompanyId, setGhlCompanyId] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlCompanyId ??
-      "BwvkM3wHfHWTcRf9EO3t",
+    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlCompanyId ?? "",
   );
   const [showGhlKey, setShowGhlKey] = useState(false);
 
@@ -1196,6 +1195,10 @@ Founder | ${orgName}`;
         googleDriveEnabled,
         notionEnabled,
         notionApiKey,
+        ghlEnabled,
+        ghlApiKey,
+        ghlLocationId,
+        ghlCompanyId,
         welcomeEmailSubject,
         welcomeEmailTemplate,
         welcomeEmailReplyTo,
