@@ -89,6 +89,13 @@ interface GeneralTabProps {
   userEmail: string;
   userRole: string;
   initialAutoJoinDomainEnabled: boolean;
+  initialBranding?: {
+    brandName: string;
+    logoUrl: string;
+    emailSignature: string;
+    websiteUrl: string;
+    supportEmail: string;
+  };
 }
 
 function formatCustomerId(id: any) {
@@ -214,12 +221,20 @@ export function GeneralTab({
   );
   const [updatingOptions, setUpdatingOptions] = useState(false);
 
-  const [brandName, setBrandName] = useState(orgName);
-  const [logoUrl, setLogoUrl] = useState("");
+  const [brandName, setBrandName] = useState(
+    initialBranding?.brandName || orgName,
+  );
+  const [logoUrl, setLogoUrl] = useState(initialBranding?.logoUrl || "");
   const [logoBase64, setLogoBase64] = useState("");
-  const [emailSignature, setEmailSignature] = useState("");
-  const [websiteUrl, setWebsiteUrl] = useState("");
-  const [supportEmail, setSupportEmail] = useState("");
+  const [emailSignature, setEmailSignature] = useState(
+    initialBranding?.emailSignature || "",
+  );
+  const [websiteUrl, setWebsiteUrl] = useState(
+    initialBranding?.websiteUrl || "",
+  );
+  const [supportEmail, setSupportEmail] = useState(
+    initialBranding?.supportEmail || "",
+  );
   const [savingBranding, setSavingBranding] = useState(false);
 
   useEffect(() => {
@@ -907,15 +922,22 @@ export function GeneralTab({
               </Label>
               <div className="flex items-center gap-4 p-4 border border-slate-200 rounded-xl bg-slate-50/50">
                 {logoUrl ? (
-                  <div className="w-20 h-14 shrink-0 bg-white border border-slate-200 rounded-lg p-2 flex items-center justify-center shadow-xs">
+                  <div className="w-24 h-16 shrink-0 bg-slate-950 border border-slate-800 rounded-lg p-2 flex items-center justify-center shadow-xs relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:8px_8px] opacity-40" />
                     <img
                       src={logoUrl}
                       alt="Agency Logo"
-                      className="max-h-full max-w-full object-contain"
+                      className="max-h-full max-w-full object-contain relative z-10"
+                      onError={() => {
+                        console.warn(
+                          "[Logo Preview] Image failed to render:",
+                          logoUrl,
+                        );
+                      }}
                     />
                   </div>
                 ) : (
-                  <div className="w-20 h-14 shrink-0 bg-slate-100 border border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400">
+                  <div className="w-24 h-16 shrink-0 bg-slate-100 border border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400">
                     <ImageIcon className="w-5 h-5 mb-0.5" />
                     <span className="text-[9px] font-bold">No Logo</span>
                   </div>

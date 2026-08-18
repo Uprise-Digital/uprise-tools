@@ -167,6 +167,14 @@ export default async function SettingsPage() {
     getAiUsageStatsAction(),
   ]);
 
+  const initialBranding = {
+    brandName: orgRecord?.brandName || orgRecord?.name || "",
+    logoUrl: orgRecord?.logoUrl || orgRecord?.logo || "",
+    emailSignature: orgRecord?.emailSignature || "",
+    websiteUrl: orgRecord?.websiteUrl || "",
+    supportEmail: orgRecord?.supportEmail || "",
+  };
+
   return (
     <SettingsClient
       initialDefaults={defaultsRes.data}
@@ -178,6 +186,7 @@ export default async function SettingsPage() {
       userEmail={session.user.email}
       userRole={memberRecord?.role || "member"}
       initialAutoJoinDomainEnabled={initialAutoJoinDomainEnabled}
+      initialBranding={initialBranding}
       orgId={orgId}
       onboardingSettings={
         onboardingSettingsRes.success && onboardingSettingsRes.data

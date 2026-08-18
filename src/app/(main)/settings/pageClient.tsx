@@ -91,6 +91,13 @@ interface SettingsClientProps {
   userEmail: string;
   userRole: string;
   initialAutoJoinDomainEnabled: boolean;
+  initialBranding?: {
+    brandName: string;
+    logoUrl: string;
+    emailSignature: string;
+    websiteUrl: string;
+    supportEmail: string;
+  };
   orgId: string;
   onboardingSettings: {
     id: number;
@@ -165,6 +172,7 @@ export default function SettingsClient({
   userEmail,
   userRole,
   initialAutoJoinDomainEnabled,
+  initialBranding,
   orgId,
   onboardingSettings,
   initialAiUsageStats,
@@ -291,6 +299,7 @@ export default function SettingsClient({
               userEmail={userEmail}
               userRole={userRole}
               initialAutoJoinDomainEnabled={initialAutoJoinDomainEnabled}
+              initialBranding={initialBranding}
             />
           )}
 
