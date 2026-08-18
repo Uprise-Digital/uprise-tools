@@ -16,7 +16,6 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { rollMcpApiKeyAction } from "@/actions/mcp.actions";
-import { getAppUrl } from "@/lib/app-url";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getAppUrl } from "@/lib/app-url";
 
 const AVAILABLE_TOOLS = [
   {

@@ -84,8 +84,10 @@ interface TemplateItem {
 }
 
 const formatEmailType = (type: string) => {
-  if (type === "morning_briefing" || type === "daily_briefing") return "Morning Briefing";
-  if (type === "scheduled_report" || type === "client_report") return "Scheduled Report";
+  if (type === "morning_briefing" || type === "daily_briefing")
+    return "Morning Briefing";
+  if (type === "scheduled_report" || type === "client_report")
+    return "Scheduled Report";
   if (type === "onboarding_welcome") return "Onboarding Welcome";
   if (type === "pipeline_digest") return "Pipeline Digest";
   if (type === "team_invite") return "Team Invite";
@@ -93,29 +95,38 @@ const formatEmailType = (type: string) => {
 };
 
 export function EmailsTab({ emailLogs }: EmailsTabProps) {
-  const [activeSubTab, setActiveSubTab] = useState<"logs" | "templates">("templates");
+  const [activeSubTab, setActiveSubTab] = useState<"logs" | "templates">(
+    "templates",
+  );
 
   // Email Logs State
   const [emailSearch, setEmailSearch] = useState("");
   const [emailStatusFilter, setEmailStatusFilter] = useState("all");
   const [emailTypeFilter, setEmailTypeFilter] = useState("all");
-  const [selectedEmailLog, setSelectedEmailLog] = useState<EmailLogData | null>(null);
+  const [selectedEmailLog, setSelectedEmailLog] = useState<EmailLogData | null>(
+    null,
+  );
   const [copiedText, setCopiedText] = useState("");
 
   // Email Templates State
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState("onboarding_welcome");
+  const [selectedTemplateKey, setSelectedTemplateKey] =
+    useState("onboarding_welcome");
   const [subjectInput, setSubjectInput] = useState("");
   const [bodyHtmlInput, setBodyHtmlInput] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [resettingTemplate, setResettingTemplate] = useState(false);
-  const [previewMode, setPreviewMode] = useState<"editor" | "preview">("editor");
+  const [previewMode, setPreviewMode] = useState<"editor" | "preview">(
+    "editor",
+  );
 
   const loadTemplates = async () => {
     const res = await getEmailTemplatesAction();
     if (res.success && res.templates) {
       setTemplates(res.templates);
-      const current = res.templates.find((t) => t.key === selectedTemplateKey) || res.templates[0];
+      const current =
+        res.templates.find((t) => t.key === selectedTemplateKey) ||
+        res.templates[0];
       if (current) {
         setSelectedTemplateKey(current.key);
         setSubjectInput(current.subject);
@@ -161,7 +172,9 @@ export function EmailsTab({ emailLogs }: EmailsTabProps) {
         toast.error(res.error || "Failed to save template.", { id: toastId });
       }
     } catch (err: any) {
-      toast.error(err.message || "An unexpected error occurred.", { id: toastId });
+      toast.error(err.message || "An unexpected error occurred.", {
+        id: toastId,
+      });
     } finally {
       setSavingTemplate(false);
     }
@@ -196,11 +209,17 @@ export function EmailsTab({ emailLogs }: EmailsTabProps) {
       notion_link: "https://notion.so/acme-demo",
       signal_link: "https://signal.group/#demo",
       agency_name: "Your Agency Name",
-      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      briefing_content: "• <strong>Google Ads:</strong> ROAS is up +18% this week.<br/>• <strong>Meta Ads:</strong> CPL reduced to $14.20.",
+      date: new Date().toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      briefing_content:
+        "• <strong>Google Ads:</strong> ROAS is up +18% this week.<br/>• <strong>Meta Ads:</strong> CPL reduced to $14.20.",
       report_url: "#",
       stalled_count: "3",
-      pipeline_content: "• Acme Corp ($12,000) - Stalled 8 days<br/>• Beta LLC ($5,500) - Stalled 12 days",
+      pipeline_content:
+        "• Acme Corp ($12,000) - Stalled 8 days<br/>• Beta LLC ($5,500) - Stalled 12 days",
       pipeline_url: "#",
       role: "Admin",
       invite_url: "#",
@@ -329,7 +348,9 @@ export function EmailsTab({ emailLogs }: EmailsTabProps) {
                   {currentTemplate?.name || "Email Template Editor"}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Customize the subject line and HTML email body. Dynamic placeholder variables are replaced automatically at dispatch time.
+                  Customize the subject line and HTML email body. Dynamic
+                  placeholder variables are replaced automatically at dispatch
+                  time.
                 </CardDescription>
               </div>
 
@@ -385,7 +406,10 @@ export function EmailsTab({ emailLogs }: EmailsTabProps) {
 
               {/* SUBJECT LINE INPUT */}
               <div className="space-y-1.5">
-                <Label htmlFor="template-subject" className="text-xs font-bold text-slate-700">
+                <Label
+                  htmlFor="template-subject"
+                  className="text-xs font-bold text-slate-700"
+                >
                   Email Subject Line
                 </Label>
                 <Input
@@ -400,7 +424,10 @@ export function EmailsTab({ emailLogs }: EmailsTabProps) {
               {/* BODY EDITOR / PREVIEW */}
               {previewMode === "editor" ? (
                 <div className="space-y-1.5">
-                  <Label htmlFor="template-body" className="text-xs font-bold text-slate-700">
+                  <Label
+                    htmlFor="template-body"
+                    className="text-xs font-bold text-slate-700"
+                  >
                     HTML Template Body
                   </Label>
                   <textarea
@@ -419,6 +446,7 @@ export function EmailsTab({ emailLogs }: EmailsTabProps) {
                   <div className="p-6 bg-white border border-slate-200 rounded-xl shadow-inner min-h-[300px] overflow-y-auto">
                     <div
                       className="prose prose-xs max-w-none font-sans text-slate-800"
+                      // biome-ignore lint/security/noDangerouslySetInnerHtml: live email preview rendering
                       dangerouslySetInnerHTML={{ __html: renderPreviewHtml() }}
                     />
                   </div>
@@ -467,7 +495,8 @@ export function EmailsTab({ emailLogs }: EmailsTabProps) {
                 Email Delivery Statuses
               </CardTitle>
               <CardDescription className="text-xs">
-                Log of outgoing Resend email dispatches for briefings, automated schedules, and on-demand campaigns.
+                Log of outgoing Resend email dispatches for briefings, automated
+                schedules, and on-demand campaigns.
               </CardDescription>
             </div>
             {/* SEARCH AND FILTERS */}
@@ -544,7 +573,8 @@ export function EmailsTab({ emailLogs }: EmailsTabProps) {
                   </TableRow>
                 ) : (
                   filteredEmailLogs.map((email) => {
-                    const isSuccess = email.status === "success" || email.status === "sent";
+                    const isSuccess =
+                      email.status === "success" || email.status === "sent";
 
                     return (
                       <TableRow
@@ -640,7 +670,8 @@ export function EmailsTab({ emailLogs }: EmailsTabProps) {
                   </span>
                   <span
                     className={`font-extrabold capitalize ${
-                      selectedEmailLog.status === "success" || selectedEmailLog.status === "sent"
+                      selectedEmailLog.status === "success" ||
+                      selectedEmailLog.status === "sent"
                         ? "text-emerald-600"
                         : "text-rose-600"
                     }`}
@@ -687,7 +718,9 @@ export function EmailsTab({ emailLogs }: EmailsTabProps) {
                     </span>
                     <button
                       type="button"
-                      onClick={() => copyToClipboard(selectedEmailLog.resendId!)}
+                      onClick={() =>
+                        copyToClipboard(selectedEmailLog.resendId!)
+                      }
                       className="text-slate-400 hover:text-slate-700 cursor-pointer"
                     >
                       {copiedText === selectedEmailLog.resendId ? (

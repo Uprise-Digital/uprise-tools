@@ -39,7 +39,7 @@ vi.mock("resend", () => {
   };
 });
 
-import { sendSystemEmail, SYSTEM_EMAIL_TEMPLATES } from "@/lib/email-service";
+import { SYSTEM_EMAIL_TEMPLATES, sendSystemEmail } from "@/lib/email-service";
 
 describe("Centralized Email Service", () => {
   it("should contain registry of default system templates", () => {

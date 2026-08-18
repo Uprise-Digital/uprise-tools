@@ -35,7 +35,11 @@ async function rehostNotionImage(url: string): Promise<string | null> {
 async function getNotionClient(organizationIdOrApiKey?: string) {
   let apiKey = organizationIdOrApiKey;
 
-  if (organizationIdOrApiKey && (organizationIdOrApiKey.length === 36 || organizationIdOrApiKey.includes("-"))) {
+  if (
+    organizationIdOrApiKey &&
+    (organizationIdOrApiKey.length === 36 ||
+      organizationIdOrApiKey.includes("-"))
+  ) {
     // Looks like an organization ID — fetch tenant settings from database
     const { db } = await import("@/db");
     const { eq } = await import("drizzle-orm");
@@ -43,7 +47,10 @@ async function getNotionClient(organizationIdOrApiKey?: string) {
     const { decryptToken } = await import("@/lib/crypto");
 
     const settings = await db.query.organizationOnboardingSettings.findFirst({
-      where: eq(organizationOnboardingSettings.organizationId, organizationIdOrApiKey),
+      where: eq(
+        organizationOnboardingSettings.organizationId,
+        organizationIdOrApiKey,
+      ),
     });
 
     if (settings?.notionApiKey) {

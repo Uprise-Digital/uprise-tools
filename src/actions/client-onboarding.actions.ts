@@ -431,8 +431,10 @@ async function executeOnboardingPipeline(
           console.error("Failed to decrypt GHL API key from settings:", err);
         }
       }
-      const ghlLocationId = settings?.ghlLocationId || ghlIntegrations.ghlLocationId;
-      const ghlCompanyId = settings?.ghlCompanyId || ghlIntegrations.ghlCompanyId;
+      const ghlLocationId =
+        settings?.ghlLocationId || ghlIntegrations.ghlLocationId;
+      const ghlCompanyId =
+        settings?.ghlCompanyId || ghlIntegrations.ghlCompanyId;
 
       const ghlNode = (settings?.workflowConfig as any)?.nodes?.find(
         (n: any) => n.id === "ghl",

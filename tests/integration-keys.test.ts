@@ -47,9 +47,9 @@ describe("Strict DB-Level Integration Keys Migration", () => {
   });
 
   it("should throw a clean error when GoHighLevel is unconfigured for an organization", async () => {
-    await expect(
-      getGhlCredentials("org-non-existent-999"),
-    ).rejects.toThrow("GoHighLevel is not configured for this organization");
+    await expect(getGhlCredentials("org-non-existent-999")).rejects.toThrow(
+      "GoHighLevel is not configured for this organization",
+    );
   });
 
   it("should resolve explicit API key when supplied directly", async () => {

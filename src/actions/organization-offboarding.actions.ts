@@ -28,7 +28,7 @@ export interface DeleteOrganizationResult {
 /**
  * Permanently deletes an organization and cascades deletion across all associated tenant data
  * for GDPR compliance & tenant offboarding.
- * 
+ *
  * Requirements:
  * 1. Must be authenticated.
  * 2. Caller must have 'owner' role in the active organization.
@@ -44,7 +44,10 @@ export async function deleteOrganizationAction(
     });
 
     if (!session || !session.user || !session.session?.activeOrganizationId) {
-      return { success: false, error: "Unauthorized. Active session not found." };
+      return {
+        success: false,
+        error: "Unauthorized. Active session not found.",
+      };
     }
 
     const userId = session.user.id;
@@ -54,19 +57,22 @@ export async function deleteOrganizationAction(
     if (confirmationText.trim() !== "DELETE MY ORGANIZATION") {
       return {
         success: false,
-        error: 'Confirmation failed. Please type "DELETE MY ORGANIZATION" exactly.',
+        error:
+          'Confirmation failed. Please type "DELETE MY ORGANIZATION" exactly.',
       };
     }
 
     // 3. Verify User is an 'owner' of the Organization
     const callerMember = await db.query.member.findFirst({
-      where: (m, { and, eq }) => and(eq(m.userId, userId), eq(m.organizationId, orgId)),
+      where: (m, { and, eq }) =>
+        and(eq(m.userId, userId), eq(m.organizationId, orgId)),
     });
 
     if (!callerMember || callerMember.role.toLowerCase() !== "owner") {
       return {
         success: false,
-        error: "Forbidden. Only an Organization Owner can delete the organization and erase data.",
+        error:
+          "Forbidden. Only an Organization Owner can delete the organization and erase data.",
       };
     }
 
@@ -84,7 +90,10 @@ export async function deleteOrganizationAction(
       try {
         await deleteFileFromR2(targetOrg.logoUrl);
       } catch (err) {
-        console.warn("[Offboarding Warning] Failed to delete logo asset from R2:", err);
+        console.warn(
+          "[Offboarding Warning] Failed to delete logo asset from R2:",
+          err,
+        );
       }
     }
 
@@ -113,10 +122,14 @@ export async function deleteOrganizationAction(
       await tx.delete(adAccounts).where(eq(adAccounts.organizationId, orgId));
 
       // 5d. Delete Scheduled Reports
-      await tx.delete(reportSchedules).where(eq(reportSchedules.organizationId, orgId));
+      await tx
+        .delete(reportSchedules)
+        .where(eq(reportSchedules.organizationId, orgId));
 
       // 5e. Delete Client Onboardings
-      await tx.delete(clientOnboardings).where(eq(clientOnboardings.organizationId, orgId));
+      await tx
+        .delete(clientOnboardings)
+        .where(eq(clientOnboardings.organizationId, orgId));
 
       // 5f. Delete Onboarding Settings
       await tx
@@ -149,7 +162,9 @@ export async function deleteOrganizationAction(
     console.error("[Offboarding Error] Failed to delete organization:", error);
     return {
       success: false,
-      error: error.message || "An unexpected error occurred during organization offboarding.",
+      error:
+        error.message ||
+        "An unexpected error occurred during organization offboarding.",
     };
   }
 }

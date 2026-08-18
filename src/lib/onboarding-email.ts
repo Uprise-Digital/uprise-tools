@@ -67,7 +67,8 @@ export function compileOnboardingEmail(params: {
       adsInstructionsHtml += `<p style="margin-bottom: 12px;">To grant us access to your Meta Ads account, please follow the steps provided by your onboarding manager.</p>`;
     }
 
-    const defaultSignatureText = emailSignature || `${orgName} Team\n${websiteUrl || ""}`;
+    const defaultSignatureText =
+      emailSignature || `${orgName} Team\n${websiteUrl || ""}`;
     const defaultSignatureHtml = emailSignature
       ? `<div style="font-size: 13px; color: #475569;">${emailSignature.replace(/\n/g, "<br/>")}</div>`
       : `<p style="font-size: 14px; font-weight: bold; margin: 0 0 4px 0; color: #0f172a;">${orgName} Team</p>

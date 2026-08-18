@@ -273,8 +273,14 @@ export async function saveOnboardingSettingsAction(data: {
         ghlError = "Missing GoHighLevel API Key.";
       } else {
         try {
-          const { verifyGhlConnection } = await import("@/service/gohighlevel-service");
-          await verifyGhlConnection(actualGhlKey, data.ghlLocationId, data.ghlCompanyId);
+          const { verifyGhlConnection } = await import(
+            "@/service/gohighlevel-service"
+          );
+          await verifyGhlConnection(
+            actualGhlKey,
+            data.ghlLocationId,
+            data.ghlCompanyId,
+          );
           ghlStatus = "valid";
         } catch (err: any) {
           ghlStatus = "invalid";

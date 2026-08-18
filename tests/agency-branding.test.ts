@@ -12,13 +12,16 @@ describe("Agency Branding & White-Labeling Engine", () => {
       googleAdsAccess: true,
       metaAdsAccess: false,
       orgName: "Apex Growth Marketing",
-      emailSignature: "Jane Doe\nHead of Client Success | Apex Growth Marketing\nwww.apexgrowth.com",
+      emailSignature:
+        "Jane Doe\nHead of Client Success | Apex Growth Marketing\nwww.apexgrowth.com",
       websiteUrl: "https://www.apexgrowth.com",
       logoUrl: "https://cdn.apexgrowth.com/logo.png",
     });
 
     expect(result.text).toContain("Apex Growth Marketing x Acme Corp");
-    expect(result.text).toContain("Jane Doe\nHead of Client Success | Apex Growth Marketing");
+    expect(result.text).toContain(
+      "Jane Doe\nHead of Client Success | Apex Growth Marketing",
+    );
     expect(result.html).toContain("https://cdn.apexgrowth.com/logo.png");
     expect(result.html).toContain("Apex Growth Marketing");
     expect(result.html).toContain("Jane Doe<br/>Head of Client Success");

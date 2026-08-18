@@ -4,18 +4,19 @@ import {
   AlertTriangle,
   CheckCircle2,
   Database,
+  Image as ImageIcon,
   Loader2,
   Plus,
   RefreshCw,
   SlidersHorizontal,
   Trash,
   Upload,
-  Image as ImageIcon,
   User as UserIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
+import { deleteOrganizationAction } from "@/actions/organization-offboarding.actions";
 import {
   disconnectGoogleAdsAction,
   getOrganizationBrandingAction,
@@ -26,7 +27,6 @@ import {
   updateOrganizationBrandingAction,
   updateOrganizationNameAction,
 } from "@/actions/settings.actions";
-import { deleteOrganizationAction } from "@/actions/organization-offboarding.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -118,17 +118,25 @@ export function GeneralTab({
   const handleDeleteOrg = async () => {
     if (deleteConfirmText.trim() !== "DELETE MY ORGANIZATION") return;
     setDeletingOrg(true);
-    const toastId = toast.loading("Erasing all tenant data and deleting organization...");
+    const toastId = toast.loading(
+      "Erasing all tenant data and deleting organization...",
+    );
     try {
       const res = await deleteOrganizationAction(deleteConfirmText);
       if (res.success) {
-        toast.success("Organization and tenant data permanently erased.", { id: toastId });
+        toast.success("Organization and tenant data permanently erased.", {
+          id: toastId,
+        });
         window.location.href = "/signup";
       } else {
-        toast.error(res.error || "Failed to delete organization.", { id: toastId });
+        toast.error(res.error || "Failed to delete organization.", {
+          id: toastId,
+        });
       }
     } catch (err: any) {
-      toast.error(err.message || "An unexpected error occurred.", { id: toastId });
+      toast.error(err.message || "An unexpected error occurred.", {
+        id: toastId,
+      });
     } finally {
       setDeletingOrg(false);
     }
@@ -220,7 +228,9 @@ export function GeneralTab({
         setLogoBase64("");
         toast.success("Agency branding saved successfully!", { id: toastId });
       } else {
-        toast.error(res.error || "Failed to save branding settings.", { id: toastId });
+        toast.error(res.error || "Failed to save branding settings.", {
+          id: toastId,
+        });
       }
     } catch (err: any) {
       toast.error(err.message || "An error occurred.", { id: toastId });
@@ -814,13 +824,18 @@ export function GeneralTab({
               Agency White-Labeling & Branding
             </CardTitle>
             <CardDescription className="text-xs">
-              Customize your agency display name, logo asset, email signature, website URL, and support contact details across client emails and dashboards.
+              Customize your agency display name, logo asset, email signature,
+              website URL, and support contact details across client emails and
+              dashboards.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="brand-name" className="text-xs font-bold text-slate-700">
+                <Label
+                  htmlFor="brand-name"
+                  className="text-xs font-bold text-slate-700"
+                >
                   Agency Display / Brand Name
                 </Label>
                 <Input
@@ -832,7 +847,10 @@ export function GeneralTab({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="website-url" className="text-xs font-bold text-slate-700">
+                <Label
+                  htmlFor="website-url"
+                  className="text-xs font-bold text-slate-700"
+                >
                   Agency Website URL
                 </Label>
                 <Input
@@ -852,7 +870,11 @@ export function GeneralTab({
               <div className="flex items-center gap-4 p-4 border border-slate-200 rounded-xl bg-slate-50/50">
                 {logoUrl ? (
                   <div className="w-20 h-14 shrink-0 bg-white border border-slate-200 rounded-lg p-2 flex items-center justify-center shadow-xs">
-                    <img src={logoUrl} alt="Agency Logo" className="max-h-full max-w-full object-contain" />
+                    <img
+                      src={logoUrl}
+                      alt="Agency Logo"
+                      className="max-h-full max-w-full object-contain"
+                    />
                   </div>
                 ) : (
                   <div className="w-20 h-14 shrink-0 bg-slate-100 border border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400">
@@ -883,14 +905,18 @@ export function GeneralTab({
                     )}
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    PNG, JPG, WEBP or SVG up to 5MB. Automatically optimized and persisted to Object Storage.
+                    PNG, JPG, WEBP or SVG up to 5MB. Automatically optimized and
+                    persisted to Object Storage.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email-signature" className="text-xs font-bold text-slate-700">
+              <Label
+                htmlFor="email-signature"
+                className="text-xs font-bold text-slate-700"
+              >
                 Custom Email Signature Block
               </Label>
               <textarea
@@ -898,11 +924,14 @@ export function GeneralTab({
                 rows={3}
                 value={emailSignature}
                 onChange={(e) => setEmailSignature(e.target.value)}
-                placeholder={"Jane Doe\nHead of Growth | Your Agency Name\n+1 (555) 019-2834\nwww.youragency.com"}
+                placeholder={
+                  "Jane Doe\nHead of Growth | Your Agency Name\n+1 (555) 019-2834\nwww.youragency.com"
+                }
                 className="w-full text-xs font-sans p-3 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none leading-relaxed"
               />
               <p className="text-[11px] text-slate-500">
-                This sign-off signature block is appended to automated client onboarding and workflow emails.
+                This sign-off signature block is appended to automated client
+                onboarding and workflow emails.
               </p>
             </div>
 
@@ -912,7 +941,9 @@ export function GeneralTab({
                 disabled={savingBranding}
                 className="bg-indigo-600 hover:bg-indigo-500 font-bold text-xs h-9 px-5 cursor-pointer"
               >
-                {savingBranding ? "Uploading & Saving..." : "Save Agency Branding"}
+                {savingBranding
+                  ? "Uploading & Saving..."
+                  : "Save Agency Branding"}
               </Button>
             </div>
           </CardContent>
@@ -926,7 +957,8 @@ export function GeneralTab({
               Danger Zone — Organization Deletion & Data Erasure (GDPR)
             </CardTitle>
             <CardDescription className="text-xs text-rose-700/80">
-              Permanently delete this organization, erase all client records, ad account data, email logs, and uploaded brand assets.
+              Permanently delete this organization, erase all client records, ad
+              account data, email logs, and uploaded brand assets.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -935,7 +967,9 @@ export function GeneralTab({
                 Permanently erase all tenant data and cancel access
               </span>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Once deleted, this organization and all associated data cannot be recovered. Only an Organization Owner can execute offboarding.
+                Once deleted, this organization and all associated data cannot
+                be recovered. Only an Organization Owner can execute
+                offboarding.
               </p>
             </div>
             <Button
@@ -989,20 +1023,32 @@ export function GeneralTab({
               Permanently Delete Organization?
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-600 mt-2 leading-relaxed">
-              This action will permanently erase your organization (<strong>{orgName}</strong>), member accounts, client onboardings, email delivery logs, ad performance datasets, and brand logo assets.
+              This action will permanently erase your organization (
+              <strong>{orgName}</strong>), member accounts, client onboardings,
+              email delivery logs, ad performance datasets, and brand logo
+              assets.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-3 font-sans">
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs space-y-1">
-              <span className="font-extrabold block text-rose-900">⚠️ Warning: Irreversible Action</span>
+              <span className="font-extrabold block text-rose-900">
+                ⚠️ Warning: Irreversible Action
+              </span>
               <p className="text-[11px] text-rose-700 leading-normal">
-                To confirm deletion, please type <strong className="font-mono text-rose-950 select-all">DELETE MY ORGANIZATION</strong> below.
+                To confirm deletion, please type{" "}
+                <strong className="font-mono text-rose-950 select-all">
+                  DELETE MY ORGANIZATION
+                </strong>{" "}
+                below.
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="delete-confirm-input" className="text-xs font-bold text-slate-700 block">
+              <label
+                htmlFor="delete-confirm-input"
+                className="text-xs font-bold text-slate-700 block"
+              >
                 Confirmation String
               </label>
               <Input
@@ -1031,11 +1077,16 @@ export function GeneralTab({
             <Button
               type="button"
               variant="destructive"
-              disabled={deleteConfirmText.trim() !== "DELETE MY ORGANIZATION" || deletingOrg}
+              disabled={
+                deleteConfirmText.trim() !== "DELETE MY ORGANIZATION" ||
+                deletingOrg
+              }
               onClick={handleDeleteOrg}
               className="bg-rose-600 hover:bg-rose-700 font-bold text-xs h-9 px-4 cursor-pointer disabled:opacity-50"
             >
-              {deletingOrg ? "Erasing & Offboarding..." : "Erase Data & Delete Permanently"}
+              {deletingOrg
+                ? "Erasing & Offboarding..."
+                : "Erase Data & Delete Permanently"}
             </Button>
           </DialogFooter>
         </DialogContent>

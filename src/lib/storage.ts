@@ -1,4 +1,8 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 // Configure S3 client for Cloudflare R2
 const r2Endpoint = process.env.CLOUDFLARE_R2_ENDPOINT;

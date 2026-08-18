@@ -749,7 +749,10 @@ export async function updateOrganizationBrandingAction(payload: {
 
     if (payload.logoBase64) {
       const { uploadImageToR2 } = await import("@/lib/storage");
-      const cleanBase64 = payload.logoBase64.replace(/^data:image\/\w+;base64,/, "");
+      const cleanBase64 = payload.logoBase64.replace(
+        /^data:image\/\w+;base64,/,
+        "",
+      );
       const fileName = `logos/org_${orgId}_${Date.now()}.png`;
       const url = await uploadImageToR2(cleanBase64, fileName);
       if (url) {
@@ -766,9 +769,12 @@ export async function updateOrganizationBrandingAction(payload: {
       updates.logoUrl = uploadedLogoUrl;
       updates.logo = uploadedLogoUrl;
     }
-    if (payload.emailSignature !== undefined) updates.emailSignature = payload.emailSignature;
-    if (payload.websiteUrl !== undefined) updates.websiteUrl = payload.websiteUrl;
-    if (payload.supportEmail !== undefined) updates.supportEmail = payload.supportEmail;
+    if (payload.emailSignature !== undefined)
+      updates.emailSignature = payload.emailSignature;
+    if (payload.websiteUrl !== undefined)
+      updates.websiteUrl = payload.websiteUrl;
+    if (payload.supportEmail !== undefined)
+      updates.supportEmail = payload.supportEmail;
 
     await db
       .update(organization)

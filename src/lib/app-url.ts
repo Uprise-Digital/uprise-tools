@@ -1,6 +1,6 @@
 /**
  * Dynamically resolves the current base application URL for both server and client execution environments.
- * 
+ *
  * Evaluation Order:
  * 1. Client window.location.origin (if running in browser)
  * 2. process.env.NEXT_PUBLIC_APP_URL

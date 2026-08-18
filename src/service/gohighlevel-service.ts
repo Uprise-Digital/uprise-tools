@@ -109,7 +109,8 @@ export async function searchGhlContacts(
 ): Promise<GhlContact[]> {
   const { apiKey, locationId } = await getGhlCredentials(
     organizationIdOrApiKey,
-    organizationIdOrApiKey?.includes("-") || organizationIdOrApiKey?.length === 36
+    organizationIdOrApiKey?.includes("-") ||
+      organizationIdOrApiKey?.length === 36
       ? undefined
       : organizationIdOrApiKey,
     locationIdOverride,

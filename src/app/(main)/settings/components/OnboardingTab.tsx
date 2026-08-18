@@ -609,7 +609,8 @@ function OnboardingTabContent({
       "",
   );
   const [ghlCompanyId, setGhlCompanyId] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlCompanyId ?? "",
+    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlCompanyId ??
+      "",
   );
   const [showGhlKey, setShowGhlKey] = useState(false);
 
