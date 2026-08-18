@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 // Configure S3 client for Cloudflare R2
 const r2Endpoint = process.env.CLOUDFLARE_R2_ENDPOINT;
@@ -87,5 +87,34 @@ export async function uploadBufferToR2(
   } catch (error) {
     console.error("[R2 Storage Error] Failed to upload buffer to R2:", error);
     return null;
+  }
+}
+
+/**
+ * Deletes an object file from Cloudflare R2 given its public URL or key.
+ */
+export async function deleteFileFromR2(fileUrlOrKey: string): Promise<boolean> {
+  if (!s3Client || !bucketName) {
+    return false;
+  }
+
+  try {
+    // Extract key from full URL if needed
+    let key = fileUrlOrKey;
+    if (publicUrl && key.startsWith(publicUrl)) {
+      key = key.replace(publicUrl, "").replace(/^\/+/, "");
+    }
+
+    await s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+      }),
+    );
+
+    return true;
+  } catch (error) {
+    console.error("[R2 Storage Error] Failed to delete file from R2:", error);
+    return false;
   }
 }

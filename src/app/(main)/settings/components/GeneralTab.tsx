@@ -9,19 +9,24 @@ import {
   RefreshCw,
   SlidersHorizontal,
   Trash,
+  Upload,
+  Image as ImageIcon,
   User as UserIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
 import {
   disconnectGoogleAdsAction,
+  getOrganizationBrandingAction,
   refreshAdAccountsMetadataAction,
   updateAutoSyncSettingsAction,
   updateLinkedAccountsAction,
   updateNegativeKeywordOptionsAction,
+  updateOrganizationBrandingAction,
   updateOrganizationNameAction,
 } from "@/actions/settings.actions";
+import { deleteOrganizationAction } from "@/actions/organization-offboarding.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -105,6 +110,30 @@ export function GeneralTab({
     initialAutoJoinDomainEnabled,
   );
 
+  // Danger Zone Offboarding State
+  const [deleteOrgDialogOpen, setDeleteOrgDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletingOrg, setDeletingOrg] = useState(false);
+
+  const handleDeleteOrg = async () => {
+    if (deleteConfirmText.trim() !== "DELETE MY ORGANIZATION") return;
+    setDeletingOrg(true);
+    const toastId = toast.loading("Erasing all tenant data and deleting organization...");
+    try {
+      const res = await deleteOrganizationAction(deleteConfirmText);
+      if (res.success) {
+        toast.success("Organization and tenant data permanently erased.", { id: toastId });
+        window.location.href = "/signup";
+      } else {
+        toast.error(res.error || "Failed to delete organization.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An unexpected error occurred.", { id: toastId });
+    } finally {
+      setDeletingOrg(false);
+    }
+  };
+
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
   const [deleteSyncedData, setDeleteSyncedData] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -138,6 +167,67 @@ export function GeneralTab({
     connection?.negativeKeywordExactEnabled ?? true,
   );
   const [updatingOptions, setUpdatingOptions] = useState(false);
+
+  const [brandName, setBrandName] = useState(orgName);
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoBase64, setLogoBase64] = useState("");
+  const [emailSignature, setEmailSignature] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [savingBranding, setSavingBranding] = useState(false);
+
+  useEffect(() => {
+    getOrganizationBrandingAction().then((res) => {
+      if (res.success && res.data) {
+        setBrandName(res.data.brandName || orgName);
+        setLogoUrl(res.data.logoUrl || "");
+        setEmailSignature(res.data.emailSignature || "");
+        setWebsiteUrl(res.data.websiteUrl || "");
+        setSupportEmail(res.data.supportEmail || "");
+      }
+    });
+  }, [orgName]);
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Logo file size must be less than 5MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setLogoBase64(base64);
+      setLogoUrl(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveBranding = async () => {
+    setSavingBranding(true);
+    const toastId = toast.loading("Saving agency white-labeling settings...");
+    try {
+      const res = await updateOrganizationBrandingAction({
+        brandName,
+        logoBase64: logoBase64 || undefined,
+        emailSignature,
+        websiteUrl,
+        supportEmail,
+      });
+      if (res.success) {
+        if (res.logoUrl) setLogoUrl(res.logoUrl);
+        setLogoBase64("");
+        toast.success("Agency branding saved successfully!", { id: toastId });
+      } else {
+        toast.error(res.error || "Failed to save branding settings.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.", { id: toastId });
+    } finally {
+      setSavingBranding(false);
+    }
+  };
 
   const handleToggleKeywordOptions = async (
     type: "broad" | "phrase" | "exact",
@@ -715,6 +805,151 @@ export function GeneralTab({
             </div>
           </CardContent>
         </Card>
+
+        {/* AGENCY WHITE-LABELING & BRANDING CARD */}
+        <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+              <ImageIcon className="w-4 h-4 text-indigo-500" />
+              Agency White-Labeling & Branding
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Customize your agency display name, logo asset, email signature, website URL, and support contact details across client emails and dashboards.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="brand-name" className="text-xs font-bold text-slate-700">
+                  Agency Display / Brand Name
+                </Label>
+                <Input
+                  id="brand-name"
+                  value={brandName}
+                  onChange={(e) => setBrandName(e.target.value)}
+                  placeholder="e.g. Apex Digital Marketing"
+                  className="text-xs text-slate-800 h-9"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="website-url" className="text-xs font-bold text-slate-700">
+                  Agency Website URL
+                </Label>
+                <Input
+                  id="website-url"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder="https://www.youragency.com"
+                  className="text-xs text-slate-800 h-9"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-700 block">
+                Agency Brand Logo Asset
+              </Label>
+              <div className="flex items-center gap-4 p-4 border border-slate-200 rounded-xl bg-slate-50/50">
+                {logoUrl ? (
+                  <div className="w-20 h-14 shrink-0 bg-white border border-slate-200 rounded-lg p-2 flex items-center justify-center shadow-xs">
+                    <img src={logoUrl} alt="Agency Logo" className="max-h-full max-w-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-20 h-14 shrink-0 bg-slate-100 border border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400">
+                    <ImageIcon className="w-5 h-5 mb-0.5" />
+                    <span className="text-[9px] font-bold">No Logo</span>
+                  </div>
+                )}
+                <div className="flex-1 space-y-1.5 text-xs">
+                  <input
+                    id="logo-file"
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    onChange={handleLogoFileChange}
+                    className="hidden"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Label
+                      htmlFor="logo-file"
+                      className="cursor-pointer bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                      {logoUrl ? "Replace Logo" : "Upload Logo Image"}
+                    </Label>
+                    {logoBase64 && (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                        Ready to save
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    PNG, JPG, WEBP or SVG up to 5MB. Automatically optimized and persisted to Object Storage.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email-signature" className="text-xs font-bold text-slate-700">
+                Custom Email Signature Block
+              </Label>
+              <textarea
+                id="email-signature"
+                rows={3}
+                value={emailSignature}
+                onChange={(e) => setEmailSignature(e.target.value)}
+                placeholder={"Jane Doe\nHead of Growth | Your Agency Name\n+1 (555) 019-2834\nwww.youragency.com"}
+                className="w-full text-xs font-sans p-3 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none leading-relaxed"
+              />
+              <p className="text-[11px] text-slate-500">
+                This sign-off signature block is appended to automated client onboarding and workflow emails.
+              </p>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={handleSaveBranding}
+                disabled={savingBranding}
+                className="bg-indigo-600 hover:bg-indigo-500 font-bold text-xs h-9 px-5 cursor-pointer"
+              >
+                {savingBranding ? "Uploading & Saving..." : "Save Agency Branding"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* DANGER ZONE: TENANT DATA ERASURE & OFFBOARDING */}
+        <Card className="py-0 border-rose-200 shadow-xs overflow-hidden bg-rose-50/20">
+          <CardHeader className="bg-rose-50/60 border-b border-rose-100 p-5">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-rose-900">
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              Danger Zone — Organization Deletion & Data Erasure (GDPR)
+            </CardTitle>
+            <CardDescription className="text-xs text-rose-700/80">
+              Permanently delete this organization, erase all client records, ad account data, email logs, and uploaded brand assets.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1 max-w-xl">
+              <span className="text-xs font-bold text-slate-800 block">
+                Permanently erase all tenant data and cancel access
+              </span>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Once deleted, this organization and all associated data cannot be recovered. Only an Organization Owner can execute offboarding.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={userRole?.toLowerCase() !== "owner"}
+              onClick={() => setDeleteOrgDialogOpen(true)}
+              className="bg-rose-600 hover:bg-rose-700 font-bold text-xs h-9 px-4 shrink-0 cursor-pointer"
+            >
+              <Trash className="w-3.5 h-3.5 mr-1.5" />
+              Delete Organization
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="space-y-6">
@@ -738,6 +973,73 @@ export function GeneralTab({
           </CardContent>
         </Card>
       </div>
+
+      {/* DELETE ORGANIZATION CONFIRMATION DIALOG */}
+      <Dialog
+        open={deleteOrgDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteOrgDialogOpen(open);
+          if (!open) setDeleteConfirmText("");
+        }}
+      >
+        <DialogContent className="max-w-md bg-white border border-rose-200 rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-extrabold text-rose-950 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+              Permanently Delete Organization?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 mt-2 leading-relaxed">
+              This action will permanently erase your organization (<strong>{orgName}</strong>), member accounts, client onboardings, email delivery logs, ad performance datasets, and brand logo assets.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-3 font-sans">
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs space-y-1">
+              <span className="font-extrabold block text-rose-900">⚠️ Warning: Irreversible Action</span>
+              <p className="text-[11px] text-rose-700 leading-normal">
+                To confirm deletion, please type <strong className="font-mono text-rose-950 select-all">DELETE MY ORGANIZATION</strong> below.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="delete-confirm-input" className="text-xs font-bold text-slate-700 block">
+                Confirmation String
+              </label>
+              <Input
+                id="delete-confirm-input"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE MY ORGANIZATION"
+                className="text-xs font-mono bg-white border-slate-300 focus:border-rose-500 focus:ring-rose-500"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 border-t border-slate-100 pt-4 mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDeleteOrgDialogOpen(false);
+                setDeleteConfirmText("");
+              }}
+              disabled={deletingOrg}
+              className="text-xs font-semibold h-9 border-slate-200"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteConfirmText.trim() !== "DELETE MY ORGANIZATION" || deletingOrg}
+              onClick={handleDeleteOrg}
+              className="bg-rose-600 hover:bg-rose-700 font-bold text-xs h-9 px-4 cursor-pointer disabled:opacity-50"
+            >
+              {deletingOrg ? "Erasing & Offboarding..." : "Erase Data & Delete Permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* DISCONNECT CONFIRMATION DIALOG */}
       <Dialog
