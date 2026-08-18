@@ -987,42 +987,39 @@ export function GeneralTab({
           </CardContent>
         </Card>
 
-        {/* DATA PORTABILITY & EXPORT (GDPR ART. 20) */}
-        <Card className="py-0 border-indigo-200 shadow-xs overflow-hidden bg-indigo-50/20">
-          <CardHeader className="bg-indigo-50/60 border-b border-indigo-100 p-5">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-indigo-950">
-              <Download className="w-4 h-4 text-indigo-600" />
-              Data Portability & Tenant Export (GDPR Art. 20)
+        {/* DATA EXPORT & BACKUP */}
+        <Card className="py-0 border-slate-200 shadow-xs overflow-hidden bg-white">
+          <CardHeader className="bg-slate-50 border-b border-slate-200/80 p-5">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-900">
+              <Download className="w-4 h-4 text-indigo-600 shrink-0" />
+              Export Organization Data
             </CardTitle>
-            <CardDescription className="text-xs text-indigo-800/80">
-              Download a complete machine-readable JSON archive containing all
-              client records, ad performance datasets, email delivery logs, and
-              integration configurations.
+            <CardDescription className="text-xs text-slate-500">
+              Download a complete JSON backup containing all client onboardings,
+              ad account metrics, email logs, and integration settings.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1 max-w-xl">
               <span className="text-xs font-bold text-slate-800 block">
-                Export all organization data in standard JSON format
+                Full Tenant Data Backup
               </span>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Fulfills GDPR Article 20 requirements. Allows owners and admins
-                to securely backup or transfer tenant data anytime.
+                Generate and download an archive of all data stored in your
+                workspace anytime for local backups or record keeping.
               </p>
             </div>
             <Button
               type="button"
               variant="outline"
-              disabled={
-                exportingData ||
-                (userRole?.toLowerCase() !== "owner" &&
-                  userRole?.toLowerCase() !== "admin")
-              }
+              disabled={exportingData}
               onClick={handleExportData}
-              className="border-indigo-300 text-indigo-700 hover:bg-indigo-100 font-bold text-xs h-9 px-4 shrink-0 cursor-pointer"
+              className="bg-white hover:bg-slate-50 border-slate-300 text-slate-800 font-bold text-xs h-9 px-4 shrink-0 cursor-pointer shadow-2xs"
             >
-              <Download className="w-3.5 h-3.5 mr-1.5" />
-              {exportingData ? "Compiling Export..." : "Export Data (.json)"}
+              <Download className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+              {exportingData
+                ? "Generating Backup..."
+                : "Download Backup (.json)"}
             </Button>
           </CardContent>
         </Card>
