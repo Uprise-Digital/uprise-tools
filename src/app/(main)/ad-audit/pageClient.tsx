@@ -352,89 +352,81 @@ export default function AdAuditClientPage({
           {/* MAIN CONTENT AREA */}
           <div className="col-span-1 md:col-span-3 space-y-6">
             {/* OVERALL PORTFOLIO METRICS CARDS */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="bg-indigo-50/30 border-slate-200 border-l-4 border-l-indigo-500 shadow-sm rounded-2xl relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-indigo-50/50">
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-black text-indigo-500 uppercase tracking-wider">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <Card className="bg-indigo-50/30 border-slate-200 border-l-4 border-l-indigo-500 shadow-sm rounded-xl p-4 flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-indigo-50/50">
+                <div>
+                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-wider truncate" title="Total RSA Ads">
                     Total RSA Ads
-                  </CardDescription>
-                  <CardTitle className="text-3xl font-black text-indigo-950 mt-1">
+                  </p>
+                  <div className="text-2xl sm:text-3xl font-black text-indigo-950 mt-1 mb-1">
                     {loadingAds ? (
                       <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
                     ) : (
                       ads.length
                     )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs font-semibold text-indigo-600/80">
-                    Active Responsive Search Ads
-                  </p>
-                </CardContent>
+                  </div>
+                </div>
+                <p className="text-[11px] font-semibold text-indigo-600/80 truncate">
+                  Active Responsive Search Ads
+                </p>
               </Card>
 
-              <Card className="bg-emerald-50/30 border-slate-200 border-l-4 border-l-emerald-500 shadow-sm rounded-2xl relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-emerald-50/50">
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-black text-emerald-600 uppercase tracking-wider">
+              <Card className="bg-emerald-50/30 border-slate-200 border-l-4 border-l-emerald-500 shadow-sm rounded-xl p-4 flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-emerald-50/50">
+                <div>
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider truncate" title="Excellent / Good Strength">
                     Excellent / Good Strength
-                  </CardDescription>
-                  <CardTitle className="text-3xl font-black text-emerald-800 mt-1">
+                  </p>
+                  <div className="text-2xl sm:text-3xl font-black text-emerald-800 mt-1 mb-1">
                     {loadingAds ? (
                       <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
                     ) : (
                       adStrengthDistribution.EXCELLENT + adStrengthDistribution.GOOD
                     )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs font-semibold text-emerald-700/80">
-                    Excellent: {adStrengthDistribution.EXCELLENT} | Good:{" "}
-                    {adStrengthDistribution.GOOD}
-                  </p>
-                </CardContent>
+                  </div>
+                </div>
+                <p className="text-[11px] font-semibold text-emerald-700/80 truncate">
+                  Excellent: {adStrengthDistribution.EXCELLENT} | Good:{" "}
+                  {adStrengthDistribution.GOOD}
+                </p>
               </Card>
 
-              <Card className="bg-amber-50/30 border-slate-200 border-l-4 border-l-amber-500 shadow-sm rounded-2xl relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-amber-50/50">
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-black text-amber-600 uppercase tracking-wider">
+              <Card className="bg-amber-50/30 border-slate-200 border-l-4 border-l-amber-500 shadow-sm rounded-xl p-4 flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-amber-50/50">
+                <div>
+                  <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider truncate" title="Average Strength">
                     Average Strength
-                  </CardDescription>
-                  <CardTitle className="text-3xl font-black text-amber-800 mt-1">
+                  </p>
+                  <div className="text-2xl sm:text-3xl font-black text-amber-800 mt-1 mb-1">
                     {loadingAds ? (
                       <Loader2 className="h-6 w-6 animate-spin text-amber-400" />
                     ) : (
                       adStrengthDistribution.AVERAGE
                     )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs font-semibold text-amber-700/80">
-                    Needs copywriting extensions
-                  </p>
-                </CardContent>
+                  </div>
+                </div>
+                <p className="text-[11px] font-semibold text-amber-700/80 truncate">
+                  Needs copywriting extensions
+                </p>
               </Card>
 
-              <Card className="bg-rose-50/30 border-slate-200 border-l-4 border-l-rose-500 shadow-sm rounded-2xl relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-rose-50/50">
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-black text-rose-600 uppercase tracking-wider">
+              <Card className="bg-rose-50/30 border-slate-200 border-l-4 border-l-rose-500 shadow-sm rounded-xl p-4 flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-rose-50/50">
+                <div>
+                  <p className="text-[10px] font-black text-rose-600 uppercase tracking-wider truncate" title="Poor Strength">
                     Poor Strength
-                  </CardDescription>
-                  <CardTitle className="text-3xl font-black text-rose-800 mt-1">
+                  </p>
+                  <div className="text-2xl sm:text-3xl font-black text-rose-800 mt-1 mb-1">
                     {loadingAds ? (
                       <Loader2 className="h-6 w-6 animate-spin text-rose-400" />
                     ) : (
                       adStrengthDistribution.POOR
                     )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs font-semibold text-rose-700/80 flex items-center gap-1">
-                    {adStrengthDistribution.POOR > 0 && (
-                      <AlertTriangle className="h-3 w-3 text-rose-600" />
-                    )}
-                    Critical triage required
-                  </p>
-                </CardContent>
+                  </div>
+                </div>
+                <p className="text-[11px] font-semibold text-rose-700/80 flex items-center gap-1 truncate">
+                  {adStrengthDistribution.POOR > 0 && (
+                    <AlertTriangle className="h-3 w-3 text-rose-600 shrink-0" />
+                  )}
+                  Critical triage required
+                </p>
               </Card>
             </div>
 
