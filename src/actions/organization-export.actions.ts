@@ -17,6 +17,7 @@ import {
   user,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 
 export interface ExportOrganizationDataResult {
   success: boolean;
@@ -34,31 +35,18 @@ export interface ExportOrganizationDataResult {
 export async function exportOrganizationDataAction(): Promise<ExportOrganizationDataResult> {
   try {
     // 1. Verify User Authentication & Active Session Context
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session || !session.user || !session.session?.activeOrganizationId) {
+    const authCtx = await getAuthOrgContext();
+    if (!authCtx) {
       return {
         success: false,
         error: "Unauthorized. Active session not found.",
       };
     }
 
-    const userId = session.user.id;
-    const orgId = session.session.activeOrganizationId;
+    const { userId, orgId, role, user: sessionUser } = authCtx;
 
     // 2. Verify Caller Permissions ('owner' or 'admin')
-    const callerMember = await db.query.member.findFirst({
-      where: (m, { and, eq }) =>
-        and(eq(m.userId, userId), eq(m.organizationId, orgId)),
-    });
-
-    if (
-      !callerMember ||
-      (callerMember.role.toLowerCase() !== "owner" &&
-        callerMember.role.toLowerCase() !== "admin")
-    ) {
+    if (role.toLowerCase() !== "owner" && role.toLowerCase() !== "admin") {
       return {
         success: false,
         error:
@@ -166,7 +154,7 @@ export async function exportOrganizationDataAction(): Promise<ExportOrganization
         exportVersion: "1.0.0",
         exportTimestamp: new Date().toISOString(),
         exportedByUserId: userId,
-        exportedByUserEmail: session.user.email,
+        exportedByUserEmail: sessionUser.email,
         organizationId: targetOrg.id,
         organizationName: targetOrg.name,
         organizationSlug: targetOrg.slug,

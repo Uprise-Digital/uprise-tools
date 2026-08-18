@@ -18,6 +18,7 @@ import {
   reportSchedules,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 import { deleteFileFromR2 } from "@/lib/storage";
 
 export interface DeleteOrganizationResult {
@@ -39,19 +40,15 @@ export async function deleteOrganizationAction(
 ): Promise<DeleteOrganizationResult> {
   try {
     // 1. Verify User Authentication & Session Org Context
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session || !session.user || !session.session?.activeOrganizationId) {
+    const authCtx = await getAuthOrgContext();
+    if (!authCtx) {
       return {
         success: false,
         error: "Unauthorized. Active session not found.",
       };
     }
 
-    const userId = session.user.id;
-    const orgId = session.session.activeOrganizationId;
+    const { userId, orgId, role } = authCtx;
 
     // 2. Validate Confirmation String
     if (confirmationText.trim() !== "DELETE MY ORGANIZATION") {
@@ -63,16 +60,11 @@ export async function deleteOrganizationAction(
     }
 
     // 3. Verify User is an 'owner' of the Organization
-    const callerMember = await db.query.member.findFirst({
-      where: (m, { and, eq }) =>
-        and(eq(m.userId, userId), eq(m.organizationId, orgId)),
-    });
-
-    if (!callerMember || callerMember.role.toLowerCase() !== "owner") {
+    if (role.toLowerCase() !== "owner") {
       return {
         success: false,
         error:
-          "Forbidden. Only an Organization Owner can delete the organization and erase data.",
+          "Forbidden. Only an Organization Owner can delete the organization.",
       };
     }
 
