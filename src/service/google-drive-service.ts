@@ -4,27 +4,13 @@ import { db } from "@/db";
 import { organizationOnboardingSettings } from "@/db/schema";
 
 /**
- * Initializes a Google Drive API client using either Service Account or OAuth2 credentials.
+ * Initializes a Google Drive API client using the tenant organization's decrypted refresh token.
  */
 async function getDriveClient(organizationId?: string) {
-  const saEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const saKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-
-  if (saEmail && saKey) {
-    const auth = new google.auth.JWT({
-      email: saEmail,
-      key: saKey.replace(/\\n/g, "\n"),
-      scopes: ["https://www.googleapis.com/auth/drive"],
-    });
-    return google.drive({ version: "v3", auth });
-  }
-
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-  let refreshToken =
-    process.env.GOOGLE_DRIVE_REFRESH_TOKEN ||
-    process.env.GOOGLE_ADS_REFRESH_TOKEN;
+  let refreshToken: string | undefined;
 
   if (organizationId) {
     const settings = await db.query.organizationOnboardingSettings.findFirst({
@@ -47,7 +33,7 @@ async function getDriveClient(organizationId?: string) {
   }
 
   throw new Error(
-    "Missing Google Drive API credentials. Set GOOGLE_SERVICE_ACCOUNT_EMAIL/KEY or connect Google Ads/Drive in settings.",
+    "Google Drive is not connected for this organization. Please connect Google Drive in Settings -> Onboarding.",
   );
 }
 

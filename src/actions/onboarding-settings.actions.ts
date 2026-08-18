@@ -84,19 +84,50 @@ export async function getOnboardingSettingsAction() {
       where: eq(organizationOnboardingSettings.organizationId, orgId),
     });
 
+    // Auto-seed from legacy env vars if DB record is empty/unconfigured (one-time migration)
+    const envNotionKey = process.env.NOTION_API_KEY;
+    const envGhlKey = process.env.GHL_API_KEY;
+    const envGhlLocId = process.env.GHL_LOCATION_ID;
+
     if (!record) {
       const [newRecord] = await db
         .insert(organizationOnboardingSettings)
         .values({
           organizationId: orgId,
           googleDriveEnabled: false,
-          notionEnabled: false,
+          notionEnabled: Boolean(envNotionKey),
+          notionApiKey: envNotionKey ? encryptToken(envNotionKey) : null,
+          notionStatus: envNotionKey ? "valid" : "unconfigured",
+          ghlEnabled: Boolean(envGhlKey),
+          ghlApiKey: envGhlKey ? encryptToken(envGhlKey) : null,
+          ghlLocationId: envGhlLocId || null,
+          ghlStatus: envGhlKey ? "valid" : "unconfigured",
           googleDriveStatus: "unconfigured",
-          notionStatus: "unconfigured",
           workflowConfig: defaultWorkflow,
         })
         .returning();
       record = newRecord;
+    } else {
+      // Auto-migrate env values to DB if DB columns are empty but env vars exist
+      const updates: Record<string, any> = {};
+      if (!record.notionApiKey && envNotionKey) {
+        updates.notionApiKey = encryptToken(envNotionKey);
+        updates.notionEnabled = true;
+        updates.notionStatus = "valid";
+      }
+      if (!record.ghlApiKey && envGhlKey) {
+        updates.ghlApiKey = encryptToken(envGhlKey);
+        updates.ghlEnabled = true;
+        updates.ghlLocationId = envGhlLocId || null;
+        updates.ghlStatus = "valid";
+      }
+      if (Object.keys(updates).length > 0) {
+        await db
+          .update(organizationOnboardingSettings)
+          .set({ ...updates, updatedAt: new Date() })
+          .where(eq(organizationOnboardingSettings.id, record.id));
+        record = { ...record, ...updates };
+      }
     }
 
     let decryptedNotionKey = "";
@@ -105,6 +136,15 @@ export async function getOnboardingSettingsAction() {
         decryptedNotionKey = decryptToken(record.notionApiKey);
       } catch (err) {
         console.error("Failed to decrypt Notion API key:", err);
+      }
+    }
+
+    let decryptedGhlKey = "";
+    if (record.ghlApiKey) {
+      try {
+        decryptedGhlKey = decryptToken(record.ghlApiKey);
+      } catch (err) {
+        console.error("Failed to decrypt GHL API key:", err);
       }
     }
 
@@ -125,6 +165,12 @@ export async function getOnboardingSettingsAction() {
         notionTemplatePageId: record.notionTemplatePageId || "",
         notionStatus: record.notionStatus,
         notionError: record.notionError || "",
+        ghlEnabled: record.ghlEnabled || false,
+        ghlApiKey: decryptedGhlKey ? "••••••••••••••••" : "",
+        ghlLocationId: record.ghlLocationId || "",
+        ghlCompanyId: record.ghlCompanyId || "",
+        ghlStatus: record.ghlStatus || "unconfigured",
+        ghlError: record.ghlError || "",
         welcomeEmailSubject: record.welcomeEmailSubject || "",
         welcomeEmailTemplate: record.welcomeEmailTemplate || "",
         welcomeEmailReplyTo: record.welcomeEmailReplyTo || "",
@@ -172,6 +218,10 @@ export async function saveOnboardingSettingsAction(data: {
   notionApiKey: string;
   notionParentPageId?: string;
   notionTemplatePageId?: string;
+  ghlEnabled?: boolean;
+  ghlApiKey?: string;
+  ghlLocationId?: string;
+  ghlCompanyId?: string;
   welcomeEmailSubject: string;
   welcomeEmailTemplate: string;
   welcomeEmailReplyTo?: string;
@@ -196,6 +246,40 @@ export async function saveOnboardingSettingsAction(data: {
         actualNotionKey = decryptToken(existing.notionApiKey);
       } catch (err) {
         console.error("Failed to decrypt existing Notion key:", err);
+      }
+    }
+
+    let encryptedGhlKey = existing?.ghlApiKey || null;
+    let actualGhlKey = "";
+
+    if (data.ghlApiKey && data.ghlApiKey !== "••••••••••••••••") {
+      encryptedGhlKey = encryptToken(data.ghlApiKey);
+      actualGhlKey = data.ghlApiKey;
+    } else if (existing?.ghlApiKey) {
+      try {
+        actualGhlKey = decryptToken(existing.ghlApiKey);
+      } catch (err) {
+        console.error("Failed to decrypt existing GHL key:", err);
+      }
+    }
+
+    const ghlEnabled = Boolean(data.ghlEnabled);
+    let ghlStatus = "unconfigured";
+    let ghlError = null;
+
+    if (ghlEnabled) {
+      if (!actualGhlKey) {
+        ghlStatus = "invalid";
+        ghlError = "Missing GoHighLevel API Key.";
+      } else {
+        try {
+          const { verifyGhlConnection } = await import("@/service/gohighlevel-service");
+          await verifyGhlConnection(actualGhlKey, data.ghlLocationId, data.ghlCompanyId);
+          ghlStatus = "valid";
+        } catch (err: any) {
+          ghlStatus = "invalid";
+          ghlError = err.message || "GoHighLevel verification failed.";
+        }
       }
     }
 
@@ -280,6 +364,12 @@ export async function saveOnboardingSettingsAction(data: {
           notionTemplatePageId: templatePageId || null,
           notionStatus,
           notionError,
+          ghlEnabled,
+          ghlApiKey: encryptedGhlKey,
+          ghlLocationId: data.ghlLocationId || null,
+          ghlCompanyId: data.ghlCompanyId || null,
+          ghlStatus,
+          ghlError,
           welcomeEmailSubject: data.welcomeEmailSubject || null,
           welcomeEmailTemplate: data.welcomeEmailTemplate || null,
           welcomeEmailReplyTo: data.welcomeEmailReplyTo || null,
@@ -301,6 +391,12 @@ export async function saveOnboardingSettingsAction(data: {
         notionTemplatePageId: templatePageId || null,
         notionStatus,
         notionError,
+        ghlEnabled,
+        ghlApiKey: encryptedGhlKey,
+        ghlLocationId: data.ghlLocationId || null,
+        ghlCompanyId: data.ghlCompanyId || null,
+        ghlStatus,
+        ghlError,
         welcomeEmailSubject: data.welcomeEmailSubject || null,
         welcomeEmailTemplate: data.welcomeEmailTemplate || null,
         welcomeEmailReplyTo: data.welcomeEmailReplyTo || null,
@@ -317,6 +413,8 @@ export async function saveOnboardingSettingsAction(data: {
         notionError,
         googleDriveStatus,
         googleDriveError,
+        ghlStatus,
+        ghlError,
       },
     };
   } catch (err: any) {

@@ -20,10 +20,10 @@ export interface GhlOpportunity {
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
 
 function getGhlHeaders(customApiKey?: string) {
-  const apiKey = customApiKey || process.env.GHL_API_KEY;
+  const apiKey = customApiKey;
   if (!apiKey) {
     throw new Error(
-      "GoHighLevel API Key is not configured in Onboarding Settings.",
+      "GoHighLevel API Key is not configured. Please configure GoHighLevel in Settings -> Onboarding.",
     );
   }
   return {
@@ -34,21 +34,93 @@ function getGhlHeaders(customApiKey?: string) {
 }
 
 /**
- * Searches contacts in GoHighLevel by name, email, or company.
+ * Resolves GoHighLevel credentials for a tenant organization or explicit parameter.
  */
-export async function searchGhlContacts(query: string): Promise<GhlContact[]> {
-  const apiKey = process.env.GHL_API_KEY;
-  if (!apiKey) {
-    throw new Error("GoHighLevel API Key (GHL_API_KEY) is not configured.");
+export async function getGhlCredentials(
+  organizationId?: string,
+  customApiKey?: string,
+  customLocationId?: string,
+) {
+  if (customApiKey) {
+    return { apiKey: customApiKey, locationId: customLocationId };
   }
 
+  if (organizationId) {
+    const { db } = await import("@/db");
+    const { eq } = await import("drizzle-orm");
+    const { organizationOnboardingSettings } = await import("@/db/schema");
+    const { decryptToken } = await import("@/lib/crypto");
+
+    const settings = await db.query.organizationOnboardingSettings.findFirst({
+      where: eq(organizationOnboardingSettings.organizationId, organizationId),
+    });
+
+    if (settings?.ghlApiKey) {
+      try {
+        const apiKey = decryptToken(settings.ghlApiKey);
+        return {
+          apiKey,
+          locationId: settings.ghlLocationId || customLocationId || undefined,
+          companyId: settings.ghlCompanyId || undefined,
+        };
+      } catch (err) {
+        console.error("Failed to decrypt GHL API key:", err);
+      }
+    }
+  }
+
+  throw new Error(
+    "GoHighLevel is not configured for this organization. Please add your GHL API key in Settings -> Onboarding.",
+  );
+}
+
+/**
+ * Verifies GoHighLevel API credentials against the LeadConnector API.
+ */
+export async function verifyGhlConnection(
+  apiKey: string,
+  locationId?: string,
+  companyId?: string,
+): Promise<boolean> {
+  if (!apiKey) {
+    throw new Error("API Key is required to verify GoHighLevel connection.");
+  }
+  const headers = getGhlHeaders(apiKey);
+  const testUrl = locationId
+    ? `${GHL_API_BASE}/contacts/?locationId=${encodeURIComponent(locationId)}&limit=1`
+    : `${GHL_API_BASE}/users/?limit=1`;
+  const res = await fetch(testUrl, { headers });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(
+      `GoHighLevel verification failed (Status ${res.status}): ${res.statusText || errText}`,
+    );
+  }
+  return true;
+}
+
+/**
+ * Searches contacts in GoHighLevel by name, email, or company.
+ */
+export async function searchGhlContacts(
+  query: string,
+  organizationIdOrApiKey?: string,
+  locationIdOverride?: string,
+): Promise<GhlContact[]> {
+  const { apiKey, locationId } = await getGhlCredentials(
+    organizationIdOrApiKey,
+    organizationIdOrApiKey?.includes("-") || organizationIdOrApiKey?.length === 36
+      ? undefined
+      : organizationIdOrApiKey,
+    locationIdOverride,
+  );
+
   try {
-    const locationId = process.env.GHL_LOCATION_ID;
     const url = locationId
       ? `${GHL_API_BASE}/contacts/?locationId=${encodeURIComponent(locationId)}&query=${encodeURIComponent(query)}`
       : `${GHL_API_BASE}/contacts/?query=${encodeURIComponent(query)}`;
     const res = await fetch(url, {
-      headers: getGhlHeaders(),
+      headers: getGhlHeaders(apiKey),
     });
     if (!res.ok) {
       const errorText = await res.text().catch(() => "");
@@ -422,8 +494,7 @@ export async function getGhlSnapshots(
   };
 
   // 1. Try company snapshots with companyId (Works with Agency API Keys)
-  let companyId =
-    customCompanyId || process.env.GHL_COMPANY_ID || "BwvkM3wHfHWTcRf9EO3t";
+  let companyId = customCompanyId || process.env.GHL_COMPANY_ID || "";
   if (locationId) {
     try {
       const locRes = await fetch(
@@ -505,8 +576,7 @@ export async function createGhlSubAccount(data: {
   companyId?: string;
 }): Promise<{ id: string; name: string }> {
   try {
-    const companyId =
-      data.companyId || process.env.GHL_COMPANY_ID || "BwvkM3wHfHWTcRf9EO3t";
+    const companyId = data.companyId || process.env.GHL_COMPANY_ID || "";
     const bodyPayload: any = {
       companyId,
       name: data.name,

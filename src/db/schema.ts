@@ -86,6 +86,12 @@ export const organization = pgTable("organization", {
   stripeSubscriptionId: text("stripe_subscription_id"),
   subscriptionStatus: text("stripe_subscription_status"),
   subscriptionEndsAt: timestamp("stripe_subscription_ends_at"),
+  // Agency White-Labeling & Branding
+  brandName: text("brand_name"),
+  logoUrl: text("logo_url"),
+  emailSignature: text("email_signature"),
+  websiteUrl: text("website_url"),
+  supportEmail: text("support_email"),
 });
 
 export const member = pgTable("member", {
@@ -911,10 +917,38 @@ export const organizationOnboardingSettings = pgTable(
     notionTemplatePageId: text("notion_template_page_id"),
     notionStatus: text("notion_status").default("unconfigured").notNull(),
     notionError: text("notion_error"),
+    ghlEnabled: boolean("ghl_enabled").default(false).notNull(),
+    ghlApiKey: text("ghl_api_key"),
+    ghlLocationId: text("ghl_location_id"),
+    ghlCompanyId: text("ghl_company_id"),
+    ghlStatus: text("ghl_status").default("unconfigured").notNull(),
+    ghlError: text("ghl_error"),
     welcomeEmailSubject: text("welcome_email_subject"),
     welcomeEmailTemplate: text("welcome_email_template"),
     welcomeEmailReplyTo: text("welcome_email_reply_to"),
     workflowConfig: jsonb("workflow_config"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
+
+export const organizationEmailTemplates = pgTable(
+  "organization_email_templates",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    templateKey: text("template_key").notNull(),
+    subject: text("subject").notNull(),
+    bodyHtml: text("body_html").notNull(),
+    bodyText: text("body_text"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

@@ -30,13 +30,34 @@ async function rehostNotionImage(url: string): Promise<string | null> {
 }
 
 /**
- * Initializes a Notion client using the integration API key.
+ * Initializes a Notion client using the tenant's decrypted DB key or explicit key parameter.
  */
-function getNotionClient() {
-  const apiKey = process.env.NOTION_API_KEY;
+async function getNotionClient(organizationIdOrApiKey?: string) {
+  let apiKey = organizationIdOrApiKey;
+
+  if (organizationIdOrApiKey && (organizationIdOrApiKey.length === 36 || organizationIdOrApiKey.includes("-"))) {
+    // Looks like an organization ID — fetch tenant settings from database
+    const { db } = await import("@/db");
+    const { eq } = await import("drizzle-orm");
+    const { organizationOnboardingSettings } = await import("@/db/schema");
+    const { decryptToken } = await import("@/lib/crypto");
+
+    const settings = await db.query.organizationOnboardingSettings.findFirst({
+      where: eq(organizationOnboardingSettings.organizationId, organizationIdOrApiKey),
+    });
+
+    if (settings?.notionApiKey) {
+      try {
+        apiKey = decryptToken(settings.notionApiKey);
+      } catch (err) {
+        console.error("Failed to decrypt Notion API key:", err);
+      }
+    }
+  }
+
   if (!apiKey) {
     throw new Error(
-      "Missing Notion API Key. Please define NOTION_API_KEY in env.",
+      "Notion API Key is not configured for this organization. Please configure Notion in Settings -> Onboarding.",
     );
   }
   return new Client({ auth: apiKey });
@@ -555,9 +576,7 @@ export async function createClientNotionDashboard(
     pageIcon?: string;
   },
 ): Promise<string> {
-  const notion = customApiKey
-    ? new Client({ auth: customApiKey })
-    : getNotionClient();
+  const notion = await getNotionClient(customApiKey);
 
   const parentPageId = customParentPageId || process.env.NOTION_PARENT_PAGE_ID;
   const templatePageId =
@@ -572,7 +591,7 @@ export async function createClientNotionDashboard(
   // 1. Resolve naming pattern
   const pattern =
     options?.pageNamePattern ||
-    "Uprise Digital x {{client_name}} - Client Dashboard";
+    "{{agency_name}} x {{client_name}} - Client Dashboard";
   const resolvedPageName = replaceVariables(pattern, {
     client_name: clientName,
   });
@@ -792,11 +811,11 @@ async function appendDefaultWorkspaceBlocks(
         type: "bulleted_list_item",
         bulleted_list_item: {
           rich_text: [
-            { text: { content: "Uprise Tools Overview: " } },
+            { text: { content: "Agency Tools Overview: " } },
             {
               text: {
-                content: "https://tools.uprisedigital.com.au",
-                link: { url: "https://tools.uprisedigital.com.au" },
+                content: (await import("@/lib/app-url")).getAppUrl(),
+                link: { url: (await import("@/lib/app-url")).getAppUrl() },
               },
             },
           ],
