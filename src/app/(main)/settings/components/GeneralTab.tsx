@@ -112,6 +112,7 @@ export function GeneralTab({
   userEmail,
   userRole,
   initialAutoJoinDomainEnabled,
+  initialBranding,
 }: GeneralTabProps) {
   const [orgNameInput, setOrgNameInput] = useState(orgName);
   const [savingOrgName, setSavingOrgName] = useState(false);
