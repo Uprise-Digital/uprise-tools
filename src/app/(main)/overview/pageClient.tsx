@@ -266,17 +266,17 @@ export default function AgencyReportsClient() {
   }
 
   // Filtered Accounts
-  const visibleAccounts =
-    portfolio?.accountBreakdown?.filter((acc: any) =>
-      hideInactive ? acc.spend > 0 : true,
-    ) || [];
-
-  const searchedAccounts = visibleAccounts.filter((acc: any) => {
-    return (
-      acc.name.toLowerCase().includes(ledgerSearch.toLowerCase()) ||
-      acc.googleAccountId.includes(ledgerSearch)
-    );
+  const searchedAccounts = (portfolio?.accountBreakdown || []).filter((acc: any) => {
+    if (ledgerSearch.trim()) {
+      return (
+        acc.name.toLowerCase().includes(ledgerSearch.toLowerCase()) ||
+        acc.googleAccountId.includes(ledgerSearch)
+      );
+    }
+    return hideInactive ? acc.spend > 0 : true;
   });
+
+  const visibleAccounts = searchedAccounts;
 
   const totalPages = Math.ceil(searchedAccounts.length / ledgerLimit);
   const paginatedAccounts = searchedAccounts.slice(
