@@ -1060,12 +1060,23 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge
-                        variant="outline"
-                        className={`rounded-md font-bold ${getScoreBadgeStyles(comp.score * 10)}`}
-                      >
-                        {comp.score * 10} / 100
-                      </Badge>
+                      {(() => {
+                        let rawScore = Number(comp.score) || 0;
+                        if (rawScore > 100)
+                          rawScore = Math.round(rawScore / 10);
+                        const normalizedScore =
+                          rawScore <= 10
+                            ? Math.round(rawScore * 10)
+                            : Math.min(100, rawScore);
+                        return (
+                          <Badge
+                            variant="outline"
+                            className={`rounded-md font-bold ${getScoreBadgeStyles(normalizedScore)}`}
+                          >
+                            {normalizedScore} / 100
+                          </Badge>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-xs text-slate-600 py-3.5 whitespace-normal">
                       <ul className="space-y-1">

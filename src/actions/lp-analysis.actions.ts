@@ -846,6 +846,19 @@ export async function runLandingPageAuditInternal(
     );
   }
 
+  // Normalize competitor scores (ensure values between 0 and 100)
+  if (parsedAudit.competitors && Array.isArray(parsedAudit.competitors)) {
+    for (const comp of parsedAudit.competitors) {
+      let score = Number(comp.score) || 0;
+      if (score <= 10 && score > 0) {
+        score = Math.round(score * 10);
+      } else if (score > 100) {
+        score = Math.round(score / 10);
+      }
+      comp.score = Math.min(100, Math.max(0, score));
+    }
+  }
+
   // Save in Database
   console.log(`[Audit] Saving audit results to database...`);
   const [savedAudit] = await db
