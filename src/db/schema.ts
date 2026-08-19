@@ -638,6 +638,55 @@ export const mcpSettings = pgTable("mcp_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const mcpKeys = pgTable(
+  "mcp_keys",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    organizationId: text("organization_id").notNull(),
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    keyHash: varchar("key_hash", { length: 255 }).notNull().unique(),
+    keyPrefix: varchar("key_prefix", { length: 20 }).notNull(),
+    scopes: jsonb("scopes")
+      .notNull()
+      .default(["read:analytics", "run:audits", "write:negatives"]),
+    lastUsedAt: timestamp("last_used_at"),
+    expiresAt: timestamp("expires_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
+
+export const mcpUsageLogs = pgTable(
+  "mcp_usage_logs",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id").notNull(),
+    keyId: varchar("key_id", { length: 36 }),
+    userId: text("user_id"),
+    toolName: text("tool_name").notNull(),
+    tokensUsed: integer("tokens_used").default(0).notNull(),
+    executionTimeMs: integer("execution_time_ms").default(0).notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("success"),
+    errorMessage: text("error_message"),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
+
 export const briefingSettings = pgTable("briefing_settings", {
   id: serial("id").primaryKey(),
   organizationId: text("organization_id").notNull().default("default-org"),

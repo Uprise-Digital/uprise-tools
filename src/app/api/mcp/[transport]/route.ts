@@ -41,9 +41,12 @@ import {
 } from "@/actions/triage-settings.actions";
 import { db } from "@/db";
 import { withBypassTenantDb } from "@/db/db-helper";
+import { createHash } from "node:crypto";
 import {
   adAccounts,
+  mcpKeys,
   mcpSettings,
+  mcpUsageLogs,
   negativeKeywordSuggestions,
   orgTriageDefaults,
 } from "@/db/schema";
@@ -1870,11 +1873,39 @@ const authHandler = async (req: Request) => {
     );
   }
 
-  const validSettings = await db.query.mcpSettings.findFirst({
-    where: eq(mcpSettings.apiKey, token),
+  const hashedToken = createHash("sha256").update(token).digest("hex");
+
+  let targetOrgId = "";
+  let targetUserId: string | null = null;
+  let targetKeyId: string | null = null;
+
+  // 1. Look up per-user mcpKeys first
+  const validKey = await db.query.mcpKeys.findFirst({
+    where: eq(mcpKeys.keyHash, hashedToken),
   });
 
-  if (!validSettings) {
+  if (validKey) {
+    targetOrgId = validKey.organizationId;
+    targetUserId = validKey.userId;
+    targetKeyId = validKey.id;
+
+    // Asynchronously update lastUsedAt
+    db.update(mcpKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(mcpKeys.id, validKey.id))
+      .catch((err) => console.warn("[MCP Key LastUsed Update Warning]:", err));
+  } else {
+    // 2. Fallback to legacy mcpSettings lookup
+    const validSettings = await db.query.mcpSettings.findFirst({
+      where: eq(mcpSettings.apiKey, token),
+    });
+
+    if (validSettings) {
+      targetOrgId = validSettings.organizationId;
+    }
+  }
+
+  if (!targetOrgId) {
     return new Response(
       JSON.stringify({ error: "Unauthorized: Invalid API key" }),
       {
@@ -1887,12 +1918,51 @@ const authHandler = async (req: Request) => {
     );
   }
 
-  const response = await withTenantContext(
-    validSettings.organizationId,
-    async () => {
+  const startTime = Date.now();
+  let response: Response;
+
+  try {
+    response = await withTenantContext(targetOrgId, async () => {
       return await handler(req);
-    },
-  );
+    });
+
+    const executionTimeMs = Date.now() - startTime;
+    const clientIp =
+      req.headers.get("x-forwarded-for") ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = req.headers.get("user-agent") || "unknown";
+
+    db.insert(mcpUsageLogs)
+      .values({
+        organizationId: targetOrgId,
+        keyId: targetKeyId,
+        userId: targetUserId,
+        toolName: url.pathname.split("/").pop() || "mcp_tool",
+        executionTimeMs,
+        status: response.status < 400 ? "success" : "error",
+        ipAddress: clientIp,
+        userAgent,
+        createdAt: new Date(),
+      })
+      .catch((logErr) => console.warn("[MCP Usage Log Entry Error]:", logErr));
+  } catch (err: any) {
+    const executionTimeMs = Date.now() - startTime;
+    db.insert(mcpUsageLogs)
+      .values({
+        organizationId: targetOrgId,
+        keyId: targetKeyId,
+        userId: targetUserId,
+        toolName: url.pathname.split("/").pop() || "mcp_tool",
+        executionTimeMs,
+        status: "error",
+        errorMessage: err.message || String(err),
+        createdAt: new Date(),
+      })
+      .catch((logErr) => console.warn("[MCP Usage Log Entry Error]:", logErr));
+
+    throw err;
+  }
 
   const newHeaders = new Headers(response.headers);
   newHeaders.set("Access-Control-Allow-Origin", "*");

@@ -4,18 +4,29 @@ import {
   ActivitySquare,
   Bot,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
   Copy,
   Database,
   Globe,
+  Key,
   Loader2,
+  Plus,
   ShieldCheck,
   Terminal,
+  Trash2,
+  User,
+  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { rollMcpApiKeyAction } from "@/actions/mcp.actions";
+import {
+  createMcpKeyAction,
+  getMcpSettingsAction,
+  getMcpUsageLogsAction,
+  listMcpKeysAction,
+  revokeMcpKeyAction,
+  rollMcpApiKeyAction,
+} from "@/actions/mcp.actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -305,322 +316,695 @@ const TOOL_CATEGORIES = [
   },
 ];
 
-interface McpSettingsClientProps {
-  initialApiKey: string;
-}
+export default function McpSettingsClient() {
+  const [activeTab, setActiveTab] = useState<
+    "keys" | "logs" | "setup" | "catalog"
+  >("keys");
+  const [legacyApiKey, setLegacyApiKey] = useState("");
+  const [keys, setKeys] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [rolling, setRolling] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
-export default function McpSettingsClient({
-  initialApiKey,
-}: McpSettingsClientProps) {
-  const [isCopied, setIsCopied] = useState(false);
-
-  // Backend-synced state
-  const [apiKey, setApiKey] = useState(initialApiKey);
-
-  // Loading states
-  const [isRolling, setIsRolling] = useState(false);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(
-    "portfolio",
+  // Modal State for Key Generation
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [newlyCreatedRawKey, setNewlyCreatedRawKey] = useState<string | null>(
+    null,
   );
-  const [baseUrl, setBaseUrl] = useState("http://localhost:3000");
 
   useEffect(() => {
-    setBaseUrl(getAppUrl());
+    loadMcpData();
   }, []);
 
-  const handleCopyConfig = () => {
-    const config = `{\n  "mcpServers": {\n    "agency-os": {\n      "command": "npx",\n      "args": [\n        "-y",\n        "@modelcontextprotocol/client-sse",\n        "--url",\n        "${baseUrl}/api/mcp",\n        "--header",\n        "Authorization: Bearer ${apiKey}"\n      ]\n    }\n  }\n}`;
-    navigator.clipboard.writeText(config);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+  const loadMcpData = async () => {
+    setLoading(true);
+    try {
+      const [settingsRes, keysRes, logsRes] = await Promise.all([
+        getMcpSettingsAction(),
+        listMcpKeysAction(),
+        getMcpUsageLogsAction(50),
+      ]);
+
+      if (settingsRes.success && settingsRes.data) {
+        setLegacyApiKey(settingsRes.data.apiKey);
+      }
+      if (keysRes.success && keysRes.keys) {
+        setKeys(keysRes.keys);
+      }
+      if (logsRes.success && logsRes.logs) {
+        setLogs(logsRes.logs);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load MCP settings.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRollKey = async () => {
+  const handleCreateKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newKeyName.trim()) {
+      toast.error("Please enter a name for the key");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const res = await createMcpKeyAction({
+        name: newKeyName,
+        scopes: ["read:analytics", "run:audits", "write:negatives"],
+      });
+
+      if (res.success && res.rawKey) {
+        setNewlyCreatedRawKey(res.rawKey);
+        setShowCreateModal(false);
+        setNewKeyName("");
+        toast.success("New MCP Key generated!");
+        loadMcpData();
+      } else {
+        toast.error(res.error || "Failed to create key");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate key");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleRevokeKey = async (keyId: string) => {
     if (
       !confirm(
-        "Are you sure? This will instantly disconnect any existing Claude integrations using the current key.",
+        "Are you sure you want to revoke this MCP key? Connected AI clients will lose access instantly.",
       )
-    )
+    ) {
       return;
-
-    setIsRolling(true);
-    const res = await rollMcpApiKeyAction();
-    if (res.success && res.apiKey) {
-      setApiKey(res.apiKey);
     }
-    setIsRolling(false);
+
+    setRevokingId(keyId);
+    try {
+      const res = await revokeMcpKeyAction(keyId);
+      if (res.success) {
+        toast.success("MCP API Key revoked.");
+        setKeys((prev) => prev.filter((k) => k.id !== keyId));
+      } else {
+        toast.error(res.error || "Failed to revoke key");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Error revoking key");
+    } finally {
+      setRevokingId(null);
+    }
   };
 
+  const handleRollLegacyKey = async () => {
+    if (
+      !confirm(
+        "Rolling legacy master key will immediately disconnect existing external agents using the legacy key. Proceed?",
+      )
+    ) {
+      return;
+    }
+    setRolling(true);
+    try {
+      const res = await rollMcpApiKeyAction();
+      if (res.success && res.apiKey) {
+        setLegacyApiKey(res.apiKey);
+        toast.success("Legacy master key rolled successfully!");
+      } else {
+        toast.error(res.error || "Failed to roll key.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.");
+    } finally {
+      setRolling(false);
+    }
+  };
+
+  const mcpSseUrl = `${getAppUrl()}/api/mcp/sse?key=${keys[0]?.keyPrefix || legacyApiKey}`;
+  const mcpHttpUrl = `${getAppUrl()}/api/mcp/messages`;
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied to clipboard!`);
+  };
+
+  const claudeDesktopConfig = JSON.stringify(
+    {
+      mcpServers: {
+        "uprise-tools": {
+          command: "node",
+          args: [
+            "/path/to/mcp-bridge.js",
+            "--url",
+            mcpSseUrl,
+            "--key",
+            keys[0]?.keyPrefix ? "agv_live_YOUR_RAW_SECRET_KEY" : legacyApiKey,
+          ],
+        },
+      },
+    },
+    null,
+    2,
+  );
+
   return (
-    <div className="w-full h-full p-8 font-sans bg-slate-50/50">
-      {/* HEADER */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-          <Bot className="w-7 h-7 text-indigo-600" />
-          Claude MCP Integration
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Connect your live agency database directly to Claude Desktop using the
-          Model Context Protocol.
-        </p>
+    <div className="space-y-8 pb-12">
+      {/* Header Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 p-8 shadow-2xl">
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold uppercase tracking-wider">
+              <Bot className="w-3.5 h-3.5" />
+              Anthropic / OpenAI MCP Integration
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">
+              Model Context Protocol (MCP) Hub
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Provision per-user API keys, configure tool scopes, and inspect
+              real-time tool execution logs for Claude Desktop, Cursor, and
+              custom AI agents.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/20"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Generate New MCP Key
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* LEFT COLUMN: Configuration */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="py-0 border-slate-200 shadow-sm">
-            <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
-              <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                Connection Authentication
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Generate a secure token to authenticate Claude requests.
-              </CardDescription>
+      {/* Main Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab("keys")}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+            activeTab === "keys"
+              ? "bg-indigo-600 text-white shadow-sm"
+              : "text-slate-400 hover:text-white hover:bg-slate-900"
+          }`}
+        >
+          <Key className="w-4 h-4" />
+          API Keys ({keys.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("logs")}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+            activeTab === "logs"
+              ? "bg-indigo-600 text-white shadow-sm"
+              : "text-slate-400 hover:text-white hover:bg-slate-900"
+          }`}
+        >
+          <ActivitySquare className="w-4 h-4" />
+          Execution Logs ({logs.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("setup")}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+            activeTab === "setup"
+              ? "bg-indigo-600 text-white shadow-sm"
+              : "text-slate-400 hover:text-white hover:bg-slate-900"
+          }`}
+        >
+          <Terminal className="w-4 h-4" />
+          Claude / Cursor Setup
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("catalog")}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+            activeTab === "catalog"
+              ? "bg-indigo-600 text-white shadow-sm"
+              : "text-slate-400 hover:text-white hover:bg-slate-900"
+          }`}
+        >
+          <Database className="w-4 h-4" />
+          Tool Catalog ({AVAILABLE_TOOLS.length})
+        </button>
+      </div>
+
+      {loading && (
+        <div className="flex items-center justify-center py-16 text-slate-400 gap-3">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+          <span>Loading MCP Server Configuration...</span>
+        </div>
+      )}
+
+      {/* TAB 1: API KEYS TABLE */}
+      {!loading && activeTab === "keys" && (
+        <div className="space-y-6">
+          <Card className="bg-slate-900/80 border-slate-800 shadow-xl">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+                  <Key className="w-5 h-5 text-indigo-400" />
+                  Per-User MCP API Keys
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-sm">
+                  Active API keys for your agency members and automated AI
+                  agents.
+                </CardDescription>
+              </div>
             </CardHeader>
-            <CardContent className="p-5 pt-3 space-y-4">
-              <div className="space-y-2">
-                <label
-                  htmlFor="mcp-api-key"
-                  className="text-[10px] font-bold uppercase tracking-wider text-slate-500"
-                >
-                  MCP API Key
-                </label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="mcp-api-key"
-                    readOnly
-                    value={apiKey}
-                    className="font-mono text-xs bg-slate-50 border-slate-200 text-slate-600"
-                  />
+            <CardContent>
+              {keys.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-slate-800 rounded-xl bg-slate-950/40 space-y-3">
+                  <ShieldCheck className="w-10 h-10 text-slate-600 mx-auto" />
+                  <p className="text-sm text-slate-400 font-medium">
+                    No per-user MCP keys generated yet.
+                  </p>
                   <Button
+                    onClick={() => setShowCreateModal(true)}
                     variant="outline"
-                    size="sm"
-                    className="text-xs w-24"
-                    onClick={handleRollKey}
-                    disabled={isRolling}
+                    className="border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10"
                   >
-                    {isRolling ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      "Roll Key"
-                    )}
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Your First MCP Key
                   </Button>
                 </div>
-                <p className="text-[10px] text-slate-400">
-                  This token grants read-only access to your permitted tools.
-                  Keep it secure. Do NOT roll it - everyone will lose access!
-                </p>
-              </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-slate-300">
+                    <thead className="bg-slate-950/80 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                      <tr>
+                        <th className="px-4 py-3">Key Name</th>
+                        <th className="px-4 py-3">Owner</th>
+                        <th className="px-4 py-3">Key Prefix</th>
+                        <th className="px-4 py-3">Scopes</th>
+                        <th className="px-4 py-3">Last Used</th>
+                        <th className="px-4 py-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {keys.map((k) => (
+                        <tr
+                          key={k.id}
+                          className="hover:bg-slate-950/40 transition-colors"
+                        >
+                          <td className="px-4 py-3.5 font-semibold text-white">
+                            {k.name}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-1.5 text-xs text-slate-300">
+                              <User className="w-3.5 h-3.5 text-indigo-400" />
+                              <span>{k.ownerName}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 font-mono text-xs text-indigo-400">
+                            {k.keyPrefix}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex flex-wrap gap-1">
+                              {Array.isArray(k.scopes) &&
+                                k.scopes.map((s: string) => (
+                                  <span
+                                    key={s}
+                                    className="px-2 py-0.5 rounded bg-slate-800 text-[10px] font-mono text-slate-300"
+                                  >
+                                    {s}
+                                  </span>
+                                ))}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 text-xs text-slate-400">
+                            {k.lastUsedAt
+                              ? new Date(k.lastUsedAt).toLocaleString()
+                              : "Never"}
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={revokingId === k.id}
+                              onClick={() => handleRevokeKey(k.id)}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-950/30 h-8 px-2"
+                            >
+                              {revokingId === k.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
+                              <span className="ml-1 text-xs">Revoke</span>
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <Card className="py-0 border-slate-200 shadow-sm overflow-hidden gap-0">
-            <CardHeader className="bg-slate-900 border-b border-slate-800 p-5">
-              <CardTitle className="text-sm text-slate-100 flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-indigo-400" />
-                Claude Desktop Configuration
+          {/* Legacy Organization Master Key Section */}
+          <Card className="bg-slate-950/60 border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+                Legacy Master Organization Key
               </CardTitle>
-              <CardDescription className="text-slate-400 text-xs">
-                Paste this directly into your{" "}
+              <CardDescription className="text-xs text-slate-500">
+                Backward compatible master fallback key for single-tenant bots.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between gap-4">
+              <Input
+                readOnly
+                type="password"
+                value={legacyApiKey}
+                className="bg-slate-900 border-slate-800 text-slate-300 font-mono text-xs max-w-md"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={rolling}
+                onClick={handleRollLegacyKey}
+                className="border-slate-800 hover:bg-slate-900 text-slate-300"
+              >
+                {rolling ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                ) : null}
+                Roll Master Key
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB 2: EXECUTION LOGS TABLE */}
+      {!loading && activeTab === "logs" && (
+        <Card className="bg-slate-900/80 border-slate-800 shadow-xl">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+              <ActivitySquare className="w-5 h-5 text-indigo-400" />
+              Real-Time MCP Tool Execution Logs
+            </CardTitle>
+            <CardDescription className="text-slate-400 text-sm">
+              Live audit stream of all tool calls executed by connected AI
+              clients.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {logs.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-slate-800 rounded-xl bg-slate-950/40">
+                <p className="text-sm text-slate-500">
+                  No MCP tool execution logs recorded yet.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-slate-300">
+                  <thead className="bg-slate-950/80 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="px-4 py-3">Timestamp</th>
+                      <th className="px-4 py-3">Tool Name</th>
+                      <th className="px-4 py-3">Latency</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">IP Address</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+                    {logs.map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-950/40">
+                        <td className="px-4 py-3 text-slate-400">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-indigo-300">
+                          {log.toolName}
+                        </td>
+                        <td className="px-4 py-3 text-slate-300">
+                          {log.executionTimeMs} ms
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              log.status === "success"
+                                ? "bg-emerald-950/60 text-emerald-400 border border-emerald-500/20"
+                                : "bg-red-950/60 text-red-400 border border-red-500/20"
+                            }`}
+                          >
+                            {log.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">
+                          {log.ipAddress || "internal"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* TAB 3: SETUP INSTRUCTIONS */}
+      {!loading && activeTab === "setup" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="bg-slate-900/80 border-slate-800 shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <Bot className="w-5 h-5 text-indigo-400" />
+                Claude Desktop Integration
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-400">
+                Add this config snippet to your local{" "}
                 <code className="text-indigo-300">
                   claude_desktop_config.json
                 </code>{" "}
                 file.
               </CardDescription>
             </CardHeader>
-            <CardContent className="py-0 bg-slate-950 p-0 relative">
-              <Button
-                size="sm"
-                variant="secondary"
-                className="absolute top-3 right-3 h-7 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-200 border-0"
-                onClick={handleCopyConfig}
-              >
-                {isCopied ? (
-                  <CheckCircle2 className="w-3 h-3 mr-1.5 text-emerald-400" />
-                ) : (
-                  <Copy className="w-3 h-3 mr-1.5" />
-                )}
-                {isCopied ? "Copied" : "Copy JSON"}
-              </Button>
-              <pre className="p-5 text-xs font-mono text-slate-300 overflow-x-auto leading-relaxed">
-                {`{
-  "mcpServers": {
-    "agency-os": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/client-sse",
-        "--url",
-        "${baseUrl}/api/mcp",
-        "--header",
-        "Authorization: Bearer ${apiKey}"
-      ]
-    }
-  }
-}`}
-              </pre>
+            <CardContent className="space-y-4">
+              <div className="relative bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-indigo-300 overflow-x-auto">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    copyToClipboard(
+                      claudeDesktopConfig,
+                      "Claude Desktop Config",
+                    )
+                  }
+                  className="absolute top-2 right-2 text-slate-400 hover:text-white"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </Button>
+                <pre>{claudeDesktopConfig}</pre>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="py-0 border-slate-200 shadow-sm overflow-hidden gap-0">
-            <CardHeader className="bg-slate-900 border-b border-slate-800 p-5">
-              <CardTitle className="text-sm text-slate-100 flex items-center gap-2">
-                <Globe className="w-4 h-4 text-indigo-400" />
-                Claude Web (Claude.ai) Configuration
+          <Card className="bg-slate-900/80 border-slate-800 shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <Globe className="w-5 h-5 text-indigo-400" />
+                HTTP & SSE Endpoints
               </CardTitle>
-              <CardDescription className="text-slate-400 text-xs">
-                Configure connection settings in your Claude.ai account
-                settings.
+              <CardDescription className="text-xs text-slate-400">
+                Direct endpoints for Cursor, Antigravity, or custom agent
+                frameworks.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-5 bg-white space-y-4 text-slate-600">
-              <div className="space-y-3.5">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Connection URL (Pre-authenticated)
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      readOnly
-                      value={`${baseUrl}/api/mcp/mcp?key=${apiKey}`}
-                      className="font-mono text-xs bg-slate-50 border-slate-200 text-slate-600 h-8"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-8 w-20"
-                      onClick={() => {
-                        navigator.clipboard.writeText(
-                          `${baseUrl}/api/mcp/mcp?key=${apiKey}`,
-                        );
-                        toast.success("Connection URL copied!");
-                      }}
-                    >
-                      Copy URL
-                    </Button>
-                  </div>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-400 uppercase">
+                  SSE Endpoint URL
+                </label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    readOnly
+                    value={mcpSseUrl}
+                    className="bg-slate-950 border-slate-800 text-xs font-mono text-slate-300"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(mcpSseUrl, "SSE URL")}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
+              </div>
 
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-[11px] leading-relaxed text-slate-500">
-                  <span className="font-bold text-slate-700 block mb-1">
-                    Detailed Steps:
-                  </span>
-                  1. Log into{" "}
-                  <span className="font-semibold text-slate-700">
-                    Claude.ai
-                  </span>{" "}
-                  and navigate to your profile menu at the bottom left.
-                  <br />
-                  2. Select{" "}
-                  <span className="font-semibold text-slate-700">Settings</span>
-                  , then click on the{" "}
-                  <span className="font-semibold text-slate-700">
-                    MCP Servers
-                  </span>{" "}
-                  tab.
-                  <br />
-                  3. Click{" "}
-                  <span className="font-semibold text-slate-700">
-                    Add Server
-                  </span>
-                  , name it{" "}
-                  <code className="bg-slate-150 px-1 rounded font-bold text-slate-800">
-                    Uprise Digital MCP
-                  </code>
-                  , and paste the copied pre-authenticated{" "}
-                  <span className="font-bold">Connection URL</span>.
-                  <br />
-                  4. Click <span className="font-bold">Connect</span>.
+              <div>
+                <label className="text-xs font-semibold text-slate-400 uppercase">
+                  HTTP Transport URL
+                </label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    readOnly
+                    value={mcpHttpUrl}
+                    className="bg-slate-950 border-slate-800 text-xs font-mono text-slate-300"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyToClipboard(mcpHttpUrl, "HTTP URL")}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
+      )}
 
-        {/* RIGHT COLUMN: Available MCP Tools */}
-        <div className="lg:col-span-1">
-          <Card className="py-0 border-slate-200 shadow-sm flex flex-col min-h-[750px] overflow-hidden bg-white">
-            <CardHeader className="bg-slate-50 border-b border-slate-100 p-5 shrink-0">
-              <CardTitle className="text-sm font-bold flex items-center justify-between text-slate-800">
-                <span className="flex items-center gap-2">
-                  <Database className="w-4 h-4 text-indigo-500" />
-                  Available MCP Tools ({AVAILABLE_TOOLS.length})
-                </span>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                These tools are exposed to Claude when connected to this MCP
-                server.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 overflow-y-auto divide-y divide-slate-100 flex-1">
-              {TOOL_CATEGORIES.map((cat) => {
-                const isExpanded = expandedCategory === cat.id;
-                const categoryTools = AVAILABLE_TOOLS.filter((tool) =>
-                  cat.tools.includes(tool.name),
-                );
-
-                return (
-                  <div
-                    key={cat.id}
-                    className="border-b border-slate-100 last:border-b-0"
-                  >
-                    <button
-                      onClick={() =>
-                        setExpandedCategory(isExpanded ? null : cat.id)
-                      }
-                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors text-left"
+      {/* TAB 4: TOOL CATALOG */}
+      {!loading && activeTab === "catalog" && (
+        <div className="space-y-6">
+          {TOOL_CATEGORIES.map((category) => (
+            <Card
+              key={category.id}
+              className="bg-slate-900/80 border-slate-800"
+            >
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-white">
+                  {category.title}
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-400">
+                  {category.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {category.tools.map((toolName) => {
+                  const tool = AVAILABLE_TOOLS.find((t) => t.name === toolName);
+                  if (!tool) return null;
+                  return (
+                    <div
+                      key={tool.name}
+                      className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1"
                     >
-                      <div>
-                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                          {cat.title}
-                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
-                            {categoryTools.length}
-                          </span>
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <span className="font-mono text-xs font-bold text-white">
+                          {tool.name}
                         </span>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
-                          {cat.description}
-                        </p>
                       </div>
-                      {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-slate-450" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-slate-450" />
-                      )}
-                    </button>
-
-                    {isExpanded && (
-                      <div className="bg-slate-50/50 px-4 pb-4 divide-y divide-slate-100/60 border-t border-slate-100">
-                        {categoryTools.map((tool) => (
-                          <div
-                            key={tool.name}
-                            className="py-3 last:pb-0 first:pt-3"
-                          >
-                            <div className="space-y-1">
-                              <div className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
-                                <ActivitySquare className="w-3 h-3 text-indigo-500 shrink-0" />
-                                {tool.title}
-                              </div>
-                              <div className="pt-0.5">
-                                <code className="text-[8px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
-                                  {tool.name}
-                                </code>
-                              </div>
-                              <p className="text-[10px] text-slate-500 leading-normal pt-1">
-                                {tool.description}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
+                      <p className="text-xs text-slate-400 pl-5 leading-relaxed">
+                        {tool.description}
+                      </p>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </div>
+      )}
+
+      {/* CREATE KEY MODAL */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold text-white">
+                Generate Per-User MCP Key
+              </h3>
+              <p className="text-xs text-slate-400">
+                Create a dedicated API key for your Claude Desktop, Cursor
+                agent, or AI bot.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateKey} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                  Key Label / Name *
+                </label>
+                <Input
+                  required
+                  placeholder="e.g. Alex's Claude Desktop"
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                  className="bg-slate-950 border-slate-800 text-white"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowCreateModal(false)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={creating}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold"
+                >
+                  {creating ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  ) : null}
+                  Generate Key
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ONE-TIME SECRET DISPLAY MODAL */}
+      {newlyCreatedRawKey && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                <CheckCircle2 className="w-4 h-4" />
+                MCP Key Created Successfully
+              </div>
+              <h3 className="text-xl font-bold text-white">
+                Save Your API Secret Key
+              </h3>
+              <p className="text-xs text-amber-400 font-medium">
+                ⚠️ Make sure to copy your API secret now. You will not be able to
+                see it again!
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-slate-950 border border-indigo-500/30 rounded-xl font-mono text-xs text-indigo-300 break-all select-all flex items-center justify-between gap-3">
+              <span>{newlyCreatedRawKey}</span>
+              <Button
+                size="sm"
+                onClick={() =>
+                  copyToClipboard(newlyCreatedRawKey, "MCP Secret Key")
+                }
+                className="bg-indigo-600 hover:bg-indigo-500 text-white shrink-0"
+              >
+                <Copy className="w-3.5 h-3.5 mr-1" />
+                Copy
+              </Button>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={() => setNewlyCreatedRawKey(null)}
+                className="bg-slate-800 hover:bg-slate-700 text-white font-semibold"
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
