@@ -948,199 +948,193 @@ export default function AgencyReportsClient() {
           <Activity className="w-3.5 h-3.5" /> Daily Portfolio Trends
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Spend vs. Conversions (indexed) */}
-            <Card className="border-slate-200 shadow-sm bg-white flex flex-col justify-between h-full">
-              <CardHeader className="py-3.5 px-5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                    <Activity className="w-4 h-4 text-indigo-500" /> Spend vs.
-                    Conversions (Indexed)
-                  </CardTitle>
-                  <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                    Indexed to day 1 = 100 (first active day with spend)
-                  </p>
-                </div>
-              </CardHeader>
-              <CardContent className="p-5 flex flex-col justify-between flex-1 space-y-4">
-                <div className="h-64">
-                  {indexedDailyTotals.length > 0 ? (
-                    <ChartContainer
-                      config={indexedChartConfig}
-                      className="w-full h-full"
-                    >
-                      <LineChart data={indexedDailyTotals}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke="#f1f5f9"
-                          vertical={false}
-                        />
-                        {weekendAreas.map((area) => (
-                          <ReferenceArea
-                            key={area.id}
-                            x1={area.x1}
-                            x2={area.x2}
-                            fill="#f1f5f9"
-                            fillOpacity={0.6}
-                            ifOverflow="extendDomain"
-                          />
-                        ))}
-                        <XAxis
-                          dataKey="date"
-                          tickFormatter={(d) => d.slice(5)}
-                          stroke="#94a3b8"
-                          fontSize={10}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          stroke="#94a3b8"
-                          fontSize={10}
-                          tickLine={false}
-                          axisLine={false}
-                          label={{
-                            value: "Index (day 1 = 100)",
-                            angle: -90,
-                            position: "insideLeft",
-                            style: { fontSize: "10px", fill: "#94a3b8" },
-                            offset: -5,
-                          }}
-                        />
-                        <Tooltip
-                          cursor={{ strokeDasharray: "3 3" }}
-                          content={<CustomIndexedTooltip />}
-                        />
-                        <Line
-                          type="monotone"
-                          name="spendIndex"
-                          dataKey="spendIndex"
-                          stroke="#2a78d6"
-                          strokeWidth={2.5}
-                          dot={false}
-                          activeDot={{ r: 4 }}
-                        />
-                        <Line
-                          type="monotone"
-                          name="convIndex"
-                          dataKey="convIndex"
-                          stroke="#008300"
-                          strokeDasharray="5 5"
-                          strokeWidth={2.5}
-                          dot={false}
-                          activeDot={{ r: 4 }}
-                        />
-                      </LineChart>
-                    </ChartContainer>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-slate-400 text-xs">
-                      No active daily metrics found
-                    </div>
-                  )}
-                </div>
-                <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg flex items-start gap-2">
-                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-1.5 py-0.5 rounded h-fit shrink-0">
-                    Guide
-                  </span>
-                  <p className="text-[11px] leading-relaxed text-slate-500">
-                    If the green dashed line (conversions) falls further below
-                    the blue solid line (spend) as time goes on, spend is not
-                    dropping as fast as conversions, meaning efficiency is
-                    degrading.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Daily CPA Trend */}
-            <Card className="border-slate-200 shadow-sm bg-white flex flex-col justify-between h-full">
-              <CardHeader className="py-3.5 px-5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
+          {/* Spend vs. Conversions (indexed) */}
+          <Card className="border-slate-200 shadow-sm bg-white flex flex-col justify-between h-full">
+            <CardHeader className="py-3.5 px-5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
+              <div>
                 <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                  <TrendingUp className="w-4 h-4 text-amber-500" /> Daily CPA
-                  Trend
+                  <Activity className="w-4 h-4 text-indigo-500" /> Spend vs.
+                  Conversions (Indexed)
                 </CardTitle>
-                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                  Blended: {fCur(portfolio?.agencyTotals?.cpa || 0)}
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                  Indexed to day 1 = 100 (first active day with spend)
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="p-5 flex flex-col justify-between flex-1 space-y-4">
+              <div className="h-64">
+                {indexedDailyTotals.length > 0 ? (
+                  <ChartContainer
+                    config={indexedChartConfig}
+                    className="w-full h-full"
+                  >
+                    <LineChart data={indexedDailyTotals}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#f1f5f9"
+                        vertical={false}
+                      />
+                      {weekendAreas.map((area) => (
+                        <ReferenceArea
+                          key={area.id}
+                          x1={area.x1}
+                          x2={area.x2}
+                          fill="#f1f5f9"
+                          fillOpacity={0.6}
+                          ifOverflow="extendDomain"
+                        />
+                      ))}
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(d) => d.slice(5)}
+                        stroke="#94a3b8"
+                        fontSize={10}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        stroke="#94a3b8"
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                        label={{
+                          value: "Index (day 1 = 100)",
+                          angle: -90,
+                          position: "insideLeft",
+                          style: { fontSize: "10px", fill: "#94a3b8" },
+                          offset: -5,
+                        }}
+                      />
+                      <Tooltip
+                        cursor={{ strokeDasharray: "3 3" }}
+                        content={<CustomIndexedTooltip />}
+                      />
+                      <Line
+                        type="monotone"
+                        name="spendIndex"
+                        dataKey="spendIndex"
+                        stroke="#2a78d6"
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
+                      <Line
+                        type="monotone"
+                        name="convIndex"
+                        dataKey="convIndex"
+                        stroke="#008300"
+                        strokeDasharray="5 5"
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                    No active daily metrics found
+                  </div>
+                )}
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg flex items-start gap-2">
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-1.5 py-0.5 rounded h-fit shrink-0">
+                  Guide
                 </span>
-              </CardHeader>
-              <CardContent className="p-5 flex flex-col justify-between flex-1 space-y-4">
-                <div className="h-64">
-                  {dailyTotalsWithCpa.length > 0 ? (
-                    <ChartContainer
-                      config={cpaChartConfig}
-                      className="w-full h-full"
-                    >
-                      <LineChart data={dailyTotalsWithCpa}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke="#f1f5f9"
-                          vertical={false}
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  If the green dashed line (conversions) falls further below the
+                  blue solid line (spend) as time goes on, spend is not dropping
+                  as fast as conversions, meaning efficiency is degrading.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Daily CPA Trend */}
+          <Card className="border-slate-200 shadow-sm bg-white flex flex-col justify-between h-full">
+            <CardHeader className="py-3.5 px-5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-amber-500" /> Daily CPA
+                Trend
+              </CardTitle>
+              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                Blended: {fCur(portfolio?.agencyTotals?.cpa || 0)}
+              </span>
+            </CardHeader>
+            <CardContent className="p-5 flex flex-col justify-between flex-1 space-y-4">
+              <div className="h-64">
+                {dailyTotalsWithCpa.length > 0 ? (
+                  <ChartContainer
+                    config={cpaChartConfig}
+                    className="w-full h-full"
+                  >
+                    <LineChart data={dailyTotalsWithCpa}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#f1f5f9"
+                        vertical={false}
+                      />
+                      {weekendAreas.map((area) => (
+                        <ReferenceArea
+                          key={area.id}
+                          x1={area.x1}
+                          x2={area.x2}
+                          fill="#f1f5f9"
+                          fillOpacity={0.6}
+                          ifOverflow="extendDomain"
                         />
-                        {weekendAreas.map((area) => (
-                          <ReferenceArea
-                            key={area.id}
-                            x1={area.x1}
-                            x2={area.x2}
-                            fill="#f1f5f9"
-                            fillOpacity={0.6}
-                            ifOverflow="extendDomain"
+                      ))}
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(d) => d.slice(5)}
+                        stroke="#94a3b8"
+                        fontSize={10}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tickFormatter={(v) => `$${v}`}
+                        stroke="#f59e0b"
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <ChartTooltip
+                        cursor={{ strokeDasharray: "3 3" }}
+                        content={
+                          <ChartTooltipContent
+                            labelFormatter={(d) => `Date: ${d}`}
+                            formatter={(value) => [fCur(Number(value)), "CPA"]}
                           />
-                        ))}
-                        <XAxis
-                          dataKey="date"
-                          tickFormatter={(d) => d.slice(5)}
-                          stroke="#94a3b8"
-                          fontSize={10}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          tickFormatter={(v) => `$${v}`}
-                          stroke="#f59e0b"
-                          fontSize={10}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <ChartTooltip
-                          cursor={{ strokeDasharray: "3 3" }}
-                          content={
-                            <ChartTooltipContent
-                              labelFormatter={(d) => `Date: ${d}`}
-                              formatter={(value) => [
-                                fCur(Number(value)),
-                                "CPA",
-                              ]}
-                            />
-                          }
-                        />
-                        <Line
-                          type="monotone"
-                          name="cpa"
-                          dataKey="cpa"
-                          stroke="#f59e0b"
-                          strokeWidth={2.5}
-                          dot={false}
-                          activeDot={{ r: 4 }}
-                        />
-                      </LineChart>
-                    </ChartContainer>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-slate-400 text-xs">
-                      No daily metrics found
-                    </div>
-                  )}
-                </div>
-                <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg flex items-start gap-2">
-                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-1.5 py-0.5 rounded h-fit shrink-0">
-                    Guide
-                  </span>
-                  <p className="text-[11px] leading-relaxed text-slate-500">
-                    Spikes in the orange CPA line indicate days where
-                    cost-per-acquisition degraded. Sustained peaks above your
-                    baseline suggest keyword waste or conversion tracking drops
-                    requiring audit.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                        }
+                      />
+                      <Line
+                        type="monotone"
+                        name="cpa"
+                        dataKey="cpa"
+                        stroke="#f59e0b"
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                    No daily metrics found
+                  </div>
+                )}
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg flex items-start gap-2">
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider bg-amber-50 px-1.5 py-0.5 rounded h-fit shrink-0">
+                  Guide
+                </span>
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  Spikes in the orange CPA line indicate days where
+                  cost-per-acquisition degraded. Sustained peaks above your
+                  baseline suggest keyword waste or conversion tracking drops
+                  requiring audit.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
