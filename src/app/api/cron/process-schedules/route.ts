@@ -21,7 +21,7 @@ import {
 } from "@/lib/report-utils";
 import { MyReportPDF } from "@/service/pdf-service";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_build_key");
 
 // Helper to convert the PDF stream to a buffer for Resend
 async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {

@@ -230,7 +230,9 @@ ${websiteUrl ? `<p style="font-size: 12px; color: #64748b; margin: 0;"><a href="
   const primaryRecipient = recipients[0] || "";
 
   try {
-    const resend = new Resend(process.env.RESEND_API_KEY!);
+    const resend = new Resend(
+      process.env.RESEND_API_KEY || "re_dummy_build_key",
+    );
     const fromAddress =
       process.env.SENDER_EMAIL ||
       "Uprise Digital <reports@uprisedigital.com.au>";

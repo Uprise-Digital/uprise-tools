@@ -12,7 +12,7 @@ import { auth } from "@/lib/auth";
 import { getBriefingSettingsAction } from "./briefing-settings.actions";
 import { getOrgTriageDefaultsAction } from "./triage-settings.actions";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_build_key");
 
 const SYSTEM_ACTOR = "SYSTEM_AUTOMATION";
 

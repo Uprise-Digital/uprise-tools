@@ -21,7 +21,7 @@ import {
 } from "@/lib/report-utils";
 import { MyReportPDF } from "@/service/pdf-service";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_build_key");
 
 async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
   const chunks: Uint8Array[] = [];
