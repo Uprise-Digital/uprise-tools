@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { MainLayout } from "@/components/main-layout";
 import { db } from "@/db";
@@ -30,20 +30,22 @@ export default async function DashboardLayout({
     .innerJoin(organization, eq(member.organizationId, organization.id))
     .where(eq(member.userId, session.user.id));
 
-  console.log(
-    `[Layout Check] User: ${session.user.email} (${session.user.id}), Memberships Count: ${userOrgs.length}`,
-  );
-
   if (userOrgs.length === 0) {
-    console.log(
-      `[Layout Check] No memberships found. Redirecting user to /onboarding`,
-    );
     redirect("/onboarding");
   }
 
+  const cookieStore = await cookies();
+  const cookieOrgId = cookieStore.get("active_org_id")?.value;
+
   let activeOrgId = session.session.activeOrganizationId;
-  if (!activeOrgId) {
-    activeOrgId = userOrgs[0]?.id;
+
+  // If activeOrganizationId on session is missing or invalid, fallback to cookie
+  if (!activeOrgId || !userOrgs.some((o) => o.id === activeOrgId)) {
+    if (cookieOrgId && userOrgs.some((o) => o.id === cookieOrgId)) {
+      activeOrgId = cookieOrgId;
+    } else {
+      activeOrgId = userOrgs[0]?.id;
+    }
   }
 
   const activeOrg =

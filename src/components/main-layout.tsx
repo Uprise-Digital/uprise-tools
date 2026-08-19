@@ -37,6 +37,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { UserMenu } from "@/components/user-menu";
+import { setActiveOrgCookieAction } from "@/actions/onboarding.actions";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
@@ -79,12 +80,15 @@ export function MainLayout({
   const handleSwitchOrg = async (orgId: string) => {
     if (activeOrganization?.id === orgId) return;
     try {
+      document.cookie = `active_org_id=${orgId}; path=/; max-age=31536000`;
+      await setActiveOrgCookieAction(orgId);
       await authClient.organization.setActive({
         organizationId: orgId,
       });
       window.location.reload();
     } catch (err) {
       console.error("Failed to switch organization:", err);
+      window.location.reload();
     }
   };
 

@@ -2,7 +2,7 @@
 
 import { generateId } from "better-auth";
 import { eq, sql } from "drizzle-orm";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { db } from "@/db";
 import {
   adAccounts,
@@ -88,7 +88,25 @@ export async function createOrganizationAction(payload: {
     updatedAt: new Date(),
   });
 
+  // 3. Set active_org_id cookie
+  const cookieStore = await cookies();
+  cookieStore.set("active_org_id", orgId, {
+    path: "/",
+    maxAge: 31536000,
+    sameSite: "lax",
+  });
+
   return { success: true, organizationId: orgId };
+}
+
+export async function setActiveOrgCookieAction(orgId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set("active_org_id", orgId, {
+    path: "/",
+    maxAge: 31536000,
+    sameSite: "lax",
+  });
+  return { success: true };
 }
 
 // --- Helper: Fetch Google Ads Customer Details via Search Query ---
