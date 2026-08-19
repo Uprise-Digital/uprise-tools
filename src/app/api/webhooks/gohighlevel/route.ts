@@ -117,26 +117,39 @@ export async function POST(req: NextRequest) {
     }
 
     // Trigger Google Drive folder creation & link setups via BullMQ Queue / after() background job
-    try {
-      const { onboardingQueue } = await import("@/lib/queues");
-      await onboardingQueue.add(
-        "process-onboarding",
-        {
-          onboardingId,
-          organizationId: targetOrgId,
-        },
-        {
-          jobId: `onboarding-${onboardingId}`,
-        },
-      );
-      console.log(
-        `[GHL Webhook] Pushed BullMQ job for onboarding ID: ${onboardingId}`,
-      );
-    } catch (queueErr) {
-      console.warn(
-        `[GHL Webhook] BullMQ queue dispatch failed, falling back to Next.js after():`,
-        queueErr,
-      );
+    if (process.env.NODE_ENV !== "test" && process.env.REDIS_URL) {
+      try {
+        const { onboardingQueue } = await import("@/lib/queues");
+        await onboardingQueue.add(
+          "process-onboarding",
+          {
+            onboardingId,
+            organizationId: targetOrgId,
+          },
+          {
+            jobId: `onboarding-${onboardingId}`,
+          },
+        );
+        console.log(
+          `[GHL Webhook] Pushed BullMQ job for onboarding ID: ${onboardingId}`,
+        );
+      } catch (queueErr) {
+        console.warn(
+          `[GHL Webhook] BullMQ queue dispatch failed, falling back to Next.js after():`,
+          queueErr,
+        );
+        after(async () => {
+          try {
+            await triggerOnboardingAutomation(onboardingId);
+          } catch (automationErr) {
+            console.error(
+              `[GHL Webhook Fallback Error for ID ${onboardingId}]:`,
+              automationErr,
+            );
+          }
+        });
+      }
+    } else {
       after(async () => {
         try {
           await triggerOnboardingAutomation(onboardingId);
