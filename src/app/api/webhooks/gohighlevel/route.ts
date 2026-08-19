@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse, after } from "next/server";
 import { triggerOnboardingAutomation } from "@/actions/client-onboarding.actions";
 import { db } from "@/db";
 import { clientOnboardings } from "@/db/schema";
@@ -116,13 +116,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Trigger Google Drive folder creation & link setups in the background
-    triggerOnboardingAutomation(onboardingId).catch((err) => {
-      console.error(
-        `[GHL Webhook] Failed to auto-trigger onboarding flow for ID ${onboardingId}:`,
-        err,
+    // Trigger Google Drive folder creation & link setups via BullMQ Queue / after() background job
+    try {
+      const { onboardingQueue } = await import("@/lib/queues");
+      await onboardingQueue.add(
+        "process-onboarding",
+        {
+          onboardingId,
+          organizationId: targetOrgId,
+        },
+        {
+          jobId: `onboarding-${onboardingId}`,
+        },
       );
-    });
+      console.log(
+        `[GHL Webhook] Pushed BullMQ job for onboarding ID: ${onboardingId}`,
+      );
+    } catch (queueErr) {
+      console.warn(
+        `[GHL Webhook] BullMQ queue dispatch failed, falling back to Next.js after():`,
+        queueErr,
+      );
+      after(async () => {
+        try {
+          await triggerOnboardingAutomation(onboardingId);
+        } catch (automationErr) {
+          console.error(
+            `[GHL Webhook Fallback Error for ID ${onboardingId}]:`,
+            automationErr,
+          );
+        }
+      });
+    }
 
     return NextResponse.json({ success: true, onboardingId });
   } catch (error: any) {
