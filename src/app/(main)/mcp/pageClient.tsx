@@ -3,6 +3,7 @@
 import {
   ActivitySquare,
   Bot,
+  Check,
   CheckCircle2,
   ChevronRight,
   Copy,
@@ -446,9 +447,15 @@ export default function McpSettingsClient() {
   const mcpSseUrl = `${getAppUrl()}/api/mcp/sse?key=${keys[0]?.keyPrefix || legacyApiKey}`;
   const mcpHttpUrl = `${getAppUrl()}/api/mcp/messages`;
 
-  const copyToClipboard = (text: string, label: string) => {
+  const [copiedSecret, setCopiedSecret] = useState(false);
+
+  const copyToClipboard = (text: string, label: string, isSecret = false) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied to clipboard!`);
+    if (isSecret) {
+      setCopiedSecret(true);
+      setTimeout(() => setCopiedSecret(false), 2000);
+    }
   };
 
   const claudeDesktopConfig = JSON.stringify(
@@ -475,9 +482,9 @@ export default function McpSettingsClient() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
             <Bot className="h-7 w-7 text-indigo-600" />
-            Model Context Protocol (MCP) Hub
+            MCP Settings
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Provision per-user API keys, configure tool scopes, and inspect
@@ -1013,12 +1020,25 @@ export default function McpSettingsClient() {
               <Button
                 size="sm"
                 onClick={() =>
-                  copyToClipboard(newlyCreatedRawKey, "MCP Secret Key")
+                  copyToClipboard(newlyCreatedRawKey, "MCP Secret Key", true)
                 }
-                className="bg-indigo-600 hover:bg-indigo-500 text-white shrink-0 rounded-lg"
+                className={`${
+                  copiedSecret
+                    ? "bg-emerald-600 hover:bg-emerald-500"
+                    : "bg-indigo-600 hover:bg-indigo-500"
+                } text-white shrink-0 rounded-xl transition-all flex items-center gap-1.5 px-3 py-1.5 cursor-pointer font-semibold`}
               >
-                <Copy className="w-3.5 h-3.5 mr-1" />
-                Copy
+                {copiedSecret ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </>
+                )}
               </Button>
             </div>
 
