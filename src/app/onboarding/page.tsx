@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
@@ -22,7 +22,7 @@ export default async function OnboardingPage({
     redirect("/login");
   }
 
-  // If user already has an organization and didn't request creating a new one, redirect to overview
+  // If user already has an organization and didn't request creating a new one, handle redirect/auto-join
   if (!isCreatingNew) {
     const userMemberships = await db
       .select()
@@ -33,36 +33,49 @@ export default async function OnboardingPage({
     if (userMemberships.length > 0) {
       redirect("/overview");
     }
-  }
 
-  // If no membership, check for domain auto-join match
-  const userEmail = session.user.email;
-  const userDomain = userEmail.split("@")[1];
+    // Check for domain auto-join match for new user signups
+    const userEmail = session.user.email;
+    const userDomain = userEmail.split("@")[1];
 
-  if (userDomain) {
-    const allOrgs = await db.select().from(organization);
-    const matchedOrg = allOrgs.find((org) => {
-      if (!org.metadata) return false;
-      try {
-        const meta = JSON.parse(org.metadata);
-        return meta.autoJoinDomain === userDomain;
-      } catch (e) {
-        return false;
-      }
-    });
-
-    if (matchedOrg) {
-      // Auto-add team member
-      await db.insert(member).values({
-        id: crypto.randomUUID(),
-        organizationId: matchedOrg.id,
-        userId: session.user.id,
-        role: "member",
-        createdAt: new Date(),
-        updatedAt: new Date(),
+    if (userDomain) {
+      const allOrgs = await db.select().from(organization);
+      const matchedOrg = allOrgs.find((org) => {
+        if (!org.metadata) return false;
+        try {
+          const meta = JSON.parse(org.metadata);
+          return meta.autoJoinDomain === userDomain;
+        } catch (e) {
+          return false;
+        }
       });
 
-      redirect("/overview");
+      if (matchedOrg) {
+        // Prevent duplicate membership insertion
+        const existingMembership = await db
+          .select()
+          .from(member)
+          .where(
+            and(
+              eq(member.organizationId, matchedOrg.id),
+              eq(member.userId, session.user.id),
+            ),
+          )
+          .limit(1);
+
+        if (existingMembership.length === 0) {
+          await db.insert(member).values({
+            id: crypto.randomUUID(),
+            organizationId: matchedOrg.id,
+            userId: session.user.id,
+            role: "member",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+
+        redirect("/overview");
+      }
     }
   }
 
