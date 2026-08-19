@@ -8,6 +8,7 @@ import {
   Globe,
   LayoutDashboard,
   Menu,
+  Plus,
   ScrollText,
   Settings,
   Sparkles,
@@ -26,6 +27,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -154,6 +156,16 @@ export function MainLayout({
                     )}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator className="bg-slate-900 my-1" />
+                <DropdownMenuItem
+                  asChild
+                  className="cursor-pointer text-xs font-semibold px-2 py-1.5 rounded-md text-indigo-400 hover:bg-slate-900 focus:bg-slate-900 focus:text-indigo-300 flex items-center gap-1.5"
+                >
+                  <Link href="/onboarding?new=true">
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Workspace</span>
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (

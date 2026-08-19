@@ -302,17 +302,30 @@ export async function getAgencyPortfolioMetricsAction(
   endDate: string,
 ) {
   try {
-    if (typeof startDate !== "string" || !startDate.includes("-")) {
-      const d = new Date();
-      const past = new Date();
-      past.setDate(d.getDate() - (Number(startDate) || 30));
-      startDate = past.toISOString().slice(0, 10);
-      endDate = d.toISOString().slice(0, 10);
+    let orgId: string | null = null;
+    try {
+      const session = await auth.api.getSession({ headers: await headers() });
+      if (session) {
+        orgId = session.session.activeOrganizationId;
+        if (!orgId) {
+          const userMember = await db.query.member.findFirst({
+            where: eq(member.userId, session.user.id),
+          });
+          if (userMember) orgId = userMember.organizationId;
+        }
+      }
+    } catch (e) {}
+
+    if (!orgId) {
+      return { success: true, data: null };
     }
 
-    // 1. Get all active accounts
+    // 1. Get active accounts for the current active organization
     const activeAccounts = await db.query.adAccounts.findMany({
-      where: eq(adAccounts.isActive, true),
+      where: and(
+        eq(adAccounts.isActive, true),
+        eq(adAccounts.organizationId, orgId),
+      ),
     });
 
     const accountIds = activeAccounts.map((a) => a.id);
@@ -546,8 +559,24 @@ export async function syncAgencyPortfolioAction(
 
 export async function getAccountByNameAction(name: string) {
   try {
+    let orgId: string | null = null;
+    try {
+      const session = await auth.api.getSession({ headers: await headers() });
+      if (session) {
+        orgId = session.session?.activeOrganizationId;
+        if (!orgId) {
+          const userMember = await db.query.member.findFirst({
+            where: eq(member.userId, session.user.id),
+          });
+          if (userMember) orgId = userMember.organizationId;
+        }
+      }
+    } catch (e) {}
+
     const results = await db.query.adAccounts.findMany({
-      where: ilike(adAccounts.name, `%${name}%`),
+      where: orgId
+        ? and(ilike(adAccounts.name, `%${name}%`), eq(adAccounts.organizationId, orgId))
+        : ilike(adAccounts.name, `%${name}%`),
       columns: {
         id: true,
         name: true,
@@ -625,7 +654,22 @@ async function gaqlFetch(googleAccountId: string, query: string) {
 // ---------------------------------------------------------------------------
 export async function listAccountsAction() {
   try {
+    let orgId: string | null = null;
+    try {
+      const session = await auth.api.getSession({ headers: await headers() });
+      if (session) {
+        orgId = session.session?.activeOrganizationId;
+        if (!orgId) {
+          const userMember = await db.query.member.findFirst({
+            where: eq(member.userId, session.user.id),
+          });
+          if (userMember) orgId = userMember.organizationId;
+        }
+      }
+    } catch (e) {}
+
     const accounts = await db.query.adAccounts.findMany({
+      where: orgId ? eq(adAccounts.organizationId, orgId) : undefined,
       columns: {
         id: true,
         name: true,

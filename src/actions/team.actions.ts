@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { account, auditLogs, invitation, member, user } from "@/db/schema";
+import { account, auditLogs, invitation, member, organization, user } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 
@@ -298,10 +298,17 @@ export async function deleteTeamMember(
 }
 
 export async function addTeamMember(formData: FormData) {
-  const name = formData.get("name") as string;
-  const email = formData.get("email") as string;
+  const name = (formData.get("name") as string)?.trim();
+  const email = (formData.get("email") as string)?.toLowerCase().trim();
   const password = formData.get("password") as string;
   const role = (formData.get("role") as string) || "member";
+
+  if (!name || !email || !password) {
+    throw new Error("Name, email, and password are required.");
+  }
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters long.");
+  }
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
@@ -317,46 +324,197 @@ export async function addTeamMember(formData: FormData) {
   }
   if (!orgId) throw new Error("No active organization found");
 
-  // 1. Insert the user
-  const newUserId = crypto.randomUUID();
-  await db.insert(user).values({
-    id: newUserId,
-    name,
-    email,
-    emailVerified: true, // Auto-verified when directly added by admin
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  // Verify caller permissions
+  const callerMember = await db.query.member.findFirst({
+    where: and(
+      eq(member.userId, session.user.id),
+      eq(member.organizationId, orgId),
+    ),
+  });
+  if (
+    !callerMember ||
+    (callerMember.role !== "owner" && callerMember.role !== "admin")
+  ) {
+    throw new Error("Unauthorized: Only owners or admins can add team members");
+  }
+
+  // Check if user already exists
+  const existingUser = await db.query.user.findFirst({
+    where: eq(user.email, email),
   });
 
-  // 2. Insert account
-  await db.insert(account).values({
-    id: crypto.randomUUID(),
-    accountId: newUserId,
-    providerId: "credential",
-    userId: newUserId,
-    password: password,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  let userId: string;
+
+  if (existingUser) {
+    userId = existingUser.id;
+  } else {
+    // 1. Create user via Better Auth API to ensure proper password hashing
+    const res = await auth.api.signUpEmail({
+      body: {
+        name,
+        email,
+        password,
+      },
+    });
+
+    if (!res || !res.user) {
+      throw new Error("Failed to create user account with hashed password");
+    }
+    userId = res.user.id;
+  }
+
+  // 2. Check if user is already in organization
+  const existingMember = await db.query.member.findFirst({
+    where: and(eq(member.userId, userId), eq(member.organizationId, orgId)),
   });
 
-  // 3. Insert member organization link
-  await db.insert(member).values({
-    id: crypto.randomUUID(),
-    organizationId: orgId,
-    userId: newUserId,
-    role: role,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+  if (!existingMember) {
+    await db.insert(member).values({
+      id: crypto.randomUUID(),
+      organizationId: orgId,
+      userId: userId,
+      role: role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
 
-  // 4. Fire audit log
-  await logAction(session.user.id, "CREATE_USER", "user", newUserId, {
+  // 3. Fire audit log
+  await logAction(session.user.id, "CREATE_USER", "user", userId, {
     name,
     email,
     role,
   });
 
   revalidatePath("/team");
+}
+
+export async function getInvitationDetailsAction(invitationId: string) {
+  if (!invitationId) {
+    return { success: false, error: "Missing invitation ID" };
+  }
+
+  const inviteRecord = await db.query.invitation.findFirst({
+    where: eq(invitation.id, invitationId),
+  });
+
+  if (!inviteRecord) {
+    return { success: false, error: "Invitation not found or invalid" };
+  }
+
+  if (inviteRecord.status !== "pending") {
+    return {
+      success: false,
+      error: `Invitation is no longer pending (status: ${inviteRecord.status})`,
+    };
+  }
+
+  if (new Date(inviteRecord.expiresAt) < new Date()) {
+    return { success: false, error: "Invitation has expired" };
+  }
+
+  const org = await db.query.organization.findFirst({
+    where: eq(organization.id, inviteRecord.organizationId),
+  });
+
+  const inviter = await db.query.user.findFirst({
+    where: eq(user.id, inviteRecord.inviterId),
+  });
+
+  return {
+    success: true,
+    invitation: {
+      id: inviteRecord.id,
+      email: inviteRecord.email,
+      role: inviteRecord.role,
+      organizationName: org?.name || "Organization",
+      inviterName: inviter?.name || "Team Admin",
+    },
+  };
+}
+
+export async function acceptInvitationAction(payload: {
+  invitationId: string;
+  name: string;
+  password?: string;
+}) {
+  const { invitationId, name, password } = payload;
+
+  const inviteRecord = await db.query.invitation.findFirst({
+    where: eq(invitation.id, invitationId),
+  });
+
+  if (!inviteRecord || inviteRecord.status !== "pending") {
+    throw new Error("Invalid or expired invitation");
+  }
+
+  if (new Date(inviteRecord.expiresAt) < new Date()) {
+    throw new Error("Invitation has expired");
+  }
+
+  let targetUserId: string;
+
+  // Check if caller is already logged in (e.g. via Google OAuth)
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (session && session.user) {
+    targetUserId = session.user.id;
+  } else {
+    if (!password || password.length < 8) {
+      throw new Error("Password must be at least 8 characters long");
+    }
+
+    const res = await auth.api.signUpEmail({
+      body: {
+        name,
+        email: inviteRecord.email.toLowerCase().trim(),
+        password,
+      },
+    });
+
+    if (!res || !res.user) {
+      throw new Error("Failed to register account for invitation");
+    }
+    targetUserId = res.user.id;
+  }
+
+  // Create member record in organization
+  const existingMember = await db.query.member.findFirst({
+    where: and(
+      eq(member.userId, targetUserId),
+      eq(member.organizationId, inviteRecord.organizationId),
+    ),
+  });
+
+  if (!existingMember) {
+    await db.insert(member).values({
+      id: crypto.randomUUID(),
+      organizationId: inviteRecord.organizationId,
+      userId: targetUserId,
+      role: inviteRecord.role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  // Mark invitation accepted
+  await db
+    .update(invitation)
+    .set({ status: "accepted", updatedAt: new Date() })
+    .where(eq(invitation.id, invitationId));
+
+  await logAction(
+    targetUserId,
+    "ACCEPT_INVITATION",
+    "invitation",
+    invitationId,
+    {
+      organizationId: inviteRecord.organizationId,
+      role: inviteRecord.role,
+    },
+  );
+
+  return { success: true };
 }
 
 export async function getUserActivityLogsAction(payload: {

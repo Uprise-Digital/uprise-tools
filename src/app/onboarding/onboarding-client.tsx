@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createOrganizationAction } from "@/actions/onboarding.actions";
+import { authClient } from "@/lib/auth-client";
 import { OnboardingStepper } from "@/components/onboarding-stepper";
 import { Button } from "@/components/ui/button";
 
@@ -70,6 +71,9 @@ export default function OnboardingClient({
       });
 
       if (res.success && res.organizationId) {
+        await authClient.organization.setActive({
+          organizationId: res.organizationId,
+        });
         router.push(`/onboarding/connect-ads?orgId=${res.organizationId}`);
       } else {
         setError("Failed to create workspace. Please try again.");

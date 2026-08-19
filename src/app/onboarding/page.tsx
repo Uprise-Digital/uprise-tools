@@ -6,7 +6,14 @@ import { member, organization } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import OnboardingClient from "./onboarding-client";
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ new?: string }>;
+}) {
+  const params = (await searchParams) || {};
+  const isCreatingNew = params.new === "true";
+
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -15,15 +22,17 @@ export default async function OnboardingPage() {
     redirect("/login");
   }
 
-  // Check if they already have an organization
-  const userMemberships = await db
-    .select()
-    .from(member)
-    .where(eq(member.userId, session.user.id))
-    .limit(1);
+  // If user already has an organization and didn't request creating a new one, redirect to overview
+  if (!isCreatingNew) {
+    const userMemberships = await db
+      .select()
+      .from(member)
+      .where(eq(member.userId, session.user.id))
+      .limit(1);
 
-  if (userMemberships.length > 0) {
-    redirect("/overview");
+    if (userMemberships.length > 0) {
+      redirect("/overview");
+    }
   }
 
   // If no membership, check for domain auto-join match
