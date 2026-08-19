@@ -100,25 +100,25 @@ export default function OnboardingClient({
           {/* User Info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Name
               </label>
               <input
                 type="text"
                 disabled
                 value={initialUser.name}
-                className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 text-slate-500 rounded-lg text-sm cursor-not-allowed"
+                className="mt-1 block w-full px-3 py-2 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-lg text-sm cursor-not-allowed"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Email
               </label>
               <input
                 type="text"
                 disabled
                 value={initialUser.email}
-                className="mt-1 block w-full px-3 py-2 bg-slate-950 border border-slate-800 text-slate-500 rounded-lg text-sm cursor-not-allowed truncate"
+                className="mt-1 block w-full px-3 py-2 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-lg text-sm cursor-not-allowed truncate"
               />
             </div>
           </div>
@@ -127,7 +127,7 @@ export default function OnboardingClient({
           <div>
             <label
               htmlFor="agency-name"
-              className="block text-xs font-semibold text-slate-300 uppercase tracking-wider"
+              className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider"
             >
               Agency / Organization Name *
             </label>
@@ -138,7 +138,7 @@ export default function OnboardingClient({
               placeholder="e.g. Apex Marketing Group"
               value={agencyName}
               onChange={(e) => setAgencyName(e.target.value)}
-              className="mt-1 block w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-xl text-sm transition-all outline-none"
+              className="mt-1 block w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-900 dark:text-white rounded-xl text-sm transition-all outline-none"
             />
           </div>
 
@@ -147,7 +147,7 @@ export default function OnboardingClient({
             <div>
               <label
                 htmlFor="timezone"
-                className="block text-xs font-semibold text-slate-300 uppercase tracking-wider"
+                className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider"
               >
                 Default Timezone
               </label>
@@ -155,13 +155,13 @@ export default function OnboardingClient({
                 id="timezone"
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
-                className="mt-1 block w-full px-3 py-2.5 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 text-white rounded-xl text-xs transition-all outline-none"
+                className="mt-1 block w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 focus:border-indigo-500 text-slate-900 dark:text-white rounded-xl text-xs transition-all outline-none"
               >
                 {COMMON_TIMEZONES.map((tz) => (
                   <option
                     key={tz.value}
                     value={tz.value}
-                    className="bg-slate-900 text-white"
+                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                   >
                     {tz.label}
                   </option>
@@ -171,7 +171,7 @@ export default function OnboardingClient({
             <div>
               <label
                 htmlFor="currency"
-                className="block text-xs font-semibold text-slate-300 uppercase tracking-wider"
+                className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider"
               >
                 Primary Currency
               </label>
@@ -179,13 +179,13 @@ export default function OnboardingClient({
                 id="currency"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="mt-1 block w-full px-3 py-2.5 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 text-white rounded-xl text-xs transition-all outline-none"
+                className="mt-1 block w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 focus:border-indigo-500 text-slate-900 dark:text-white rounded-xl text-xs transition-all outline-none"
               >
                 {COMMON_CURRENCIES.map((cur) => (
                   <option
                     key={cur.value}
                     value={cur.value}
-                    className="bg-slate-900 text-white"
+                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                   >
                     {cur.label}
                   </option>
@@ -198,7 +198,7 @@ export default function OnboardingClient({
           <div>
             <label
               htmlFor="agency-desc"
-              className="block text-xs font-semibold text-slate-300 uppercase tracking-wider"
+              className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider"
             >
               Agency Description
             </label>
@@ -208,30 +208,32 @@ export default function OnboardingClient({
               placeholder="e.g. Performance marketing & PPC agency..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 block w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-xl text-sm transition-all outline-none resize-none"
+              className="mt-1 block w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-900 dark:text-white rounded-xl text-sm transition-all outline-none resize-none"
             />
           </div>
 
           {/* Domain Auto-Join Toggle */}
-          <div className="flex items-start gap-3 p-3.5 bg-slate-950/30 border border-slate-800/60 rounded-xl">
+          <div className="flex items-start gap-3 p-3.5 bg-slate-100/60 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800/60 rounded-xl">
             <input
               id="auto-join"
               type="checkbox"
               checked={autoJoinDomain}
               onChange={(e) => setAutoJoinDomain(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-slate-800 text-indigo-600 focus:ring-indigo-500 bg-slate-950"
+              className="mt-1 h-4 w-4 rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 bg-white dark:bg-slate-950 cursor-pointer"
             />
             <div className="text-sm">
               <label
                 htmlFor="auto-join"
-                className="font-semibold text-slate-200 cursor-pointer"
+                className="font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
               >
                 Auto-add team members
               </label>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Allow anyone with a{" "}
-                <strong className="text-indigo-400">@{domain}</strong> email to
-                join this workspace automatically.
+                <strong className="text-indigo-600 dark:text-indigo-400">
+                  @{domain}
+                </strong>{" "}
+                email to join this workspace automatically.
               </p>
             </div>
           </div>
@@ -241,7 +243,7 @@ export default function OnboardingClient({
           <Button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800/80 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all text-sm flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800/80 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all text-sm flex items-center justify-center gap-2 cursor-pointer"
           >
             {loading ? (
               <>
