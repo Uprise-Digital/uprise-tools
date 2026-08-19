@@ -80,47 +80,28 @@ async function refreshAccessToken(refreshToken: string) {
   return data.access_token as string;
 }
 
-export async function getManagementAccessToken(): Promise<{
+export async function getManagementAccessToken(targetOrgId?: string): Promise<{
   accessToken: string;
   managerCustomerId: string;
 }> {
   // 1. Try to get credentials from active session organization connection
   try {
-    const { auth } = await import("@/lib/auth");
-    const { headers } = await import("next/headers");
     const { db } = await import("@/db");
-    const { googleAdsConnections, member } = await import("@/db/schema");
+    const { googleAdsConnections } = await import("@/db/schema");
     const { eq } = await import("drizzle-orm");
     const { decryptToken } = await import("@/lib/crypto");
+    const { getAuthOrgContext } = await import("@/lib/auth-helpers");
 
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    let activeOrgId = targetOrgId;
+    if (!activeOrgId) {
+      const ctx = await getAuthOrgContext();
+      activeOrgId = ctx?.orgId;
+    }
 
-    if (session) {
-      const activeOrgId = session.session.activeOrganizationId;
-      let conn: any = null;
-
-      if (activeOrgId) {
-        conn = await db.query.googleAdsConnections.findFirst({
-          where: eq(googleAdsConnections.organizationId, activeOrgId),
-        });
-      }
-
-      if (!conn) {
-        // Fallback to first member organization
-        const userMember = await db.query.member.findFirst({
-          where: eq(member.userId, session.user.id),
-        });
-        if (userMember) {
-          conn = await db.query.googleAdsConnections.findFirst({
-            where: eq(
-              googleAdsConnections.organizationId,
-              userMember.organizationId,
-            ),
-          });
-        }
-      }
+    if (activeOrgId) {
+      const conn = await db.query.googleAdsConnections.findFirst({
+        where: eq(googleAdsConnections.organizationId, activeOrgId),
+      });
 
       if (conn && conn.status === "active") {
         const decToken = decryptToken(conn.refreshToken);

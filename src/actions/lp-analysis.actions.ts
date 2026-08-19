@@ -13,6 +13,7 @@ import {
 import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 import { fetchCampaignLandingPages } from "@/lib/google-ads";
 import { uploadImageToR2 } from "@/lib/storage";
 
@@ -110,25 +111,62 @@ export async function scrapeLandingPageExtended(
       `[LP Scraper] Scraping URL: ${targetUrl} (Render: ${!!options?.render}, Screenshot: ${!!options?.screenshot}, Viewport: ${options?.width || "default"}x${options?.height || "default"})`,
     );
 
-    let scrapeDoUrl = `http://api.scrape.do?token=${process.env.SCRAPE_DO_KEY}&url=${encodeURIComponent(targetUrl)}`;
-    if (options?.render) scrapeDoUrl += "&render=true";
-    if (options?.screenshot) {
-      scrapeDoUrl += "&screenShot=true&returnJSON=true&customWait=5000";
-      if (options.width) scrapeDoUrl += `&width=${options.width}`;
-      if (options.height) scrapeDoUrl += `&height=${options.height}`;
-    }
-
-    const response = await fetch(scrapeDoUrl, { next: { revalidate: 3600 } });
-
     let html = "";
     let screenshotBase64: string | undefined;
 
-    if (options?.screenshot) {
-      const data = await response.json();
-      html = data.html || "";
-      screenshotBase64 = data.screenShots?.[0]?.image;
-    } else {
-      html = await response.text();
+    if (process.env.SCRAPE_DO_KEY) {
+      try {
+        let scrapeDoUrl = `http://api.scrape.do?token=${process.env.SCRAPE_DO_KEY}&url=${encodeURIComponent(targetUrl)}`;
+        if (options?.render) scrapeDoUrl += "&render=true";
+        if (options?.screenshot) {
+          scrapeDoUrl += "&screenShot=true&returnJSON=true&customWait=5000";
+          if (options.width) scrapeDoUrl += `&width=${options.width}`;
+          if (options.height) scrapeDoUrl += `&height=${options.height}`;
+        }
+
+        const response = await fetch(scrapeDoUrl, {
+          next: { revalidate: 3600 },
+        });
+        if (response.ok) {
+          if (options?.screenshot) {
+            const data = await response.json();
+            html = data.html || "";
+            screenshotBase64 = data.screenShots?.[0]?.image;
+          } else {
+            html = await response.text();
+          }
+        }
+      } catch (scrapeDoErr) {
+        console.warn(
+          `[LP Scraper Warning] Scrape.do request failed for ${targetUrl}:`,
+          scrapeDoErr,
+        );
+      }
+    }
+
+    // Direct HTTP fetch fallback if scrape.do is unconfigured or failed
+    if (!html || html.trim().length === 0) {
+      console.log(`[LP Scraper] Direct fetch fallback for URL: ${targetUrl}`);
+      try {
+        const directRes = await fetch(targetUrl, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          },
+        });
+        if (directRes.ok) {
+          html = await directRes.text();
+        }
+      } catch (directErr) {
+        console.error(
+          `[LP Scraper Error] Direct fetch failed for ${targetUrl}:`,
+          directErr,
+        );
+      }
+    }
+
+    if (!html) {
+      return { markdown: "ERROR_SCRAPING_PAGE" };
     }
 
     const $ = cheerio.load(html);
@@ -438,8 +476,8 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
 }
 
 export async function getCampaignLandingPagesAction(adAccountId: number) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error("Unauthorized");
+  const ctx = await getAuthOrgContext();
+  if (!ctx) throw new Error("Unauthorized");
 
   try {
     const result = await getCampaignLandingPagesInternal(adAccountId);
@@ -498,8 +536,8 @@ export async function syncCampaignLandingPagesInternal(adAccountId: number) {
 }
 
 export async function syncCampaignLandingPagesAction(adAccountId: number) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error("Unauthorized");
+  const ctx = await getAuthOrgContext();
+  if (!ctx) throw new Error("Unauthorized");
 
   try {
     return await syncCampaignLandingPagesInternal(adAccountId);
@@ -788,7 +826,23 @@ export async function runLandingPageAuditInternal(
   );
 
   const aiResponse = result.response;
-  const parsedAudit = JSON.parse(aiResponse.text as string);
+  let rawText = (aiResponse.text as string) || "";
+
+  // Clean markdown backtick block wrappers if present
+  rawText = rawText
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*$/gi, "")
+    .trim();
+
+  let parsedAudit: any;
+  try {
+    parsedAudit = JSON.parse(rawText);
+  } catch (parseErr) {
+    console.error("[LP Audit JSON Parse Error] Raw output:", rawText);
+    throw new Error(
+      "AI output could not be parsed into a valid audit JSON structure.",
+    );
+  }
 
   // Save in Database
   console.log(`[Audit] Saving audit results to database...`);
@@ -834,8 +888,8 @@ export async function runLandingPageAuditAction(
   searchTerm: string,
   auditType: "PAGE_SOURCE" | "VISUAL" = "PAGE_SOURCE",
 ) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error("Unauthorized");
+  const ctx = await getAuthOrgContext();
+  if (!ctx) throw new Error("Unauthorized");
 
   try {
     const data = await runLandingPageAuditInternal(
