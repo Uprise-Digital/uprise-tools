@@ -119,7 +119,22 @@ export async function scrapeLandingPageExtended(
         let scrapeDoUrl = `http://api.scrape.do?token=${process.env.SCRAPE_DO_KEY}&url=${encodeURIComponent(targetUrl)}`;
         if (options?.render) scrapeDoUrl += "&render=true";
         if (options?.screenshot) {
-          scrapeDoUrl += "&screenShot=true&returnJSON=true&customWait=5000";
+          const customJs = encodeURIComponent(`
+            window.scrollTo(0, document.body.scrollHeight / 2);
+            setTimeout(() => {
+              window.scrollTo(0, document.body.scrollHeight);
+              setTimeout(() => {
+                window.scrollTo(0, 0);
+                document.querySelectorAll('[data-count],[data-target],[data-to],[data-value],[data-number],[data-counter],.elementor-counter-number,.stat-number').forEach(el => {
+                  const target = el.getAttribute('data-count') || el.getAttribute('data-target') || el.getAttribute('data-to') || el.getAttribute('data-value') || el.getAttribute('data-number') || el.getAttribute('data-counter');
+                  if (target && (el.innerText.trim() === '0' || el.innerText.trim().startsWith('0') || el.innerText.trim() === '')) {
+                    el.innerText = target;
+                  }
+                });
+              }, 1500);
+            }, 1500);
+          `);
+          scrapeDoUrl += `&screenShot=true&returnJSON=true&customWait=7000&custom_js=${customJs}`;
           if (options.width) scrapeDoUrl += `&width=${options.width}`;
           if (options.height) scrapeDoUrl += `&height=${options.height}`;
         }
