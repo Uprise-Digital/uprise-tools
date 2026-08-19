@@ -186,42 +186,29 @@ export async function scrapeLandingPageExtended(
 
     const $ = cheerio.load(html);
 
-    // Strip unneeded components
+    // Strip non-content noise
     $(
-      "script, style, noscript, svg, img, nav, footer, iframe, meta, link, header, head",
+      "script, style, noscript, svg, nav, footer, iframe, meta, link, header, head",
     ).remove();
 
-    let highValueHtml = "";
-    $("h1, h2, h3").each((_, el) => {
-      const $el = $(el);
-      if (isElementHidden($el, $)) return;
-      highValueHtml += `${$.html(el)}<br/>`;
-    });
-    $("a, button, .btn").each((_, el) => {
-      const $el = $(el);
-      if (isElementHidden($el, $)) return;
-      highValueHtml += `${$.html(el)}<br/>`;
-    });
-    $("ul, ol").each((_, el) => {
-      const $el = $(el);
-      if (isElementHidden($el, $)) return;
-      highValueHtml += `${$.html(el)}<br/>`;
-    });
-    $("p")
-      .slice(0, 15)
-      .each((_, el) => {
-        const $el = $(el);
-        if (isElementHidden($el, $)) return;
-        highValueHtml += `${$.html(el)}<br/>`;
-      });
+    // Remove explicitly hidden elements
+    $(
+      "[aria-hidden='true'], [hidden], .hidden, .d-none, .invisible, .sr-only",
+    ).remove();
 
-    const turndownService = new TurndownService();
-    const cleanMarkdown = turndownService.turndown(
-      highValueHtml || $.html("body"),
-    );
+    const turndownService = new TurndownService({
+      headingStyle: "atx",
+      codeBlockStyle: "fenced",
+    });
+
+    const bodyHtml = $.html("body") || $.html();
+    const cleanMarkdown = turndownService
+      .turndown(bodyHtml)
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
 
     return {
-      markdown: cleanMarkdown.substring(0, 18000),
+      markdown: cleanMarkdown.substring(0, 30000),
       screenshotBase64,
     };
   } catch (error) {
