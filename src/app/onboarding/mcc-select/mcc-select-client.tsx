@@ -178,26 +178,28 @@ export default function MccSelectClient({
       {subAccounts.length > 0 ? (
         // --- Step 2: SELECTIVE IMPORT TABLE ---
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
             <div>
-              <h2 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                 Select Client Accounts to Monitor
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 Select which child accounts you want to sync and triage.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+              <span className="text-[11px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
                 Selected:{" "}
-                <span className="text-indigo-400">{selectedIds.size}</span> /{" "}
-                {subAccounts.length}
+                <span className="text-indigo-600 dark:text-indigo-400">
+                  {selectedIds.size}
+                </span>{" "}
+                / {subAccounts.length}
               </span>
             </div>
           </div>
 
           {error && (
-            <div className="p-3 bg-red-900/30 border border-red-500/20 text-red-200 text-sm rounded-xl">
+            <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-200 text-sm rounded-xl">
               {error}
             </div>
           )}
@@ -209,12 +211,12 @@ export default function MccSelectClient({
               placeholder="Search by account name or 10-digit ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 px-3.5 py-2 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-xl text-xs outline-none transition-all"
+              className="flex-1 px-3.5 py-2 bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-900 dark:text-white rounded-xl text-xs outline-none transition-all"
             />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3.5 py-2 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-xl text-xs outline-none transition-all cursor-pointer"
+              className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-900 dark:text-white rounded-xl text-xs outline-none transition-all cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
               <option value="ACTIVE">Active Only</option>
@@ -223,10 +225,10 @@ export default function MccSelectClient({
           </div>
 
           {/* Sub-Accounts Table */}
-          <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/40">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-950/40">
             <div className="overflow-x-auto max-h-96">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-950/80 text-slate-400 uppercase text-[10px] font-bold tracking-wider sticky top-0 border-b border-slate-800 z-10">
+                <thead className="bg-slate-50 dark:bg-slate-950/80 text-slate-500 dark:text-slate-400 uppercase text-[10px] font-bold tracking-wider sticky top-0 border-b border-slate-200 dark:border-slate-800 z-10">
                   <tr>
                     <th className="p-3.5 w-10 text-center">
                       <input
@@ -236,7 +238,7 @@ export default function MccSelectClient({
                           filteredIds.every((id) => selectedIds.has(id))
                         }
                         onChange={() => handleToggleSelectAll(filteredIds)}
-                        className="h-3.5 w-3.5 rounded border-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        className="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       />
                     </th>
                     <th className="p-3.5 w-28">Status</th>
@@ -245,7 +247,7 @@ export default function MccSelectClient({
                     <th className="p-3.5 w-44">TZ & Currency</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-850">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
                   {filteredAccounts.length === 0 ? (
                     <tr>
                       <td
@@ -261,8 +263,10 @@ export default function MccSelectClient({
                       return (
                         <tr
                           key={acc.id}
-                          className={`hover:bg-slate-900/30 transition-colors cursor-pointer ${
-                            isChecked ? "bg-indigo-600/5" : ""
+                          className={`hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors cursor-pointer ${
+                            isChecked
+                              ? "bg-indigo-50/60 dark:bg-indigo-600/5"
+                              : ""
                           }`}
                           onClick={() => handleToggleRow(acc.id)}
                         >
@@ -274,7 +278,7 @@ export default function MccSelectClient({
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => handleToggleRow(acc.id)}
-                              className="h-3.5 w-3.5 rounded border-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                              className="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                             />
                           </td>
                           <td className="p-3.5">
@@ -293,10 +297,10 @@ export default function MccSelectClient({
                               <span
                                 className={
                                   acc.status === "ENABLED"
-                                    ? "text-emerald-400"
+                                    ? "text-emerald-600 dark:text-emerald-400"
                                     : acc.status === "CANCELED"
                                       ? "text-slate-400"
-                                      : "text-amber-400"
+                                      : "text-amber-600 dark:text-amber-400"
                                 }
                               >
                                 {acc.status === "ENABLED"
@@ -309,7 +313,7 @@ export default function MccSelectClient({
                           </td>
                           <td className="p-3.5">
                             <div className="flex flex-col gap-0.5">
-                              <span className="font-extrabold text-slate-200 text-xs truncate max-w-xs sm:max-w-md">
+                              <span className="font-extrabold text-slate-900 dark:text-slate-200 text-xs truncate max-w-xs sm:max-w-md">
                                 {acc.name}
                               </span>
                               <span className="text-[10px] text-slate-500 font-mono">
@@ -317,14 +321,14 @@ export default function MccSelectClient({
                               </span>
                             </div>
                           </td>
-                          <td className="p-3.5 text-right font-mono font-bold text-slate-300">
+                          <td className="p-3.5 text-right font-mono font-bold text-slate-700 dark:text-slate-300">
                             {acc.optimizationScore !== null
                               ? `${acc.optimizationScore.toFixed(0)}%`
                               : "—"}
                           </td>
-                          <td className="p-3.5 text-slate-400 leading-normal">
+                          <td className="p-3.5 text-slate-500 dark:text-slate-400 leading-normal">
                             <div className="flex flex-col">
-                              <span className="text-[10px] font-bold text-slate-500">
+                              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-500">
                                 {acc.currencyCode}
                               </span>
                               <span className="text-[10px] truncate max-w-xs">
@@ -342,12 +346,12 @@ export default function MccSelectClient({
           </div>
 
           {/* Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 justify-end pt-2 border-t border-slate-800">
+          <div className="flex flex-col sm:flex-row items-center gap-3 justify-end pt-2 border-t border-slate-200 dark:border-slate-800">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setSubAccounts([])}
-              className="w-full sm:w-auto text-slate-400 hover:text-white"
+              className="w-full sm:w-auto text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
             >
               ← Back
             </Button>
@@ -355,7 +359,7 @@ export default function MccSelectClient({
               type="button"
               disabled={loading}
               onClick={handleImportAccounts}
-              className="w-full sm:w-auto px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800/80 text-white font-bold rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800/80 text-white font-bold rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -372,7 +376,7 @@ export default function MccSelectClient({
         // --- Step 1: CONNECTION SELECTION VIEW ---
         <div className="max-w-md mx-auto space-y-6">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center p-2 bg-indigo-600/10 text-indigo-400 rounded-xl mb-4 border border-indigo-500/20">
+            <div className="inline-flex items-center justify-center p-2 bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 rounded-xl mb-4 border border-indigo-500/20">
               <svg
                 className="h-6 w-6"
                 fill="none"
@@ -387,19 +391,19 @@ export default function MccSelectClient({
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">
+            <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
               Select Google Ads Account
             </h2>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
               Connected as{" "}
-              <span className="text-indigo-400 font-semibold">
+              <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
                 {connectedEmail}
               </span>
             </p>
           </div>
 
           {error && (
-            <div className="p-3 bg-red-900/30 border border-red-500/20 text-red-200 text-sm rounded-xl">
+            <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-200 text-sm rounded-xl">
               {error}
             </div>
           )}
@@ -407,19 +411,19 @@ export default function MccSelectClient({
           <form onSubmit={handleFetchSubAccounts} className="space-y-6">
             {!useCustomInput ? (
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
                   Available Manager / Client Accounts
                 </label>
                 <select
                   value={selectedMccId}
                   onChange={(e) => setSelectedMccId(e.target.value)}
-                  className="block w-full px-3.5 py-3 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-xl text-sm transition-all outline-none"
+                  className="block w-full px-3.5 py-3 bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-900 dark:text-white rounded-xl text-sm transition-all outline-none"
                 >
                   {initialAccounts.map((acc) => (
                     <option
                       key={acc.id}
                       value={acc.id}
-                      className="bg-slate-950"
+                      className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
                     >
                       {acc.name} ({formatCustomerId(acc.id)}){" "}
                       {acc.manager ? "[Manager]" : ""}
@@ -430,7 +434,7 @@ export default function MccSelectClient({
                 <button
                   type="button"
                   onClick={() => setUseCustomInput(true)}
-                  className="text-xs text-indigo-400 hover:underline mt-2.5 inline-block"
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline mt-2.5 inline-block font-medium cursor-pointer"
                 >
                   Or enter a Customer ID manually...
                 </button>
@@ -439,7 +443,7 @@ export default function MccSelectClient({
               <div>
                 <label
                   htmlFor="custom-mcc"
-                  className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2"
+                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2"
                 >
                   Enter Google Ads Customer ID (10-digit)
                 </label>
@@ -450,14 +454,14 @@ export default function MccSelectClient({
                   placeholder="e.g. 123-456-7890"
                   value={customMccId}
                   onChange={(e) => setCustomMccId(e.target.value)}
-                  className="block w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white rounded-xl text-sm transition-all outline-none"
+                  className="block w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-900 dark:text-white rounded-xl text-sm transition-all outline-none"
                 />
 
                 {initialAccounts.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setUseCustomInput(false)}
-                    className="text-xs text-indigo-400 hover:underline mt-2.5 inline-block"
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline mt-2.5 inline-block font-medium cursor-pointer"
                   >
                     ← Back to list
                   </button>
@@ -469,7 +473,7 @@ export default function MccSelectClient({
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800/80 text-white font-bold rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800/80 text-white font-bold rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2 cursor-pointer"
               >
                 {loading ? (
                   <>

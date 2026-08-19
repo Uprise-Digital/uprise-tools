@@ -25,35 +25,35 @@ export default async function ConfirmPage({
     : "ads-tools@youragency.com";
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 text-white relative overflow-hidden">
-      <div className="absolute top-0 right-1/4 w-96 h-96 bg-indigo-900/10 rounded-full blur-3xl -z-10" />
-      <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-violet-900/10 rounded-full blur-3xl -z-10" />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 text-slate-900 dark:text-white transition-colors relative overflow-hidden">
+      <div className="absolute top-0 right-1/4 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-900/10 rounded-full blur-3xl -z-10" />
+      <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-violet-500/10 dark:bg-violet-900/10 rounded-full blur-3xl -z-10" />
 
-      <div className="max-w-xl w-full space-y-8 bg-slate-900/40 border border-slate-800/80 backdrop-blur-xl p-8 rounded-2xl shadow-2xl relative text-center">
+      <div className="max-w-lg w-full space-y-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 backdrop-blur-xl p-8 rounded-2xl shadow-xl dark:shadow-2xl relative text-center">
         <OnboardingStepper currentStep={4} />
 
         <div className="space-y-6">
-          <div className="h-16 w-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20 shadow-lg shadow-emerald-500/10">
-            <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+          <div className="h-16 w-16 bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20 shadow-lg shadow-emerald-500/10">
+            <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
               Onboarding Complete!
             </h2>
-            <p className="text-indigo-400 font-semibold text-sm">
+            <p className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm">
               ✅ Connected as {connectedEmail}
             </p>
           </div>
 
           {/* Sync Status Banner */}
-          <div className="p-4 bg-indigo-950/40 border border-indigo-500/30 rounded-xl text-left flex items-start gap-3">
-            <Activity className="h-5 w-5 text-indigo-400 shrink-0 mt-0.5 animate-pulse" />
+          <div className="p-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/30 rounded-xl text-left flex items-start gap-3">
+            <Activity className="h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5 animate-pulse" />
             <div className="text-xs space-y-1">
-              <span className="font-bold text-white block">
+              <span className="font-bold text-slate-900 dark:text-white block">
                 Syncing 30-Day Historical Google Ads Data
               </span>
-              <p className="text-slate-300">
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                 Your selected client accounts are importing in the background.
                 Metrics, campaign triage settings, and AI threat audits will
                 populate automatically in your dashboard.
@@ -61,14 +61,14 @@ export default async function ConfirmPage({
             </div>
           </div>
 
-          <p className="text-xs text-slate-400 leading-relaxed text-left">
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed text-left">
             Uprise Tools can now monitor accounts linked to your Google Ads
             manager account. You can manage or revoke access anytime from your{" "}
             <a
               href="https://myaccount.google.com/permissions"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-indigo-400 hover:underline inline-flex items-center gap-0.5"
+              className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium inline-flex items-center gap-0.5"
             >
               Google Account Security page ↗
             </a>
