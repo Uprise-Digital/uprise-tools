@@ -8,6 +8,7 @@ import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 import { logEmail } from "@/lib/audit";
 import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 import {
   createContactNote,
   getContactNotes,
@@ -694,24 +695,8 @@ export async function sendStalledOpportunitiesReminderAction() {
  */
 export async function getSalesReminderSettingsAction() {
   try {
-    let orgId: string | undefined;
-    try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
-      if (session?.session?.activeOrganizationId) {
-        orgId = session.session.activeOrganizationId;
-      }
-    } catch {
-      // Outside HTTP context
-    }
-
-    if (!orgId) {
-      const firstOrg = await withBypassTenantDb(async (tx) => {
-        return await tx.query.organization.findFirst();
-      });
-      orgId = firstOrg?.id;
-    }
+    const ctx = await getAuthOrgContext();
+    let orgId = ctx?.orgId;
 
     if (!orgId) {
       return {

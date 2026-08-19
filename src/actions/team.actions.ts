@@ -14,22 +14,12 @@ import {
 } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 
 export async function getTeamMembers() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error("Unauthorized");
-
-  let orgId = session.session.activeOrganizationId;
-  if (!orgId) {
-    const userMember = await db.query.member.findFirst({
-      where: eq(member.userId, session.user.id),
-    });
-    if (userMember) {
-      orgId = userMember.organizationId;
-    }
-  }
-
-  if (!orgId) return [];
+  const ctx = await getAuthOrgContext();
+  if (!ctx) return [];
+  const orgId = ctx.orgId;
 
   const members = await db
     .select({
@@ -48,20 +38,9 @@ export async function getTeamMembers() {
 }
 
 export async function getTeamInvitationsAction() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error("Unauthorized");
-
-  let orgId = session.session.activeOrganizationId;
-  if (!orgId) {
-    const userMember = await db.query.member.findFirst({
-      where: eq(member.userId, session.user.id),
-    });
-    if (userMember) {
-      orgId = userMember.organizationId;
-    }
-  }
-
-  if (!orgId) return [];
+  const ctx = await getAuthOrgContext();
+  if (!ctx) return [];
+  const orgId = ctx.orgId;
 
   return await db
     .select()
@@ -78,20 +57,9 @@ export async function inviteTeamMemberAction(payload: {
   email: string;
   role: string;
 }) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error("Unauthorized");
-
-  let orgId = session.session.activeOrganizationId;
-  if (!orgId) {
-    const userMember = await db.query.member.findFirst({
-      where: eq(member.userId, session.user.id),
-    });
-    if (userMember) {
-      orgId = userMember.organizationId;
-    }
-  }
-
-  if (!orgId) throw new Error("No active organization found");
+  const ctx = await getAuthOrgContext();
+  if (!ctx) throw new Error("Unauthorized");
+  const { session, orgId } = ctx;
 
   // Verify caller is admin or owner
   const callerMember = await db.query.member.findFirst({

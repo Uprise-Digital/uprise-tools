@@ -15,6 +15,7 @@ import {
 import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 import {
   formatUTCDate,
   getMelbourneTodayStr,
@@ -302,19 +303,8 @@ export async function getAgencyPortfolioMetricsAction(
   endDate: string,
 ) {
   try {
-    let orgId: string | null = null;
-    try {
-      const session = await auth.api.getSession({ headers: await headers() });
-      if (session) {
-        orgId = session.session.activeOrganizationId || null;
-        if (!orgId) {
-          const userMember = await db.query.member.findFirst({
-            where: eq(member.userId, session.user.id),
-          });
-          if (userMember) orgId = userMember.organizationId;
-        }
-      }
-    } catch (e) {}
+    const ctx = await getAuthOrgContext();
+    const orgId = ctx?.orgId || null;
 
     if (!orgId) {
       return { success: true, data: null };
@@ -462,24 +452,8 @@ export async function syncAgencyPortfolioAction(
   // Get active organization from session if running in session context
   let orgId: string | null | undefined = options?.organizationId || null;
   if (!orgId) {
-    try {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
-      if (session) {
-        orgId = session.session.activeOrganizationId;
-        if (!orgId) {
-          const userMember = await db.query.member.findFirst({
-            where: eq(member.userId, session.user.id),
-          });
-          if (userMember) {
-            orgId = userMember.organizationId;
-          }
-        }
-      }
-    } catch (e) {
-      // Ignore error if run in background without session context
-    }
+    const ctx = await getAuthOrgContext();
+    orgId = ctx?.orgId || null;
   }
 
   let taskRecordId = options?.backgroundTaskId;
@@ -559,19 +533,8 @@ export async function syncAgencyPortfolioAction(
 
 export async function getAccountByNameAction(name: string) {
   try {
-    let orgId: string | null = null;
-    try {
-      const session = await auth.api.getSession({ headers: await headers() });
-      if (session) {
-        orgId = session.session?.activeOrganizationId || null;
-        if (!orgId) {
-          const userMember = await db.query.member.findFirst({
-            where: eq(member.userId, session.user.id),
-          });
-          if (userMember) orgId = userMember.organizationId;
-        }
-      }
-    } catch (e) {}
+    const ctx = await getAuthOrgContext();
+    const orgId = ctx?.orgId || null;
 
     const results = await db.query.adAccounts.findMany({
       where: orgId
@@ -657,19 +620,8 @@ async function gaqlFetch(googleAccountId: string, query: string) {
 // ---------------------------------------------------------------------------
 export async function listAccountsAction() {
   try {
-    let orgId: string | null = null;
-    try {
-      const session = await auth.api.getSession({ headers: await headers() });
-      if (session) {
-        orgId = session.session?.activeOrganizationId || null;
-        if (!orgId) {
-          const userMember = await db.query.member.findFirst({
-            where: eq(member.userId, session.user.id),
-          });
-          if (userMember) orgId = userMember.organizationId;
-        }
-      }
-    } catch (e) {}
+    const ctx = await getAuthOrgContext();
+    const orgId = ctx?.orgId || null;
 
     const accounts = await db.query.adAccounts.findMany({
       where: orgId ? eq(adAccounts.organizationId, orgId) : undefined,

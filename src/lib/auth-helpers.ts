@@ -14,13 +14,13 @@ export async function getAuthOrgContext() {
   }
 
   const userId = session.user.id;
-  let orgId = (session.session as any)?.activeOrganizationId;
+  let orgId: string | null = null;
 
-  if (!orgId) {
+  // 1. Check active_org_id cookie first (for instant workspace switcher resolution)
+  try {
     const cookieStore = await cookies();
     const cookieOrgId = cookieStore.get("active_org_id")?.value;
     if (cookieOrgId) {
-      // Check if user is actually a member of this cookie orgId
       const isMember = await db.query.member.findFirst({
         where: and(
           eq(member.userId, userId),
@@ -31,8 +31,14 @@ export async function getAuthOrgContext() {
         orgId = cookieOrgId;
       }
     }
+  } catch (e) {}
+
+  // 2. Fallback to session activeOrganizationId
+  if (!orgId) {
+    orgId = (session.session as any)?.activeOrganizationId || null;
   }
 
+  // 3. Fallback to first database membership
   if (!orgId) {
     const userMember = await db.query.member.findFirst({
       where: eq(member.userId, userId),

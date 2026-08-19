@@ -6,32 +6,22 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import { adAccounts, googleAdsConnections, member } from "@/db/schema";
 import { logAction } from "@/lib/audit";
-import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 import { fetchMCCAccounts } from "@/lib/google-ads";
 
 export async function syncAdAccountsAction() {
-  // 1. Auth Check
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) {
     throw new Error("Unauthorized");
   }
 
+  const { session, userId, orgId } = ctx;
+
   try {
-    let orgId = session.session?.activeOrganizationId;
     let connectionId: number | null = null;
     let hasConnection = false;
 
     try {
-      if (!orgId && db.query.member) {
-        const userMember = await db.query.member.findFirst({
-          where: eq(member.userId, session.user.id),
-        });
-        orgId = userMember?.organizationId;
-      }
-
       if (orgId && db.query.googleAdsConnections) {
         const conn = await db.query.googleAdsConnections.findFirst({
           where: eq(googleAdsConnections.organizationId, orgId),

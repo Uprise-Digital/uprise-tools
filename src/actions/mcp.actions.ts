@@ -7,32 +7,17 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import { mcpKeys, mcpSettings, mcpUsageLogs, member, user } from "@/db/schema";
 import { logAction } from "@/lib/audit";
-import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 
 /**
- * Helper: Resolve active organization ID from session
+ * Helper: Resolve active organization ID from session or active_org_id cookie
  */
 async function getActiveOrgId() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) {
     throw new Error("Unauthorized");
   }
-
-  let orgId = session.session.activeOrganizationId;
-  if (!orgId) {
-    const userMember = await db.query.member.findFirst({
-      where: eq(member.userId, session.user.id),
-    });
-    if (userMember) {
-      orgId = userMember.organizationId;
-    }
-  }
-
-  if (!orgId) {
-    throw new Error("No active organization found");
-  }
-
-  return { orgId, userId: session.user.id, userEmail: session.user.email };
+  return { orgId: ctx.orgId, userId: ctx.userId, userEmail: ctx.user.email };
 }
 
 /**

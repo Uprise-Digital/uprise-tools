@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { withTenantContext } from "@/db/tenant-db";
 import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 
 async function getAccessToken(refreshToken: string) {
   const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -39,27 +40,12 @@ export async function disconnectGoogleAdsAction(payload: {
   connectionId: number;
   deleteSyncedData: boolean;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) {
     throw new Error("Unauthorized");
   }
 
-  let orgId = session.session.activeOrganizationId;
-  if (!orgId) {
-    const userMember = await db.query.member.findFirst({
-      where: eq(member.userId, session.user.id),
-    });
-    if (userMember) {
-      orgId = userMember.organizationId;
-    }
-  }
-
-  if (!orgId) {
-    throw new Error("No active organization found");
-  }
+  const orgId = ctx.orgId;
 
   try {
     await withTenantContext(orgId, async (tx) => {
@@ -282,27 +268,12 @@ export async function updateOrganizationNameAction(payload: {
   name: string;
   allowDomainAutoJoin: boolean;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) {
     throw new Error("Unauthorized");
   }
 
-  let orgId = session.session.activeOrganizationId;
-  if (!orgId) {
-    const userMember = await db.query.member.findFirst({
-      where: eq(member.userId, session.user.id),
-    });
-    if (userMember) {
-      orgId = userMember.organizationId;
-    }
-  }
-
-  if (!orgId) {
-    throw new Error("No active organization found");
-  }
+  const { session, orgId } = ctx;
 
   try {
     const org = await db.query.organization.findFirst({
