@@ -469,7 +469,7 @@ export default function MccSelectClient({
               </div>
             )}
 
-            <div>
+            <div className="space-y-2">
               <Button
                 type="submit"
                 disabled={loading}
@@ -483,6 +483,15 @@ export default function MccSelectClient({
                 ) : (
                   "Connect Selected Account →"
                 )}
+              </Button>
+
+              <Button
+                type="button"
+                onClick={() => (window.location.href = "/overview")}
+                variant="ghost"
+                className="w-full py-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-semibold text-xs cursor-pointer transition-colors"
+              >
+                Skip for now → Continue to Dashboard
               </Button>
             </div>
           </form>
