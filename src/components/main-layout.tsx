@@ -140,22 +140,33 @@ export function MainLayout({
                 <div className="px-2 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
                   Switch Organization
                 </div>
-                {organizations.map((org) => (
-                  <DropdownMenuItem
-                    key={org.id}
-                    onClick={() => handleSwitchOrg(org.id)}
-                    className={cn(
-                      "cursor-pointer text-xs font-medium px-2 py-1.5 rounded-md hover:bg-slate-900 focus:bg-slate-900 focus:text-white flex items-center justify-between",
-                      org.id === activeOrganization.id &&
-                        "text-indigo-400 font-bold bg-slate-900/50",
-                    )}
-                  >
-                    <span>{org.name}</span>
-                    {org.id === activeOrganization.id && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
+                {organizations.map((org) => {
+                  const hasDuplicates =
+                    organizations.filter((o) => o.name === org.name).length > 1;
+                  return (
+                    <DropdownMenuItem
+                      key={org.id}
+                      onClick={() => handleSwitchOrg(org.id)}
+                      className={cn(
+                        "cursor-pointer text-xs font-medium px-2 py-1.5 rounded-md hover:bg-slate-900 focus:bg-slate-900 focus:text-white flex items-center justify-between",
+                        org.id === activeOrganization.id &&
+                          "text-indigo-400 font-bold bg-slate-900/50",
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="truncate">{org.name}</span>
+                        {hasDuplicates && (
+                          <span className="text-[10px] text-slate-500 font-mono shrink-0">
+                            ({org.slug || org.id.slice(0, 4)})
+                          </span>
+                        )}
+                      </div>
+                      {org.id === activeOrganization.id && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0 ml-1.5" />
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
                 <DropdownMenuSeparator className="bg-slate-900 my-1" />
                 <DropdownMenuItem
                   asChild

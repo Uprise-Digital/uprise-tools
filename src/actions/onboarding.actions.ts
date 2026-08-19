@@ -58,7 +58,8 @@ export async function createOrganizationAction(payload: {
   const userDomain = userEmail.split("@")[1];
 
   const orgId = generateId();
-  const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const baseSlug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const slug = `${baseSlug}-${orgId.slice(0, 4)}`;
 
   const metadata = JSON.stringify({
     description: payload.description,
