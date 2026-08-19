@@ -13,13 +13,13 @@
 // You can either import from there or move it here for co-location.
 // The MCP route currently imports it from agency.actions.ts — no change needed there.
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { adAccounts, agencyAiInsightsCache } from "@/db/schema";
 import { logAction } from "@/lib/audit";
-import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 
 export interface AccountTargetsPayload {
   targetCpa: number | null;
@@ -33,31 +33,30 @@ export async function saveAccountTargetsAction(
   payload: AccountTargetsPayload,
 ) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) throw new Error("Unauthorized");
+    const ctx = await getAuthOrgContext();
+    if (!ctx) throw new Error("Unauthorized");
+    const { session, orgId } = ctx;
 
     const account = await db.query.adAccounts.findFirst({
-      where: eq(adAccounts.id, accountId),
+      where: and(
+        eq(adAccounts.id, accountId),
+        eq(adAccounts.organizationId, orgId),
+      ),
     });
 
     if (!account) {
-      return {
-        success: false,
-        error: `No account found with ID ${accountId}.`,
-      };
+      throw new Error(
+        `Account ID ${accountId} not found in active organization.`,
+      );
     }
 
-    let finalNotes = payload.targetNotes;
-    if (account.targetNotes) {
-      try {
-        const parsed = JSON.parse(account.targetNotes);
-        if (typeof parsed === "object" && parsed !== null) {
-          parsed.notes = payload.targetNotes;
-          finalNotes = JSON.stringify(parsed);
-        }
-      } catch {
-        // Not JSON, overwrite normally
-      }
+    const currentNotes = account.targetNotes || "";
+    let finalNotes = currentNotes;
+
+    if (payload.targetNotes) {
+      const timestamp = new Date().toISOString().split("T")[0];
+      const entry = `[${timestamp}] ${payload.targetNotes.trim()}`;
+      finalNotes = currentNotes ? `${currentNotes}\n${entry}` : entry;
     }
 
     await db
@@ -75,9 +74,10 @@ export async function saveAccountTargetsAction(
       })
       .where(eq(adAccounts.id, accountId));
 
-    // Invalidate the agency god view cache — target CPA changes affect fire
-    // detection logic, so stale cached insights would now be wrong.
-    await db.delete(agencyAiInsightsCache);
+    // Invalidate the agency god view cache for THIS organization ONLY
+    await db
+      .delete(agencyAiInsightsCache)
+      .where(eq(agencyAiInsightsCache.organizationId, orgId));
 
     await logAction(
       session.user.id,
@@ -103,8 +103,16 @@ export async function setAccountTargetsMcpAction(
   payload: AccountTargetsPayload,
 ) {
   try {
+    const ctx = await getAuthOrgContext();
+    const orgId = ctx?.orgId;
+
     const account = await db.query.adAccounts.findFirst({
-      where: eq(adAccounts.id, accountId),
+      where: orgId
+        ? and(
+            eq(adAccounts.id, accountId),
+            eq(adAccounts.organizationId, orgId),
+          )
+        : eq(adAccounts.id, accountId),
     });
 
     if (!account) {
@@ -143,7 +151,11 @@ export async function setAccountTargetsMcpAction(
       .where(eq(adAccounts.id, accountId));
 
     // Invalidate god view cache — same reason as above.
-    await db.delete(agencyAiInsightsCache);
+    if (orgId) {
+      await db
+        .delete(agencyAiInsightsCache)
+        .where(eq(agencyAiInsightsCache.organizationId, orgId));
+    }
 
     await logAction(
       "MCP_AGENT",

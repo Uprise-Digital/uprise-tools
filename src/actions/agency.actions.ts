@@ -63,10 +63,17 @@ export async function getOrGenerateAgencyAiInsightsAction(
   portfolioData: any,
   forceRefresh: boolean = false,
 ) {
+  const ctx = await getAuthOrgContext();
+  const orgId = ctx?.orgId;
+  if (!orgId) {
+    throw new Error("Unauthorized: Active organization context missing");
+  }
+
   // 1. Check Cache First
   if (!forceRefresh) {
     const cached = await db.query.agencyAiInsightsCache.findFirst({
       where: and(
+        eq(agencyAiInsightsCache.organizationId, orgId),
         eq(agencyAiInsightsCache.startDate, startDate),
         eq(agencyAiInsightsCache.endDate, endDate),
       ),
@@ -268,6 +275,7 @@ export async function getOrGenerateAgencyAiInsightsAction(
     const [upserted] = await db
       .insert(agencyAiInsightsCache)
       .values({
+        organizationId: orgId,
         startDate,
         endDate,
         insights: parsedInsights,
@@ -275,6 +283,7 @@ export async function getOrGenerateAgencyAiInsightsAction(
       })
       .onConflictDoUpdate({
         target: [
+          agencyAiInsightsCache.organizationId,
           agencyAiInsightsCache.startDate,
           agencyAiInsightsCache.endDate,
         ],

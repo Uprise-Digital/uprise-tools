@@ -527,19 +527,24 @@ export const agencyAiInsightsCache = pgTable(
   "agency_ai_insights_cache",
   {
     id: serial("id").primaryKey(),
+    organizationId: text("organization_id").notNull(),
     startDate: date("start_date").notNull(),
     endDate: date("end_date").notNull(),
     insights: jsonb("insights").notNull(), // Stores the full Gemini JSON response
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => ({
-    // Ensures only one cached report exists per date range
-    uniqueAgencyCacheRecord: uniqueIndex("unique_agency_ai_cache_record").on(
+  (table) => [
+    uniqueIndex("unique_agency_ai_cache_record").on(
+      table.organizationId,
       table.startDate,
       table.endDate,
     ),
-  }),
-);
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
 
 // --- 7B. AI MODEL PRICING & BUDGET LIMITS (NEW) ---
 export const aiModelPricing = pgTable("ai_model_pricing", {
