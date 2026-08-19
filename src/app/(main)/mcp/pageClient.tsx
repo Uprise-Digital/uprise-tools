@@ -327,7 +327,6 @@ export default function McpSettingsClient() {
   const [rolling, setRolling] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
-  // Modal State for Key Generation
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -472,46 +471,75 @@ export default function McpSettingsClient() {
   );
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 p-8 shadow-2xl">
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold uppercase tracking-wider">
-              <Bot className="w-3.5 h-3.5" />
-              Anthropic / OpenAI MCP Integration
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">
-              Model Context Protocol (MCP) Hub
-            </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              Provision per-user API keys, configure tool scopes, and inspect
-              real-time tool execution logs for Claude Desktop, Cursor, and
-              custom AI agents.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <Button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/20"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Generate New MCP Key
-            </Button>
-          </div>
+    <div className="space-y-8 md:p-8 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
+            <Bot className="h-7 w-7 text-indigo-600" />
+            Model Context Protocol (MCP) Hub
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Provision per-user API keys, configure tool scopes, and inspect
+            real-time tool execution logs for Claude Desktop & Cursor.
+          </p>
         </div>
+
+        <Button
+          onClick={() => setShowCreateModal(true)}
+          className="w-full md:w-auto bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 text-indigo-700 hover:from-indigo-100 hover:to-blue-100 shadow-sm font-semibold flex items-center justify-center gap-2"
+        >
+          <Plus className="h-4 w-4 text-indigo-600" />
+          Generate New MCP Key
+        </Button>
+      </div>
+
+      {/* Top Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <Card className="border-t-4 border-t-emerald-500 bg-white border border-slate-200/80 shadow-sm rounded-2xl p-5">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            ACTIVE API KEYS
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 mt-1">
+            {keys.length} Configured
+          </div>
+          <p className="text-xs text-slate-500 mt-2">
+            Per-user keys generated for team members.
+          </p>
+        </Card>
+        <Card className="border-t-4 border-t-indigo-500 bg-white border border-slate-200/80 shadow-sm rounded-2xl p-5">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            TOTAL EXECUTION LOGS
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 mt-1">
+            {logs.length} Logged
+          </div>
+          <p className="text-xs text-slate-500 mt-2">
+            Real-time MCP tool executions recorded.
+          </p>
+        </Card>
+        <Card className="border-t-4 border-t-blue-500 bg-white border border-slate-200/80 shadow-sm rounded-2xl p-5">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            TOOL CATALOG CAPACITY
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 mt-1">
+            {AVAILABLE_TOOLS.length} Tools Available
+          </div>
+          <p className="text-xs text-slate-500 mt-2">
+            Google Ads GAQL, CRO audits & RSA tools.
+          </p>
+        </Card>
       </div>
 
       {/* Main Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
         <button
           type="button"
           onClick={() => setActiveTab("keys")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === "keys"
               ? "bg-indigo-600 text-white shadow-sm"
-              : "text-slate-400 hover:text-white hover:bg-slate-900"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
           }`}
         >
           <Key className="w-4 h-4" />
@@ -521,10 +549,10 @@ export default function McpSettingsClient() {
         <button
           type="button"
           onClick={() => setActiveTab("logs")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === "logs"
               ? "bg-indigo-600 text-white shadow-sm"
-              : "text-slate-400 hover:text-white hover:bg-slate-900"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
           }`}
         >
           <ActivitySquare className="w-4 h-4" />
@@ -534,10 +562,10 @@ export default function McpSettingsClient() {
         <button
           type="button"
           onClick={() => setActiveTab("setup")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === "setup"
               ? "bg-indigo-600 text-white shadow-sm"
-              : "text-slate-400 hover:text-white hover:bg-slate-900"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
           }`}
         >
           <Terminal className="w-4 h-4" />
@@ -547,10 +575,10 @@ export default function McpSettingsClient() {
         <button
           type="button"
           onClick={() => setActiveTab("catalog")}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === "catalog"
               ? "bg-indigo-600 text-white shadow-sm"
-              : "text-slate-400 hover:text-white hover:bg-slate-900"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
           }`}
         >
           <Database className="w-4 h-4" />
@@ -559,8 +587,8 @@ export default function McpSettingsClient() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-16 text-slate-400 gap-3">
-          <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+        <div className="flex items-center justify-center py-16 text-slate-500 gap-3">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
           <span>Loading MCP Server Configuration...</span>
         </div>
       )}
@@ -568,30 +596,30 @@ export default function McpSettingsClient() {
       {/* TAB 1: API KEYS TABLE */}
       {!loading && activeTab === "keys" && (
         <div className="space-y-6">
-          <Card className="bg-slate-900/80 border-slate-800 shadow-xl">
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className="bg-white border-slate-200/80 shadow-sm rounded-2xl p-6">
+            <CardHeader className="px-0 pt-0 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
-                  <Key className="w-5 h-5 text-indigo-400" />
+                <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Key className="w-5 h-5 text-indigo-600" />
                   Per-User MCP API Keys
                 </CardTitle>
-                <CardDescription className="text-slate-400 text-sm">
+                <CardDescription className="text-slate-500 text-sm mt-1">
                   Active API keys for your agency members and automated AI
                   agents.
                 </CardDescription>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-0 pb-0">
               {keys.length === 0 ? (
-                <div className="text-center py-12 border border-dashed border-slate-800 rounded-xl bg-slate-950/40 space-y-3">
-                  <ShieldCheck className="w-10 h-10 text-slate-600 mx-auto" />
-                  <p className="text-sm text-slate-400 font-medium">
+                <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-3">
+                  <ShieldCheck className="w-10 h-10 text-slate-400 mx-auto" />
+                  <p className="text-sm text-slate-600 font-medium">
                     No per-user MCP keys generated yet.
                   </p>
                   <Button
                     onClick={() => setShowCreateModal(true)}
                     variant="outline"
-                    className="border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10"
+                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Create Your First MCP Key
@@ -599,8 +627,8 @@ export default function McpSettingsClient() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm text-slate-300">
-                    <thead className="bg-slate-950/80 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                  <table className="w-full text-left text-sm text-slate-700">
+                    <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                       <tr>
                         <th className="px-4 py-3">Key Name</th>
                         <th className="px-4 py-3">Owner</th>
@@ -610,22 +638,22 @@ export default function McpSettingsClient() {
                         <th className="px-4 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-slate-100">
                       {keys.map((k) => (
                         <tr
                           key={k.id}
-                          className="hover:bg-slate-950/40 transition-colors"
+                          className="hover:bg-slate-50/80 transition-colors"
                         >
-                          <td className="px-4 py-3.5 font-semibold text-white">
+                          <td className="px-4 py-3.5 font-bold text-slate-900">
                             {k.name}
                           </td>
                           <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-1.5 text-xs text-slate-300">
-                              <User className="w-3.5 h-3.5 text-indigo-400" />
+                            <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                              <User className="w-3.5 h-3.5 text-indigo-600" />
                               <span>{k.ownerName}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3.5 font-mono text-xs text-indigo-400">
+                          <td className="px-4 py-3.5 font-mono text-xs text-indigo-600 font-semibold">
                             {k.keyPrefix}
                           </td>
                           <td className="px-4 py-3.5">
@@ -634,14 +662,14 @@ export default function McpSettingsClient() {
                                 k.scopes.map((s: string) => (
                                   <span
                                     key={s}
-                                    className="px-2 py-0.5 rounded bg-slate-800 text-[10px] font-mono text-slate-300"
+                                    className="px-2 py-0.5 rounded bg-indigo-50 border border-indigo-100 text-[10px] font-mono text-indigo-700 font-medium"
                                   >
                                     {s}
                                   </span>
                                 ))}
                             </div>
                           </td>
-                          <td className="px-4 py-3.5 text-xs text-slate-400">
+                          <td className="px-4 py-3.5 text-xs text-slate-500">
                             {k.lastUsedAt
                               ? new Date(k.lastUsedAt).toLocaleString()
                               : "Never"}
@@ -652,7 +680,7 @@ export default function McpSettingsClient() {
                               variant="ghost"
                               disabled={revokingId === k.id}
                               onClick={() => handleRevokeKey(k.id)}
-                              className="text-red-400 hover:text-red-300 hover:bg-red-950/30 h-8 px-2"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-2"
                             >
                               {revokingId === k.id ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -672,28 +700,28 @@ export default function McpSettingsClient() {
           </Card>
 
           {/* Legacy Organization Master Key Section */}
-          <Card className="bg-slate-950/60 border-slate-800">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+          <Card className="bg-slate-50/60 border-slate-200/80 rounded-2xl p-5">
+            <CardHeader className="px-0 pt-0 pb-3">
+              <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Legacy Master Organization Key
               </CardTitle>
               <CardDescription className="text-xs text-slate-500">
                 Backward compatible master fallback key for single-tenant bots.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex items-center justify-between gap-4">
+            <CardContent className="px-0 pb-0 flex items-center justify-between gap-4">
               <Input
                 readOnly
                 type="password"
                 value={legacyApiKey}
-                className="bg-slate-900 border-slate-800 text-slate-300 font-mono text-xs max-w-md"
+                className="bg-white border-slate-200 text-slate-800 font-mono text-xs max-w-md rounded-xl"
               />
               <Button
                 variant="outline"
                 size="sm"
                 disabled={rolling}
                 onClick={handleRollLegacyKey}
-                className="border-slate-800 hover:bg-slate-900 text-slate-300"
+                className="border-slate-200 hover:bg-white text-slate-700 font-semibold"
               >
                 {rolling ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
@@ -707,28 +735,28 @@ export default function McpSettingsClient() {
 
       {/* TAB 2: EXECUTION LOGS TABLE */}
       {!loading && activeTab === "logs" && (
-        <Card className="bg-slate-900/80 border-slate-800 shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
-              <ActivitySquare className="w-5 h-5 text-indigo-400" />
+        <Card className="bg-white border-slate-200/80 shadow-sm rounded-2xl p-6">
+          <CardHeader className="px-0 pt-0">
+            <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <ActivitySquare className="w-5 h-5 text-indigo-600" />
               Real-Time MCP Tool Execution Logs
             </CardTitle>
-            <CardDescription className="text-slate-400 text-sm">
+            <CardDescription className="text-slate-500 text-sm mt-1">
               Live audit stream of all tool calls executed by connected AI
               clients.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-0 pb-0">
             {logs.length === 0 ? (
-              <div className="text-center py-12 border border-dashed border-slate-800 rounded-xl bg-slate-950/40">
+              <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                 <p className="text-sm text-slate-500">
                   No MCP tool execution logs recorded yet.
                 </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-slate-300">
-                  <thead className="bg-slate-950/80 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                <table className="w-full text-left text-sm text-slate-700">
+                  <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                     <tr>
                       <th className="px-4 py-3">Timestamp</th>
                       <th className="px-4 py-3">Tool Name</th>
@@ -737,24 +765,24 @@ export default function McpSettingsClient() {
                       <th className="px-4 py-3">IP Address</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+                  <tbody className="divide-y divide-slate-100 font-mono text-xs">
                     {logs.map((log) => (
-                      <tr key={log.id} className="hover:bg-slate-950/40">
-                        <td className="px-4 py-3 text-slate-400">
+                      <tr key={log.id} className="hover:bg-slate-50/80">
+                        <td className="px-4 py-3 text-slate-500">
                           {new Date(log.createdAt).toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 font-semibold text-indigo-300">
+                        <td className="px-4 py-3 font-semibold text-indigo-600">
                           {log.toolName}
                         </td>
-                        <td className="px-4 py-3 text-slate-300">
+                        <td className="px-4 py-3 text-slate-700">
                           {log.executionTimeMs} ms
                         </td>
                         <td className="px-4 py-3">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                               log.status === "success"
-                                ? "bg-emerald-950/60 text-emerald-400 border border-emerald-500/20"
-                                : "bg-red-950/60 text-red-400 border border-red-500/20"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-red-50 text-red-700 border border-red-200"
                             }`}
                           >
                             {log.status}
@@ -776,22 +804,22 @@ export default function McpSettingsClient() {
       {/* TAB 3: SETUP INSTRUCTIONS */}
       {!loading && activeTab === "setup" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="bg-slate-900/80 border-slate-800 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <Bot className="w-5 h-5 text-indigo-400" />
+          <Card className="bg-white border-slate-200/80 shadow-sm rounded-2xl p-6">
+            <CardHeader className="px-0 pt-0">
+              <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Bot className="w-5 h-5 text-indigo-600" />
                 Claude Desktop Integration
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
+              <CardDescription className="text-xs text-slate-500 mt-1">
                 Add this config snippet to your local{" "}
-                <code className="text-indigo-300">
+                <code className="text-indigo-600 font-semibold">
                   claude_desktop_config.json
                 </code>{" "}
                 file.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="relative bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-indigo-300 overflow-x-auto">
+            <CardContent className="px-0 pb-0 space-y-4">
+              <div className="relative bg-slate-900 p-4 rounded-xl border border-slate-800 font-mono text-xs text-indigo-300 overflow-x-auto">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -810,27 +838,27 @@ export default function McpSettingsClient() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900/80 border-slate-800 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <Globe className="w-5 h-5 text-indigo-400" />
+          <Card className="bg-white border-slate-200/80 shadow-sm rounded-2xl p-6">
+            <CardHeader className="px-0 pt-0">
+              <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Globe className="w-5 h-5 text-indigo-600" />
                 HTTP & SSE Endpoints
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">
+              <CardDescription className="text-xs text-slate-500 mt-1">
                 Direct endpoints for Cursor, Antigravity, or custom agent
                 frameworks.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="px-0 pb-0 space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-400 uppercase">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   SSE Endpoint URL
                 </label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input
                     readOnly
                     value={mcpSseUrl}
-                    className="bg-slate-950 border-slate-800 text-xs font-mono text-slate-300"
+                    className="bg-slate-50 border-slate-200 text-xs font-mono text-slate-800 rounded-xl"
                   />
                   <Button
                     size="sm"
@@ -843,14 +871,14 @@ export default function McpSettingsClient() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-400 uppercase">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   HTTP Transport URL
                 </label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input
                     readOnly
                     value={mcpHttpUrl}
-                    className="bg-slate-950 border-slate-800 text-xs font-mono text-slate-300"
+                    className="bg-slate-50 border-slate-200 text-xs font-mono text-slate-800 rounded-xl"
                   />
                   <Button
                     size="sm"
@@ -872,32 +900,32 @@ export default function McpSettingsClient() {
           {TOOL_CATEGORIES.map((category) => (
             <Card
               key={category.id}
-              className="bg-slate-900/80 border-slate-800"
+              className="bg-white border-slate-200/80 shadow-sm rounded-2xl p-6"
             >
-              <CardHeader>
-                <CardTitle className="text-lg font-bold text-white">
+              <CardHeader className="px-0 pt-0">
+                <CardTitle className="text-lg font-bold text-slate-900">
                   {category.title}
                 </CardTitle>
-                <CardDescription className="text-xs text-slate-400">
+                <CardDescription className="text-xs text-slate-500 mt-0.5">
                   {category.description}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CardContent className="px-0 pb-0 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {category.tools.map((toolName) => {
                   const tool = AVAILABLE_TOOLS.find((t) => t.name === toolName);
                   if (!tool) return null;
                   return (
                     <div
                       key={tool.name}
-                      className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1"
+                      className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-1"
                     >
                       <div className="flex items-center gap-2">
-                        <Zap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                        <span className="font-mono text-xs font-bold text-white">
+                        <Zap className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                        <span className="font-mono text-xs font-bold text-slate-900">
                           {tool.name}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 pl-5 leading-relaxed">
+                      <p className="text-xs text-slate-600 pl-5 leading-relaxed">
                         {tool.description}
                       </p>
                     </div>
@@ -911,13 +939,13 @@ export default function McpSettingsClient() {
 
       {/* CREATE KEY MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-5">
             <div className="space-y-1">
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="text-xl font-bold text-slate-900">
                 Generate Per-User MCP Key
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Create a dedicated API key for your Claude Desktop, Cursor
                 agent, or AI bot.
               </p>
@@ -925,7 +953,7 @@ export default function McpSettingsClient() {
 
             <form onSubmit={handleCreateKey} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Key Label / Name *
                 </label>
                 <Input
@@ -933,7 +961,7 @@ export default function McpSettingsClient() {
                   placeholder="e.g. Alex's Claude Desktop"
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
-                  className="bg-slate-950 border-slate-800 text-white"
+                  className="bg-slate-50 border-slate-200 text-slate-900 rounded-xl"
                 />
               </div>
 
@@ -942,14 +970,14 @@ export default function McpSettingsClient() {
                   type="button"
                   variant="ghost"
                   onClick={() => setShowCreateModal(false)}
-                  className="text-slate-400 hover:text-white"
+                  className="text-slate-600 hover:text-slate-900"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={creating}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl"
                 >
                   {creating ? (
                     <Loader2 className="w-4 h-4 animate-spin mr-1" />
@@ -964,30 +992,30 @@ export default function McpSettingsClient() {
 
       {/* ONE-TIME SECRET DISPLAY MODAL */}
       {newlyCreatedRawKey && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-5">
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+              <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
                 <CheckCircle2 className="w-4 h-4" />
                 MCP Key Created Successfully
               </div>
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="text-xl font-bold text-slate-900">
                 Save Your API Secret Key
               </h3>
-              <p className="text-xs text-amber-400 font-medium">
+              <p className="text-xs text-amber-600 font-medium">
                 ⚠️ Make sure to copy your API secret now. You will not be able to
                 see it again!
               </p>
             </div>
 
-            <div className="p-3.5 bg-slate-950 border border-indigo-500/30 rounded-xl font-mono text-xs text-indigo-300 break-all select-all flex items-center justify-between gap-3">
+            <div className="p-3.5 bg-slate-50 border border-indigo-200 rounded-xl font-mono text-xs text-indigo-700 break-all select-all flex items-center justify-between gap-3">
               <span>{newlyCreatedRawKey}</span>
               <Button
                 size="sm"
                 onClick={() =>
                   copyToClipboard(newlyCreatedRawKey, "MCP Secret Key")
                 }
-                className="bg-indigo-600 hover:bg-indigo-500 text-white shrink-0"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white shrink-0 rounded-lg"
               >
                 <Copy className="w-3.5 h-3.5 mr-1" />
                 Copy
@@ -997,7 +1025,7 @@ export default function McpSettingsClient() {
             <div className="flex justify-end pt-2">
               <Button
                 onClick={() => setNewlyCreatedRawKey(null)}
-                className="bg-slate-800 hover:bg-slate-700 text-white font-semibold"
+                className="bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl"
               >
                 Done
               </Button>
