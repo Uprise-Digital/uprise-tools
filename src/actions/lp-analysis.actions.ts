@@ -131,6 +131,9 @@ export async function scrapeLandingPageExtended(
                     el.innerText = target;
                   }
                 });
+                document.querySelectorAll('.tab-title, .accordion-header, [role="tab"], .elementor-tab-title').forEach(el => {
+                  try { el.click(); } catch(e){}
+                });
               }, 1500);
             }, 1500);
           `);
@@ -728,9 +731,10 @@ export async function runLandingPageAuditInternal(
       
       ---
       CRITICAL AUDIT ACCURACY AND FALSE-POSITIVE PREVENTIONS:
-      - Be precise in separating phantom markup (such as hidden desktop/mobile duplicate widgets or background system configurations) from real, visible user issues.
-      - If you detect a critical CRO issue (e.g. missing visible CTA, broken mobile layout, or poor headline match on the active page), flag it with full urgency.
-      - Only soften the warning if you suspect the element is not visually active/rendered for the current visitor screen size (e.g. duplicate mobile layouts scraped on desktop viewport). Do not soften warnings for genuine visible issues.
+      - Cross-reference the provided visual screenshot image with the text context carefully.
+      - Do NOT flag "duplicate 'First Meeting' copy" or "0 counter values" if the visual screenshot or rendered page text shows active counters (e.g. 100M+, 30+, 12+ Years) or distinct step headings (e.g. First Meeting, Design Development, Pricing and Readiness).
+      - Be precise in separating phantom un-hydrated template markup from real, visible user issues.
+      - If you detect a genuine, visible CRO issue (e.g. missing visible CTA, broken mobile layout, or poor headline match on the active page), flag it with full urgency.
       
       ---
       CLIENT PAGE CONTEXT (${url}):
