@@ -4,7 +4,7 @@ import { admin, organization } from "better-auth/plugins";
 import { Resend } from "resend";
 import { db } from "../db";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_build_key");
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {

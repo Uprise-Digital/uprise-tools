@@ -1,48 +1,57 @@
-import fs from "node:fs";
-import path from "node:path";
 import {
   DeleteObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 
-// Configure S3 client for Cloudflare R2 or AWS S3
+// Configure S3 Client for Railway Bucket / Cloudflare R2 / AWS S3
 const r2Endpoint =
-  process.env.CLOUDFLARE_R2_ENDPOINT || process.env.AWS_S3_ENDPOINT;
+  process.env.RAILWAY_BUCKET_ENDPOINT ||
+  process.env.CLOUDFLARE_R2_ENDPOINT ||
+  process.env.AWS_S3_ENDPOINT ||
+  process.env.AWS_ENDPOINT_URL ||
+  process.env.S3_ENDPOINT;
+
 const accessKeyId =
-  process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+  process.env.RAILWAY_BUCKET_ACCESS_KEY_ID ||
+  process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
+  process.env.AWS_ACCESS_KEY_ID ||
+  process.env.S3_ACCESS_KEY_ID;
+
 const secretAccessKey =
+  process.env.RAILWAY_BUCKET_SECRET_ACCESS_KEY ||
   process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
-  process.env.AWS_SECRET_ACCESS_KEY;
+  process.env.AWS_SECRET_ACCESS_KEY ||
+  process.env.S3_SECRET_ACCESS_KEY;
+
 const bucketName =
-  process.env.CLOUDFLARE_R2_BUCKET_NAME || process.env.AWS_S3_BUCKET;
+  process.env.RAILWAY_BUCKET_NAME ||
+  process.env.CLOUDFLARE_R2_BUCKET_NAME ||
+  process.env.AWS_S3_BUCKET ||
+  process.env.S3_BUCKET;
+
 const publicUrl =
-  process.env.CLOUDFLARE_R2_PUBLIC_URL || process.env.AWS_S3_PUBLIC_URL;
+  process.env.RAILWAY_BUCKET_PUBLIC_URL ||
+  process.env.CLOUDFLARE_R2_PUBLIC_URL ||
+  process.env.AWS_S3_PUBLIC_URL ||
+  process.env.S3_PUBLIC_URL;
 
 let s3Client: S3Client | null = null;
 
 if (r2Endpoint && accessKeyId && secretAccessKey) {
   s3Client = new S3Client({
     endpoint: r2Endpoint,
-    region: "auto",
+    region: process.env.AWS_REGION || "us-east-1",
     credentials: {
       accessKeyId,
       secretAccessKey,
     },
+    forcePathStyle: true, // Required for Railway S3 / MinIO buckets
   });
 }
 
-const LOCAL_UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
-
-function ensureLocalDirExists(dirPath: string) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-}
-
 /**
- * Uploads a base64 encoded image to Cloudflare R2 / S3 or Local Railway Persistent Volume.
- * Returns the public URL of the uploaded object, or local fallback path if credentials are missing.
+ * Uploads a base64 encoded image exclusively to Railway Bucket / S3 Storage.
  */
 export async function uploadImageToR2(
   base64Data: string,
@@ -54,104 +63,84 @@ export async function uploadImageToR2(
 }
 
 /**
- * Uploads a Buffer to Cloudflare R2 / S3 or Local Railway Persistent Volume.
+ * Uploads a Buffer exclusively to Railway Bucket / S3 Storage.
  */
 export async function uploadBufferToR2(
   buffer: Buffer,
   fileName: string,
   contentType: string = "image/png",
 ): Promise<string | null> {
-  // 1. If S3 / R2 is configured, upload to S3 / Cloudflare R2
-  if (s3Client && bucketName && publicUrl) {
-    try {
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: bucketName,
-          Key: fileName,
-          Body: buffer,
-          ContentType: contentType,
-        }),
+  if (!s3Client || !bucketName) {
+    if (process.env.NODE_ENV === "test") {
+      console.warn(
+        "[Bucket Storage] Skipping S3 bucket upload in test environment.",
       );
+      return `/mock-bucket/${fileName}`;
+    }
+    throw new Error(
+      "[Bucket Storage Error] Railway Bucket / S3 Storage is not configured. Please add Railway Bucket environment variables (RAILWAY_BUCKET_ENDPOINT, RAILWAY_BUCKET_ACCESS_KEY_ID, RAILWAY_BUCKET_SECRET_ACCESS_KEY, RAILWAY_BUCKET_NAME).",
+    );
+  }
 
+  try {
+    const cleanKey = fileName.replace(/^\/+/, "");
+
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: cleanKey,
+        Body: buffer,
+        ContentType: contentType,
+      }),
+    );
+
+    if (publicUrl) {
       const cleanPublicUrl = publicUrl.endsWith("/")
         ? publicUrl.slice(0, -1)
         : publicUrl;
-      return `${cleanPublicUrl}/${fileName}`;
-    } catch (error) {
-      console.error(
-        "[Storage Error] Cloudflare R2 / S3 upload failed, attempting local volume fallback:",
-        error,
-      );
+      return `${cleanPublicUrl}/${cleanKey}`;
     }
-  }
 
-  // 2. Local Railway Persistent Volume Fallback (/app/public/uploads)
-  try {
-    const sanitizedRelativePath = fileName
-      .split("/")
-      .map((part) => part.replace(/[^a-zA-Z0-9_.-]/g, "_"))
-      .join("/");
-
-    const filePath = path.join(LOCAL_UPLOADS_DIR, sanitizedRelativePath);
-    const fileDir = path.dirname(filePath);
-
-    ensureLocalDirExists(fileDir);
-    fs.writeFileSync(filePath, buffer);
-
-    console.log(
-      `[Storage] Asset stored locally on Railway persistent volume: /uploads/${sanitizedRelativePath}`,
-    );
-    return `/uploads/${sanitizedRelativePath}`;
-  } catch (localErr) {
+    const cleanEndpoint = r2Endpoint?.endsWith("/")
+      ? r2Endpoint.slice(0, -1)
+      : r2Endpoint;
+    return `${cleanEndpoint}/${bucketName}/${cleanKey}`;
+  } catch (error: any) {
     console.error(
-      "[Local Storage Error] Failed to write asset to local volume:",
-      localErr,
+      "[Bucket Storage Error] Failed to upload asset to Railway Bucket / S3:",
+      error,
     );
-    return null;
+    throw new Error(`Bucket upload failed: ${error.message}`);
   }
 }
 
 /**
- * Deletes an object file from Cloudflare R2 / S3 or Local Railway Persistent Volume.
+ * Deletes an object file from Railway Bucket / S3 Storage given its key or URL.
  */
 export async function deleteFileFromR2(fileUrlOrKey: string): Promise<boolean> {
-  // 1. If S3 / R2 configured
-  if (s3Client && bucketName) {
-    try {
-      let key = fileUrlOrKey;
-      if (publicUrl && key.startsWith(publicUrl)) {
-        key = key.replace(publicUrl, "").replace(/^\/+/, "");
-      }
-
-      await s3Client.send(
-        new DeleteObjectCommand({
-          Bucket: bucketName,
-          Key: key,
-        }),
-      );
-
-      return true;
-    } catch (error) {
-      console.error("[Storage Error] S3 / R2 delete failed:", error);
-    }
+  if (!s3Client || !bucketName) {
+    return false;
   }
 
-  // 2. Local Volume Deletion
   try {
-    const cleanPath = fileUrlOrKey
-      .replace(/^\/uploads\//, "")
-      .split("/")
-      .map((part) => part.replace(/[^a-zA-Z0-9_.-]/g, "_"))
-      .join("/");
-
-    const filePath = path.join(LOCAL_UPLOADS_DIR, cleanPath);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      return true;
+    let key = fileUrlOrKey;
+    if (publicUrl && key.startsWith(publicUrl)) {
+      key = key.replace(publicUrl, "").replace(/^\/+/, "");
     }
-  } catch (err) {
-    console.error("[Local Storage Error] Failed to delete local file:", err);
-  }
 
-  return false;
+    await s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+      }),
+    );
+
+    return true;
+  } catch (error) {
+    console.error(
+      "[Bucket Storage Error] Failed to delete file from Railway Bucket / S3:",
+      error,
+    );
+    return false;
+  }
 }
