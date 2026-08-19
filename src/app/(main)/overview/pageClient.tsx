@@ -43,6 +43,7 @@ import {
   ZAxis,
 } from "recharts";
 import { toast } from "sonner";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   getAgencyPortfolioMetricsAction,
   getOrGenerateAgencyAiInsightsAction,
@@ -825,22 +826,14 @@ export default function AgencyReportsClient() {
             )}
           </Button>
 
-          <div className="flex items-center bg-white rounded-full border border-slate-200 shadow-sm px-4 py-1.5 gap-2">
-            <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="border-none h-8 w-[120px] p-0 text-sm focus-visible:ring-0 shadow-none"
-            />
-            <span className="text-slate-300 font-light">—</span>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="border-none h-8 w-[120px] p-0 text-sm focus-visible:ring-0 shadow-none"
-            />
-          </div>
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onChange={({ startDate: s, endDate: e }) => {
+              setStartDate(s);
+              setEndDate(e);
+            }}
+          />
         </div>
       </div>
 
