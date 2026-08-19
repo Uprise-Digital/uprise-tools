@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowLeft, KeyRound, Loader2, Lock, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  KeyRound,
+  Loader2,
+  Lock,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -40,9 +47,13 @@ export default function ResetPasswordPage() {
       });
 
       if (error) {
-        toast.error(error.message || "Failed to update password. Link may be expired.");
+        toast.error(
+          error.message || "Failed to update password. Link may be expired.",
+        );
       } else {
-        toast.success("Password updated successfully! Please sign in with your new password.");
+        toast.success(
+          "Password updated successfully! Please sign in with your new password.",
+        );
         router.push("/login");
       }
     } catch (err: any) {
@@ -86,7 +97,10 @@ export default function ResetPasswordPage() {
         {/* New Password Form */}
         <form onSubmit={handleReset} className="w-full text-left space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+            <Label
+              htmlFor="password"
+              className="text-xs text-slate-300 font-semibold flex items-center gap-1.5"
+            >
               <Lock className="w-3.5 h-3.5 text-slate-400" />
               New Password
             </Label>
@@ -102,7 +116,10 @@ export default function ResetPasswordPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="confirmPassword" className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+            <Label
+              htmlFor="confirmPassword"
+              className="text-xs text-slate-300 font-semibold flex items-center gap-1.5"
+            >
               <KeyRound className="w-3.5 h-3.5 text-slate-400" />
               Confirm New Password
             </Label>

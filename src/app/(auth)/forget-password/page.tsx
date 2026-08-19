@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowLeft, CheckCircle2, Loader2, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -26,13 +33,15 @@ export default function ForgetPasswordPage() {
     setLoading(true);
 
     try {
-      const { error } = await authClient.forgetPassword({
+      const { error } = await authClient.requestPasswordReset({
         email: email.trim(),
         redirectTo: "/reset-password",
       });
 
       if (error) {
-        toast.error(error.message || "Failed to process password reset request.");
+        toast.error(
+          error.message || "Failed to process password reset request.",
+        );
       } else {
         setSubmitted(true);
         toast.success("Password reset instructions sent!");
@@ -70,7 +79,8 @@ export default function ForgetPasswordPage() {
               Reset Password
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-xs mx-auto leading-relaxed">
-              Enter your registered work email address to receive password recovery instructions.
+              Enter your registered work email address to receive password
+              recovery instructions.
             </p>
           </div>
         </div>
@@ -81,9 +91,13 @@ export default function ForgetPasswordPage() {
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-white">Check Your Inbox</h3>
+              <h3 className="text-base font-bold text-white">
+                Check Your Inbox
+              </h3>
               <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                If an account exists for <span className="font-semibold text-slate-200">{email}</span>, a secure password reset link has been dispatched.
+                If an account exists for{" "}
+                <span className="font-semibold text-slate-200">{email}</span>, a
+                secure password reset link has been dispatched.
               </p>
             </div>
             <Button
@@ -98,7 +112,10 @@ export default function ForgetPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit} className="w-full text-left space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+              <Label
+                htmlFor="email"
+                className="text-xs text-slate-300 font-semibold flex items-center gap-1.5"
+              >
                 <Mail className="w-3.5 h-3.5 text-slate-400" />
                 Work Email Address
               </Label>

@@ -1,6 +1,13 @@
 "use client";
 
-import { KeyRound, Loader2, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  KeyRound,
+  Loader2,
+  Lock,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -51,13 +58,18 @@ export default function LoginPage() {
       });
 
       if (error) {
-        toast.error(error.message || "Invalid credentials. Please check your email and password.");
+        toast.error(
+          error.message ||
+            "Invalid credentials. Please check your email and password.",
+        );
       } else {
         toast.success("Signed in successfully!");
         router.push("/overview");
       }
     } catch (err: any) {
-      toast.error(err.message || "An unexpected authentication error occurred.");
+      toast.error(
+        err.message || "An unexpected authentication error occurred.",
+      );
     } finally {
       setEmailLoading(false);
     }
@@ -89,7 +101,8 @@ export default function LoginPage() {
               Agency Command Center
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-xs mx-auto leading-relaxed">
-              Sign in to access your Google Ads triage tools, CRO audits, and campaign analytics.
+              Sign in to access your Google Ads triage tools, CRO audits, and
+              campaign analytics.
             </p>
           </div>
         </div>
@@ -171,9 +184,15 @@ export default function LoginPage() {
           </div>
         ) : (
           /* Email & Password Form */
-          <form onSubmit={handleEmailSignIn} className="w-full text-left space-y-4 pt-1">
+          <form
+            onSubmit={handleEmailSignIn}
+            className="w-full text-left space-y-4 pt-1"
+          >
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+              <Label
+                htmlFor="email"
+                className="text-xs text-slate-300 font-semibold flex items-center gap-1.5"
+              >
                 <Mail className="w-3.5 h-3.5 text-slate-400" />
                 Work Email Address
               </Label>
@@ -190,7 +209,10 @@ export default function LoginPage() {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+                <Label
+                  htmlFor="password"
+                  className="text-xs text-slate-300 font-semibold flex items-center gap-1.5"
+                >
                   <Lock className="w-3.5 h-3.5 text-slate-400" />
                   Password
                 </Label>
@@ -233,7 +255,10 @@ export default function LoginPage() {
         <div className="pt-4 border-t border-slate-800/80 w-full space-y-3">
           <p className="text-xs text-slate-400">
             Have an invitation or starting a new workspace?{" "}
-            <Link href="/signup" className="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-4">
+            <Link
+              href="/signup"
+              className="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-4"
+            >
               Register / Accept Invite
             </Link>
           </p>

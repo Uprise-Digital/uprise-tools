@@ -4,7 +4,14 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { account, auditLogs, invitation, member, organization, user } from "@/db/schema";
+import {
+  account,
+  auditLogs,
+  invitation,
+  member,
+  organization,
+  user,
+} from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 

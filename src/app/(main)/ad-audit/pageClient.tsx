@@ -355,7 +355,10 @@ export default function AdAuditClientPage({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               <Card className="bg-indigo-50/30 border-slate-200 border-l-4 border-l-indigo-500 shadow-sm rounded-xl p-4 flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-indigo-50/50">
                 <div>
-                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-wider truncate" title="Total RSA Ads">
+                  <p
+                    className="text-[10px] font-black text-indigo-500 uppercase tracking-wider truncate"
+                    title="Total RSA Ads"
+                  >
                     Total RSA Ads
                   </p>
                   <div className="text-2xl sm:text-3xl font-black text-indigo-950 mt-1 mb-1">
@@ -373,14 +376,18 @@ export default function AdAuditClientPage({
 
               <Card className="bg-emerald-50/30 border-slate-200 border-l-4 border-l-emerald-500 shadow-sm rounded-xl p-4 flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-emerald-50/50">
                 <div>
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider truncate" title="Excellent / Good Strength">
+                  <p
+                    className="text-[10px] font-black text-emerald-600 uppercase tracking-wider truncate"
+                    title="Excellent / Good Strength"
+                  >
                     Excellent / Good Strength
                   </p>
                   <div className="text-2xl sm:text-3xl font-black text-emerald-800 mt-1 mb-1">
                     {loadingAds ? (
                       <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
                     ) : (
-                      adStrengthDistribution.EXCELLENT + adStrengthDistribution.GOOD
+                      adStrengthDistribution.EXCELLENT +
+                      adStrengthDistribution.GOOD
                     )}
                   </div>
                 </div>
@@ -392,7 +399,10 @@ export default function AdAuditClientPage({
 
               <Card className="bg-amber-50/30 border-slate-200 border-l-4 border-l-amber-500 shadow-sm rounded-xl p-4 flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-amber-50/50">
                 <div>
-                  <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider truncate" title="Average Strength">
+                  <p
+                    className="text-[10px] font-black text-amber-600 uppercase tracking-wider truncate"
+                    title="Average Strength"
+                  >
                     Average Strength
                   </p>
                   <div className="text-2xl sm:text-3xl font-black text-amber-800 mt-1 mb-1">
@@ -410,7 +420,10 @@ export default function AdAuditClientPage({
 
               <Card className="bg-rose-50/30 border-slate-200 border-l-4 border-l-rose-500 shadow-sm rounded-xl p-4 flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:bg-rose-50/50">
                 <div>
-                  <p className="text-[10px] font-black text-rose-600 uppercase tracking-wider truncate" title="Poor Strength">
+                  <p
+                    className="text-[10px] font-black text-rose-600 uppercase tracking-wider truncate"
+                    title="Poor Strength"
+                  >
                     Poor Strength
                   </p>
                   <div className="text-2xl sm:text-3xl font-black text-rose-800 mt-1 mb-1">
@@ -438,19 +451,20 @@ export default function AdAuditClientPage({
                   Creative Assets Performance (All Active RSAs)
                 </h2>
 
-                {assetSummary.labelsAvailable === false && assetSummary.reason && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
-                    <Info className="h-5 w-5 text-indigo-500 flex-shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
-                        Google Ads Asset Labels Pending
-                      </p>
-                      <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                        {assetSummary.reason}
-                      </p>
+                {assetSummary.labelsAvailable === false &&
+                  assetSummary.reason && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+                      <Info className="h-5 w-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                          Google Ads Asset Labels Pending
+                        </p>
+                        <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                          {assetSummary.reason}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -509,7 +523,8 @@ export default function AdAuditClientPage({
                     Responsive Search Ads ({filteredAds.length})
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                    Review headlines, descriptions, and audit history across active ad groups.
+                    Review headlines, descriptions, and audit history across
+                    active ad groups.
                   </p>
                 </div>
 
@@ -534,7 +549,9 @@ export default function AdAuditClientPage({
               ) : sortedAds.length === 0 ? (
                 <div className="p-12 text-center">
                   <Info className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                  <h4 className="text-sm font-bold text-slate-700">No RSA Ads Found</h4>
+                  <h4 className="text-sm font-bold text-slate-700">
+                    No RSA Ads Found
+                  </h4>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
                     {searchQuery
                       ? "No ads match your search filter. Try clearing the search query."
@@ -579,10 +596,16 @@ export default function AdAuditClientPage({
                             {/* Campaign / Ad Group */}
                             <TableCell className="align-top py-4 px-4 min-w-[180px]">
                               <div className="space-y-1">
-                                <div className="font-bold text-xs text-slate-800 break-words leading-tight" title={ad.campaignName}>
+                                <div
+                                  className="font-bold text-xs text-slate-800 break-words leading-tight"
+                                  title={ad.campaignName}
+                                >
                                   {ad.campaignName}
                                 </div>
-                                <div className="text-[11px] font-semibold text-slate-400 break-words" title={ad.adGroupName}>
+                                <div
+                                  className="text-[11px] font-semibold text-slate-400 break-words"
+                                  title={ad.adGroupName}
+                                >
                                   {ad.adGroupName}
                                 </div>
                                 {ad.finalUrl && (
@@ -593,7 +616,9 @@ export default function AdAuditClientPage({
                                     className="text-[10px] text-indigo-600 hover:underline flex items-center gap-1 font-medium break-all pt-1"
                                   >
                                     <ExternalLink className="h-3 w-3 shrink-0" />
-                                    <span className="break-all">{ad.finalUrl}</span>
+                                    <span className="break-all">
+                                      {ad.finalUrl}
+                                    </span>
                                   </a>
                                 )}
                               </div>
@@ -616,13 +641,21 @@ export default function AdAuditClientPage({
                                         {h.text}
                                         {h.pinnedField && (
                                           <span className="ml-1 text-[9px] text-indigo-600 font-bold">
-                                            [{h.pinnedField.replace("HEADLINE_", "H")}]
+                                            [
+                                            {h.pinnedField.replace(
+                                              "HEADLINE_",
+                                              "H",
+                                            )}
+                                            ]
                                           </span>
                                         )}
                                       </Badge>
                                     ))}
                                     {ad.headlines.length > 4 && (
-                                      <Badge variant="outline" className="text-[10px] text-slate-400 font-medium">
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] text-slate-400 font-medium"
+                                      >
                                         +{ad.headlines.length - 4} more
                                       </Badge>
                                     )}
@@ -635,11 +668,19 @@ export default function AdAuditClientPage({
                                   </span>
                                   <div className="space-y-1">
                                     {ad.descriptions.slice(0, 2).map((d, i) => (
-                                      <p key={i} className="text-xs text-slate-600 line-clamp-1 italic">
+                                      <p
+                                        key={i}
+                                        className="text-xs text-slate-600 line-clamp-1 italic"
+                                      >
                                         &ldquo;{d.text}&rdquo;
                                         {d.pinnedField && (
                                           <span className="ml-1 text-[9px] text-indigo-600 font-bold not-italic">
-                                            [{d.pinnedField.replace("DESCRIPTION_", "D")}]
+                                            [
+                                            {d.pinnedField.replace(
+                                              "DESCRIPTION_",
+                                              "D",
+                                            )}
+                                            ]
                                           </span>
                                         )}
                                       </p>
@@ -669,7 +710,8 @@ export default function AdAuditClientPage({
                             {/* Combined Audit Status & Actions */}
                             <TableCell className="align-top py-4 px-4 text-right">
                               <div className="flex flex-col items-end gap-2">
-                                {ad.latestAuditScore !== null && ad.latestAuditScore !== undefined ? (
+                                {ad.latestAuditScore !== null &&
+                                ad.latestAuditScore !== undefined ? (
                                   <div className="space-y-0.5 text-right">
                                     <Badge
                                       className={`font-black text-xs border shadow-none ${
@@ -684,7 +726,10 @@ export default function AdAuditClientPage({
                                     </Badge>
                                     {ad.latestAuditDate && (
                                       <p className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
-                                        Audited {new Date(ad.latestAuditDate).toLocaleDateString()}
+                                        Audited{" "}
+                                        {new Date(
+                                          ad.latestAuditDate,
+                                        ).toLocaleDateString()}
                                       </p>
                                     )}
                                   </div>
@@ -700,7 +745,9 @@ export default function AdAuditClientPage({
                                       size="sm"
                                       variant="outline"
                                       onClick={() =>
-                                        router.push(`/ad-audit/${ad.latestAuditId}`)
+                                        router.push(
+                                          `/ad-audit/${ad.latestAuditId}`,
+                                        )
                                       }
                                       className="h-7 px-2.5 rounded-lg text-xs font-bold border-slate-200 text-slate-700"
                                     >

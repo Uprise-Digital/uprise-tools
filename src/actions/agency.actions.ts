@@ -306,7 +306,7 @@ export async function getAgencyPortfolioMetricsAction(
     try {
       const session = await auth.api.getSession({ headers: await headers() });
       if (session) {
-        orgId = session.session.activeOrganizationId;
+        orgId = session.session.activeOrganizationId || null;
         if (!orgId) {
           const userMember = await db.query.member.findFirst({
             where: eq(member.userId, session.user.id),
@@ -563,7 +563,7 @@ export async function getAccountByNameAction(name: string) {
     try {
       const session = await auth.api.getSession({ headers: await headers() });
       if (session) {
-        orgId = session.session?.activeOrganizationId;
+        orgId = session.session?.activeOrganizationId || null;
         if (!orgId) {
           const userMember = await db.query.member.findFirst({
             where: eq(member.userId, session.user.id),
@@ -575,7 +575,10 @@ export async function getAccountByNameAction(name: string) {
 
     const results = await db.query.adAccounts.findMany({
       where: orgId
-        ? and(ilike(adAccounts.name, `%${name}%`), eq(adAccounts.organizationId, orgId))
+        ? and(
+            ilike(adAccounts.name, `%${name}%`),
+            eq(adAccounts.organizationId, orgId),
+          )
         : ilike(adAccounts.name, `%${name}%`),
       columns: {
         id: true,
@@ -658,7 +661,7 @@ export async function listAccountsAction() {
     try {
       const session = await auth.api.getSession({ headers: await headers() });
       if (session) {
-        orgId = session.session?.activeOrganizationId;
+        orgId = session.session?.activeOrganizationId || null;
         if (!orgId) {
           const userMember = await db.query.member.findFirst({
             where: eq(member.userId, session.user.id),
