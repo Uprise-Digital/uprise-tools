@@ -20,6 +20,10 @@ import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
 import { exportOrganizationDataAction } from "@/actions/organization-export.actions";
 import { deleteOrganizationAction } from "@/actions/organization-offboarding.actions";
 import {
+  disconnectMetaAdsAction,
+  updateMetaAutoSyncSettingsAction,
+} from "@/actions/meta-settings.actions";
+import {
   disconnectGoogleAdsAction,
   getOrganizationBrandingAction,
   refreshAdAccountsMetadataAction,
@@ -84,6 +88,17 @@ interface GeneralTabProps {
     negativeKeywordExactEnabled: boolean;
     createdAt: string;
   } | null;
+  metaConnection?: {
+    id: number;
+    connectedEmail: string;
+    metaUserId?: string | null;
+    businessId?: string | null;
+    status: string;
+    accessLevel: string;
+    errorMessage?: string | null;
+    autoAddAccounts: boolean;
+    createdAt: string;
+  } | null;
   accounts: AccountSyncData[];
   orgName: string;
   userEmail: string;
@@ -107,6 +122,7 @@ function formatCustomerId(id: any) {
 
 export function GeneralTab({
   connection,
+  metaConnection,
   accounts,
   orgName,
   userEmail,
@@ -191,6 +207,28 @@ export function GeneralTab({
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
   const [deleteSyncedData, setDeleteSyncedData] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+
+  const [metaDisconnectDialogOpen, setMetaDisconnectDialogOpen] =
+    useState(false);
+  const [disconnectingMeta, setDisconnectingMeta] = useState(false);
+
+  const handleDisconnectMeta = async () => {
+    setDisconnectingMeta(true);
+    try {
+      const res = await disconnectMetaAdsAction();
+      if (res.success) {
+        toast.success("Meta Ads connection removed.");
+        setMetaDisconnectDialogOpen(false);
+        window.location.reload();
+      } else {
+        toast.error(res.error || "Failed to disconnect Meta Ads.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.");
+    } finally {
+      setDisconnectingMeta(false);
+    }
+  };
 
   const [accountsDialogOpen, setAccountsDialogOpen] = useState(false);
   const [fetchingAccounts, setFetchingAccounts] = useState(false);
@@ -711,6 +749,100 @@ export function GeneralTab({
                   <a href="/api/auth/google-ads/connect">
                     <Database className="w-3.5 h-3.5" />
                     Link Google Ads Account
+                  </a>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* META BUSINESS API CONNECTION CARD */}
+        <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+              <Database className="w-4 h-4 text-blue-600" />
+              Meta Business API Connection
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Link and manage your top-level Meta Business Manager (Read-Only)
+              connection.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            {metaConnection ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <div className="text-xs leading-relaxed">
+                      <p className="font-extrabold flex items-center gap-2">
+                        ✅ Connected Successfully
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-100 text-emerald-800 text-[10px] border-none font-semibold"
+                        >
+                          Read-Only
+                        </Badge>
+                      </p>
+                      <p className="text-emerald-700 mt-0.5">
+                        Your agency is synchronized with Meta Business Suite.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Connected Meta Account
+                    </span>
+                    <span className="font-semibold text-slate-800 block mt-1">
+                      {metaConnection.connectedEmail}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Access Level
+                    </span>
+                    <span className="font-semibold text-slate-800 font-mono block mt-1 uppercase">
+                      {metaConnection.accessLevel || "Read-Only"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between">
+                  <Button
+                    type="button"
+                    onClick={() => setMetaDisconnectDialogOpen(true)}
+                    variant="outline"
+                    className="border-red-200 text-red-650 hover:bg-red-50 hover:text-red-700 font-bold text-xs px-4 py-2 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash className="w-3.5 h-3.5" />
+                    Disconnect Meta Ads
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 text-center py-6">
+                <div className="inline-flex p-3 bg-slate-100 border rounded-full text-slate-400">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div className="max-w-sm mx-auto space-y-1">
+                  <p className="font-bold text-slate-800 text-sm">
+                    No Connected Meta Business Account
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Connect your Facebook / Meta Business Manager in Read-Only
+                    mode to enable cross-platform reporting and lead form sync.
+                  </p>
+                </div>
+                <Button
+                  asChild
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <a href="/api/auth/meta-ads">
+                    <Database className="w-3.5 h-3.5" />
+                    Connect Meta Business (Read-Only)
                   </a>
                 </Button>
               </div>
@@ -1527,6 +1659,43 @@ export function GeneralTab({
                 {savingLinkedAccounts ? "Saving Changes..." : "Save Changes"}
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DISCONNECT META ADS DIALOG */}
+      <Dialog
+        open={metaDisconnectDialogOpen}
+        onOpenChange={setMetaDisconnectDialogOpen}
+      >
+        <DialogContent className="max-w-md bg-slate-900 border-slate-800 text-slate-100">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+              Disconnect Meta Ads
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400 mt-1 leading-relaxed">
+              Are you sure you want to disconnect your Meta Business Manager
+              connection? This will stop synchronization for all linked Meta ad
+              accounts.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="border-t border-slate-800 pt-4 flex items-center justify-end gap-2 bg-slate-950">
+            <Button
+              variant="ghost"
+              onClick={() => setMetaDisconnectDialogOpen(false)}
+              className="text-slate-400 hover:text-white text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={disconnectingMeta}
+              onClick={handleDisconnectMeta}
+              className="bg-red-600 hover:bg-red-500 text-white font-bold text-xs px-4"
+            >
+              {disconnectingMeta ? "Disconnecting..." : "Disconnect Meta"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

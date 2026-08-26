@@ -87,6 +87,17 @@ interface SettingsClientProps {
     negativeKeywordExactEnabled: boolean;
     createdAt: string;
   } | null;
+  metaConnection?: {
+    id: number;
+    connectedEmail: string;
+    metaUserId?: string | null;
+    businessId?: string | null;
+    status: string;
+    accessLevel: string;
+    errorMessage?: string | null;
+    autoAddAccounts: boolean;
+    createdAt: string;
+  } | null;
   orgName: string;
   userEmail: string;
   userRole: string;
@@ -168,6 +179,7 @@ export default function SettingsClient({
   auditLogs,
   emailLogs,
   connection,
+  metaConnection,
   orgName,
   userEmail,
   userRole,
@@ -188,10 +200,8 @@ export default function SettingsClient({
 
   if (!isMounted) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <span className="text-xs text-slate-400 font-bold">
-          Loading settings panel...
-        </span>
+      <div className="p-8 text-slate-500 font-medium flex items-center gap-2">
+        Loading agency configuration...
       </div>
     );
   }
@@ -199,23 +209,22 @@ export default function SettingsClient({
   return (
     <SettingsErrorBoundary>
       <TooltipProvider>
-        <div className="w-full h-full p-8 font-sans bg-slate-50/50">
-          {/* HEADER */}
-          <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-                <SettingsIcon className="w-7 h-7 text-indigo-600" />
+        <div className="p-8 max-w-7xl mx-auto space-y-8">
+          <div>
+            <div className="flex items-center gap-3">
+              <SettingsIcon className="w-8 h-8 text-indigo-600" />
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">
                 Agency Settings
               </h1>
-              <p className="text-sm text-slate-500 mt-1">
-                Configure default thresholds, check live sync health, and review
-                audit/delivery logs.
-              </p>
             </div>
+            <p className="text-slate-500 mt-1 text-sm">
+              Configure default thresholds, check live sync health, and review
+              audit/delivery logs.
+            </p>
           </div>
 
           {/* NAVIGATION TABS */}
-          <div className="flex border-b border-slate-200 mb-6 gap-6">
+          <div className="flex border-b border-slate-200 mb-6 gap-6 overflow-x-auto">
             <button
               type="button"
               className={`pb-3 text-sm font-semibold transition-all border-b-2 px-1 flex items-center gap-2 ${
@@ -294,6 +303,7 @@ export default function SettingsClient({
           {activeTab === "general" && (
             <GeneralTab
               connection={connection}
+              metaConnection={metaConnection}
               accounts={accounts}
               orgName={orgName}
               userEmail={userEmail}

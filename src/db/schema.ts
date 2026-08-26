@@ -157,6 +157,69 @@ export const googleAdsConnections = pgTable(
   ],
 ).enableRLS();
 
+export const metaAdsConnections = pgTable(
+  "meta_ads_connections",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    connectedEmail: text("connected_email").notNull(),
+    metaUserId: text("meta_user_id"),
+    businessId: text("business_id"),
+    accessToken: text("access_token").notNull(),
+    tokenExpiresAt: timestamp("token_expires_at"),
+    status: text("status").notNull().default("active"),
+    accessLevel: text("access_level").notNull().default("read_only"),
+    errorMessage: text("error_message"),
+    autoAddAccounts: boolean("auto_add_accounts").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
+
+export const metaAdAccounts = pgTable(
+  "meta_ad_accounts",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    connectionId: integer("connection_id").references(
+      () => metaAdsConnections.id,
+      { onDelete: "cascade" },
+    ),
+    metaAccountId: text("meta_account_id").notNull().unique(),
+    name: text("name").notNull(),
+    currencyCode: text("currency_code").default("USD"),
+    timeZone: text("time_zone").default("Australia/Melbourne"),
+    isActive: boolean("is_active").default(true).notNull(),
+    accountStatus: integer("account_status").default(1).notNull(),
+    lastSyncedAt: timestamp("last_synced_at").defaultNow(),
+    syncStatus: text("sync_status"),
+    syncError: text("sync_error"),
+    targetCpa: decimal("target_cpa", { precision: 10, scale: 2 }),
+    targetRoas: decimal("target_roas", { precision: 5, scale: 2 }),
+    monthlyBudgetCap: decimal("monthly_budget_cap", {
+      precision: 10,
+      scale: 2,
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
+
 export const usageLogs = pgTable("usage_logs", {
   id: serial("id").primaryKey(),
   organizationId: text("organization_id")

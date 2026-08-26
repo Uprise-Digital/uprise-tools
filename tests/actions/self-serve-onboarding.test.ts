@@ -9,6 +9,14 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
+vi.mock("next/headers", () => ({
+  cookies: vi.fn().mockResolvedValue({
+    set: vi.fn(),
+    get: vi.fn(),
+  }),
+  headers: vi.fn().mockResolvedValue(new Map()),
+}));
+
 import { createOrganizationAction } from "@/actions/onboarding.actions";
 import { auth } from "@/lib/auth";
 

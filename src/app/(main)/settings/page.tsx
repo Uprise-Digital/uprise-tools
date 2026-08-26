@@ -7,6 +7,7 @@ import {
   adAccounts,
   googleAdsConnections,
   member,
+  metaAdsConnections,
   organization,
 } from "@/db/schema";
 import { withTenantContext } from "@/db/tenant-db";
@@ -42,6 +43,7 @@ export default async function SettingsPage() {
     auditLogsData,
     emailLogsData,
     connection,
+    metaConnectionRecord,
     orgRecord,
     memberRecord,
   ] = await Promise.all([
@@ -67,6 +69,9 @@ export default async function SettingsPage() {
     }),
     db.query.googleAdsConnections.findFirst({
       where: eq(googleAdsConnections.organizationId, orgId),
+    }),
+    db.query.metaAdsConnections.findFirst({
+      where: eq(metaAdsConnections.organizationId, orgId),
     }),
     db.query.organization.findFirst({
       where: eq(organization.id, orgId),
@@ -147,6 +152,20 @@ export default async function SettingsPage() {
       }
     : null;
 
+  const metaConnectionData = metaConnectionRecord
+    ? {
+        id: metaConnectionRecord.id,
+        connectedEmail: metaConnectionRecord.connectedEmail,
+        metaUserId: metaConnectionRecord.metaUserId,
+        businessId: metaConnectionRecord.businessId,
+        status: metaConnectionRecord.status,
+        accessLevel: metaConnectionRecord.accessLevel,
+        errorMessage: metaConnectionRecord.errorMessage,
+        autoAddAccounts: metaConnectionRecord.autoAddAccounts ?? false,
+        createdAt: metaConnectionRecord.createdAt.toISOString(),
+      }
+    : null;
+
   let initialAutoJoinDomainEnabled = false;
   if (orgRecord?.metadata) {
     try {
@@ -182,6 +201,7 @@ export default async function SettingsPage() {
       auditLogs={auditLogsSerialized}
       emailLogs={emailLogsSerialized}
       connection={connectionData}
+      metaConnection={metaConnectionData}
       orgName={orgRecord?.name || "Uprise Digital Agency"}
       userEmail={session.user.email}
       userRole={memberRecord?.role || "member"}
