@@ -6,14 +6,12 @@ import { member } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 function getAppUrl(request: NextRequest) {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  }
   const host = request.headers.get("host");
   const proto = request.headers.get("x-forwarded-proto") || "https";
-  if (host && !host.includes("localhost")) {
-    return `${proto}://${host}`;
-  }
-  return (
-    process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host || "localhost:8080"}`
-  );
+  return `${proto}://${host || "localhost:8080"}`;
 }
 
 export async function GET(request: NextRequest) {
