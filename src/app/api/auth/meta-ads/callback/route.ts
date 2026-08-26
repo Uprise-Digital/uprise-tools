@@ -6,6 +6,17 @@ import { metaAdsConnections } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { encryptToken } from "@/lib/crypto";
 
+function getAppUrl(request: NextRequest) {
+  const host = request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+  if (host && !host.includes("localhost")) {
+    return `${proto}://${host}`;
+  }
+  return (
+    process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host || "localhost:8080"}`
+  );
+}
+
 export async function GET(request: NextRequest) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -21,7 +32,7 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
+  const appUrl = getAppUrl(request);
 
   if (error) {
     console.error("Meta OAuth error:", error, errorDescription);

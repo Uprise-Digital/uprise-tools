@@ -1,6 +1,20 @@
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { member } from "@/db/schema";
 import { auth } from "@/lib/auth";
+
+function getAppUrl(request: NextRequest) {
+  const host = request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+  if (host && !host.includes("localhost")) {
+    return `${proto}://${host}`;
+  }
+  return (
+    process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host || "localhost:8080"}`
+  );
+}
 
 export async function GET(request: NextRequest) {
   const session = await auth.api.getSession({
@@ -12,15 +26,23 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const orgId =
-    searchParams.get("orgId") || session.session.activeOrganizationId;
+  let orgId = searchParams.get("orgId") || session.session.activeOrganizationId;
+
+  if (!orgId) {
+    const userMember = await db.query.member.findFirst({
+      where: eq(member.userId, session.user.id),
+    });
+    if (userMember) {
+      orgId = userMember.organizationId;
+    }
+  }
 
   if (!orgId) {
     return new NextResponse("Missing organization ID", { status: 400 });
   }
 
   const clientId = process.env.META_CLIENT_ID;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
+  const appUrl = getAppUrl(request);
   const redirectUri = `${appUrl}/api/auth/meta-ads/callback`;
 
   if (!clientId) {
