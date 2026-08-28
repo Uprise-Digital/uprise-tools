@@ -59,6 +59,13 @@ import {
   fetchActiveNegativeKeywords,
 } from "@/lib/google-ads";
 
+const redisUrl =
+  process.env.REDIS_URL ||
+  process.env.UPSTASH_REDIS_URL ||
+  process.env.REDIS_PRIVATE_URL ||
+  process.env.REDISURL ||
+  process.env.REDIS_PUBLIC_URL;
+
 const handler = createMcpHandler(
   (server) => {
     server.registerTool(
@@ -1833,6 +1840,8 @@ const handler = createMcpHandler(
     basePath: "/api/mcp",
     maxDuration: 60,
     verboseLogs: true,
+    redisUrl: redisUrl,
+    disableSse: !redisUrl,
   },
 );
 
