@@ -31,18 +31,29 @@ async function main() {
   }
 
   const url = new URL(urlStr);
-  if (
-    apiKey &&
-    apiKey !== "agv_live_YOUR_RAW_SECRET_KEY" &&
-    !url.searchParams.has("key")
-  ) {
-    url.searchParams.set("key", apiKey);
+  const apiKeyToUse = apiKey || url.searchParams.get("key");
+  if (apiKeyToUse && !url.searchParams.has("key")) {
+    url.searchParams.set("key", apiKeyToUse);
   }
 
   console.error(`MCP Bridge Started... Connecting to ${url.origin}...`);
 
+  const opts = {};
+  if (apiKeyToUse) {
+    opts.eventSourceInit = {
+      headers: {
+        Authorization: `Bearer ${apiKeyToUse}`,
+      },
+    };
+    opts.requestInit = {
+      headers: {
+        Authorization: `Bearer ${apiKeyToUse}`,
+      },
+    };
+  }
+
   const localTransport = new StdioServerTransport();
-  const remoteTransport = new SSEClientTransport(url);
+  const remoteTransport = new SSEClientTransport(url, opts);
 
   localTransport.onmessage = (message) => {
     remoteTransport.send(message).catch((err) => {
