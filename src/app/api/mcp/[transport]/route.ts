@@ -66,6 +66,8 @@ const redisUrl =
   process.env.REDISURL ||
   process.env.REDIS_PUBLIC_URL;
 
+export const maxDuration = 300; // Next.js App Router max duration (5 minutes)
+
 const handler = createMcpHandler(
   (server) => {
     server.registerTool(
@@ -1838,7 +1840,7 @@ const handler = createMcpHandler(
   {},
   {
     basePath: "/api/mcp",
-    maxDuration: 60,
+    maxDuration: 300,
     verboseLogs: true,
     redisUrl: redisUrl,
     disableSse: !redisUrl,
