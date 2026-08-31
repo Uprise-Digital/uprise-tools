@@ -89,16 +89,37 @@ export function classifyAccountByRules(
   const text =
     `${name} ${websiteUrl || ""} ${campaigns.join(" ")}`.toLowerCase();
 
-  // 1. Home Services & Trades
+  // 1. Energy & Solar
+  if (
+    /\b(solar|battery|batteries|inverter|solar panel|solar system|ev charger|ev charging|renewable|clean energy|off-grid|heat pump solar|solar power)\b/i.test(
+      text,
+    )
+  ) {
+    if (
+      /\b(battery|batteries|storage|off-grid|tesla powerwall)\b/i.test(text)
+    ) {
+      return {
+        industry: "ENERGY_SOLAR",
+        subNiche: "Battery Storage & Off-Grid",
+      };
+    }
+    if (/\b(commercial|business solar|industrial)\b/i.test(text)) {
+      return { industry: "ENERGY_SOLAR", subNiche: "Commercial Solar" };
+    }
+    if (/\b(ev|charger|charging)\b/i.test(text)) {
+      return { industry: "ENERGY_SOLAR", subNiche: "EV Charging" };
+    }
+    return { industry: "ENERGY_SOLAR", subNiche: "Residential Solar" };
+  }
+
+  // 2. Home Services & Trades
   if (/\b(plumb|gas|drain|blocked|hot water|leak|tap|pipe)\b/i.test(text)) {
     return { industry: "HOME_SERVICES_TRADES", subNiche: "Plumbing & Gas" };
   }
-  if (
-    /\b(electric|sparky|solar|switchboard|rewir|power|lighting)\b/i.test(text)
-  ) {
+  if (/\b(electric|sparky|switchboard|rewir|power|lighting)\b/i.test(text)) {
     return {
       industry: "HOME_SERVICES_TRADES",
-      subNiche: "Electricians & Solar",
+      subNiche: "Electricians",
     };
   }
   if (/\b(roof|gutter|metal roof|tile roof|restoration|fascia)\b/i.test(text)) {

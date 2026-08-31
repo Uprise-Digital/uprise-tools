@@ -1,6 +1,7 @@
 // src/lib/industry-config.ts
 
 export const INDUSTRY_KEYS = [
+  "ENERGY_SOLAR",
   "HOME_SERVICES_TRADES",
   "LEGAL_FINANCIAL",
   "HEALTHCARE_MEDICAL",
@@ -30,15 +31,35 @@ export interface IndustryMetadata {
 }
 
 export const INDUSTRY_REGISTRY: Record<IndustryKey, IndustryMetadata> = {
+  ENERGY_SOLAR: {
+    key: "ENERGY_SOLAR",
+    label: "Energy & Solar",
+    shortLabel: "Energy & Solar",
+    iconName: "SunMedium",
+    color: "#f59e0b",
+    bgBadge: "bg-amber-50",
+    textBadge: "text-amber-800",
+    borderBadge: "border-amber-200",
+    subNiches: [
+      "Residential Solar",
+      "Commercial Solar",
+      "Battery Storage & Off-Grid",
+      "Heat Pumps & Electrification",
+      "EV Charging",
+      "Energy Audits & Retailing",
+    ],
+    description:
+      "Residential and commercial solar PV, battery systems, heat pumps, and renewable energy.",
+  },
   HOME_SERVICES_TRADES: {
     key: "HOME_SERVICES_TRADES",
     label: "Home Services & Trades",
     shortLabel: "Trades & Services",
     iconName: "Wrench",
-    color: "#f59e0b",
-    bgBadge: "bg-amber-50",
-    textBadge: "text-amber-700",
-    borderBadge: "border-amber-200",
+    color: "#ea580c",
+    bgBadge: "bg-orange-50",
+    textBadge: "text-orange-700",
+    borderBadge: "border-orange-200",
     subNiches: [
       "Plumbing",
       "HVAC / Air Con",
@@ -105,8 +126,8 @@ export const INDUSTRY_REGISTRY: Record<IndustryKey, IndustryMetadata> = {
       "Commercial Builders",
       "Kitchen & Bath Renovations",
       "Concreting & Paving",
-      "Solar & Battery",
       "Pools & Spas",
+      "Demolition & Excavation",
     ],
     description: "Large ticket residential and commercial building quotes.",
   },

@@ -27,6 +27,7 @@ import {
   Search,
   ShoppingBag,
   Sparkles,
+  SunMedium,
   Target,
   TrendingDown,
   TrendingUp,
@@ -103,6 +104,8 @@ export function IndustryIcon({
   className?: string;
 }) {
   switch (name) {
+    case "SunMedium":
+      return <SunMedium className={className} />;
     case "Wrench":
       return <Wrench className={className} />;
     case "Scale":
