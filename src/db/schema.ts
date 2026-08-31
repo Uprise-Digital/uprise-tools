@@ -245,11 +245,13 @@ export const clientOnboardings = pgTable(
     ghlContactId: text("ghl_contact_id"),
     ghlOpportunityId: text("ghl_opportunity_id"),
     ghlSubAccountId: text("ghl_sub_account_id"),
+    ghlPipelineStage: text("ghl_pipeline_stage"),
     ghlStatus: text("ghl_status").default("pending"),
     ghlError: text("ghl_error"),
     clientName: text("client_name").notNull(),
     primaryContactName: text("primary_contact_name").notNull(),
     contactEmail: text("contact_email").notNull(),
+    contactPhone: text("contact_phone"),
     googleAdsAccess: boolean("google_ads_access").default(true).notNull(),
     metaAdsAccess: boolean("meta_ads_access").default(true).notNull(),
     driveFolderLink: text("drive_folder_link"),
@@ -1086,3 +1088,71 @@ export const organizationOnboardingSettingsRelations = relations(
     }),
   }),
 );
+
+// --- 8. CALL INTELLIGENCE & TRANSCRIPTIONS ---
+export const callRecords = pgTable(
+  "call_records",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    clientOnboardingId: integer("client_onboarding_id").references(
+      () => clientOnboardings.id,
+      { onDelete: "set null" },
+    ),
+    ghlLocationId: text("ghl_location_id").notNull(),
+    ghlConversationId: text("ghl_conversation_id"),
+    ghlMessageId: text("ghl_message_id").notNull().unique(),
+    ghlContactId: text("ghl_contact_id"),
+    contactName: text("contact_name"),
+    contactPhone: text("contact_phone"),
+    contactEmail: text("contact_email"),
+    direction: varchar("direction", { length: 32 })
+      .notNull()
+      .default("inbound"),
+    status: varchar("status", { length: 32 }).notNull().default("completed"),
+    durationSeconds: integer("duration_seconds").default(0).notNull(),
+    callStartedAt: timestamp("call_started_at"),
+    audioStreamAvailable: boolean("audio_stream_available")
+      .default(true)
+      .notNull(),
+    transcript: text("transcript"),
+    summary: text("summary"),
+    leadScore: integer("lead_score"), // 1 to 10
+    sentiment: varchar("sentiment", { length: 32 }), // positive, neutral, negative
+    serviceRequested: text("service_requested"),
+    estimatedBudget: text("estimated_budget"),
+    urgency: text("urgency"),
+    objections: jsonb("objections"), // Array of string objections
+    keyTakeaways: jsonb("key_takeaways"), // Array of string points
+    actionItems: jsonb("action_items"), // Array of string next steps
+    agentFeedback: jsonb("agent_feedback"), // Notes on sales rep adherence/followup
+    syncedToGhl: boolean("synced_to_ghl").default(false).notNull(),
+    syncedAt: timestamp("synced_at"),
+    analysisError: text("analysis_error"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+    index("call_records_org_idx").on(sql`organization_id`),
+    index("call_records_client_idx").on(sql`client_onboarding_id`),
+    index("call_records_ghl_contact_idx").on(sql`ghl_contact_id`),
+    index("call_records_phone_idx").on(sql`contact_phone`),
+  ],
+).enableRLS();
+
+export const callRecordsRelations = relations(callRecords, ({ one }) => ({
+  organization: one(organization, {
+    fields: [callRecords.organizationId],
+    references: [organization.id],
+  }),
+  client: one(clientOnboardings, {
+    fields: [callRecords.clientOnboardingId],
+    references: [clientOnboardings.id],
+  }),
+}));

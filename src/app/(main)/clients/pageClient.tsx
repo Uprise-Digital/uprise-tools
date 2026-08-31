@@ -15,6 +15,7 @@ import {
   Loader2,
   Mail,
   Pencil,
+  PhoneCall,
   Play,
   RefreshCw,
   Search,
@@ -41,6 +42,7 @@ import {
   updateClientOnboardingAction,
 } from "@/actions/client-onboarding.actions";
 import { getOnboardingSettingsAction } from "@/actions/onboarding-settings.actions";
+import ClientCallHistory from "@/components/clients/client-call-history";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -60,6 +62,8 @@ export interface ClientRecord {
   clientName: string;
   primaryContactName: string;
   contactEmail: string;
+  contactPhone?: string | null;
+  ghlPipelineStage?: string | null;
   googleAdsAccess: boolean;
   metaAdsAccess: boolean;
   driveFolderLink: string | null;
@@ -98,6 +102,9 @@ export default function ClientsDirectoryClient() {
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(
     null,
+  );
+  const [drawerTab, setDrawerTab] = useState<"workspace" | "calls">(
+    "workspace",
   );
 
   // Form states (New Client)
@@ -265,8 +272,12 @@ export default function ClientsDirectoryClient() {
   }, [ghlSearchQuery]);
 
   // Open detail panel & prefill link fields
-  const handleOpenDetails = (client: ClientRecord) => {
+  const handleOpenDetails = (
+    client: ClientRecord,
+    tab: "workspace" | "calls" = "workspace",
+  ) => {
     setSelectedClient(client);
+    setDrawerTab(tab);
     setEditDrive(client.driveFolderLink || "");
     setEditNotion(client.notionDashboardLink || "");
     setEditSignal(client.signalGroupLink || "");
@@ -783,16 +794,23 @@ export default function ClientsDirectoryClient() {
                     key={client.id}
                     className="border-slate-100 hover:bg-slate-50 transition-colors"
                   >
-                    <TableCell className="font-bold text-slate-900 py-3 text-sm">
+                    <TableCell
+                      onClick={() => handleOpenDetails(client, "workspace")}
+                      className="font-bold text-slate-900 py-3 text-sm cursor-pointer hover:text-indigo-600 transition-colors"
+                    >
                       {client.clientName}
                     </TableCell>
-                    <TableCell className="py-3 text-sm">
+                    <TableCell
+                      onClick={() => handleOpenDetails(client, "workspace")}
+                      className="py-3 text-sm cursor-pointer"
+                    >
                       <div>
-                        <p className="font-semibold text-slate-800">
+                        <p className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors">
                           {client.primaryContactName}
                         </p>
                         <p className="text-xs text-slate-500">
                           {client.contactEmail}
+                          {client.contactPhone && ` • ${client.contactPhone}`}
                         </p>
                       </div>
                     </TableCell>
@@ -841,8 +859,17 @@ export default function ClientsDirectoryClient() {
                       <div className="flex justify-end gap-1.5">
                         <Button
                           variant="ghost"
-                          onClick={() => handleOpenDetails(client)}
-                          className="text-xs h-8 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-lg cursor-pointer"
+                          onClick={() => handleOpenDetails(client, "calls")}
+                          className="text-xs h-8 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-lg cursor-pointer flex items-center gap-1 font-semibold"
+                          title="View Call History & AI Intelligence"
+                        >
+                          <PhoneCall className="h-3.5 w-3.5 text-indigo-500" />
+                          Calls
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleOpenDetails(client, "workspace")}
+                          className="text-xs h-8 hover:bg-slate-100 text-slate-600 rounded-lg cursor-pointer font-semibold"
                         >
                           Review & Setup
                         </Button>
@@ -864,631 +891,699 @@ export default function ClientsDirectoryClient() {
         </div>
       </div>
 
-      {/* 4. Drawer Panel (Onboarding Link editor & Email sender) */}
+      {/* 4. Drawer Panel (Onboarding Link editor, Email sender, & Call Intelligence) */}
       {selectedClient && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-end">
-          <div className="bg-white border-l border-slate-200 w-full max-w-2xl h-full overflow-y-auto p-6 space-y-6 flex flex-col justify-between shadow-2xl relative text-slate-800">
+          <div className="bg-white border-l border-slate-200 w-full max-w-4xl h-full overflow-y-auto p-6 space-y-6 flex flex-col justify-between shadow-2xl relative text-slate-800">
             <div className="space-y-6">
               {/* Drawer Header */}
-              <div className="flex justify-between items-start border-b border-slate-200 pb-4">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">
-                    {selectedClient.clientName}
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Onboarding Workspace setup for{" "}
-                    {selectedClient.primaryContactName} (
-                    {selectedClient.contactEmail})
-                  </p>
+              <div className="border-b border-slate-200 pb-3 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-bold text-slate-900">
+                        {selectedClient.clientName}
+                      </h2>
+                      {renderStatusBadge(selectedClient.status)}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {selectedClient.primaryContactName} (
+                      {selectedClient.contactEmail})
+                      {selectedClient.contactPhone &&
+                        ` • ${selectedClient.contactPhone}`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedClient(null)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <button
-                  onClick={() => setSelectedClient(null)}
-                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-                >
-                  ✕
-                </button>
+
+                {/* Drawer Navigation Tabs */}
+                <div className="flex gap-4 border-b border-slate-100 -mb-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setDrawerTab("workspace")}
+                    className={cn(
+                      "pb-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 cursor-pointer",
+                      drawerTab === "workspace"
+                        ? "border-indigo-600 text-indigo-600"
+                        : "border-transparent text-slate-500 hover:text-slate-800",
+                    )}
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" /> Workspace &
+                    Onboarding
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDrawerTab("calls")}
+                    className={cn(
+                      "pb-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 cursor-pointer",
+                      drawerTab === "calls"
+                        ? "border-indigo-600 text-indigo-600"
+                        : "border-transparent text-slate-500 hover:text-slate-800",
+                    )}
+                  >
+                    <PhoneCall className="h-3.5 w-3.5 text-indigo-500" /> Call
+                    History & AI Transcripts
+                  </button>
+                </div>
               </div>
 
-              {/* Alert Banner if pipeline failed */}
-              {selectedClient.status === "failed" && (
-                <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <div className="text-rose-500 font-bold shrink-0 mt-0.5 text-sm">
-                    ⚠️
+              {/* TAB 1: WORKSPACE & ONBOARDING */}
+              {drawerTab === "workspace" && (
+                <div className="space-y-6">
+                  {/* Alert Banner if pipeline failed */}
+                  {selectedClient.status === "failed" && (
+                    <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="text-rose-500 font-bold shrink-0 mt-0.5 text-sm">
+                        ⚠️
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-bold">Onboarding Pipeline Failed</p>
+                        <p className="text-[11px] text-rose-700">
+                          The asset generation process encountered an error.
+                          Please verify your integration setups (e.g. Google
+                          Drive parent permissions or Notion database
+                          credentials) and click <strong>Run Pipeline</strong>{" "}
+                          to try again.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Resource Links Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <SlidersHorizontal className="h-3.5 w-3.5" /> Workspace
+                        Connections (Generated)
+                      </h3>
+                      <Button
+                        onClick={handleRunPipeline}
+                        disabled={isRunningPipeline}
+                        className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-300 text-white font-bold text-xs h-8 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        {isRunningPipeline ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Running Pipeline...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-3.5 w-3.5 fill-white" />
+                            Run Pipeline
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {(() => {
+                      const driveWarning =
+                        selectedClient.status === "failed" && !editDrive
+                          ? "⚠️ Pipeline failed - link missing"
+                          : onboardingSettings &&
+                              !onboardingSettings.googleDriveEnabled
+                            ? "⚠️ Google Drive integration is disabled"
+                            : !editDrive
+                              ? "(Pending run)"
+                              : null;
+
+                      const notionWarning =
+                        selectedClient.status === "failed" && !editNotion
+                          ? "⚠️ Pipeline failed - link missing"
+                          : onboardingSettings &&
+                              !onboardingSettings.notionEnabled
+                            ? "⚠️ Notion integration is disabled"
+                            : !editNotion
+                              ? "(Pending run)"
+                              : null;
+
+                      const signalWarning =
+                        selectedClient.status === "failed" && !editSignal
+                          ? "⚠️ Pipeline failed - link missing"
+                          : !editSignal
+                            ? "(Pending run)"
+                            : null;
+
+                      return (
+                        <div className="grid gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
+                              <span>1. Google Drive Assets Folder</span>
+                              {driveWarning && (
+                                <span
+                                  className={cn(
+                                    "font-bold text-[9px]",
+                                    driveWarning.startsWith("⚠️")
+                                      ? "text-rose-600"
+                                      : "text-amber-600",
+                                  )}
+                                >
+                                  {driveWarning}
+                                </span>
+                              )}
+                            </label>
+                            <div className="flex gap-2">
+                              <Input
+                                value={editDrive}
+                                onChange={(e) => setEditDrive(e.target.value)}
+                                placeholder="Pending generation..."
+                                className={cn(
+                                  "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
+                                  driveWarning?.startsWith("⚠️") &&
+                                    "border-rose-300 bg-rose-50/20 placeholder-rose-450 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
+                                )}
+                              />
+                              {editDrive && (
+                                <a
+                                  href={editDrive}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
+                              <span>2. Notion Client Dashboard</span>
+                              {notionWarning && (
+                                <span
+                                  className={cn(
+                                    "font-bold text-[9px]",
+                                    notionWarning.startsWith("⚠️")
+                                      ? "text-rose-600"
+                                      : "text-amber-600",
+                                  )}
+                                >
+                                  {notionWarning}
+                                </span>
+                              )}
+                            </label>
+                            <div className="flex gap-2">
+                              <Input
+                                value={editNotion}
+                                onChange={(e) => setEditNotion(e.target.value)}
+                                placeholder="Pending generation..."
+                                className={cn(
+                                  "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
+                                  notionWarning?.startsWith("⚠️") &&
+                                    "border-rose-300 bg-rose-50/20 placeholder-rose-455 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
+                                )}
+                              />
+                              {editNotion && (
+                                <a
+                                  href={editNotion}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
+                              <span>3. Signal Group Chat Invite Link</span>
+                              {signalWarning && (
+                                <span
+                                  className={cn(
+                                    "font-bold text-[9px]",
+                                    signalWarning.startsWith("⚠️")
+                                      ? "text-rose-600"
+                                      : "text-amber-600",
+                                  )}
+                                >
+                                  {signalWarning}
+                                </span>
+                              )}
+                            </label>
+                            <div className="flex gap-2">
+                              <Input
+                                value={editSignal}
+                                onChange={(e) => setEditSignal(e.target.value)}
+                                placeholder="Pending generation..."
+                                className={cn(
+                                  "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
+                                  signalWarning?.startsWith("⚠️") &&
+                                    "border-rose-300 bg-rose-50/20 placeholder-rose-455 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
+                                )}
+                              />
+                              {editSignal && (
+                                <a
+                                  href={editSignal}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={handleSaveLinks}
+                        disabled={isUpdatingLinks}
+                        className="bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-800 font-bold text-xs py-1.5 px-3 rounded-lg cursor-pointer"
+                      >
+                        {isUpdatingLinks
+                          ? "Saving..."
+                          : "Save Link Adjustments"}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="font-bold">Onboarding Pipeline Failed</p>
-                    <p className="text-[11px] text-rose-700">
-                      The asset generation process encountered an error. Please
-                      verify your integration setups (e.g. Google Drive parent
-                      permissions or Notion database credentials) and click{" "}
-                      <strong>Run Pipeline</strong> to try again.
+
+                  {/* Link Ad Account Section */}
+                  <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                    <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <LinkIcon className="h-4 w-4 text-indigo-600" /> Link
+                      Portfolio Ad Account
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Assign this client onboarding workspace to an imported
+                      Google Ads account to display performance data.
                     </p>
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedAdAccountId}
+                        onChange={(e) => setSelectedAdAccountId(e.target.value)}
+                        className="flex-1 bg-white border border-slate-200 text-xs rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:border-indigo-500"
+                      >
+                        <option value="">
+                          -- Select connected ad account --
+                        </option>
+                        {adAccountsList.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            {acc.name} ({acc.googleAccountId})
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        onClick={handleLinkAdAccount}
+                        disabled={isLinkingAccount || !selectedAdAccountId}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 rounded-lg cursor-pointer"
+                      >
+                        {isLinkingAccount ? "Linking..." : "Link Account"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* GoHighLevel CRM Automation Section */}
+                  {(() => {
+                    const config = onboardingSettings?.workflowConfig;
+                    const nodes = config?.nodes || [];
+                    const edges = config?.edges || [];
+                    const outgoingMap = new Map<string, string>();
+                    for (const e of edges) {
+                      if (e.source && e.target)
+                        outgoingMap.set(e.source, e.target);
+                    }
+                    const chain: string[] = [];
+                    let current = "trigger";
+                    while (current && !chain.includes(current)) {
+                      chain.push(current);
+                      current = outgoingMap.get(current) || "";
+                    }
+                    const isGhlInWorkflow =
+                      chain.includes("ghl") ||
+                      nodes.some((n: any) => n.id === "ghl");
+
+                    if (!isGhlInWorkflow) return null;
+
+                    const ghlNode = nodes.find((n: any) => n.id === "ghl");
+                    const ghlMode =
+                      ghlNode?.data?.mode || "update-opportunity-stage";
+
+                    return (
+                      <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <img
+                              src="/images/logos/ghl.svg"
+                              alt=""
+                              className="w-4 h-4"
+                            />
+                            GoHighLevel CRM Automation
+                          </h4>
+                          {selectedClient.ghlStatus === "success" && (
+                            <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Completed
+                            </span>
+                          )}
+                          {selectedClient.ghlStatus === "failed" && (
+                            <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> Failed
+                            </span>
+                          )}
+                          {selectedClient.ghlStatus === "in_progress" && (
+                            <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                              <RefreshCw className="w-3 h-3 animate-spin" /> In
+                              Progress
+                            </span>
+                          )}
+                          {(!selectedClient.ghlStatus ||
+                            selectedClient.ghlStatus === "pending") && (
+                            <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> Pending
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-2 py-1 inline-block">
+                          Task Mode:{" "}
+                          <span className="text-slate-800 font-bold capitalize">
+                            {ghlMode.replace(/-/g, " ")}
+                          </span>
+                        </div>
+
+                        {selectedClient.ghlStatus === "success" && (
+                          <div className="space-y-2">
+                            <p className="text-[11px] text-slate-600">
+                              CRM automation task executed successfully during
+                              client onboarding.
+                            </p>
+                            {selectedClient.ghlSubAccountId && (
+                              <a
+                                href={`https://app.gohighlevel.com/location/${selectedClient.ghlSubAccountId}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline bg-white p-2 rounded-lg border border-slate-200 w-full justify-between"
+                              >
+                                <span>Open GHL Sub-Account Location</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+                            {selectedClient.ghlContactId &&
+                              !selectedClient.ghlSubAccountId && (
+                                <div className="text-[10px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200">
+                                  Contact ID: {selectedClient.ghlContactId}
+                                </div>
+                              )}
+                          </div>
+                        )}
+
+                        {selectedClient.ghlStatus === "failed" && (
+                          <div className="space-y-2">
+                            <div className="bg-rose-50 border border-rose-200 rounded-lg p-2.5 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[11px] font-semibold text-rose-800">
+                                  Automation Encountered an Issue
+                                </p>
+                                {selectedClient.ghlError && (
+                                  <span
+                                    title={selectedClient.ghlError}
+                                    className="cursor-help text-rose-500 hover:text-rose-700 p-0.5"
+                                  >
+                                    <HelpCircle className="w-3.5 h-3.5" />
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-rose-600 leading-snug line-clamp-2">
+                                {selectedClient.ghlError ||
+                                  "Sub-account or CRM API provisioning failed. Check credentials and retry."}
+                              </p>
+                            </div>
+
+                            <Button
+                              onClick={handleRetryGhl}
+                              disabled={isRetryingGhl}
+                              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-1.5 px-3 rounded-lg cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <RefreshCw
+                                className={cn(
+                                  "w-3.5 h-3.5",
+                                  isRetryingGhl && "animate-spin",
+                                )}
+                              />
+                              {isRetryingGhl
+                                ? "Retrying Automation..."
+                                : "Retry GHL Automation Task"}
+                            </Button>
+                          </div>
+                        )}
+
+                        {(!selectedClient.ghlStatus ||
+                          selectedClient.ghlStatus === "pending" ||
+                          selectedClient.ghlStatus === "in_progress") && (
+                          <div className="flex items-center justify-between pt-1 gap-2">
+                            <p className="text-[11px] text-slate-500 flex-1">
+                              Trigger or retry configured GHL task for this
+                              client.
+                            </p>
+                            <Button
+                              onClick={handleRetryGhl}
+                              disabled={isRetryingGhl}
+                              variant="outline"
+                              className="text-xs h-7 px-2.5 font-bold cursor-pointer shrink-0"
+                            >
+                              {isRetryingGhl ? "Running..." : "Run Task"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Email Outbox & Live Preview */}
+                  <div className="border-t border-slate-200 pt-4 space-y-4">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <Mail className="h-3.5 w-3.5" /> Email Onboarding Outbox
+                    </h3>
+
+                    {/* Collapsible Email Subject & Body Editor */}
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsEditingEmailTemplate(!isEditingEmailTemplate)
+                        }
+                        className="w-full flex items-center justify-between text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2.5 hover:bg-slate-50 transition-all cursor-pointer shadow-sm"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Pencil className="w-3.5 h-3.5 text-indigo-600" />
+                          Edit Email Subject & Body Template
+                        </span>
+                        {isEditingEmailTemplate ? (
+                          <ChevronUp className="w-4 h-4 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                        )}
+                      </button>
+
+                      {isEditingEmailTemplate && (
+                        <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-3 transition-all animate-in fade-in duration-150">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                              Email Subject
+                            </label>
+                            <Input
+                              value={emailSubject}
+                              onChange={(e) => setEmailSubject(e.target.value)}
+                              className="bg-white border-slate-200 text-xs h-9 rounded-lg text-slate-800"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                              Email Body Template
+                            </label>
+                            <textarea
+                              value={emailBody}
+                              onChange={(e) => setEmailBody(e.target.value)}
+                              className="w-full min-h-[160px] text-xs font-mono p-3 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 outline-none leading-relaxed text-slate-700 resize-y"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dynamic Template Preview (Always Visible) */}
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            Dynamic Template Preview
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(emailSubject);
+                                setCopiedField("subject");
+                                toast.success(
+                                  "Email subject copied to clipboard!",
+                                );
+                                setTimeout(() => setCopiedField(null), 2000);
+                              }}
+                              className="h-6 px-2 text-[10px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
+                              title="Copy Email Subject"
+                            >
+                              {copiedField === "subject" ? (
+                                <Check className="h-3 w-3 text-emerald-600" />
+                              ) : (
+                                <Copy className="h-3 w-3 text-slate-400" />
+                              )}
+                              Subject
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const compiled = compileOnboardingEmail({
+                                  primaryContactName:
+                                    selectedClient.primaryContactName,
+                                  clientName: selectedClient.clientName,
+                                  driveFolderLink: editDrive || "#",
+                                  notionDashboardLink: editNotion || "#",
+                                  signalGroupLink: editSignal || "#",
+                                  googleAdsAccess:
+                                    selectedClient.googleAdsAccess,
+                                  metaAdsAccess: selectedClient.metaAdsAccess,
+                                  customTemplate: emailBody || undefined,
+                                });
+                                navigator.clipboard.writeText(compiled.text);
+                                setCopiedField("body");
+                                toast.success("Compiled email body copied!");
+                                setTimeout(() => setCopiedField(null), 2000);
+                              }}
+                              className="h-6 px-2 text-[10px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
+                              title="Copy Email Body Text"
+                            >
+                              {copiedField === "body" ? (
+                                <Check className="h-3 w-3 text-emerald-600" />
+                              ) : (
+                                <Copy className="h-3 w-3 text-slate-400" />
+                              )}
+                              Body
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const compiled = compileOnboardingEmail({
+                                  primaryContactName:
+                                    selectedClient.primaryContactName,
+                                  clientName: selectedClient.clientName,
+                                  driveFolderLink: editDrive || "#",
+                                  notionDashboardLink: editNotion || "#",
+                                  signalGroupLink: editSignal || "#",
+                                  googleAdsAccess:
+                                    selectedClient.googleAdsAccess,
+                                  metaAdsAccess: selectedClient.metaAdsAccess,
+                                  customTemplate: emailBody || undefined,
+                                });
+                                const fullContent = `To: ${selectedClient.contactEmail}\nSubject: ${emailSubject}\n\n${compiled.text}`;
+                                navigator.clipboard.writeText(fullContent);
+                                setCopiedField("full");
+                                toast.success("Full onboarding email copied!");
+                                setTimeout(() => setCopiedField(null), 2000);
+                              }}
+                              className="h-6 px-2 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
+                              title="Copy Full Email (To, Subject & Body)"
+                            >
+                              {copiedField === "full" ? (
+                                <Check className="h-3 w-3 text-emerald-600" />
+                              ) : (
+                                <Copy className="h-3 w-3 text-indigo-600" />
+                              )}
+                              Full Email
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="border border-slate-200 rounded-xl bg-slate-50 p-4 h-64 overflow-y-auto text-xs text-slate-800 space-y-3 select-none">
+                          <div className="border-b border-slate-200 pb-2 mb-2">
+                            <p className="text-[10px] text-slate-500">
+                              To: {selectedClient.contactEmail}
+                            </p>
+                            <p className="text-[10px] text-slate-700 font-semibold">
+                              Subject: {emailSubject}
+                            </p>
+                          </div>
+                          <div
+                            // biome-ignore lint/security/noDangerouslySetInnerHtml: rendering email preview
+                            dangerouslySetInnerHTML={{
+                              __html: compileOnboardingEmail({
+                                primaryContactName:
+                                  selectedClient.primaryContactName,
+                                clientName: selectedClient.clientName,
+                                driveFolderLink: editDrive || "#",
+                                notionDashboardLink: editNotion || "#",
+                                signalGroupLink: editSignal || "#",
+                                googleAdsAccess: selectedClient.googleAdsAccess,
+                                metaAdsAccess: selectedClient.metaAdsAccess,
+                                customTemplate: emailBody || undefined,
+                              }).html,
+                            }}
+                            className="bg-white text-slate-800 p-4 rounded-lg shadow scale-[0.95] origin-top border border-slate-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleSendEmail}
+                        disabled={
+                          isSendingEmail ||
+                          !editDrive ||
+                          !editNotion ||
+                          !editSignal
+                        }
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-300 text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        {isSendingEmail ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                            Dispatching...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4" /> Send Onboarding Email
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {(!editDrive || !editNotion || !editSignal) && (
+                      <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                        <Info className="h-3.5 w-3.5" /> Please wait for links
+                        to finish generating (or input manually) before sending.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Resource Links Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <SlidersHorizontal className="h-3.5 w-3.5" /> Workspace
-                    Connections (Generated)
-                  </h3>
-                  <Button
-                    onClick={handleRunPipeline}
-                    disabled={isRunningPipeline}
-                    className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-300 text-white font-bold text-xs h-8 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  >
-                    {isRunningPipeline ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Running Pipeline...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-3.5 w-3.5 fill-white" />
-                        Run Pipeline
-                      </>
-                    )}
-                  </Button>
+              {/* TAB 2: CALL HISTORY & AI INTELLIGENCE */}
+              {drawerTab === "calls" && (
+                <div className="py-1">
+                  <ClientCallHistory
+                    clientId={selectedClient.id}
+                    clientName={selectedClient.clientName}
+                    contactPhone={selectedClient.contactPhone}
+                    contactEmail={selectedClient.contactEmail}
+                  />
                 </div>
-
-                {(() => {
-                  const driveWarning =
-                    selectedClient.status === "failed" && !editDrive
-                      ? "⚠️ Pipeline failed - link missing"
-                      : onboardingSettings &&
-                          !onboardingSettings.googleDriveEnabled
-                        ? "⚠️ Google Drive integration is disabled"
-                        : !editDrive
-                          ? "(Pending run)"
-                          : null;
-
-                  const notionWarning =
-                    selectedClient.status === "failed" && !editNotion
-                      ? "⚠️ Pipeline failed - link missing"
-                      : onboardingSettings && !onboardingSettings.notionEnabled
-                        ? "⚠️ Notion integration is disabled"
-                        : !editNotion
-                          ? "(Pending run)"
-                          : null;
-
-                  const signalWarning =
-                    selectedClient.status === "failed" && !editSignal
-                      ? "⚠️ Pipeline failed - link missing"
-                      : !editSignal
-                        ? "(Pending run)"
-                        : null;
-
-                  return (
-                    <div className="grid gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
-                          <span>1. Google Drive Assets Folder</span>
-                          {driveWarning && (
-                            <span
-                              className={cn(
-                                "font-bold text-[9px]",
-                                driveWarning.startsWith("⚠️")
-                                  ? "text-rose-600"
-                                  : "text-amber-600",
-                              )}
-                            >
-                              {driveWarning}
-                            </span>
-                          )}
-                        </label>
-                        <div className="flex gap-2">
-                          <Input
-                            value={editDrive}
-                            onChange={(e) => setEditDrive(e.target.value)}
-                            placeholder="Pending generation..."
-                            className={cn(
-                              "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
-                              driveWarning?.startsWith("⚠️") &&
-                                "border-rose-300 bg-rose-50/20 placeholder-rose-450 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
-                            )}
-                          />
-                          {editDrive && (
-                            <a
-                              href={editDrive}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
-                          <span>2. Notion Client Dashboard</span>
-                          {notionWarning && (
-                            <span
-                              className={cn(
-                                "font-bold text-[9px]",
-                                notionWarning.startsWith("⚠️")
-                                  ? "text-rose-600"
-                                  : "text-amber-600",
-                              )}
-                            >
-                              {notionWarning}
-                            </span>
-                          )}
-                        </label>
-                        <div className="flex gap-2">
-                          <Input
-                            value={editNotion}
-                            onChange={(e) => setEditNotion(e.target.value)}
-                            placeholder="Pending generation..."
-                            className={cn(
-                              "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
-                              notionWarning?.startsWith("⚠️") &&
-                                "border-rose-300 bg-rose-50/20 placeholder-rose-455 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
-                            )}
-                          />
-                          {editNotion && (
-                            <a
-                              href={editNotion}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
-                          <span>3. Signal Group Chat Invite Link</span>
-                          {signalWarning && (
-                            <span
-                              className={cn(
-                                "font-bold text-[9px]",
-                                signalWarning.startsWith("⚠️")
-                                  ? "text-rose-600"
-                                  : "text-amber-600",
-                              )}
-                            >
-                              {signalWarning}
-                            </span>
-                          )}
-                        </label>
-                        <div className="flex gap-2">
-                          <Input
-                            value={editSignal}
-                            onChange={(e) => setEditSignal(e.target.value)}
-                            placeholder="Pending generation..."
-                            className={cn(
-                              "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
-                              signalWarning?.startsWith("⚠️") &&
-                                "border-rose-300 bg-rose-50/20 placeholder-rose-455 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
-                            )}
-                          />
-                          {editSignal && (
-                            <a
-                              href={editSignal}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleSaveLinks}
-                    disabled={isUpdatingLinks}
-                    className="bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-800 font-bold text-xs py-1.5 px-3 rounded-lg cursor-pointer"
-                  >
-                    {isUpdatingLinks ? "Saving..." : "Save Link Adjustments"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Link Ad Account Section */}
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
-                <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <LinkIcon className="h-4 w-4 text-indigo-600" /> Link
-                  Portfolio Ad Account
-                </h4>
-                <p className="text-[11px] text-slate-500">
-                  Assign this client onboarding workspace to an imported Google
-                  Ads account to display performance data.
-                </p>
-                <div className="flex gap-2">
-                  <select
-                    value={selectedAdAccountId}
-                    onChange={(e) => setSelectedAdAccountId(e.target.value)}
-                    className="flex-1 bg-white border border-slate-200 text-xs rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:border-indigo-500"
-                  >
-                    <option value="">-- Select connected ad account --</option>
-                    {adAccountsList.map((acc) => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.name} ({acc.googleAccountId})
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    onClick={handleLinkAdAccount}
-                    disabled={isLinkingAccount || !selectedAdAccountId}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 rounded-lg cursor-pointer"
-                  >
-                    {isLinkingAccount ? "Linking..." : "Link Account"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* GoHighLevel CRM Automation Section */}
-              {(() => {
-                const config = onboardingSettings?.workflowConfig;
-                const nodes = config?.nodes || [];
-                const edges = config?.edges || [];
-                const outgoingMap = new Map<string, string>();
-                for (const e of edges) {
-                  if (e.source && e.target) outgoingMap.set(e.source, e.target);
-                }
-                const chain: string[] = [];
-                let current = "trigger";
-                while (current && !chain.includes(current)) {
-                  chain.push(current);
-                  current = outgoingMap.get(current) || "";
-                }
-                const isGhlInWorkflow =
-                  chain.includes("ghl") ||
-                  nodes.some((n: any) => n.id === "ghl");
-
-                if (!isGhlInWorkflow) return null;
-
-                const ghlNode = nodes.find((n: any) => n.id === "ghl");
-                const ghlMode =
-                  ghlNode?.data?.mode || "update-opportunity-stage";
-
-                return (
-                  <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <img
-                          src="/images/logos/ghl.svg"
-                          alt=""
-                          className="w-4 h-4"
-                        />
-                        GoHighLevel CRM Automation
-                      </h4>
-                      {selectedClient.ghlStatus === "success" && (
-                        <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Completed
-                        </span>
-                      )}
-                      {selectedClient.ghlStatus === "failed" && (
-                        <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> Failed
-                        </span>
-                      )}
-                      {selectedClient.ghlStatus === "in_progress" && (
-                        <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
-                          <RefreshCw className="w-3 h-3 animate-spin" /> In
-                          Progress
-                        </span>
-                      )}
-                      {(!selectedClient.ghlStatus ||
-                        selectedClient.ghlStatus === "pending") && (
-                        <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> Pending
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-2 py-1 inline-block">
-                      Task Mode:{" "}
-                      <span className="text-slate-800 font-bold capitalize">
-                        {ghlMode.replace(/-/g, " ")}
-                      </span>
-                    </div>
-
-                    {selectedClient.ghlStatus === "success" && (
-                      <div className="space-y-2">
-                        <p className="text-[11px] text-slate-600">
-                          CRM automation task executed successfully during
-                          client onboarding.
-                        </p>
-                        {selectedClient.ghlSubAccountId && (
-                          <a
-                            href={`https://app.gohighlevel.com/location/${selectedClient.ghlSubAccountId}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline bg-white p-2 rounded-lg border border-slate-200 w-full justify-between"
-                          >
-                            <span>Open GHL Sub-Account Location</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        )}
-                        {selectedClient.ghlContactId &&
-                          !selectedClient.ghlSubAccountId && (
-                            <div className="text-[10px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200">
-                              Contact ID: {selectedClient.ghlContactId}
-                            </div>
-                          )}
-                      </div>
-                    )}
-
-                    {selectedClient.ghlStatus === "failed" && (
-                      <div className="space-y-2">
-                        <div className="bg-rose-50 border border-rose-200 rounded-lg p-2.5 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <p className="text-[11px] font-semibold text-rose-800">
-                              Automation Encountered an Issue
-                            </p>
-                            {selectedClient.ghlError && (
-                              <span
-                                title={selectedClient.ghlError}
-                                className="cursor-help text-rose-500 hover:text-rose-700 p-0.5"
-                              >
-                                <HelpCircle className="w-3.5 h-3.5" />
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-rose-600 leading-snug line-clamp-2">
-                            {selectedClient.ghlError ||
-                              "Sub-account or CRM API provisioning failed. Check credentials and retry."}
-                          </p>
-                        </div>
-
-                        <Button
-                          onClick={handleRetryGhl}
-                          disabled={isRetryingGhl}
-                          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-1.5 px-3 rounded-lg cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                          <RefreshCw
-                            className={cn(
-                              "w-3.5 h-3.5",
-                              isRetryingGhl && "animate-spin",
-                            )}
-                          />
-                          {isRetryingGhl
-                            ? "Retrying Automation..."
-                            : "Retry GHL Automation Task"}
-                        </Button>
-                      </div>
-                    )}
-
-                    {(!selectedClient.ghlStatus ||
-                      selectedClient.ghlStatus === "pending" ||
-                      selectedClient.ghlStatus === "in_progress") && (
-                      <div className="flex items-center justify-between pt-1 gap-2">
-                        <p className="text-[11px] text-slate-500 flex-1">
-                          Trigger or retry configured GHL task for this client.
-                        </p>
-                        <Button
-                          onClick={handleRetryGhl}
-                          disabled={isRetryingGhl}
-                          variant="outline"
-                          className="text-xs h-7 px-2.5 font-bold cursor-pointer shrink-0"
-                        >
-                          {isRetryingGhl ? "Running..." : "Run Task"}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Email Outbox & Live Preview */}
-              <div className="border-t border-slate-200 pt-4 space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5" /> Email Onboarding Outbox
-                </h3>
-
-                {/* Collapsible Email Subject & Body Editor */}
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setIsEditingEmailTemplate(!isEditingEmailTemplate)
-                    }
-                    className="w-full flex items-center justify-between text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2.5 hover:bg-slate-50 transition-all cursor-pointer shadow-sm"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Pencil className="w-3.5 h-3.5 text-indigo-600" />
-                      Edit Email Subject & Body Template
-                    </span>
-                    {isEditingEmailTemplate ? (
-                      <ChevronUp className="w-4 h-4 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
-                    )}
-                  </button>
-
-                  {isEditingEmailTemplate && (
-                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-3 transition-all animate-in fade-in duration-150">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                          Email Subject
-                        </label>
-                        <Input
-                          value={emailSubject}
-                          onChange={(e) => setEmailSubject(e.target.value)}
-                          className="bg-white border-slate-200 text-xs h-9 rounded-lg text-slate-800"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                          Email Body Template
-                        </label>
-                        <textarea
-                          value={emailBody}
-                          onChange={(e) => setEmailBody(e.target.value)}
-                          className="w-full min-h-[160px] text-xs font-mono p-3 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 outline-none leading-relaxed text-slate-700 resize-y"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Dynamic Template Preview (Always Visible) */}
-                <div className="space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                        Dynamic Template Preview
-                      </label>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            navigator.clipboard.writeText(emailSubject);
-                            setCopiedField("subject");
-                            toast.success("Email subject copied to clipboard!");
-                            setTimeout(() => setCopiedField(null), 2000);
-                          }}
-                          className="h-6 px-2 text-[10px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
-                          title="Copy Email Subject"
-                        >
-                          {copiedField === "subject" ? (
-                            <Check className="h-3 w-3 text-emerald-600" />
-                          ) : (
-                            <Copy className="h-3 w-3 text-slate-400" />
-                          )}
-                          Subject
-                        </Button>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const compiled = compileOnboardingEmail({
-                              primaryContactName:
-                                selectedClient.primaryContactName,
-                              clientName: selectedClient.clientName,
-                              driveFolderLink: editDrive || "#",
-                              notionDashboardLink: editNotion || "#",
-                              signalGroupLink: editSignal || "#",
-                              googleAdsAccess: selectedClient.googleAdsAccess,
-                              metaAdsAccess: selectedClient.metaAdsAccess,
-                              customTemplate: emailBody || undefined,
-                            });
-                            navigator.clipboard.writeText(compiled.text);
-                            setCopiedField("body");
-                            toast.success("Compiled email body copied!");
-                            setTimeout(() => setCopiedField(null), 2000);
-                          }}
-                          className="h-6 px-2 text-[10px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
-                          title="Copy Email Body Text"
-                        >
-                          {copiedField === "body" ? (
-                            <Check className="h-3 w-3 text-emerald-600" />
-                          ) : (
-                            <Copy className="h-3 w-3 text-slate-400" />
-                          )}
-                          Body
-                        </Button>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const compiled = compileOnboardingEmail({
-                              primaryContactName:
-                                selectedClient.primaryContactName,
-                              clientName: selectedClient.clientName,
-                              driveFolderLink: editDrive || "#",
-                              notionDashboardLink: editNotion || "#",
-                              signalGroupLink: editSignal || "#",
-                              googleAdsAccess: selectedClient.googleAdsAccess,
-                              metaAdsAccess: selectedClient.metaAdsAccess,
-                              customTemplate: emailBody || undefined,
-                            });
-                            const fullContent = `To: ${selectedClient.contactEmail}\nSubject: ${emailSubject}\n\n${compiled.text}`;
-                            navigator.clipboard.writeText(fullContent);
-                            setCopiedField("full");
-                            toast.success("Full onboarding email copied!");
-                            setTimeout(() => setCopiedField(null), 2000);
-                          }}
-                          className="h-6 px-2 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
-                          title="Copy Full Email (To, Subject & Body)"
-                        >
-                          {copiedField === "full" ? (
-                            <Check className="h-3 w-3 text-emerald-600" />
-                          ) : (
-                            <Copy className="h-3 w-3 text-indigo-600" />
-                          )}
-                          Full Email
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="border border-slate-200 rounded-xl bg-slate-50 p-4 h-64 overflow-y-auto text-xs text-slate-800 space-y-3 select-none">
-                      <div className="border-b border-slate-200 pb-2 mb-2">
-                        <p className="text-[10px] text-slate-500">
-                          To: {selectedClient.contactEmail}
-                        </p>
-                        <p className="text-[10px] text-slate-700 font-semibold">
-                          Subject: {emailSubject}
-                        </p>
-                      </div>
-                      <div
-                        // biome-ignore lint/security/noDangerouslySetInnerHtml: rendering email preview
-                        dangerouslySetInnerHTML={{
-                          __html: compileOnboardingEmail({
-                            primaryContactName:
-                              selectedClient.primaryContactName,
-                            clientName: selectedClient.clientName,
-                            driveFolderLink: editDrive || "#",
-                            notionDashboardLink: editNotion || "#",
-                            signalGroupLink: editSignal || "#",
-                            googleAdsAccess: selectedClient.googleAdsAccess,
-                            metaAdsAccess: selectedClient.metaAdsAccess,
-                            customTemplate: emailBody || undefined,
-                          }).html,
-                        }}
-                        className="bg-white text-slate-800 p-4 rounded-lg shadow scale-[0.95] origin-top border border-slate-200"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleSendEmail}
-                    disabled={
-                      isSendingEmail || !editDrive || !editNotion || !editSignal
-                    }
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-300 text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-                  >
-                    {isSendingEmail ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />{" "}
-                        Dispatching...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4" /> Send Onboarding Email
-                      </>
-                    )}
-                  </Button>
-                </div>
-                {(!editDrive || !editNotion || !editSignal) && (
-                  <p className="text-[10px] text-amber-600 flex items-center gap-1">
-                    <Info className="h-3.5 w-3.5" /> Please wait for links to
-                    finish generating (or input manually) before sending.
-                  </p>
-                )}
-              </div>
+              )}
             </div>
 
             {/* Bottom Actions (Finalize Onboarding) */}
