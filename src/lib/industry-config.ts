@@ -268,3 +268,303 @@ export function getIndustryMeta(key?: string | null): IndustryMetadata {
 export function getAllIndustries(): IndustryMetadata[] {
   return Object.values(INDUSTRY_REGISTRY);
 }
+
+// Rule-based classification engine
+export function classifyAccountByRules(
+  name: string,
+  websiteUrl?: string | null,
+  campaigns: string[] = [],
+): { industry: IndustryKey; subNiche: string } | null {
+  const text =
+    `${name} ${websiteUrl || ""} ${campaigns.join(" ")}`.toLowerCase();
+
+  // 1. Energy & Solar
+  if (
+    /\b(solar|battery|batteries|inverter|solar panel|solar system|ev charger|ev charging|renewable|clean energy|off-grid|heat pump solar|solar power)\b/i.test(
+      text,
+    )
+  ) {
+    if (
+      /\b(battery|batteries|storage|off-grid|tesla powerwall)\b/i.test(text)
+    ) {
+      return {
+        industry: "ENERGY_SOLAR",
+        subNiche: "Battery Storage & Off-Grid",
+      };
+    }
+    if (/\b(commercial|business solar|industrial)\b/i.test(text)) {
+      return { industry: "ENERGY_SOLAR", subNiche: "Commercial Solar" };
+    }
+    if (/\b(ev|charger|charging)\b/i.test(text)) {
+      return { industry: "ENERGY_SOLAR", subNiche: "EV Charging" };
+    }
+    return { industry: "ENERGY_SOLAR", subNiche: "Residential Solar" };
+  }
+
+  // 2. Home Services & Trades
+  if (/\b(plumb|gas|drain|blocked|hot water|leak|tap|pipe)\b/i.test(text)) {
+    return { industry: "HOME_SERVICES_TRADES", subNiche: "Plumbing & Gas" };
+  }
+  if (
+    /\b(electric|sparky|switchboard|rewir|power|lighting)\b/i.test(text)
+  ) {
+    return {
+      industry: "HOME_SERVICES_TRADES",
+      subNiche: "Electricians",
+    };
+  }
+  if (
+    /\b(roof|gutter|metal roof|tile roof|restoration|fascia)\b/i.test(text)
+  ) {
+    return { industry: "HOME_SERVICES_TRADES", subNiche: "Roofing & Gutters" };
+  }
+  if (
+    /\b(air con|aircon|air conditioning|hvac|heat pump|cooling|ducted|refrigeration)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "HOME_SERVICES_TRADES",
+      subNiche: "HVAC & Air Conditioning",
+    };
+  }
+  if (/\b(pest|termite|rodent|possum|fumigat|bug|wasp)\b/i.test(text)) {
+    return { industry: "HOME_SERVICES_TRADES", subNiche: "Pest Control" };
+  }
+  if (/\b(locksmith|key|lock|safe|deadbolt|rekey)\b/i.test(text)) {
+    return { industry: "HOME_SERVICES_TRADES", subNiche: "Locksmiths" };
+  }
+  if (
+    /\b(clean|carpet|bond clean|pressure wash|window clean|house clean)\b/i.test(
+      text,
+    )
+  ) {
+    return { industry: "HOME_SERVICES_TRADES", subNiche: "Cleaning Services" };
+  }
+  if (/\b(paint|painter|decorat)\b/i.test(text)) {
+    return {
+      industry: "HOME_SERVICES_TRADES",
+      subNiche: "Painting & Decorating",
+    };
+  }
+  if (
+    /\b(landscape|tree|arborist|garden|lawn|fenc|deck|pergola)\b/i.test(text)
+  ) {
+    return {
+      industry: "HOME_SERVICES_TRADES",
+      subNiche: "Landscaping & Outdoor",
+    };
+  }
+  if (
+    /\b(trades|handyman|glaz|glass|tiler|tiling|plaster|carpenter)\b/i.test(text)
+  ) {
+    return {
+      industry: "HOME_SERVICES_TRADES",
+      subNiche: "General Trade Services",
+    };
+  }
+
+  // 3. Legal & Financial
+  if (
+    /\b(law|legal|solicitor|attorney|injury|compensation|criminal|divorce|family law|probate|estate law|litigat)\b/i.test(
+      text,
+    )
+  ) {
+    return { industry: "LEGAL_FINANCIAL", subNiche: "Legal & Law Firms" };
+  }
+  if (/\b(conveyanc|settlement)\b/i.test(text)) {
+    return { industry: "LEGAL_FINANCIAL", subNiche: "Conveyancing" };
+  }
+  if (/\b(account|tax|bookkeep|cpa|audit|payroll|smsf)\b/i.test(text)) {
+    return { industry: "LEGAL_FINANCIAL", subNiche: "Accounting & Tax" };
+  }
+  if (
+    /\b(mortgage|broker|finance|loan|wealth|financial plan|superannuation)\b/i.test(
+      text,
+    )
+  ) {
+    return { industry: "LEGAL_FINANCIAL", subNiche: "Mortgage & Wealth" };
+  }
+
+  // 4. Healthcare & Medical
+  if (
+    /\b(dent|ortho|teeth|invisalign|smile|veneer|dental|implant)\b/i.test(text)
+  ) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Dental & Orthodontics",
+    };
+  }
+  if (
+    /\b(physio|physical therapy|rehab|occupational therapy)\b/i.test(text)
+  ) {
+    return { industry: "HEALTHCARE_MEDICAL", subNiche: "Physiotherapy" };
+  }
+  if (/\b(chiro|chiropract|osteopath|massage)\b/i.test(text)) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Chiropractic & Wellness",
+    };
+  }
+  if (
+    /\b(cosmetic|botox|filler|laser|skin clinic|dermatolog|aesthet|plastic surg)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Cosmetic & Aesthetics",
+    };
+  }
+  if (
+    /\b(psycholog|therap|counsel|mental health|adhd|psychiatr)\b/i.test(text)
+  ) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Mental Health & Psychology",
+    };
+  }
+  if (/\b(optom|eye|vision|lasik|glasses|contact lens)\b/i.test(text)) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Optometry & Eye Care",
+    };
+  }
+  if (
+    /\b(doctor|clinic|medical|gp|podiatry|hearing|audiolog|health)\b/i.test(text)
+  ) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Medical Clinics & Health",
+    };
+  }
+
+  // 5. Building & Construction
+  if (
+    /\b(builder|construction|custom home|renovat|extension|architect)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "BUILDING_CONSTRUCTION",
+      subNiche: "Home Builders & Construction",
+    };
+  }
+  if (/\b(concrete|paving|driveway|slab|asphalt)\b/i.test(text)) {
+    return {
+      industry: "BUILDING_CONSTRUCTION",
+      subNiche: "Concreting & Paving",
+    };
+  }
+  if (/\b(pool|spa|swimming pool|fibreglass pool)\b/i.test(text)) {
+    return { industry: "BUILDING_CONSTRUCTION", subNiche: "Pools & Spas" };
+  }
+  if (/\b(demolition|earthmov|excavat|scaffold|steel)\b/i.test(text)) {
+    return {
+      industry: "BUILDING_CONSTRUCTION",
+      subNiche: "Commercial Construction & Heavy",
+    };
+  }
+
+  // 6. Automotive & Transport
+  if (
+    /\b(mechanic|car service|auto repair|brake|clutch|logbook|tyre|tire)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "AUTOMOTIVE_TRANSPORT",
+      subNiche: "Mechanics & Auto Service",
+    };
+  }
+  if (
+    /\b(smash|panel beat|dent repair|spray paint|accident repair)\b/i.test(text)
+  ) {
+    return {
+      industry: "AUTOMOTIVE_TRANSPORT",
+      subNiche: "Panel Beaters & Smash Repair",
+    };
+  }
+  if (/\b(detail|wrap|tint|ceramic coating|car wash)\b/i.test(text)) {
+    return {
+      industry: "AUTOMOTIVE_TRANSPORT",
+      subNiche: "Car Detailing & Wrap",
+    };
+  }
+  if (/\b(tow|towing|breakdown|roadside)\b/i.test(text)) {
+    return {
+      industry: "AUTOMOTIVE_TRANSPORT",
+      subNiche: "Towing & Roadside",
+    };
+  }
+  if (
+    /\b(car hire|car rental|rental car|dealership|used car|fleet)\b/i.test(text)
+  ) {
+    return {
+      industry: "AUTOMOTIVE_TRANSPORT",
+      subNiche: "Dealerships & Rentals",
+    };
+  }
+
+  // 7. Real Estate & Property
+  if (
+    /\b(real estate|realty|property manage|buyers agent|rent|lease|appraisal|estate agent)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "REAL_ESTATE_PROPERTY",
+      subNiche: "Real Estate Agencies",
+    };
+  }
+  if (/\b(storage|self storage|container storage)\b/i.test(text)) {
+    return { industry: "REAL_ESTATE_PROPERTY", subNiche: "Self Storage" };
+  }
+
+  // 8. E-Commerce & Retail
+  if (
+    /\b(shop|store|brand|apparel|clothing|fashion|shoe|supplement|jewelry|boutique|ecommerce|cart|order|retail|merch)\b/i.test(
+      text,
+    )
+  ) {
+    return { industry: "ECOMMERCE_RETAIL", subNiche: "DTC & Retail Store" };
+  }
+
+  // 9. B2B & Corporate Services
+  if (
+    /\b(msp|it support|managed it|cybersecurity|software|saas|cloud|b2b|consult|freight|logistics|commercial clean|recruitment|agency|marketing)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "PROFESSIONAL_B2B",
+      subNiche: "B2B & Professional Services",
+    };
+  }
+
+  // 10. Education & Training
+  if (
+    /\b(college|rto|course|training|tutor|childcare|daycare|driving school|academy|school|university|learn)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "EDUCATION_TRAINING",
+      subNiche: "Education & Courses",
+    };
+  }
+
+  // 11. Hospitality & Events
+  if (
+    /\b(venue|wedding|cater|hotel|resort|restaurant|bar|cafe|event|party hire|photo|video|travel|tour)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "HOSPITALITY_EVENTS",
+      subNiche: "Hospitality & Events",
+    };
+  }
+
+  return null;
+}
