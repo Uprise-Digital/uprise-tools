@@ -3,6 +3,7 @@
 import { and, eq, gte, ilike, lte } from "drizzle-orm";
 import { headers } from "next/headers";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
+import { classifyAccountsBatchInternal } from "@/actions/industry-analytics.actions";
 import { db } from "@/db";
 import { withBypassTenantDb } from "@/db/db-helper";
 import {
@@ -521,6 +522,15 @@ export async function syncAgencyPortfolioAction(
         .update(backgroundTasks)
         .set({ status: "completed", updatedAt: new Date() })
         .where(eq(backgroundTasks.id, taskRecordId));
+    }
+
+    if (orgId) {
+      classifyAccountsBatchInternal(orgId, false).catch((e) =>
+        console.warn(
+          "Background auto-classification error after portfolio sync:",
+          e,
+        ),
+      );
     }
 
     return { success: true, syncedCount };

@@ -8,6 +8,7 @@ import { adAccounts, googleAdsConnections, member } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { getAuthOrgContext } from "@/lib/auth-helpers";
 import { fetchMCCAccounts } from "@/lib/google-ads";
+import { classifyAccountsBatchInternal } from "@/actions/industry-analytics.actions";
 
 export async function syncAdAccountsAction() {
   const ctx = await getAuthOrgContext();
@@ -120,7 +121,15 @@ export async function syncAdAccountsAction() {
       },
     );
 
+    // Automate industry classification in background for any newly discovered accounts
+    if (orgId) {
+      classifyAccountsBatchInternal(orgId, false).catch((e) =>
+        console.warn("Background auto-classification error after sync:", e),
+      );
+    }
+
     revalidatePath("/accounts");
+    revalidatePath("/overview/industry");
     return { success: true, count: syncCount };
   } catch (error: any) {
     // FAILURE LOGGING

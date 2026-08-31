@@ -80,6 +80,283 @@ export interface IndustryPortfolioData {
   allAccounts: AccountIndustryMetric[];
 }
 
+// Rule-based classification engine
+export function classifyAccountByRules(
+  name: string,
+  websiteUrl?: string | null,
+  campaigns: string[] = [],
+): { industry: IndustryKey; subNiche: string } | null {
+  const text =
+    `${name} ${websiteUrl || ""} ${campaigns.join(" ")}`.toLowerCase();
+
+  // 1. Home Services & Trades
+  if (/\b(plumb|gas|drain|blocked|hot water|leak|tap|pipe)\b/i.test(text)) {
+    return { industry: "HOME_SERVICES_TRADES", subNiche: "Plumbing & Gas" };
+  }
+  if (
+    /\b(electric|sparky|solar|switchboard|rewir|power|lighting)\b/i.test(text)
+  ) {
+    return {
+      industry: "HOME_SERVICES_TRADES",
+      subNiche: "Electricians & Solar",
+    };
+  }
+  if (/\b(roof|gutter|metal roof|tile roof|restoration|fascia)\b/i.test(text)) {
+    return { industry: "HOME_SERVICES_TRADES", subNiche: "Roofing & Gutters" };
+  }
+  if (
+    /\b(air con|aircon|air conditioning|hvac|heat pump|cooling|ducted|refrigeration)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "HOME_SERVICES_TRADES",
+      subNiche: "HVAC & Air Conditioning",
+    };
+  }
+  if (/\b(pest|termite|rodent|possum|fumigat|bug|wasp)\b/i.test(text)) {
+    return { industry: "HOME_SERVICES_TRADES", subNiche: "Pest Control" };
+  }
+  if (/\b(locksmith|key|lock|safe|deadbolt|rekey)\b/i.test(text)) {
+    return { industry: "HOME_SERVICES_TRADES", subNiche: "Locksmiths" };
+  }
+  if (
+    /\b(clean|carpet|bond clean|pressure wash|window clean|house clean)\b/i.test(
+      text,
+    )
+  ) {
+    return { industry: "HOME_SERVICES_TRADES", subNiche: "Cleaning Services" };
+  }
+  if (/\b(paint|painter|decorat)\b/i.test(text)) {
+    return {
+      industry: "HOME_SERVICES_TRADES",
+      subNiche: "Painting & Decorating",
+    };
+  }
+  if (
+    /\b(landscape|tree|arborist|garden|lawn|fenc|deck|pergola)\b/i.test(text)
+  ) {
+    return {
+      industry: "HOME_SERVICES_TRADES",
+      subNiche: "Landscaping & Outdoor",
+    };
+  }
+  if (
+    /\b(trades|handyman|glaz|glass|tiler|tiling|plaster|carpenter)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "HOME_SERVICES_TRADES",
+      subNiche: "General Trade Services",
+    };
+  }
+
+  // 2. Legal & Financial
+  if (
+    /\b(law|legal|solicitor|attorney|injury|compensation|criminal|divorce|family law|probate|estate law|litigat)\b/i.test(
+      text,
+    )
+  ) {
+    return { industry: "LEGAL_FINANCIAL", subNiche: "Legal & Law Firms" };
+  }
+  if (/\b(conveyanc|settlement)\b/i.test(text)) {
+    return { industry: "LEGAL_FINANCIAL", subNiche: "Conveyancing" };
+  }
+  if (/\b(account|tax|bookkeep|cpa|audit|payroll|smsf)\b/i.test(text)) {
+    return { industry: "LEGAL_FINANCIAL", subNiche: "Accounting & Tax" };
+  }
+  if (
+    /\b(mortgage|broker|finance|loan|wealth|financial plan|superannuation)\b/i.test(
+      text,
+    )
+  ) {
+    return { industry: "LEGAL_FINANCIAL", subNiche: "Mortgage & Wealth" };
+  }
+
+  // 3. Healthcare & Medical
+  if (
+    /\b(dent|ortho|teeth|invisalign|smile|veneer|dental|implant)\b/i.test(text)
+  ) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Dental & Orthodontics",
+    };
+  }
+  if (/\b(physio|physical therapy|rehab|occupational therapy)\b/i.test(text)) {
+    return { industry: "HEALTHCARE_MEDICAL", subNiche: "Physiotherapy" };
+  }
+  if (/\b(chiro|chiropract|osteopath|massage)\b/i.test(text)) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Chiropractic & Wellness",
+    };
+  }
+  if (
+    /\b(cosmetic|botox|filler|laser|skin clinic|dermatolog|aesthet|plastic surg)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Cosmetic & Aesthetics",
+    };
+  }
+  if (
+    /\b(psycholog|therap|counsel|mental health|adhd|psychiatr)\b/i.test(text)
+  ) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Mental Health & Psychology",
+    };
+  }
+  if (/\b(optom|eye|vision|lasik|glasses|contact lens)\b/i.test(text)) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Optometry & Eye Care",
+    };
+  }
+  if (
+    /\b(doctor|clinic|medical|gp|podiatry|hearing|audiolog|health)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "HEALTHCARE_MEDICAL",
+      subNiche: "Medical Clinics & Health",
+    };
+  }
+
+  // 4. Building & Construction
+  if (
+    /\b(builder|construction|custom home|renovat|extension|architect)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "BUILDING_CONSTRUCTION",
+      subNiche: "Home Builders & Construction",
+    };
+  }
+  if (/\b(concrete|paving|driveway|slab|asphalt)\b/i.test(text)) {
+    return {
+      industry: "BUILDING_CONSTRUCTION",
+      subNiche: "Concreting & Paving",
+    };
+  }
+  if (/\b(pool|spa|swimming pool|fibreglass pool)\b/i.test(text)) {
+    return { industry: "BUILDING_CONSTRUCTION", subNiche: "Pools & Spas" };
+  }
+  if (/\b(demolition|earthmov|excavat|scaffold|steel)\b/i.test(text)) {
+    return {
+      industry: "BUILDING_CONSTRUCTION",
+      subNiche: "Commercial Construction & Heavy",
+    };
+  }
+
+  // 5. Automotive & Transport
+  if (
+    /\b(mechanic|car service|auto repair|brake|clutch|logbook|tyre|tire)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "AUTOMOTIVE_TRANSPORT",
+      subNiche: "Mechanics & Auto Service",
+    };
+  }
+  if (
+    /\b(smash|panel beat|dent repair|spray paint|accident repair)\b/i.test(text)
+  ) {
+    return {
+      industry: "AUTOMOTIVE_TRANSPORT",
+      subNiche: "Panel Beaters & Smash Repair",
+    };
+  }
+  if (/\b(detail|wrap|tint|ceramic coating|car wash)\b/i.test(text)) {
+    return {
+      industry: "AUTOMOTIVE_TRANSPORT",
+      subNiche: "Car Detailing & Wrap",
+    };
+  }
+  if (/\b(tow|towing|breakdown|roadside)\b/i.test(text)) {
+    return {
+      industry: "AUTOMOTIVE_TRANSPORT",
+      subNiche: "Towing & Roadside",
+    };
+  }
+  if (
+    /\b(car hire|car rental|rental car|dealership|used car|fleet)\b/i.test(text)
+  ) {
+    return {
+      industry: "AUTOMOTIVE_TRANSPORT",
+      subNiche: "Dealerships & Rentals",
+    };
+  }
+
+  // 6. Real Estate & Property
+  if (
+    /\b(real estate|realty|property manage|buyers agent|rent|lease|appraisal|estate agent)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "REAL_ESTATE_PROPERTY",
+      subNiche: "Real Estate Agencies",
+    };
+  }
+  if (/\b(storage|self storage|container storage)\b/i.test(text)) {
+    return { industry: "REAL_ESTATE_PROPERTY", subNiche: "Self Storage" };
+  }
+
+  // 7. E-Commerce & Retail
+  if (
+    /\b(shop|store|brand|apparel|clothing|fashion|shoe|supplement|jewelry|boutique|ecommerce|cart|order|retail|merch)\b/i.test(
+      text,
+    )
+  ) {
+    return { industry: "ECOMMERCE_RETAIL", subNiche: "DTC & Retail Store" };
+  }
+
+  // 8. B2B & Corporate Services
+  if (
+    /\b(msp|it support|managed it|cybersecurity|software|saas|cloud|b2b|consult|freight|logistics|commercial clean|recruitment|agency|marketing)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "PROFESSIONAL_B2B",
+      subNiche: "B2B & Professional Services",
+    };
+  }
+
+  // 9. Education & Training
+  if (
+    /\b(college|rto|course|training|tutor|childcare|daycare|driving school|academy|school|university|learn)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "EDUCATION_TRAINING",
+      subNiche: "Education & Courses",
+    };
+  }
+
+  // 10. Hospitality & Events
+  if (
+    /\b(venue|wedding|cater|hotel|resort|restaurant|bar|cafe|event|party hire|photo|video|travel|tour)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      industry: "HOSPITALITY_EVENTS",
+      subNiche: "Hospitality & Events",
+    };
+  }
+
+  return null;
+}
+
 /**
  * Fetch portfolio metrics aggregated by canonical industry and calculate peer benchmarks
  */
@@ -99,7 +376,7 @@ export async function getIndustryPortfolioMetricsAction(
     }
 
     // 1. Fetch all active accounts for the current organization
-    const accounts = await db.query.adAccounts.findMany({
+    let accounts = await db.query.adAccounts.findMany({
       where: and(
         eq(adAccounts.isActive, true),
         eq(adAccounts.organizationId, orgId),
@@ -127,6 +404,25 @@ export async function getIndustryPortfolioMetricsAction(
           allAccounts: [],
         },
       };
+    }
+
+    // Auto-classify check: If accounts are unclassified ('OTHER' or null), run auto-classification
+    const unclassifiedAccounts = accounts.filter(
+      (a) => !a.industry || a.industry === "OTHER",
+    );
+    if (unclassifiedAccounts.length > 0) {
+      try {
+        await classifyAccountsBatchInternal(orgId, false);
+        // Refresh accounts list after classification
+        accounts = await db.query.adAccounts.findMany({
+          where: and(
+            eq(adAccounts.isActive, true),
+            eq(adAccounts.organizationId, orgId),
+          ),
+        });
+      } catch (err) {
+        console.warn("Auto-classification on load encountered an issue:", err);
+      }
     }
 
     const accountIds = accounts.map((a) => a.id);
@@ -445,77 +741,94 @@ export async function updateAccountIndustryAction(
 }
 
 /**
- * AI Auto-Classification Engine:
- * Batch-classifies unclassified accounts (or all accounts) into canonical industries.
+ * Internal hybrid classifier combining rules and Gemini AI
  */
-export async function autoClassifyAccountIndustriesAction(
+export async function classifyAccountsBatchInternal(
+  orgId: string,
   forceAll: boolean = false,
-) {
-  try {
-    const ctx = await getAuthOrgContext();
-    if (!ctx) throw new Error("Unauthorized");
-    const { session, orgId } = ctx;
+): Promise<{ updatedCount: number; results: any[] }> {
+  const accounts = await db.query.adAccounts.findMany({
+    where: and(
+      eq(adAccounts.isActive, true),
+      eq(adAccounts.organizationId, orgId),
+    ),
+  });
 
-    // 1. Fetch target accounts
-    const accounts = await db.query.adAccounts.findMany({
-      where: and(
-        eq(adAccounts.isActive, true),
-        eq(adAccounts.organizationId, orgId),
-      ),
-    });
+  const accountsToClassify = forceAll
+    ? accounts
+    : accounts.filter((a) => !a.industry || a.industry === "OTHER");
 
-    const accountsToClassify = forceAll
-      ? accounts
-      : accounts.filter((a) => !a.industry || a.industry === "OTHER");
+  if (accountsToClassify.length === 0) {
+    return { updatedCount: 0, results: [] };
+  }
 
-    if (accountsToClassify.length === 0) {
-      return {
-        success: true,
-        message: "All accounts are already classified.",
-        classifiedCount: 0,
-      };
+  // Fetch recent campaigns for context
+  const recentCampaigns = await db.query.adPerformanceDaily.findMany({
+    where: inArray(
+      adPerformanceDaily.adAccountId,
+      accountsToClassify.map((a) => a.id),
+    ),
+    limit: 150,
+  });
+
+  const campaignsByAccount: Record<number, string[]> = {};
+  recentCampaigns.forEach((c) => {
+    if (!campaignsByAccount[c.adAccountId]) {
+      campaignsByAccount[c.adAccountId] = [];
     }
+    if (!campaignsByAccount[c.adAccountId].includes(c.campaignName)) {
+      campaignsByAccount[c.adAccountId].push(c.campaignName);
+    }
+  });
 
-    // 2. Fetch sample campaign names for extra context
-    const recentCampaigns = await db.query.adPerformanceDaily.findMany({
-      where: inArray(
-        adPerformanceDaily.adAccountId,
-        accountsToClassify.map((a) => a.id),
-      ),
-      limit: 100,
-    });
+  const classifiedMap: Record<
+    number,
+    { industry: IndustryKey; subNiche: string | null }
+  > = {};
+  const unmatchedAccounts: Array<{
+    accountId: number;
+    name: string;
+    websiteUrl: string;
+    campaigns: string[];
+  }> = [];
 
-    const campaignsByAccount: Record<number, string[]> = {};
-    recentCampaigns.forEach((c) => {
-      if (!campaignsByAccount[c.adAccountId]) {
-        campaignsByAccount[c.adAccountId] = [];
-      }
-      if (!campaignsByAccount[c.adAccountId].includes(c.campaignName)) {
-        campaignsByAccount[c.adAccountId].push(c.campaignName);
-      }
-    });
+  // Phase 1: High-precision Rule Engine
+  for (const acc of accountsToClassify) {
+    const campaigns = campaignsByAccount[acc.id] || [];
+    const ruleMatch = classifyAccountByRules(
+      acc.name,
+      acc.websiteUrl,
+      campaigns,
+    );
 
-    // 3. Prepare AI prompt
-    const accountPayloads = accountsToClassify.map((acc) => ({
-      accountId: acc.id,
-      name: acc.name,
-      websiteUrl: acc.websiteUrl || "Not provided",
-      campaigns: (campaignsByAccount[acc.id] || []).slice(0, 5),
-    }));
+    if (ruleMatch) {
+      classifiedMap[acc.id] = ruleMatch;
+    } else {
+      unmatchedAccounts.push({
+        accountId: acc.id,
+        name: acc.name,
+        websiteUrl: acc.websiteUrl || "Not provided",
+        campaigns: campaigns.slice(0, 5),
+      });
+    }
+  }
 
-    const allowedIndustriesList = INDUSTRY_KEYS.map((k) => {
-      const meta = getIndustryMeta(k);
-      return `- ${k}: ${meta.label} (${meta.subNiches.join(", ")})`;
-    }).join("\n");
+  // Phase 2: Gemini AI Classification for nuanced/unmatched accounts
+  if (unmatchedAccounts.length > 0) {
+    try {
+      const allowedIndustriesList = INDUSTRY_KEYS.map((k) => {
+        const meta = getIndustryMeta(k);
+        return `- ${k}: ${meta.label} (${meta.subNiches.join(", ")})`;
+      }).join("\n");
 
-    const prompt = `
+      const prompt = `
 You are an expert digital marketing analyst for an agency. Classify each of the following Google Ads accounts into ONE canonical industry key.
 
 ### ALLOWED CANONICAL INDUSTRY KEYS:
 ${allowedIndustriesList}
 
 ### ACCOUNTS TO CLASSIFY:
-${JSON.stringify(accountPayloads, null, 2)}
+${JSON.stringify(unmatchedAccounts, null, 2)}
 
 ### INSTRUCTIONS:
 1. Examine the account name, website URL, and campaign names.
@@ -531,45 +844,81 @@ ${JSON.stringify(accountPayloads, null, 2)}
 ]
 `;
 
-    const result = await generateContentTracked(
-      {
-        model: GEMINI_MODEL_LOW,
-        contents: prompt,
-        config: { responseMimeType: "application/json" },
-      },
-      {
-        feature: "auto_classify_industries",
-      },
-    );
+      const result = await generateContentTracked(
+        {
+          model: GEMINI_MODEL_LOW,
+          contents: prompt,
+          config: { responseMimeType: "application/json" },
+        },
+        {
+          feature: "auto_classify_industries",
+        },
+      );
 
-    const parsedResults: Array<{
-      accountId: number;
-      industry: string;
-      subNiche: string;
-    }> = JSON.parse(result.response.text || "[]");
+      const parsedResults: Array<{
+        accountId: number;
+        industry: string;
+        subNiche: string;
+      }> = JSON.parse(result.response.text || "[]");
 
-    let updatedCount = 0;
-    for (const item of parsedResults) {
-      const validIndustry: IndustryKey = INDUSTRY_KEYS.includes(
-        item.industry as IndustryKey,
-      )
-        ? (item.industry as IndustryKey)
-        : "OTHER";
+      for (const item of parsedResults) {
+        const validIndustry: IndustryKey = INDUSTRY_KEYS.includes(
+          item.industry as IndustryKey,
+        )
+          ? (item.industry as IndustryKey)
+          : "OTHER";
 
-      await db
-        .update(adAccounts)
-        .set({
+        classifiedMap[item.accountId] = {
           industry: validIndustry,
           subNiche: item.subNiche || null,
-        })
-        .where(
-          and(
-            eq(adAccounts.id, item.accountId),
-            eq(adAccounts.organizationId, orgId),
-          ),
-        );
-      updatedCount += 1;
+        };
+      }
+    } catch (err) {
+      console.warn("AI classification error, relying on rule matches:", err);
     }
+  }
+
+  // Phase 3: Batch persist updates to DB
+  let updatedCount = 0;
+  for (const [accountIdStr, val] of Object.entries(classifiedMap)) {
+    const accountId = parseInt(accountIdStr, 10);
+    await db
+      .update(adAccounts)
+      .set({
+        industry: val.industry,
+        subNiche: val.subNiche,
+      })
+      .where(
+        and(eq(adAccounts.id, accountId), eq(adAccounts.organizationId, orgId)),
+      );
+    updatedCount += 1;
+  }
+
+  return {
+    updatedCount,
+    results: Object.entries(classifiedMap).map(([id, val]) => ({
+      accountId: Number(id),
+      ...val,
+    })),
+  };
+}
+
+/**
+ * AI Auto-Classification Engine (Action):
+ * Batch-classifies unclassified accounts (or all accounts) into canonical industries.
+ */
+export async function autoClassifyAccountIndustriesAction(
+  forceAll: boolean = false,
+) {
+  try {
+    const ctx = await getAuthOrgContext();
+    if (!ctx) throw new Error("Unauthorized");
+    const { session, orgId } = ctx;
+
+    const { updatedCount } = await classifyAccountsBatchInternal(
+      orgId,
+      forceAll,
+    );
 
     await logAction(
       session.user.id,
