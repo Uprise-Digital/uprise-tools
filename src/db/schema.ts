@@ -305,6 +305,8 @@ export const adAccounts = pgTable(
       scale: 2,
     }),
     targetNotes: text("target_notes"),
+    industry: text("industry").default("OTHER").notNull(),
+    subNiche: text("sub_niche"),
     clientOnboardingId: integer("client_onboarding_id").references(
       () => clientOnboardings.id,
       { onDelete: "set null" },

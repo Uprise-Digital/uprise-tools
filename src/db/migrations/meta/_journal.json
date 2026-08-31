@@ -85,6 +85,13 @@
       "when": 1787735642758,
       "tag": "0011_red_nightshade",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788160000000,
+      "tag": "0012_industry_columns",
+      "breakpoints": true
     }
   ]
 }

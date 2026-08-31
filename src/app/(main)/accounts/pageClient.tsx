@@ -45,6 +45,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import {
+  getAllIndustries,
+  getIndustryMeta,
+  type IndustryKey,
+} from "@/lib/industry-config";
+
 // Define the type based on your Drizzle schema return type
 type AccountWithSchedules = {
   id: number;
@@ -53,6 +59,8 @@ type AccountWithSchedules = {
   currencyCode: string | null;
   isActive: boolean;
   googleStatus: string;
+  industry?: string | null;
+  subNiche?: string | null;
   reportSchedules: any[];
   emailLogs?: any[];
 };
@@ -83,6 +91,7 @@ export default function AccountsClientPage({
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [riskFilter, setRiskFilter] = useState<string>("all");
   const [googleStatusFilter, setGoogleStatusFilter] = useState<string>("all");
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
 
   // 4. Sort State
   const [sortColumn, setSortColumn] = useState<string>("spend"); // default sort by highest spend
@@ -280,7 +289,16 @@ export default function AccountsClientPage({
       googleStatusFilter === "all" ||
       acc.googleStatus.toLowerCase() === googleStatusFilter.toLowerCase();
 
-    return matchesSearch && matchesStatus && matchesRisk && matchesGoogleStatus;
+    const matchesIndustry =
+      industryFilter === "all" || (acc.industry || "OTHER") === industryFilter;
+
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesRisk &&
+      matchesGoogleStatus &&
+      matchesIndustry
+    );
   });
 
   const totalPages = Math.ceil(filteredAccounts.length / limit);
@@ -502,11 +520,35 @@ export default function AccountsClientPage({
             </Select>
           </div>
 
+          {/* Industry Filter Select */}
+          <div className="w-[160px]">
+            <Select
+              value={industryFilter}
+              onValueChange={(val) => {
+                setIndustryFilter(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs bg-white border-slate-200">
+                <SelectValue placeholder="All Industries" />
+              </SelectTrigger>
+              <SelectContent className="z-[110] bg-white">
+                <SelectItem value="all">All Industries</SelectItem>
+                {getAllIndustries().map((ind) => (
+                  <SelectItem key={ind.key} value={ind.key} className="text-xs">
+                    {ind.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Clear Filters Button */}
           {(search ||
             statusFilter !== "all" ||
             riskFilter !== "all" ||
-            googleStatusFilter !== "all") && (
+            googleStatusFilter !== "all" ||
+            industryFilter !== "all") && (
             <Button
               variant="ghost"
               size="sm"
@@ -515,6 +557,7 @@ export default function AccountsClientPage({
                 setStatusFilter("all");
                 setRiskFilter("all");
                 setGoogleStatusFilter("all");
+                setIndustryFilter("all");
                 setPage(1);
               }}
               className="text-xs text-slate-500 hover:text-slate-900 h-9 px-3"
@@ -662,9 +705,22 @@ export default function AccountsClientPage({
                             {acc.name}
                           </span>
                         </div>
-                        <span className="font-mono text-[10px] text-slate-400 pl-4 mt-0.5">
-                          {acc.googleAccountId}
-                        </span>
+                        <div className="flex items-center gap-2 pl-4 mt-0.5">
+                          <span className="font-mono text-[10px] text-slate-400">
+                            {acc.googleAccountId}
+                          </span>
+                          {acc.industry && acc.industry !== "OTHER" && (
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                                getIndustryMeta(acc.industry).bgBadge
+                              } ${getIndustryMeta(acc.industry).textBadge} ${
+                                getIndustryMeta(acc.industry).borderBadge
+                              }`}
+                            >
+                              {getIndustryMeta(acc.industry).shortLabel}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
 

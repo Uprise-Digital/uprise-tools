@@ -15,6 +15,12 @@ describe("Daily Audit Limits Tests", () => {
   beforeAll(async () => {
     try {
       await db.execute(sql`SELECT 1`);
+      await db.execute(
+        sql`ALTER TABLE ad_accounts ADD COLUMN IF NOT EXISTS industry text DEFAULT 'OTHER' NOT NULL;`,
+      );
+      await db.execute(
+        sql`ALTER TABLE ad_accounts ADD COLUMN IF NOT EXISTS sub_niche text;`,
+      );
       // Cleanup
       await db
         .delete(landingPageAudits)
