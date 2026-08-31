@@ -475,7 +475,7 @@ export default function IndustryAnalyticsClient() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Donut Chart: Spend Distribution */}
-          <Card className="border-slate-200 shadow-sm bg-white lg:col-span-1 flex flex-col justify-between">
+          <Card className="border-slate-200 shadow-sm bg-white lg:col-span-1 flex flex-col">
             <CardHeader className="py-3.5 px-5 border-b border-slate-100 bg-slate-50/30">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center justify-between">
                 <span>Spend Share by Sector</span>
@@ -565,7 +565,7 @@ export default function IndustryAnalyticsClient() {
           </Card>
 
           {/* Benchmarks Comparison Table */}
-          <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2 flex flex-col justify-between">
+          <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2 flex flex-col">
             <CardHeader className="py-3.5 px-5 border-b border-slate-100 bg-slate-50/30 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">

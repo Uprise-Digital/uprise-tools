@@ -305,17 +305,13 @@ export function classifyAccountByRules(
   if (/\b(plumb|gas|drain|blocked|hot water|leak|tap|pipe)\b/i.test(text)) {
     return { industry: "HOME_SERVICES_TRADES", subNiche: "Plumbing & Gas" };
   }
-  if (
-    /\b(electric|sparky|switchboard|rewir|power|lighting)\b/i.test(text)
-  ) {
+  if (/\b(electric|sparky|switchboard|rewir|power|lighting)\b/i.test(text)) {
     return {
       industry: "HOME_SERVICES_TRADES",
       subNiche: "Electricians",
     };
   }
-  if (
-    /\b(roof|gutter|metal roof|tile roof|restoration|fascia)\b/i.test(text)
-  ) {
+  if (/\b(roof|gutter|metal roof|tile roof|restoration|fascia)\b/i.test(text)) {
     return { industry: "HOME_SERVICES_TRADES", subNiche: "Roofing & Gutters" };
   }
   if (
@@ -356,7 +352,9 @@ export function classifyAccountByRules(
     };
   }
   if (
-    /\b(trades|handyman|glaz|glass|tiler|tiling|plaster|carpenter)\b/i.test(text)
+    /\b(trades|handyman|glaz|glass|tiler|tiling|plaster|carpenter)\b/i.test(
+      text,
+    )
   ) {
     return {
       industry: "HOME_SERVICES_TRADES",
@@ -395,9 +393,7 @@ export function classifyAccountByRules(
       subNiche: "Dental & Orthodontics",
     };
   }
-  if (
-    /\b(physio|physical therapy|rehab|occupational therapy)\b/i.test(text)
-  ) {
+  if (/\b(physio|physical therapy|rehab|occupational therapy)\b/i.test(text)) {
     return { industry: "HEALTHCARE_MEDICAL", subNiche: "Physiotherapy" };
   }
   if (/\b(chiro|chiropract|osteopath|massage)\b/i.test(text)) {
@@ -431,7 +427,9 @@ export function classifyAccountByRules(
     };
   }
   if (
-    /\b(doctor|clinic|medical|gp|podiatry|hearing|audiolog|health)\b/i.test(text)
+    /\b(doctor|clinic|medical|gp|podiatry|hearing|audiolog|health)\b/i.test(
+      text,
+    )
   ) {
     return {
       industry: "HEALTHCARE_MEDICAL",
