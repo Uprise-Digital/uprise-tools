@@ -196,12 +196,48 @@ Analyze the audio recording thoroughly and provide:
 }
 
 /**
- * Syncs and saves call insights to GoHighLevel Contact Notes.
+ * Formats a clean, direct ~100-word executive summary for GoHighLevel Contact Notes.
+ */
+export function formatGhlCleanNote(record: {
+  summary?: string | null;
+  actionItems?: string[] | null;
+  callStartedAt?: Date | string | null;
+  durationSeconds?: number | null;
+  direction?: string | null;
+}): string {
+  const dateStr = record.callStartedAt
+    ? new Date(record.callStartedAt).toLocaleDateString("en-AU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : new Date().toLocaleDateString("en-AU");
+
+  const durationMins = Math.round((record.durationSeconds || 0) / 60);
+  const durationLabel = durationMins > 0 ? ` (${durationMins}m)` : "";
+  const directionLabel = (record.direction || "call").toUpperCase();
+
+  const summaryText = (record.summary || "").trim() || "Call completed.";
+
+  let note = `📞 Call Summary${durationLabel} [${directionLabel}] - ${dateStr}:\n${summaryText}`;
+
+  if (Array.isArray(record.actionItems) && record.actionItems.length > 0) {
+    const nextStep = record.actionItems[0];
+    if (nextStep && nextStep.trim()) {
+      note += `\n\nNext Step: ${nextStep.trim()}`;
+    }
+  }
+
+  return note;
+}
+
+/**
+ * Syncs and saves call insights to GoHighLevel Contact Notes (Concise 100-word note).
  */
 export async function syncCallInsightsToGhl(
   callRecordId: number,
   organizationId?: string,
-): Promise<{ success: boolean; noteId?: string }> {
+): Promise<{ success: boolean; noteId?: string; noteBody?: string }> {
   const [record] = await db
     .select()
     .from(callRecords)
@@ -221,45 +257,13 @@ export async function syncCallInsightsToGhl(
   const orgId = organizationId || record.organizationId;
   const { apiKey } = await getGhlCredentials(orgId);
 
-  const formattedScore = record.leadScore
-    ? `${record.leadScore}/10 ${
-        record.leadScore >= 8
-          ? "🔥 (High Intent)"
-          : record.leadScore >= 5
-            ? "⚡ (Moderate)"
-            : "❄️ (Unqualified)"
-      }`
-    : "N/A";
-
-  const actionItemsList = Array.isArray(record.actionItems)
-    ? (record.actionItems as string[])
-        .map((item, idx) => `${idx + 1}. ${item}`)
-        .join("\n")
-    : "None listed";
-
-  const keyPointsList = Array.isArray(record.keyTakeaways)
-    ? (record.keyTakeaways as string[]).map((p) => `• ${p}`).join("\n")
-    : "None listed";
-
-  const noteBody = `🎙️ [AI Call Intelligence - Uprise Tools]
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Lead Score: ${formattedScore}
-• Sentiment: ${(record.sentiment || "neutral").toUpperCase()}
-• Service Requested: ${record.serviceRequested || "Not specified"}
-• Estimated Budget: ${record.estimatedBudget || "Not specified"}
-• Urgency: ${record.urgency || "Not specified"}
-• Duration: ${Math.round((record.durationSeconds || 0) / 60)} mins (${record.durationSeconds}s)
-
-📋 Summary:
-${record.summary || "No summary available"}
-
-🎯 Action Items:
-${actionItemsList}
-
-💡 Key Discussion Points:
-${keyPointsList}
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-Audio recording & verbatim transcript available in Uprise Tools.`;
+  const noteBody = formatGhlCleanNote({
+    summary: record.summary,
+    actionItems: record.actionItems as string[] | undefined,
+    callStartedAt: record.callStartedAt,
+    durationSeconds: record.durationSeconds,
+    direction: record.direction,
+  });
 
   const url = `${GHL_API_BASE}/contacts/${encodeURIComponent(record.ghlContactId)}/notes`;
   const res = await fetch(url, {
@@ -290,7 +294,264 @@ Audio recording & verbatim transcript available in Uprise Tools.`;
     })
     .where(eq(callRecords.id, callRecordId));
 
-  return { success: true, noteId: data?.note?.id || data?.id };
+  return {
+    success: true,
+    noteId: data?.note?.id || data?.id,
+    noteBody,
+  };
+}
+
+/**
+ * Automatically transcribes, generates a 100-word summary, and posts note to GHL.
+ */
+export async function autoProcessGhlCallRecord(
+  callRecordId: number,
+  organizationId?: string,
+): Promise<{ success: boolean; noteBody?: string; error?: string }> {
+  try {
+    const [record] = await db
+      .select()
+      .from(callRecords)
+      .where(eq(callRecords.id, callRecordId))
+      .limit(1);
+
+    if (!record) {
+      throw new Error(`Call record #${callRecordId} not found.`);
+    }
+
+    const orgId = organizationId || record.organizationId;
+    const { apiKey, locationId } = await getGhlCredentials(orgId);
+
+    let summary = record.summary;
+    let actionItems = record.actionItems as string[] | undefined;
+
+    // If summary is missing, transcribe with Gemini first
+    if (!summary && record.ghlMessageId && locationId) {
+      try {
+        const { buffer, contentType } = await fetchGhlCallAudioBuffer(
+          record.ghlMessageId,
+          locationId,
+          apiKey,
+        );
+
+        const analyzed = await analyzeCallAudioWithGemini(buffer, contentType, {
+          contactName: record.contactName || undefined,
+          direction: record.direction || undefined,
+          duration: record.durationSeconds,
+        });
+
+        summary = analyzed.summary;
+        actionItems = analyzed.actionItems;
+
+        await db
+          .update(callRecords)
+          .set({
+            transcript: analyzed.transcript,
+            summary: analyzed.summary,
+            leadScore: analyzed.leadScore,
+            sentiment: analyzed.sentiment,
+            serviceRequested: analyzed.serviceRequested,
+            estimatedBudget: analyzed.estimatedBudget,
+            urgency: analyzed.urgency,
+            objections: analyzed.objections,
+            keyTakeaways: analyzed.keyTakeaways,
+            actionItems: analyzed.actionItems,
+            agentFeedback: analyzed.agentFeedback,
+            audioStreamAvailable: true,
+            updatedAt: new Date(),
+          })
+          .where(eq(callRecords.id, record.id));
+      } catch (audioErr: any) {
+        console.warn(
+          `No audio recording found or unprocessable for call #${record.id}:`,
+          audioErr.message || String(audioErr),
+        );
+        await db
+          .update(callRecords)
+          .set({
+            audioStreamAvailable: false,
+            updatedAt: new Date(),
+          })
+          .where(eq(callRecords.id, record.id));
+
+        // If call was under 10 seconds or missed, don't spam GHL notes
+        if ((record.durationSeconds || 0) < 10) {
+          await db
+            .update(callRecords)
+            .set({ syncedToGhl: true, updatedAt: new Date() })
+            .where(eq(callRecords.id, record.id));
+          return {
+            success: true,
+            noteBody: "Short / unrecorded call skipped.",
+          };
+        }
+        summary = `Call completed (${Math.round((record.durationSeconds || 0) / 60)} mins). No audio recording attached.`;
+      }
+    }
+
+    if (!record.ghlContactId) {
+      return { success: false, error: "No GHL Contact ID on record" };
+    }
+
+    const noteBody = formatGhlCleanNote({
+      summary,
+      actionItems,
+      callStartedAt: record.callStartedAt,
+      durationSeconds: record.durationSeconds,
+      direction: record.direction,
+    });
+
+    const noteUrl = `${GHL_API_BASE}/contacts/${encodeURIComponent(record.ghlContactId)}/notes`;
+    const res = await fetch(noteUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Version: "2021-04-15",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ body: noteBody }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(
+        `Failed to post note to GHL: ${res.statusText || errText}`,
+      );
+    }
+
+    await db
+      .update(callRecords)
+      .set({
+        syncedToGhl: true,
+        syncedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(callRecords.id, record.id));
+
+    return { success: true, noteBody };
+  } catch (error: any) {
+    console.error(
+      `autoProcessGhlCallRecord error for #${callRecordId}:`,
+      error,
+    );
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Scans recent calls in GHL sub-account, generates 100-word summaries, and pushes notes to GHL CRM.
+ */
+export async function syncAllRecentGhlCallNotes(
+  organizationId: string,
+  limit = 20,
+): Promise<{ totalProcessed: number; totalNotesPosted: number }> {
+  const { apiKey, locationId } = await getGhlCredentials(organizationId);
+  if (!locationId) {
+    throw new Error("GHL Location ID not configured for organization.");
+  }
+
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    Version: "2021-04-15",
+    "Content-Type": "application/json",
+  };
+
+  const res = await fetch(
+    `${GHL_API_BASE}/conversations/search?locationId=${encodeURIComponent(locationId)}&limit=${limit}`,
+    { headers },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to search GHL conversations: ${res.statusText}`);
+  }
+
+  const data = await res.json();
+  const conversations = data.conversations || [];
+  let totalProcessed = 0;
+  let totalNotesPosted = 0;
+
+  for (const conv of conversations) {
+    const msgRes = await fetch(
+      `${GHL_API_BASE}/conversations/${conv.id}/messages`,
+      { headers },
+    );
+    if (!msgRes.ok) continue;
+
+    const msgData = await msgRes.json();
+    const messages = msgData.messages?.messages || msgData.messages || [];
+
+    const callMessages = messages.filter(
+      (m: any) =>
+        m.messageType === "CALL" ||
+        m.messageType === "TYPE_CALL" ||
+        m.messageType?.toLowerCase().includes("call") ||
+        m.meta?.call ||
+        m.call,
+    );
+
+    for (const callMsg of callMessages) {
+      totalProcessed++;
+      const ghlMessageId = callMsg.id;
+      const contactId = conv.contactId;
+
+      if (!contactId) continue;
+
+      // Check if we already synced this call
+      const [existing] = await db
+        .select({ id: callRecords.id, syncedToGhl: callRecords.syncedToGhl })
+        .from(callRecords)
+        .where(eq(callRecords.ghlMessageId, ghlMessageId))
+        .limit(1);
+
+      if (existing?.syncedToGhl) {
+        continue; // Already posted note to GHL
+      }
+
+      let callRecordId = existing?.id;
+
+      if (!callRecordId) {
+        const durationSeconds =
+          callMsg.meta?.call?.duration ??
+          callMsg.call?.duration ??
+          callMsg.duration ??
+          0;
+        const direction = (callMsg.direction || "inbound").toLowerCase();
+        const callStartedAt = callMsg.dateAdded
+          ? new Date(callMsg.dateAdded)
+          : new Date();
+
+        const [inserted] = await db
+          .insert(callRecords)
+          .values({
+            organizationId,
+            ghlLocationId: locationId,
+            ghlConversationId: conv.id,
+            ghlMessageId,
+            ghlContactId: contactId,
+            contactName: conv.contactName || "Contact",
+            direction,
+            status: "completed",
+            durationSeconds,
+            callStartedAt,
+            audioStreamAvailable: true,
+          })
+          .returning({ id: callRecords.id });
+
+        callRecordId = inserted.id;
+      }
+
+      // Auto process and post the 100-word note into GHL
+      const postRes = await autoProcessGhlCallRecord(
+        callRecordId,
+        organizationId,
+      );
+      if (postRes.success) {
+        totalNotesPosted++;
+      }
+    }
+  }
+
+  return { totalProcessed, totalNotesPosted };
 }
 
 /**

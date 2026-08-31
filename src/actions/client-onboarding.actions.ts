@@ -1184,3 +1184,32 @@ export async function getClientOnboardingByIdAction(clientId: number) {
     };
   }
 }
+
+/**
+ * Scans recent GHL calls, generates 100-word summaries, and pushes notes directly to GHL CRM contacts.
+ */
+export async function syncGhlCallNotesAction() {
+  try {
+    const { orgId } = await getSessionOrgId();
+    if (!orgId)
+      return { success: false as const, error: "No active organization" };
+
+    const { syncAllRecentGhlCallNotes } = await import(
+      "@/service/call-intelligence-service"
+    );
+    const result = await syncAllRecentGhlCallNotes(orgId, 25);
+
+    revalidatePath("/clients");
+    return {
+      success: true as const,
+      totalProcessed: result.totalProcessed,
+      totalNotesPosted: result.totalNotesPosted,
+    };
+  } catch (error: any) {
+    console.error("Error in syncGhlCallNotesAction:", error);
+    return {
+      success: false as const,
+      error: error.message || "Failed to sync call notes to GHL",
+    };
+  }
+}

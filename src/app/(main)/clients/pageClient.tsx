@@ -48,6 +48,7 @@ import {
   deleteClientOnboardingAction,
   getClientOnboardingsAction,
   syncAllGhlClientsAction,
+  syncGhlCallNotesAction,
 } from "@/actions/client-onboarding.actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -122,6 +123,7 @@ export default function ClientsDirectoryClient() {
 
   // Syncing states
   const [isSyncingGhl, setIsSyncingGhl] = useState(false);
+  const [isSyncingNotes, setIsSyncingNotes] = useState(false);
 
   // Form states (New Client modal)
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
@@ -226,6 +228,31 @@ export default function ClientsDirectoryClient() {
       toast.error(err.message || "GHL Sync failed", { id: toastId });
     } finally {
       setIsSyncingGhl(false);
+    }
+  };
+
+  const handleSyncCallNotes = async () => {
+    setIsSyncingNotes(true);
+    const toastId = toast.loading(
+      "Scanning calls and pushing ~100-word summaries into GHL Contact Notes...",
+    );
+    try {
+      const res = await syncGhlCallNotesAction();
+      if (res.success) {
+        toast.success(
+          `GHL Notes Sync Complete! Posted ${res.totalNotesPosted} note(s) into GoHighLevel across ${res.totalProcessed} calls.`,
+          { id: toastId },
+        );
+        await loadData();
+      } else {
+        toast.error(res.error || "Failed to sync call notes into GHL", {
+          id: toastId,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Call Notes Sync failed", { id: toastId });
+    } finally {
+      setIsSyncingNotes(false);
     }
   };
 
@@ -557,7 +584,23 @@ export default function ClientsDirectoryClient() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+          <Button
+            onClick={handleSyncCallNotes}
+            disabled={isSyncingNotes}
+            variant="outline"
+            className="border-purple-200 hover:bg-purple-50 text-purple-700 font-bold text-xs h-9 px-3.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+            title="Scan calls, generate ~100-word summaries, and write notes directly to GHL Contact profiles"
+          >
+            <PhoneCall
+              className={cn(
+                "h-3.5 w-3.5 text-purple-600",
+                isSyncingNotes && "animate-spin",
+              )}
+            />
+            {isSyncingNotes ? "Syncing Notes..." : "Auto-Sync GHL Call Notes"}
+          </Button>
+
           <Button
             onClick={handleSyncGhlClients}
             disabled={isSyncingGhl}
