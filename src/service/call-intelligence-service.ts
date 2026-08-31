@@ -324,12 +324,70 @@ export async function autoProcessGhlCallRecord(
 
     let summary = record.summary;
     let actionItems = record.actionItems as string[] | undefined;
+    let messageId = record.ghlMessageId;
+
+    // If messageId is missing or placeholder, look up the latest call in GHL for this contact
+    if (
+      (!messageId || messageId.startsWith("call-")) &&
+      record.ghlContactId &&
+      locationId
+    ) {
+      try {
+        const convRes = await fetch(
+          `${GHL_API_BASE}/conversations/search?locationId=${encodeURIComponent(locationId)}&contactId=${encodeURIComponent(record.ghlContactId)}&limit=1`,
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              Version: "2021-04-15",
+            },
+          },
+        );
+        if (convRes.ok) {
+          const convData = await convRes.json();
+          const conv = convData.conversations?.[0];
+          if (conv?.id) {
+            const msgRes = await fetch(
+              `${GHL_API_BASE}/conversations/${conv.id}/messages`,
+              {
+                headers: {
+                  Authorization: `Bearer ${apiKey}`,
+                  Version: "2021-04-15",
+                },
+              },
+            );
+            if (msgRes.ok) {
+              const msgData = await msgRes.json();
+              const msgs = msgData.messages?.messages || msgData.messages || [];
+              const callMsg = msgs.find(
+                (m: any) =>
+                  m.messageType === "CALL" ||
+                  m.messageType === "TYPE_CALL" ||
+                  m.meta?.call ||
+                  m.call,
+              );
+              if (callMsg?.id) {
+                messageId = callMsg.id;
+                await db
+                  .update(callRecords)
+                  .set({
+                    ghlMessageId: messageId,
+                    ghlConversationId: conv.id,
+                  })
+                  .where(eq(callRecords.id, record.id));
+              }
+            }
+          }
+        }
+      } catch (lookupErr) {
+        console.warn("Could not look up call message in GHL:", lookupErr);
+      }
+    }
 
     // If summary is missing, transcribe with Gemini first
-    if (!summary && record.ghlMessageId && locationId) {
+    if (!summary && messageId && locationId && !messageId.startsWith("call-")) {
       try {
         const { buffer, contentType } = await fetchGhlCallAudioBuffer(
-          record.ghlMessageId,
+          messageId,
           locationId,
           apiKey,
         );
