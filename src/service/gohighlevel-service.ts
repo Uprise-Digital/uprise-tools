@@ -896,6 +896,29 @@ export async function syncAllGhlClients(organizationId: string): Promise<{
 
         const existing = clientByGhlId.get(ghlId) || clientByEmail.get(email);
 
+        let lifecycleStatus = "lead";
+        const lowerStage = (stage || "").toLowerCase();
+        if (
+          contact.type === "customer" ||
+          lowerStage.includes("won") ||
+          lowerStage.includes("active client")
+        ) {
+          lifecycleStatus = "completed";
+        } else if (
+          lowerStage.includes("spam") ||
+          lowerStage.includes("not a fit") ||
+          lowerStage.includes("disqualified") ||
+          lowerStage.includes("lost")
+        ) {
+          lifecycleStatus = "disqualified";
+        } else if (
+          lowerStage.includes("meeting") ||
+          lowerStage.includes("follow up") ||
+          lowerStage.includes("awaiting")
+        ) {
+          lifecycleStatus = "opportunity";
+        }
+
         if (existing) {
           await db
             .update(clientOnboardings)
@@ -905,6 +928,12 @@ export async function syncAllGhlClients(organizationId: string): Promise<{
               ghlPipelineStage: stage,
               ghlOpportunityId: existing.ghlOpportunityId || opp?.id || null,
               ghlStatus: "synced",
+              status:
+                existing.status === "draft" ||
+                existing.status === "in_progress" ||
+                existing.status === "email_sent"
+                  ? existing.status
+                  : lifecycleStatus,
               updatedAt: new Date(),
             })
             .where(eq(clientOnboardings.id, existing.id));
@@ -919,7 +948,7 @@ export async function syncAllGhlClients(organizationId: string): Promise<{
             ghlContactId: ghlId,
             ghlOpportunityId: opp?.id || null,
             ghlPipelineStage: stage,
-            status: contact.type === "customer" ? "completed" : "completed",
+            status: lifecycleStatus,
             ghlStatus: "synced",
             googleAdsAccess: true,
             metaAdsAccess: true,

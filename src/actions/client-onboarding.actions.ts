@@ -8,6 +8,7 @@ import { db } from "@/db";
 import {
   adAccounts,
   backgroundTasks,
+  callRecords,
   clientOnboardings,
   member,
   organization,
@@ -107,7 +108,69 @@ export async function getClientOnboardingsAction() {
       });
     }
 
-    return { success: true, clients: records };
+    // Fetch call records to attach call metrics to each client
+    let allCalls: any[] = [];
+    try {
+      allCalls = await db
+        .select({
+          id: callRecords.id,
+          clientOnboardingId: callRecords.clientOnboardingId,
+          ghlContactId: callRecords.ghlContactId,
+          contactPhone: callRecords.contactPhone,
+          contactEmail: callRecords.contactEmail,
+          callStartedAt: callRecords.callStartedAt,
+          leadScore: callRecords.leadScore,
+          sentiment: callRecords.sentiment,
+          createdAt: callRecords.createdAt,
+        })
+        .from(callRecords)
+        .where(eq(callRecords.organizationId, orgId))
+        .orderBy(desc(callRecords.callStartedAt), desc(callRecords.createdAt));
+    } catch (callErr) {
+      console.warn("Could not fetch callRecords for client overview:", callErr);
+    }
+
+    // Map calls by client identifiers
+    const enhancedClients = records.map((client) => {
+      const clientPhoneClean = (client.contactPhone || "").replace(/\D/g, "");
+      const clientEmailClean = (client.contactEmail || "").toLowerCase().trim();
+
+      const matchingCalls = allCalls.filter((call) => {
+        if (call.clientOnboardingId === client.id) return true;
+        if (client.ghlContactId && call.ghlContactId === client.ghlContactId)
+          return true;
+        if (
+          clientEmailClean &&
+          call.contactEmail?.toLowerCase().trim() === clientEmailClean
+        )
+          return true;
+        if (clientPhoneClean && clientPhoneClean.length >= 6) {
+          const callPhoneClean = (call.contactPhone || "").replace(/\D/g, "");
+          if (
+            callPhoneClean &&
+            (callPhoneClean.includes(clientPhoneClean) ||
+              clientPhoneClean.includes(callPhoneClean))
+          ) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      const latestCall = matchingCalls[0];
+
+      return {
+        ...client,
+        callCount: matchingCalls.length,
+        lastCallAt: latestCall
+          ? latestCall.callStartedAt || latestCall.createdAt
+          : null,
+        latestLeadScore: latestCall ? latestCall.leadScore : null,
+        latestSentiment: latestCall ? latestCall.sentiment : null,
+      };
+    });
+
+    return { success: true, clients: enhancedClients };
   } catch (error: any) {
     console.error("getClientOnboardingsAction error:", error);
     return { success: false, error: error.message };

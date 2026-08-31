@@ -2,13 +2,16 @@
 
 import {
   AlertCircle,
+  ArrowUpDown,
   Building2,
+  Calendar,
   Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock,
   ExternalLink,
+  Filter,
   Flame,
   Globe,
   HelpCircle,
@@ -23,6 +26,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
   SlidersHorizontal,
@@ -32,10 +36,11 @@ import {
   UserCheck,
   UserPlus,
   Users,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { listAccountsAction } from "@/actions/agency.actions";
 import {
@@ -44,7 +49,6 @@ import {
   getClientOnboardingsAction,
   syncAllGhlClientsAction,
 } from "@/actions/client-onboarding.actions";
-import { getOnboardingSettingsAction } from "@/actions/onboarding-settings.actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -78,10 +82,26 @@ export interface ClientRecord {
   ghlSubAccountId?: string | null;
   ghlStatus?: string | null;
   ghlError?: string | null;
+  callCount?: number;
+  lastCallAt?: Date | string | null;
+  latestLeadScore?: number | null;
+  latestSentiment?: string | null;
   createdAt: Date;
   updatedAt: Date;
   adAccounts?: { id: number; name: string; googleAccountId: string }[];
 }
+
+type TabType = "all" | "active" | "opportunities" | "onboarding" | "ghl";
+type CallFilterType = "all" | "has_calls" | "no_calls" | "hot_leads";
+type SortOption =
+  | "last_contacted"
+  | "call_count"
+  | "lead_score"
+  | "name_asc"
+  | "name_desc"
+  | "created_desc"
+  | "created_asc"
+  | "stage";
 
 export default function ClientsDirectoryClient() {
   const router = useRouter();
@@ -93,11 +113,12 @@ export default function ClientsDirectoryClient() {
   >([]);
   const [loading, setLoading] = useState(true);
 
-  // Search & Tabs
+  // Search, Filters & Sorting
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<
-    "onboarding" | "active" | "ghl" | "all"
-  >("onboarding");
+  const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [stageFilter, setStageFilter] = useState<string>("all");
+  const [callFilter, setCallFilter] = useState<CallFilterType>("all");
+  const [sortBy, setSortBy] = useState<SortOption>("last_contacted");
 
   // Syncing states
   const [isSyncingGhl, setIsSyncingGhl] = useState(false);
@@ -107,6 +128,7 @@ export default function ClientsDirectoryClient() {
   const [formClientName, setFormClientName] = useState("");
   const [formContactName, setFormContactName] = useState("");
   const [formEmail, setFormEmail] = useState("");
+  const [formPhone, setFormPhone] = useState("");
   const [formGoogleAds, setFormGoogleAds] = useState(true);
   const [formMetaAds, setFormMetaAds] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -212,6 +234,7 @@ export default function ClientsDirectoryClient() {
     setFormClientName(contact.companyName || `${contact.name}'s Business`);
     setFormContactName(contact.name);
     setFormEmail(contact.email);
+    setFormPhone(contact.phone || "");
     setGhlSearchQuery("");
     setGhlResults([]);
   };
@@ -240,6 +263,7 @@ export default function ClientsDirectoryClient() {
         setFormClientName("");
         setFormContactName("");
         setFormEmail("");
+        setFormPhone("");
         setFormGoogleAds(true);
         setFormMetaAds(true);
         setSelectedGhlContact(null);
@@ -280,72 +304,243 @@ export default function ClientsDirectoryClient() {
     }
   };
 
-  // Filter clients based on tab and search
-  const filteredClients = clients.filter((c) => {
-    const matchesSearch =
-      c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.primaryContactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.contactEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.contactPhone && c.contactPhone.includes(searchTerm));
-
-    if (!matchesSearch) return false;
-
-    if (activeTab === "onboarding") {
-      return c.status !== "completed" && c.status !== "active";
+  // Collect all unique stages for dropdown filter
+  const availableStages = useMemo(() => {
+    const stageCounts = new Map<string, number>();
+    for (const c of clients) {
+      const s = c.ghlPipelineStage || "Uncategorized";
+      stageCounts.set(s, (stageCounts.get(s) || 0) + 1);
     }
-    if (activeTab === "active") {
-      return c.status === "completed" || c.status === "active";
-    }
-    if (activeTab === "ghl") {
-      return Boolean(c.ghlContactId);
-    }
-    return true; // "all"
-  });
+    return Array.from(stageCounts.entries()).map(([stage, count]) => ({
+      stage,
+      count,
+    }));
+  }, [clients]);
 
-  // Calculate high-level summary counts
+  // Filter & Sort Logic
+  const filteredAndSortedClients = useMemo(() => {
+    const result = clients.filter((c) => {
+      // 1. Search Query
+      const q = searchTerm.toLowerCase().trim();
+      if (q) {
+        const matchesName = c.clientName.toLowerCase().includes(q);
+        const matchesContact = c.primaryContactName.toLowerCase().includes(q);
+        const matchesEmail = c.contactEmail.toLowerCase().includes(q);
+        const matchesPhone = c.contactPhone && c.contactPhone.includes(q);
+        const matchesStage =
+          c.ghlPipelineStage && c.ghlPipelineStage.toLowerCase().includes(q);
+        if (
+          !matchesName &&
+          !matchesContact &&
+          !matchesEmail &&
+          !matchesPhone &&
+          !matchesStage
+        ) {
+          return false;
+        }
+      }
+
+      // 2. Tab Filter
+      if (activeTab === "active") {
+        const lowerStage = (c.ghlPipelineStage || "").toLowerCase();
+        const isActive =
+          c.status === "completed" ||
+          c.status === "active" ||
+          lowerStage.includes("won") ||
+          lowerStage.includes("active client");
+        if (!isActive) return false;
+      } else if (activeTab === "opportunities") {
+        const lowerStage = (c.ghlPipelineStage || "").toLowerCase();
+        const isOpportunity =
+          c.status === "opportunity" ||
+          lowerStage.includes("meeting") ||
+          lowerStage.includes("follow up") ||
+          lowerStage.includes("awaiting");
+        if (!isOpportunity) return false;
+      } else if (activeTab === "onboarding") {
+        const inOnboard =
+          c.status === "draft" ||
+          c.status === "in_progress" ||
+          c.status === "email_sent" ||
+          c.status === "failed";
+        if (!inOnboard) return false;
+      } else if (activeTab === "ghl") {
+        if (!c.ghlContactId) return false;
+      }
+
+      // 3. Stage Dropdown Filter
+      if (stageFilter !== "all") {
+        const clientStage = c.ghlPipelineStage || "Uncategorized";
+        if (clientStage !== stageFilter) return false;
+      }
+
+      // 4. Call Filter
+      if (callFilter === "has_calls") {
+        if (!c.callCount || c.callCount === 0) return false;
+      } else if (callFilter === "no_calls") {
+        if (c.callCount && c.callCount > 0) return false;
+      } else if (callFilter === "hot_leads") {
+        if (!c.latestLeadScore || c.latestLeadScore < 7) return false;
+      }
+
+      return true;
+    });
+
+    // 5. Sorting
+    result.sort((a, b) => {
+      if (sortBy === "last_contacted") {
+        const aTime = a.lastCallAt
+          ? new Date(a.lastCallAt).getTime()
+          : new Date(a.createdAt).getTime();
+        const bTime = b.lastCallAt
+          ? new Date(b.lastCallAt).getTime()
+          : new Date(b.createdAt).getTime();
+        // Put clients with actual calls at the very top if both have dates
+        if (a.callCount && !b.callCount) return -1;
+        if (!a.callCount && b.callCount) return 1;
+        return bTime - aTime;
+      }
+      if (sortBy === "call_count") {
+        return (b.callCount || 0) - (a.callCount || 0);
+      }
+      if (sortBy === "lead_score") {
+        return (b.latestLeadScore || 0) - (a.latestLeadScore || 0);
+      }
+      if (sortBy === "name_asc") {
+        return a.clientName.localeCompare(b.clientName);
+      }
+      if (sortBy === "name_desc") {
+        return b.clientName.localeCompare(a.clientName);
+      }
+      if (sortBy === "created_desc") {
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
+      if (sortBy === "created_asc") {
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      }
+      if (sortBy === "stage") {
+        return (a.ghlPipelineStage || "").localeCompare(
+          b.ghlPipelineStage || "",
+        );
+      }
+      return 0;
+    });
+
+    return result;
+  }, [clients, searchTerm, activeTab, stageFilter, callFilter, sortBy]);
+
+  // Counts for Metric Cards
   const totalClientsCount = clients.length;
-  const activeClientsCount = clients.filter(
-    (c) => c.status === "completed" || c.status === "active",
-  ).length;
-  const inOnboardingCount = clients.filter(
-    (c) => c.status !== "completed" && c.status !== "active",
-  ).length;
-  const ghlSyncedCount = clients.filter((c) => Boolean(c.ghlContactId)).length;
+  const activeClientsCount = clients.filter((c) => {
+    const s = (c.ghlPipelineStage || "").toLowerCase();
+    return (
+      c.status === "completed" ||
+      c.status === "active" ||
+      s.includes("won") ||
+      s.includes("active client")
+    );
+  }).length;
 
-  const renderStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-      case "active":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Active Client
-          </span>
-        );
-      case "email_sent":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-            <Mail className="h-3 w-3 text-blue-500" /> Email Dispatched
-          </span>
-        );
-      case "failed":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-            <AlertCircle className="h-3 w-3 text-rose-500" /> Pipeline Error
-          </span>
-        );
-      case "in_progress":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-            <Loader2 className="h-3 w-3 animate-spin text-indigo-500" /> Running
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-            <Clock className="h-3 w-3 text-amber-500" /> In Onboarding
-          </span>
-        );
+  const totalCallsLogged = clients.reduce(
+    (acc, c) => acc + (c.callCount || 0),
+    0,
+  );
+  const clientsWithCallsCount = clients.filter(
+    (c) => (c.callCount || 0) > 0,
+  ).length;
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setActiveTab("all");
+    setStageFilter("all");
+    setCallFilter("all");
+    setSortBy("last_contacted");
+  };
+
+  const hasActiveFilters =
+    searchTerm !== "" ||
+    activeTab !== "all" ||
+    stageFilter !== "all" ||
+    callFilter !== "all" ||
+    sortBy !== "last_contacted";
+
+  // Helper for rendering contextual stage & status badges
+  const renderStageBadge = (client: ClientRecord) => {
+    const stage = client.ghlPipelineStage;
+    const lowerStage = (stage || "").toLowerCase();
+
+    if (
+      lowerStage.includes("won") ||
+      lowerStage.includes("active client") ||
+      client.status === "completed" ||
+      client.status === "active"
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <CheckCircle2 className="h-3 w-3 text-emerald-500" />{" "}
+          {stage || "Active Client"}
+        </span>
+      );
     }
+
+    if (lowerStage.includes("meeting")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          <Calendar className="h-3 w-3 text-blue-500" /> {stage}
+        </span>
+      );
+    }
+
+    if (
+      lowerStage.includes("follow up") ||
+      lowerStage.includes("awaiting") ||
+      lowerStage.includes("post appt")
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
+          <Clock className="h-3 w-3 text-purple-500" /> {stage}
+        </span>
+      );
+    }
+
+    if (lowerStage.includes("new lead") || lowerStage.includes("inquiry")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+          <Zap className="h-3 w-3 text-amber-500" /> {stage}
+        </span>
+      );
+    }
+
+    if (
+      lowerStage.includes("spam") ||
+      lowerStage.includes("not a fit") ||
+      lowerStage.includes("disqualified") ||
+      lowerStage.includes("lost")
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+          <AlertCircle className="h-3 w-3 text-rose-500" /> {stage}
+        </span>
+      );
+    }
+
+    if (stage) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          {stage}
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+        GHL Contact
+      </span>
+    );
   };
 
   return (
@@ -354,7 +549,7 @@ export default function ClientsDirectoryClient() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Clients Directory & Onboarding
+            Clients Directory & CRM
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Automate onboarding workspaces, sync GoHighLevel CRM clients, and
@@ -388,13 +583,13 @@ export default function ClientsDirectoryClient() {
         </div>
       </div>
 
-      {/* 2. Top Metric Cards */}
+      {/* 2. Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-white border-slate-200/80 shadow-sm rounded-2xl">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Total Clients
+                Total Records
               </p>
               <h3 className="text-2xl font-black text-slate-900 mt-0.5">
                 {totalClientsCount}
@@ -426,14 +621,14 @@ export default function ClientsDirectoryClient() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                In Onboarding
+                Calls Recorded
               </p>
-              <h3 className="text-2xl font-black text-amber-600 mt-0.5">
-                {inOnboardingCount}
+              <h3 className="text-2xl font-black text-purple-600 mt-0.5">
+                {totalCallsLogged}
               </h3>
             </div>
-            <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500">
-              <Clock className="h-5 w-5" />
+            <div className="h-10 w-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-500">
+              <PhoneCall className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
@@ -442,10 +637,10 @@ export default function ClientsDirectoryClient() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                GHL Synced
+                With Call History
               </p>
               <h3 className="text-2xl font-black text-indigo-600 mt-0.5">
-                {ghlSyncedCount}
+                {clientsWithCallsCount}
               </h3>
             </div>
             <div className="h-10 w-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500">
@@ -455,47 +650,11 @@ export default function ClientsDirectoryClient() {
         </Card>
       </div>
 
-      {/* 3. Table Filters & Search */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Tabs */}
-          <div className="flex bg-slate-100/80 p-1 rounded-xl w-fit">
-            <button
-              type="button"
-              onClick={() => setActiveTab("onboarding")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                activeTab === "onboarding"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-900",
-              )}
-            >
-              Onboarding Queue ({inOnboardingCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("active")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                activeTab === "active"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-900",
-              )}
-            >
-              Active Clients ({activeClientsCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("ghl")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                activeTab === "ghl"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-900",
-              )}
-            >
-              GHL / Existing ({ghlSyncedCount})
-            </button>
+      {/* 3. Main Directory Table Card */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden space-y-3">
+        {/* Row 1: Pipeline Tabs */}
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50">
+          <div className="flex bg-slate-200/70 p-1 rounded-xl w-fit flex-wrap gap-1">
             <button
               type="button"
               onClick={() => setActiveTab("all")}
@@ -503,22 +662,180 @@ export default function ClientsDirectoryClient() {
                 "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
                 activeTab === "all"
                   ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-900",
+                  : "text-slate-600 hover:text-slate-900",
               )}
             >
               All Records ({totalClientsCount})
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("active")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                activeTab === "active"
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900",
+              )}
+            >
+              Active Clients ({activeClientsCount})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("opportunities")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                activeTab === "opportunities"
+                  ? "bg-white text-indigo-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900",
+              )}
+            >
+              Leads & Opportunities
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("onboarding")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                activeTab === "onboarding"
+                  ? "bg-white text-amber-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900",
+              )}
+            >
+              Onboarding Queue
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("ghl")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                activeTab === "ghl"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900",
+              )}
+            >
+              GHL Synced
+            </button>
           </div>
 
+          {/* Quick Call Presence Filter Pills */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+              Calls:
+            </span>
+            <button
+              type="button"
+              onClick={() => setCallFilter("all")}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-colors",
+                callFilter === "all"
+                  ? "bg-slate-900 text-white border-slate-900"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
+              )}
+            >
+              All
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCallFilter("has_calls")}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-colors flex items-center gap-1",
+                callFilter === "has_calls"
+                  ? "bg-purple-600 text-white border-purple-600"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
+              )}
+            >
+              <PhoneCall className="h-3 w-3" /> With Calls (
+              {clientsWithCallsCount})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCallFilter("hot_leads")}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-colors flex items-center gap-1",
+                callFilter === "hot_leads"
+                  ? "bg-rose-600 text-white border-rose-600"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
+              )}
+            >
+              <Flame className="h-3 w-3 text-amber-300" /> Hot Leads (7+)
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Search, Stage Filter & Sort Selector */}
+        <div className="px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Search */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-72">
             <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by client, email, phone..."
+              placeholder="Search name, phone, email, stage..."
               className="pl-9 text-xs h-9 bg-slate-50 border-slate-200 rounded-xl"
             />
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {/* Pipeline Stage Dropdown */}
+            <div className="flex items-center gap-1.5">
+              <Filter className="h-3.5 w-3.5 text-slate-400" />
+              <select
+                value={stageFilter}
+                onChange={(e) => setStageFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 font-medium outline-none focus:border-indigo-500 cursor-pointer"
+              >
+                <option value="all">All Stages ({clients.length})</option>
+                {availableStages.map(({ stage, count }) => (
+                  <option key={stage} value={stage}>
+                    {stage} ({count})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sort Selector */}
+            <div className="flex items-center gap-1.5">
+              <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 font-medium outline-none focus:border-indigo-500 cursor-pointer"
+              >
+                <option value="last_contacted">
+                  Sort by: Last Contacted / Call
+                </option>
+                <option value="call_count">Sort by: Call Logs Count</option>
+                <option value="lead_score">Sort by: Highest Lead Score</option>
+                <option value="created_desc">
+                  Sort by: Date Added (Newest)
+                </option>
+                <option value="created_asc">
+                  Sort by: Date Added (Oldest)
+                </option>
+                <option value="name_asc">Sort by: Name (A → Z)</option>
+                <option value="name_desc">Sort by: Name (Z → A)</option>
+                <option value="stage">Sort by: Pipeline Stage</option>
+              </select>
+            </div>
+
+            {/* Reset Filters */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetFilters}
+                className="text-xs h-8 text-slate-400 hover:text-slate-700 flex items-center gap-1 px-2"
+                title="Reset all filters"
+              >
+                <RotateCcw className="h-3 w-3" /> Reset
+              </Button>
+            )}
           </div>
         </div>
 
@@ -531,16 +848,16 @@ export default function ClientsDirectoryClient() {
                   Client / Business
                 </TableHead>
                 <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3">
-                  Primary Contact
+                  Primary Contact & Contact Info
                 </TableHead>
                 <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3">
                   Status & Stage
                 </TableHead>
                 <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3">
-                  Google / Meta Ads
+                  Call Logs & Activity
                 </TableHead>
                 <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3">
-                  Linked Ad Accounts
+                  Google / Meta Ads
                 </TableHead>
                 <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3 text-right">
                   Actions
@@ -555,27 +872,38 @@ export default function ClientsDirectoryClient() {
                     className="text-center py-12 text-slate-400 text-sm"
                   >
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-indigo-500 mb-2" />
-                    Fetching clients...
+                    Fetching clients and call records...
                   </TableCell>
                 </TableRow>
-              ) : filteredClients.length === 0 ? (
+              ) : filteredAndSortedClients.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={6}
-                    className="text-center py-12 text-slate-400 text-sm"
+                    className="text-center py-12 text-slate-400 text-sm space-y-2"
                   >
-                    No clients found matching filter. Click{" "}
-                    <strong>Sync GHL Clients</strong> or{" "}
-                    <strong>Onboard New Client</strong> to add!
+                    <p className="font-semibold text-slate-700">
+                      No clients found matching the selected filters.
+                    </p>
+                    {hasActiveFilters && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={resetFilters}
+                        className="text-xs text-indigo-600 hover:bg-indigo-50 border-indigo-200"
+                      >
+                        Clear Filters
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredClients.map((client) => (
+                filteredAndSortedClients.map((client) => (
                   <TableRow
                     key={client.id}
                     className="border-slate-100 hover:bg-slate-50/80 transition-colors cursor-pointer"
                     onClick={() => router.push(`/clients/${client.id}`)}
                   >
+                    {/* Client / Business */}
                     <TableCell className="font-bold text-slate-900 py-3 text-sm">
                       <div className="space-y-0.5">
                         <span className="hover:text-indigo-600 transition-colors">
@@ -589,6 +917,7 @@ export default function ClientsDirectoryClient() {
                       </div>
                     </TableCell>
 
+                    {/* Primary Contact & Phone / Email */}
                     <TableCell className="py-3 text-sm">
                       <div>
                         <p className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors">
@@ -601,17 +930,52 @@ export default function ClientsDirectoryClient() {
                       </div>
                     </TableCell>
 
+                    {/* Status & Stage Badge */}
                     <TableCell className="py-3">
-                      <div className="space-y-1">
-                        {renderStatusBadge(client.status)}
-                        {client.ghlPipelineStage && (
-                          <p className="text-[10px] text-slate-500 truncate max-w-[140px]">
-                            {client.ghlPipelineStage}
-                          </p>
-                        )}
-                      </div>
+                      <div>{renderStageBadge(client)}</div>
                     </TableCell>
 
+                    {/* Call Logs & Activity */}
+                    <TableCell className="py-3">
+                      {client.callCount && client.callCount > 0 ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
+                              <PhoneCall className="h-2.5 w-2.5 text-purple-600" />
+                              {client.callCount} call
+                              {client.callCount > 1 ? "s" : ""}
+                            </span>
+                            {client.latestLeadScore !== null &&
+                              client.latestLeadScore !== undefined && (
+                                <span
+                                  className={cn(
+                                    "px-1.5 py-0.5 rounded text-[10px] font-bold",
+                                    client.latestLeadScore >= 8
+                                      ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                      : client.latestLeadScore >= 5
+                                        ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                        : "bg-slate-50 text-slate-600 border border-slate-200",
+                                  )}
+                                >
+                                  Score: {client.latestLeadScore}/10
+                                </span>
+                              )}
+                          </div>
+                          {client.lastCallAt && (
+                            <p className="text-[10px] text-slate-400">
+                              Last call:{" "}
+                              {new Date(client.lastCallAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400">
+                          No calls logged
+                        </span>
+                      )}
+                    </TableCell>
+
+                    {/* Google / Meta Ads Access */}
                     <TableCell className="py-3">
                       <div className="flex gap-1.5 flex-wrap">
                         {client.googleAdsAccess && (
@@ -639,21 +1003,7 @@ export default function ClientsDirectoryClient() {
                       </div>
                     </TableCell>
 
-                    <TableCell className="py-3 text-xs text-slate-600">
-                      {client.adAccounts && client.adAccounts.length > 0 ? (
-                        <div className="flex items-center gap-1.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                          <span className="truncate max-w-[150px]">
-                            {client.adAccounts[0].name}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px]">
-                          None linked
-                        </span>
-                      )}
-                    </TableCell>
-
+                    {/* Actions */}
                     <TableCell className="py-3 text-right">
                       <div className="flex justify-end items-center gap-1.5">
                         <Button
@@ -662,10 +1012,10 @@ export default function ClientsDirectoryClient() {
                             e.stopPropagation();
                             router.push(`/clients/${client.id}?tab=calls`);
                           }}
-                          className="text-xs h-8 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-lg cursor-pointer flex items-center gap-1 font-semibold"
+                          className="text-xs h-8 hover:bg-purple-50 hover:text-purple-600 text-slate-600 rounded-lg cursor-pointer flex items-center gap-1 font-semibold"
                           title="View Call History & AI Transcripts"
                         >
-                          <PhoneCall className="h-3.5 w-3.5 text-indigo-500" />
+                          <PhoneCall className="h-3.5 w-3.5 text-purple-500" />
                           Calls
                         </Button>
 
@@ -717,7 +1067,7 @@ export default function ClientsDirectoryClient() {
               <button
                 type="button"
                 onClick={() => setIsNewClientOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 ✕
               </button>
@@ -771,7 +1121,7 @@ export default function ClientsDirectoryClient() {
                     <button
                       type="button"
                       onClick={() => setSelectedGhlContact(null)}
-                      className="text-indigo-400 hover:text-indigo-700"
+                      className="text-indigo-400 hover:text-indigo-700 cursor-pointer"
                     >
                       ✕
                     </button>
@@ -824,6 +1174,19 @@ export default function ClientsDirectoryClient() {
                 />
               </div>
 
+              {/* Contact Phone */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  Contact Phone
+                </label>
+                <Input
+                  value={formPhone}
+                  onChange={(e) => setFormPhone(e.target.value)}
+                  placeholder="+61 400 000 000"
+                  className="text-xs h-9"
+                />
+              </div>
+
               {/* Access Flags */}
               <div className="pt-2 border-t border-slate-100 flex gap-4">
                 <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
@@ -831,7 +1194,7 @@ export default function ClientsDirectoryClient() {
                     type="checkbox"
                     checked={formGoogleAds}
                     onChange={(e) => setFormGoogleAds(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                   Request Google Ads Access
                 </label>
@@ -840,7 +1203,7 @@ export default function ClientsDirectoryClient() {
                     type="checkbox"
                     checked={formMetaAds}
                     onChange={(e) => setFormMetaAds(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                   Request Meta Ads Access
                 </label>
@@ -852,14 +1215,14 @@ export default function ClientsDirectoryClient() {
                   type="button"
                   variant="ghost"
                   onClick={() => setIsNewClientOpen(false)}
-                  className="text-xs text-slate-500 hover:text-slate-800"
+                  className="text-xs text-slate-500 hover:text-slate-800 cursor-pointer"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
