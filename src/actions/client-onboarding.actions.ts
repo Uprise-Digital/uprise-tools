@@ -1,6 +1,6 @@
 "use server";
 
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
@@ -23,6 +23,7 @@ import {
   createGhlContact,
   createGhlSubAccount,
   createGhlTask,
+  syncAllGhlClients,
   updateGhlOpportunityStage,
 } from "@/service/gohighlevel-service";
 
@@ -231,26 +232,33 @@ export async function deleteClientOnboardingAction(id: number) {
 }
 
 /**
- * Links a connected Ad Account to a client record.
+ * Links or unlinks a connected Ad Account to a client record.
  */
 export async function associateAdAccountAction(
   clientId: number,
-  adAccountId: number,
+  adAccountId: number | null,
 ) {
   try {
     const { userId } = await getSessionOrgId();
 
-    await db
-      .update(adAccounts)
-      .set({ clientOnboardingId: clientId })
-      .where(eq(adAccounts.id, adAccountId));
+    if (adAccountId === null) {
+      await db
+        .update(adAccounts)
+        .set({ clientOnboardingId: null })
+        .where(eq(adAccounts.clientOnboardingId, clientId));
+    } else {
+      await db
+        .update(adAccounts)
+        .set({ clientOnboardingId: clientId })
+        .where(eq(adAccounts.id, adAccountId));
+    }
 
     await logAction(
       userId,
       "ASSOCIATE_AD_ACCOUNT",
       "ad_accounts",
-      adAccountId,
-      { clientId },
+      adAccountId || clientId,
+      { clientId, adAccountId },
     );
 
     revalidatePath("/clients");
@@ -1052,5 +1060,64 @@ export async function retryGhlAutomationAction(onboardingId: number) {
       .where(eq(clientOnboardings.id, onboardingId));
     revalidatePath("/clients");
     return { success: false, error: err.message || String(err) };
+  }
+}
+
+/**
+ * Syncs all GoHighLevel clients/contacts into the client directory.
+ */
+export async function syncAllGhlClientsAction() {
+  try {
+    const { orgId } = await getSessionOrgId();
+    if (!orgId)
+      return { success: false as const, error: "No active organization" };
+
+    const result = await syncAllGhlClients(orgId);
+    revalidatePath("/clients");
+    return {
+      success: true as const,
+      totalFound: result.totalFound,
+      totalImported: result.totalImported,
+      totalUpdated: result.totalUpdated,
+    };
+  } catch (error: any) {
+    console.error("Error syncing all GHL clients:", error);
+    return {
+      success: false as const,
+      error: error.message || "Failed to sync GHL clients",
+    };
+  }
+}
+
+/**
+ * Fetches a single client onboarding record by its primary ID.
+ */
+export async function getClientOnboardingByIdAction(clientId: number) {
+  try {
+    const { orgId } = await getSessionOrgId();
+    if (!orgId)
+      return { success: false as const, error: "No active organization" };
+
+    const client = await db.query.clientOnboardings.findFirst({
+      where: and(
+        eq(clientOnboardings.id, clientId),
+        eq(clientOnboardings.organizationId, orgId),
+      ),
+      with: {
+        adAccounts: true,
+      },
+    });
+
+    if (!client) {
+      return { success: false as const, error: "Client not found" };
+    }
+
+    return { success: true as const, client };
+  } catch (error: any) {
+    console.error("Error fetching client onboarding by ID:", error);
+    return {
+      success: false as const,
+      error: error.message || "Failed to fetch client details",
+    };
   }
 }

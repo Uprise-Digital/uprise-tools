@@ -237,11 +237,12 @@ export interface GhlNote {
  */
 export async function getGhlPipelines(
   locationId: string,
+  apiKey?: string,
 ): Promise<GhlPipeline[]> {
   try {
     const res = await fetch(
       `${GHL_API_BASE}/opportunities/pipelines?locationId=${encodeURIComponent(locationId)}`,
-      { headers: getGhlHeaders() },
+      { headers: getGhlHeaders(apiKey) },
     );
     if (!res.ok) {
       throw new Error(`Failed to fetch pipelines: ${res.statusText}`);
@@ -739,4 +740,199 @@ export async function createGhlTask(
     console.error(`Error creating GHL task for contact ${contactId}:`, error);
     throw error;
   }
+}
+
+/**
+ * Fetches all contacts from GoHighLevel location.
+ */
+export async function fetchAllGhlContacts(
+  locationId: string,
+  apiKey: string,
+  limit = 100,
+): Promise<any[]> {
+  try {
+    const url = `${GHL_API_BASE}/contacts/?locationId=${encodeURIComponent(locationId)}&limit=${limit}`;
+    const res = await fetch(url, {
+      headers: getGhlHeaders(apiKey),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(
+        `Failed to fetch GHL contacts (${res.status}): ${res.statusText || errText}`,
+      );
+    }
+    const data = await res.json();
+    return data.contacts || [];
+  } catch (error) {
+    console.error("Error fetching all GHL contacts:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches all pipeline opportunities from GoHighLevel location.
+ */
+export async function fetchAllGhlOpportunities(
+  locationId: string,
+  apiKey: string,
+  limit = 100,
+): Promise<any[]> {
+  try {
+    const url = `${GHL_API_BASE}/opportunities/search?location_id=${encodeURIComponent(locationId)}&limit=${limit}`;
+    const res = await fetch(url, {
+      headers: getGhlHeaders(apiKey),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(
+        `Failed to fetch GHL opportunities (${res.status}): ${res.statusText || errText}`,
+      );
+    }
+    const data = await res.json();
+    return data.opportunities || [];
+  } catch (error) {
+    console.error("Error fetching all GHL opportunities:", error);
+    return [];
+  }
+}
+
+/**
+ * Syncs all GoHighLevel contacts and opportunities into the clientOnboardings table.
+ */
+export async function syncAllGhlClients(organizationId: string): Promise<{
+  totalFound: number;
+  totalImported: number;
+  totalUpdated: number;
+}> {
+  const { apiKey, locationId } = await getGhlCredentials(organizationId);
+  if (!locationId) throw new Error("GoHighLevel Location ID is required.");
+
+  const { db } = await import("@/db");
+  const { clientOnboardings } = await import("@/db/schema");
+  const { eq } = await import("drizzle-orm");
+
+  console.log(`[GHL Sync] Fetching data for location: ${locationId}...`);
+  // 1. Fetch contacts & opportunities from GHL
+  const [contacts, opportunities, pipelines] = await Promise.all([
+    fetchAllGhlContacts(locationId, apiKey, 100).catch((err) => {
+      console.error("[GHL Sync] Contacts fetch error:", err);
+      return [];
+    }),
+    fetchAllGhlOpportunities(locationId, apiKey, 100).catch((err) => {
+      console.error("[GHL Sync] Opportunities fetch error:", err);
+      return [];
+    }),
+    getGhlPipelines(locationId, apiKey).catch((err) => {
+      console.error("[GHL Sync] Pipelines fetch error:", err);
+      return [];
+    }),
+  ]);
+
+  console.log(
+    `[GHL Sync] Fetched ${contacts.length} contacts, ${opportunities.length} opportunities, ${pipelines.length} pipelines.`,
+  );
+
+  // Build a stage ID to name map
+  const stageMap = new Map<string, string>();
+  for (const p of pipelines) {
+    for (const s of p.stages || []) {
+      stageMap.set(s.id, s.name);
+    }
+  }
+
+  // Build an opportunity map by contactId
+  const oppMap = new Map<string, any>();
+  for (const opp of opportunities) {
+    if (opp.contactId) {
+      const stageName =
+        stageMap.get(opp.pipelineStageId) ||
+        stageMap.get(opp.pipelineStageUId) ||
+        opp.pipelineStageId ||
+        "Active Opportunity";
+      oppMap.set(opp.contactId, { ...opp, stageName });
+    }
+  }
+
+  // 2. Fetch existing client onboarding records from DB
+  const existingClients = await db
+    .select()
+    .from(clientOnboardings)
+    .where(eq(clientOnboardings.organizationId, organizationId));
+
+  const clientByGhlId = new Map<string, (typeof existingClients)[0]>();
+  const clientByEmail = new Map<string, (typeof existingClients)[0]>();
+
+  for (const c of existingClients) {
+    if (c.ghlContactId) clientByGhlId.set(c.ghlContactId, c);
+    if (c.contactEmail) clientByEmail.set(c.contactEmail.toLowerCase(), c);
+  }
+
+  let totalImported = 0;
+  let totalUpdated = 0;
+
+  console.log(
+    `[GHL Sync] Processing ${contacts.length} contacts against ${existingClients.length} existing records in DB...`,
+  );
+
+  // 3. Ingest / Upsert contacts from GHL in parallel chunks
+  const chunkSize = 15;
+  for (let i = 0; i < contacts.length; i += chunkSize) {
+    const chunk = contacts.slice(i, i + chunkSize);
+    await Promise.all(
+      chunk.map(async (contact) => {
+        const ghlId = contact.id;
+        const email = (contact.email || `${ghlId}@ghl.local`).toLowerCase();
+        const phone = contact.phone || null;
+        const rawName =
+          `${contact.firstName || ""} ${contact.lastName || ""}`.trim() ||
+          contact.contactName ||
+          contact.name ||
+          "Valued Client";
+        const company = contact.companyName || rawName;
+        const opp = oppMap.get(ghlId);
+        const stage =
+          opp?.stageName ||
+          (contact.type === "customer" ? "Active Client" : "GHL Contact");
+
+        const existing = clientByGhlId.get(ghlId) || clientByEmail.get(email);
+
+        if (existing) {
+          await db
+            .update(clientOnboardings)
+            .set({
+              ghlContactId: ghlId,
+              contactPhone: existing.contactPhone || phone,
+              ghlPipelineStage: stage,
+              ghlOpportunityId: existing.ghlOpportunityId || opp?.id || null,
+              ghlStatus: "synced",
+              updatedAt: new Date(),
+            })
+            .where(eq(clientOnboardings.id, existing.id));
+          totalUpdated++;
+        } else {
+          await db.insert(clientOnboardings).values({
+            organizationId,
+            clientName: company,
+            primaryContactName: rawName,
+            contactEmail: email,
+            contactPhone: phone,
+            ghlContactId: ghlId,
+            ghlOpportunityId: opp?.id || null,
+            ghlPipelineStage: stage,
+            status: contact.type === "customer" ? "completed" : "completed",
+            ghlStatus: "synced",
+            googleAdsAccess: true,
+            metaAdsAccess: true,
+          });
+          totalImported++;
+        }
+      }),
+    );
+  }
+
+  return {
+    totalFound: contacts.length,
+    totalImported,
+    totalUpdated,
+  };
 }

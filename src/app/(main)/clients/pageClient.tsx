@@ -2,47 +2,49 @@
 
 import {
   AlertCircle,
+  Building2,
   Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock,
-  Copy,
   ExternalLink,
+  Flame,
+  Globe,
   HelpCircle,
   Info,
+  Layers,
   Link as LinkIcon,
   Loader2,
   Mail,
   Pencil,
+  Phone,
   PhoneCall,
   Play,
+  Plus,
   RefreshCw,
   Search,
   Send,
   SlidersHorizontal,
   Sparkles,
+  Target,
   Trash2,
+  UserCheck,
   UserPlus,
   Users,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { listAccountsAction } from "@/actions/agency.actions";
 import {
-  associateAdAccountAction,
   createClientOnboardingAction,
   deleteClientOnboardingAction,
-  finalizeOnboardingAction,
   getClientOnboardingsAction,
-  retryGhlAutomationAction,
-  runOnboardingPipelineAction,
-  sendOnboardingEmailAction,
-  updateClientOnboardingAction,
+  syncAllGhlClientsAction,
 } from "@/actions/client-onboarding.actions";
 import { getOnboardingSettingsAction } from "@/actions/onboarding-settings.actions";
-import ClientCallHistory from "@/components/clients/client-call-history";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,7 +56,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { compileOnboardingEmail } from "@/lib/onboarding-email";
 import { cn } from "@/lib/utils";
 
 export interface ClientRecord {
@@ -94,20 +95,15 @@ export default function ClientsDirectoryClient() {
 
   // Search & Tabs
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<"onboarding" | "active" | "all">(
-    "onboarding",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "onboarding" | "active" | "ghl" | "all"
+  >("onboarding");
 
-  // Modals & Drawers
+  // Syncing states
+  const [isSyncingGhl, setIsSyncingGhl] = useState(false);
+
+  // Form states (New Client modal)
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(
-    null,
-  );
-  const [drawerTab, setDrawerTab] = useState<"workspace" | "calls">(
-    "workspace",
-  );
-
-  // Form states (New Client)
   const [formClientName, setFormClientName] = useState("");
   const [formContactName, setFormContactName] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -123,55 +119,33 @@ export default function ClientsDirectoryClient() {
     null,
   );
 
-  // Edit Link states
-  const [editDrive, setEditDrive] = useState("");
-  const [editNotion, setEditNotion] = useState("");
-  const [editSignal, setEditSignal] = useState("");
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailBody, setEmailBody] = useState("");
-  const [onboardingSettings, setOnboardingSettings] = useState<any>(null);
-  const [isUpdatingLinks, setIsUpdatingLinks] = useState(false);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [isFinalizing, setIsFinalizing] = useState(false);
-  const [isRunningPipeline, setIsRunningPipeline] = useState(false);
-
-  // Link ad account modal state
-  const [selectedAdAccountId, setSelectedAdAccountId] = useState<string>("");
-  const [isLinkingAccount, setIsLinkingAccount] = useState(false);
-  const [isRetryingGhl, setIsRetryingGhl] = useState(false);
-  const [copiedField, setCopiedField] = useState<
-    "subject" | "body" | "full" | null
-  >(null);
-  const [isEditingEmailTemplate, setIsEditingEmailTemplate] = useState(false);
-
   // Load clients and accounts
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const clientsRes = await getClientOnboardingsAction();
-      if (clientsRes.success && clientsRes.clients) {
-        const mappedClients = clientsRes.clients.map((c: any) => ({
-          ...c,
-          createdAt: new Date(c.createdAt),
-          updatedAt: new Date(c.updatedAt),
-        }));
-        setClients(mappedClients);
+      const [clientRes, adAccountsRes] = await Promise.all([
+        getClientOnboardingsAction(),
+        listAccountsAction(),
+      ]);
+
+      if (clientRes.success && clientRes.clients) {
+        setClients(clientRes.clients as unknown as ClientRecord[]);
       } else {
-        toast.error(clientsRes.error || "Failed to load clients.");
+        toast.error(clientRes.error || "Failed to load clients.");
       }
 
-      const accountsRes = await listAccountsAction();
-      if (accountsRes.success && accountsRes.data) {
-        setAdAccountsList(accountsRes.data);
+      if (adAccountsRes.success && adAccountsRes.data) {
+        setAdAccountsList(
+          adAccountsRes.data.map((acc: any) => ({
+            id: acc.id,
+            name: acc.name,
+            googleAccountId: acc.googleAccountId || acc.accountId || "",
+          })),
+        );
       }
-
-      const settingsRes = await getOnboardingSettingsAction();
-      if (settingsRes.success && settingsRes.data) {
-        setOnboardingSettings(settingsRes.data);
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error("An error occurred loading dashboard data.");
+    } catch (error: any) {
+      console.error("Error loading client data:", error);
+      toast.error("Failed to load client onboardings.");
     } finally {
       setLoading(false);
     }
@@ -181,117 +155,56 @@ export default function ClientsDirectoryClient() {
     loadData();
   }, [loadData]);
 
-  // Silent background polling for clients list
-  const pollClients = useCallback(async () => {
-    try {
-      const clientsRes = await getClientOnboardingsAction();
-      if (clientsRes.success && clientsRes.clients) {
-        const mappedClients = clientsRes.clients.map((c: any) => ({
-          ...c,
-          createdAt: new Date(c.createdAt),
-          updatedAt: new Date(c.updatedAt),
-        }));
-        setClients(mappedClients);
-      }
-    } catch (err) {
-      console.error("Polling clients failed:", err);
-    }
-  }, []);
-
-  // Sync selectedClient state when the clients database array is updated via polling
+  // GHL Search Debounce
   useEffect(() => {
-    if (selectedClient) {
-      const latest = clients.find((c) => c.id === selectedClient.id);
-      if (
-        latest &&
-        (latest.status !== selectedClient.status ||
-          latest.driveFolderLink !== selectedClient.driveFolderLink ||
-          latest.notionDashboardLink !== selectedClient.notionDashboardLink ||
-          latest.signalGroupLink !== selectedClient.signalGroupLink)
-      ) {
-        setSelectedClient(latest);
-        if (
-          selectedClient.status === "draft" ||
-          selectedClient.status === "generating"
-        ) {
-          setEditDrive(latest.driveFolderLink || "");
-          setEditNotion(latest.notionDashboardLink || "");
-          setEditSignal(latest.signalGroupLink || "");
-        }
-      }
+    if (!ghlSearchQuery.trim()) {
+      setGhlResults([]);
+      return;
     }
-  }, [clients, selectedClient]);
 
-  // Polling scheduler when drawer is open and the onboarding status is pending
-  useEffect(() => {
-    if (!selectedClient) return;
-    const isPending =
-      selectedClient.status === "draft" ||
-      selectedClient.status === "generating";
-
-    if (isPending) {
-      const interval = setInterval(() => {
-        pollClients();
-      }, 2500);
-      return () => clearInterval(interval);
-    }
-  }, [selectedClient, pollClients]);
-
-  // GHL Autocomplete lookup
-  useEffect(() => {
     const delayDebounce = setTimeout(async () => {
-      if (ghlSearchQuery.trim().length >= 2) {
-        setLoadingGhl(true);
-        try {
-          const res = await fetch(
-            `/api/gohighlevel/search?query=${encodeURIComponent(ghlSearchQuery)}`,
-          );
-          const data = await res.json();
-          if (res.ok && data.success) {
-            setGhlResults(data.contacts || []);
-          } else {
-            const errMsg = data.error || `Status code ${res.status}`;
-            toast.error(`GoHighLevel Search Error: ${errMsg}`);
-            setGhlResults([]);
-          }
-        } catch (err: any) {
-          console.error("GHL Autocomplete fetch failed", err);
-          toast.error(
-            `GoHighLevel Connection Error: ${err.message || String(err)}`,
-          );
-          setGhlResults([]);
-        } finally {
-          setLoadingGhl(false);
+      setLoadingGhl(true);
+      try {
+        const res = await fetch(
+          `/api/gohighlevel/search?q=${encodeURIComponent(ghlSearchQuery)}`,
+        );
+        const data = await res.json();
+        if (data.contacts) {
+          setGhlResults(data.contacts);
         }
-      } else {
-        setGhlResults([]);
+      } catch (err) {
+        console.error("Failed to search GHL:", err);
+      } finally {
+        setLoadingGhl(false);
       }
     }, 400);
 
     return () => clearTimeout(delayDebounce);
   }, [ghlSearchQuery]);
 
-  // Open detail panel & prefill link fields
-  const handleOpenDetails = (
-    client: ClientRecord,
-    tab: "workspace" | "calls" = "workspace",
-  ) => {
-    setSelectedClient(client);
-    setDrawerTab(tab);
-    setEditDrive(client.driveFolderLink || "");
-    setEditNotion(client.notionDashboardLink || "");
-    setEditSignal(client.signalGroupLink || "");
-
-    const subject =
-      onboardingSettings?.welcomeEmailSubject ||
-      "Welcome to Uprise Digital - Let's get started!";
-    setEmailSubject(subject);
-
-    const bodyTemplate = onboardingSettings?.welcomeEmailTemplate || "";
-    setEmailBody(bodyTemplate);
-
-    const linkedAcc = client.adAccounts?.[0];
-    setSelectedAdAccountId(linkedAcc ? String(linkedAcc.id) : "");
+  const handleSyncGhlClients = async () => {
+    setIsSyncingGhl(true);
+    const toastId = toast.loading(
+      "Syncing all clients & contacts from GoHighLevel...",
+    );
+    try {
+      const res = await syncAllGhlClientsAction();
+      if (res.success) {
+        toast.success(
+          `GHL Sync Complete! Found ${res.totalFound} contact(s) (${res.totalImported} imported, ${res.totalUpdated} updated)`,
+          { id: toastId },
+        );
+        await loadData();
+      } else {
+        toast.error(res.error || "Failed to sync clients from GHL", {
+          id: toastId,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "GHL Sync failed", { id: toastId });
+    } finally {
+      setIsSyncingGhl(false);
+    }
   };
 
   const handleSelectGhlContact = (contact: any) => {
@@ -321,7 +234,7 @@ export default function ClientsDirectoryClient() {
         ghlContactId: selectedGhlContact?.id || "",
       });
 
-      if (res.success) {
+      if (res.success && res.onboardingId) {
         toast.success("Client added successfully! Automation triggered.");
         setIsNewClientOpen(false);
         setFormClientName("");
@@ -330,7 +243,8 @@ export default function ClientsDirectoryClient() {
         setFormGoogleAds(true);
         setFormMetaAds(true);
         setSelectedGhlContact(null);
-        loadData();
+        await loadData();
+        router.push(`/clients/${res.onboardingId}`);
       } else {
         toast.error(res.error || "Failed to create client.");
       }
@@ -344,210 +258,19 @@ export default function ClientsDirectoryClient() {
     }
   };
 
-  const handleSaveLinks = async () => {
-    if (!selectedClient) return;
-    setIsUpdatingLinks(true);
-    try {
-      const res = await updateClientOnboardingAction(selectedClient.id, {
-        driveFolderLink: editDrive || null,
-        notionDashboardLink: editNotion || null,
-        signalGroupLink: editSignal || null,
-      });
-
-      if (res.success) {
-        toast.success("Links updated successfully.");
-        setSelectedClient({
-          ...selectedClient,
-          driveFolderLink: editDrive || null,
-          notionDashboardLink: editNotion || null,
-          signalGroupLink: editSignal || null,
-        });
-        loadData();
-      } else {
-        toast.error(res.error || "Failed to save links.");
-      }
-    } catch (err: any) {
-      toast.error("Error updating links.");
-    } finally {
-      setIsUpdatingLinks(false);
-    }
-  };
-
-  const handleSendEmail = async () => {
-    if (!selectedClient) return;
-    setIsSendingEmail(true);
-    try {
-      const emailContent = compileOnboardingEmail({
-        primaryContactName: selectedClient.primaryContactName,
-        clientName: selectedClient.clientName,
-        driveFolderLink: editDrive,
-        notionDashboardLink: editNotion,
-        signalGroupLink: editSignal,
-        googleAdsAccess: selectedClient.googleAdsAccess,
-        metaAdsAccess: selectedClient.metaAdsAccess,
-        customTemplate: emailBody || undefined,
-      });
-
-      const res = await sendOnboardingEmailAction(
-        selectedClient.id,
-        emailSubject,
-        emailContent.html,
-        emailContent.text,
-      );
-
-      if (res.success) {
-        toast.success("Onboarding email dispatched via Resend!");
-        handleOpenDetails({
-          ...selectedClient,
-          status: "email_sent",
-        });
-        loadData();
-      } else {
-        toast.error(res.error || "Failed to send email.");
-      }
-    } catch (err: any) {
-      toast.error("Error sending onboarding email.");
-    } finally {
-      setIsSendingEmail(false);
-    }
-  };
-
-  const handleRunPipeline = async () => {
-    if (!selectedClient) return;
-    setIsRunningPipeline(true);
-    const toastId = toast.loading("Executing onboarding pipeline...");
-    try {
-      const res = await runOnboardingPipelineAction(selectedClient.id);
-      if (res.success) {
-        toast.success("Onboarding pipeline executed successfully!", {
-          id: toastId,
-        });
-        setEditDrive(res.driveFolderLink || "");
-        setEditNotion(res.notionDashboardLink || "");
-        setEditSignal(res.signalGroupLink || "");
-
-        setSelectedClient({
-          ...selectedClient,
-          driveFolderLink: res.driveFolderLink || null,
-          notionDashboardLink: res.notionDashboardLink || null,
-          signalGroupLink: res.signalGroupLink || null,
-          status: res.status || selectedClient.status,
-        });
-        loadData();
-      } else {
-        toast.error(
-          `Onboarding Pipeline Failed: ${res.error || "Unknown error"}`,
-          {
-            id: toastId,
-            duration: 6000,
-          },
-        );
-        setEditDrive("");
-        setEditNotion("");
-        setEditSignal("");
-        setSelectedClient({
-          ...selectedClient,
-          driveFolderLink: null,
-          notionDashboardLink: null,
-          signalGroupLink: null,
-          status: "failed",
-        });
-        loadData();
-      }
-    } catch (err: any) {
-      toast.error(`Error Executing Pipeline: ${err.message || String(err)}`, {
-        id: toastId,
-        duration: 6000,
-      });
-      setEditDrive("");
-      setEditNotion("");
-      setEditSignal("");
-      setSelectedClient({
-        ...selectedClient,
-        driveFolderLink: null,
-        notionDashboardLink: null,
-        signalGroupLink: null,
-        status: "failed",
-      });
-      loadData();
-    } finally {
-      setIsRunningPipeline(false);
-    }
-  };
-
-  const handleFinalize = async () => {
-    if (!selectedClient) return;
-    setIsFinalizing(true);
-    try {
-      const res = await finalizeOnboardingAction(selectedClient.id);
-      if (res.success) {
-        toast.success(
-          "Client onboarding completed & GoHighLevel pipeline updated!",
-        );
-        setSelectedClient(null);
-        loadData();
-      } else {
-        toast.error(res.error || "Failed to complete onboarding.");
-      }
-    } catch (err: any) {
-      toast.error("Error finalizing onboarding.");
-    } finally {
-      setIsFinalizing(false);
-    }
-  };
-
-  const handleRetryGhl = async () => {
-    if (!selectedClient) return;
-    setIsRetryingGhl(true);
-    try {
-      const res = await retryGhlAutomationAction(selectedClient.id);
-      if (res.success) {
-        toast.success("GoHighLevel CRM automation re-executed successfully!");
-        loadData();
-      } else {
-        toast.error(`GHL Retry Failed: ${res.error}`);
-        loadData();
-      }
-    } catch (err: any) {
-      toast.error(`Error retrying GHL automation: ${err.message}`);
-    } finally {
-      setIsRetryingGhl(false);
-    }
-  };
-
-  const handleLinkAdAccount = async () => {
-    if (!selectedClient || !selectedAdAccountId) return;
-    setIsLinkingAccount(true);
-    try {
-      const res = await associateAdAccountAction(
-        selectedClient.id,
-        Number(selectedAdAccountId),
-      );
-      if (res.success) {
-        toast.success("Ad Account linked to client successfully!");
-        loadData();
-      } else {
-        toast.error(res.error || "Failed to link ad account.");
-      }
-    } catch (err: any) {
-      toast.error("Error linking ad account.");
-    } finally {
-      setIsLinkingAccount(false);
-    }
-  };
-
-  const handleDeleteClient = async (clientId: number) => {
+  const handleDeleteClient = async (clientId: number, clientName: string) => {
     if (
       !confirm(
-        "Are you sure you want to delete this client onboarding entry? This cannot be undone.",
+        `Are you sure you want to delete ${clientName}? This will remove associated onboarding records.`,
       )
-    )
+    ) {
       return;
+    }
+
     try {
       const res = await deleteClientOnboardingAction(clientId);
       if (res.success) {
-        toast.success("Client deleted successfully.");
-        if (selectedClient?.id === clientId) setSelectedClient(null);
+        toast.success("Client onboarding record deleted.");
         loadData();
       } else {
         toast.error(res.error || "Failed to delete client.");
@@ -557,213 +280,269 @@ export default function ClientsDirectoryClient() {
     }
   };
 
-  const filteredClients = clients.filter((client) => {
+  // Filter clients based on tab and search
+  const filteredClients = clients.filter((c) => {
     const matchesSearch =
-      client.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.primaryContactName
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      client.contactEmail.toLowerCase().includes(searchTerm.toLowerCase());
+      c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.primaryContactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.contactEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.contactPhone && c.contactPhone.includes(searchTerm));
 
     if (!matchesSearch) return false;
 
     if (activeTab === "onboarding") {
-      return client.status !== "completed";
+      return c.status !== "completed" && c.status !== "active";
     }
     if (activeTab === "active") {
-      return client.status === "completed";
+      return c.status === "completed" || c.status === "active";
     }
-    return true;
+    if (activeTab === "ghl") {
+      return Boolean(c.ghlContactId);
+    }
+    return true; // "all"
   });
 
+  // Calculate high-level summary counts
+  const totalClientsCount = clients.length;
+  const activeClientsCount = clients.filter(
+    (c) => c.status === "completed" || c.status === "active",
+  ).length;
+  const inOnboardingCount = clients.filter(
+    (c) => c.status !== "completed" && c.status !== "active",
+  ).length;
+  const ghlSyncedCount = clients.filter((c) => Boolean(c.ghlContactId)).length;
+
   const renderStatusBadge = (status: string) => {
-    const statusMap: Record<string, { label: string; class: string }> = {
-      draft: {
-        label: "Draft",
-        class: "bg-slate-100 text-slate-700 border-slate-200",
-      },
-      generating: {
-        label: "Duplicating Assets...",
-        class: "bg-indigo-50 text-indigo-600 border-indigo-200 animate-pulse",
-      },
-      ready_to_review: {
-        label: "Ready to Review",
-        class: "bg-amber-50 text-amber-700 border-amber-200",
-      },
-      email_sent: {
-        label: "Email Sent",
-        class: "bg-sky-50 text-sky-700 border-sky-200",
-      },
-      completed: {
-        label: "Active Client",
-        class: "bg-emerald-50 text-emerald-700 border-emerald-200",
-      },
-    };
-    const config = statusMap[status] || {
-      label: status,
-      class: "bg-slate-100 text-slate-700",
-    };
-    return (
-      <span
-        className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${config.class}`}
-      >
-        {config.label}
-      </span>
-    );
+    switch (status) {
+      case "completed":
+      case "active":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Active Client
+          </span>
+        );
+      case "email_sent":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+            <Mail className="h-3 w-3 text-blue-500" /> Email Dispatched
+          </span>
+        );
+      case "failed":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+            <AlertCircle className="h-3 w-3 text-rose-500" /> Pipeline Error
+          </span>
+        );
+      case "in_progress":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+            <Loader2 className="h-3 w-3 animate-spin text-indigo-500" /> Running
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+            <Clock className="h-3 w-3 text-amber-500" /> In Onboarding
+          </span>
+        );
+    }
   };
 
   return (
-    <div className="space-y-6 text-slate-800 max-w-7xl mx-auto">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* 1. Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Clients Directory & Onboarding
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Automate onboarding link creation, resend guides, and map ad account
-            portfolios.
+            Automate onboarding workspaces, sync GoHighLevel CRM clients, and
+            inspect AI call recordings.
           </p>
         </div>
-        <Button
-          onClick={() => setIsNewClientOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-        >
-          <UserPlus className="h-4 w-4" /> Onboard New Client
-        </Button>
+
+        <div className="flex items-center gap-2.5">
+          <Button
+            onClick={handleSyncGhlClients}
+            disabled={isSyncingGhl}
+            variant="outline"
+            className="border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs h-9 px-3.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            <RefreshCw
+              className={cn(
+                "h-3.5 w-3.5 text-indigo-600",
+                isSyncingGhl && "animate-spin",
+              )}
+            />
+            {isSyncingGhl ? "Syncing GHL..." : "Sync GHL Clients"}
+          </Button>
+
+          <Button
+            onClick={() => setIsNewClientOpen(true)}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs h-9 px-4 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            <UserPlus className="h-4 w-4" />
+            Onboard New Client
+          </Button>
+        </div>
       </div>
 
-      {/* 2. Overview Stats */}
+      {/* 2. Top Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardContent className="pt-4 flex items-center justify-between">
+        <Card className="bg-white border-slate-200/80 shadow-sm rounded-2xl">
+          <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 Total Clients
               </p>
-              <h3 className="text-xl font-bold text-slate-900 mt-1">
-                {clients.length}
+              <h3 className="text-2xl font-black text-slate-900 mt-0.5">
+                {totalClientsCount}
               </h3>
             </div>
-            <Users className="h-8 w-8 text-slate-400 opacity-20" />
+            <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
+              <Users className="h-5 w-5" />
+            </div>
           </CardContent>
         </Card>
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardContent className="pt-4 flex items-center justify-between">
+
+        <Card className="bg-white border-slate-200/80 shadow-sm rounded-2xl">
+          <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 Active Clients
               </p>
-              <h3 className="text-xl font-bold text-emerald-600 mt-1">
-                {clients.filter((c) => c.status === "completed").length}
+              <h3 className="text-2xl font-black text-emerald-600 mt-0.5">
+                {activeClientsCount}
               </h3>
             </div>
-            <CheckCircle2 className="h-8 w-8 text-emerald-500 opacity-20" />
+            <div className="h-10 w-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
           </CardContent>
         </Card>
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardContent className="pt-4 flex items-center justify-between">
+
+        <Card className="bg-white border-slate-200/80 shadow-sm rounded-2xl">
+          <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 In Onboarding
               </p>
-              <h3 className="text-xl font-bold text-amber-600 mt-1">
-                {clients.filter((c) => c.status !== "completed").length}
+              <h3 className="text-2xl font-black text-amber-600 mt-0.5">
+                {inOnboardingCount}
               </h3>
             </div>
-            <Loader2 className="h-8 w-8 text-amber-500 opacity-20 animate-spin-slow" />
+            <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500">
+              <Clock className="h-5 w-5" />
+            </div>
           </CardContent>
         </Card>
-        <Card className="border-slate-200 shadow-sm bg-white">
-          <CardContent className="pt-4 flex items-center justify-between">
+
+        <Card className="bg-white border-slate-200/80 shadow-sm rounded-2xl">
+          <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Awaiting Access
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                GHL Synced
               </p>
-              <h3 className="text-xl font-bold text-sky-600 mt-1">
-                {
-                  clients.filter(
-                    (c) =>
-                      c.googleAdsStatus === "pending" ||
-                      c.metaAdsStatus === "pending",
-                  ).length
-                }
+              <h3 className="text-2xl font-black text-indigo-600 mt-0.5">
+                {ghlSyncedCount}
               </h3>
             </div>
-            <LinkIcon className="h-8 w-8 text-sky-500 opacity-20" />
+            <div className="h-10 w-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500">
+              <Building2 className="h-5 w-5" />
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 3. Controls & Directory Table */}
-      <div className="border border-slate-200 rounded-2xl p-4 space-y-4 bg-white shadow-sm">
-        {/* Navigation Tabs & Search */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+      {/* 3. Table Filters & Search */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Tabs */}
+          <div className="flex bg-slate-100/80 p-1 rounded-xl w-fit">
             <button
+              type="button"
               onClick={() => setActiveTab("onboarding")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-all cursor-pointer ${
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
                 activeTab === "onboarding"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900",
+              )}
             >
-              Onboarding Queue
+              Onboarding Queue ({inOnboardingCount})
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab("active")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-all cursor-pointer ${
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
                 activeTab === "active"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900",
+              )}
             >
-              Active Clients
+              Active Clients ({activeClientsCount})
             </button>
             <button
-              onClick={() => setActiveTab("all")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold tracking-wide transition-all cursor-pointer ${
-                activeTab === "all"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
+              type="button"
+              onClick={() => setActiveTab("ghl")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                activeTab === "ghl"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900",
+              )}
             >
-              All Records
+              GHL / Existing ({ghlSyncedCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("all")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                activeTab === "all"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900",
+              )}
+            >
+              All Records ({totalClientsCount})
             </button>
           </div>
 
-          <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          {/* Search */}
+          <div className="relative w-full sm:w-64">
+            <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input
-              placeholder="Search by client or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 bg-white border-slate-200 focus:border-indigo-500 rounded-xl text-xs h-9 text-slate-800"
+              placeholder="Search by client, email, phone..."
+              className="pl-9 text-xs h-9 bg-slate-50 border-slate-200 rounded-xl"
             />
           </div>
         </div>
 
-        {/* Directory Table */}
-        <div className="border border-slate-100 rounded-xl overflow-hidden bg-white">
+        {/* Client Table */}
+        <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow className="border-slate-100 hover:bg-transparent">
-                <TableHead className="text-slate-500 text-xs font-bold py-3.5">
+            <TableHeader className="bg-slate-50/50">
+              <TableRow className="border-slate-100">
+                <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3">
                   Client / Business
                 </TableHead>
-                <TableHead className="text-slate-500 text-xs font-bold py-3.5">
+                <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3">
                   Primary Contact
                 </TableHead>
-                <TableHead className="text-slate-500 text-xs font-bold py-3.5">
-                  Onboarding State
+                <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3">
+                  Status & Stage
                 </TableHead>
-                <TableHead className="text-slate-500 text-xs font-bold py-3.5">
+                <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3">
                   Google / Meta Ads
                 </TableHead>
-                <TableHead className="text-slate-500 text-xs font-bold py-3.5">
+                <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3">
                   Linked Ad Accounts
                 </TableHead>
-                <TableHead className="text-slate-500 text-xs font-bold py-3.5 text-right">
+                <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3 text-right">
                   Actions
                 </TableHead>
               </TableRow>
@@ -785,25 +564,32 @@ export default function ClientsDirectoryClient() {
                     colSpan={6}
                     className="text-center py-12 text-slate-400 text-sm"
                   >
-                    No clients found. Click "Onboard New Client" to start!
+                    No clients found matching filter. Click{" "}
+                    <strong>Sync GHL Clients</strong> or{" "}
+                    <strong>Onboard New Client</strong> to add!
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredClients.map((client) => (
                   <TableRow
                     key={client.id}
-                    className="border-slate-100 hover:bg-slate-50 transition-colors"
+                    className="border-slate-100 hover:bg-slate-50/80 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/clients/${client.id}`)}
                   >
-                    <TableCell
-                      onClick={() => handleOpenDetails(client, "workspace")}
-                      className="font-bold text-slate-900 py-3 text-sm cursor-pointer hover:text-indigo-600 transition-colors"
-                    >
-                      {client.clientName}
+                    <TableCell className="font-bold text-slate-900 py-3 text-sm">
+                      <div className="space-y-0.5">
+                        <span className="hover:text-indigo-600 transition-colors">
+                          {client.clientName}
+                        </span>
+                        {client.ghlContactId && (
+                          <span className="block text-[10px] font-normal text-indigo-600">
+                            GHL Contact
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell
-                      onClick={() => handleOpenDetails(client, "workspace")}
-                      className="py-3 text-sm cursor-pointer"
-                    >
+
+                    <TableCell className="py-3 text-sm">
                       <div>
                         <p className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors">
                           {client.primaryContactName}
@@ -814,11 +600,20 @@ export default function ClientsDirectoryClient() {
                         </p>
                       </div>
                     </TableCell>
+
                     <TableCell className="py-3">
-                      {renderStatusBadge(client.status)}
+                      <div className="space-y-1">
+                        {renderStatusBadge(client.status)}
+                        {client.ghlPipelineStage && (
+                          <p className="text-[10px] text-slate-500 truncate max-w-[140px]">
+                            {client.ghlPipelineStage}
+                          </p>
+                        )}
+                      </div>
                     </TableCell>
+
                     <TableCell className="py-3">
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5 flex-wrap">
                         {client.googleAdsAccess && (
                           <span
                             className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
@@ -843,6 +638,7 @@ export default function ClientsDirectoryClient() {
                         )}
                       </div>
                     </TableCell>
+
                     <TableCell className="py-3 text-xs text-slate-600">
                       {client.adAccounts && client.adAccounts.length > 0 ? (
                         <div className="flex items-center gap-1.5">
@@ -852,31 +648,45 @@ export default function ClientsDirectoryClient() {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-slate-400">None linked</span>
+                        <span className="text-slate-400 text-[11px]">
+                          None linked
+                        </span>
                       )}
                     </TableCell>
+
                     <TableCell className="py-3 text-right">
-                      <div className="flex justify-end gap-1.5">
+                      <div className="flex justify-end items-center gap-1.5">
                         <Button
                           variant="ghost"
-                          onClick={() => handleOpenDetails(client, "calls")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/clients/${client.id}?tab=calls`);
+                          }}
                           className="text-xs h-8 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 rounded-lg cursor-pointer flex items-center gap-1 font-semibold"
-                          title="View Call History & AI Intelligence"
+                          title="View Call History & AI Transcripts"
                         >
                           <PhoneCall className="h-3.5 w-3.5 text-indigo-500" />
                           Calls
                         </Button>
+
                         <Button
                           variant="ghost"
-                          onClick={() => handleOpenDetails(client, "workspace")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/clients/${client.id}`);
+                          }}
                           className="text-xs h-8 hover:bg-slate-100 text-slate-600 rounded-lg cursor-pointer font-semibold"
                         >
-                          Review & Setup
+                          View Details
                         </Button>
+
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleDeleteClient(client.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClient(client.id, client.clientName);
+                          }}
                           className="h-8 w-8 hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg cursor-pointer"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -891,926 +701,172 @@ export default function ClientsDirectoryClient() {
         </div>
       </div>
 
-      {/* 4. Drawer Panel (Onboarding Link editor, Email sender, & Call Intelligence) */}
-      {selectedClient && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-end">
-          <div className="bg-white border-l border-slate-200 w-full max-w-4xl h-full overflow-y-auto p-6 space-y-6 flex flex-col justify-between shadow-2xl relative text-slate-800">
-            <div className="space-y-6">
-              {/* Drawer Header */}
-              <div className="border-b border-slate-200 pb-3 space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-bold text-slate-900">
-                        {selectedClient.clientName}
-                      </h2>
-                      {renderStatusBadge(selectedClient.status)}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {selectedClient.primaryContactName} (
-                      {selectedClient.contactEmail})
-                      {selectedClient.contactPhone &&
-                        ` • ${selectedClient.contactPhone}`}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setSelectedClient(null)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Drawer Navigation Tabs */}
-                <div className="flex gap-4 border-b border-slate-100 -mb-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setDrawerTab("workspace")}
-                    className={cn(
-                      "pb-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 cursor-pointer",
-                      drawerTab === "workspace"
-                        ? "border-indigo-600 text-indigo-600"
-                        : "border-transparent text-slate-500 hover:text-slate-800",
-                    )}
-                  >
-                    <SlidersHorizontal className="h-3.5 w-3.5" /> Workspace &
-                    Onboarding
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDrawerTab("calls")}
-                    className={cn(
-                      "pb-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 cursor-pointer",
-                      drawerTab === "calls"
-                        ? "border-indigo-600 text-indigo-600"
-                        : "border-transparent text-slate-500 hover:text-slate-800",
-                    )}
-                  >
-                    <PhoneCall className="h-3.5 w-3.5 text-indigo-500" /> Call
-                    History & AI Transcripts
-                  </button>
-                </div>
-              </div>
-
-              {/* TAB 1: WORKSPACE & ONBOARDING */}
-              {drawerTab === "workspace" && (
-                <div className="space-y-6">
-                  {/* Alert Banner if pipeline failed */}
-                  {selectedClient.status === "failed" && (
-                    <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <div className="text-rose-500 font-bold shrink-0 mt-0.5 text-sm">
-                        ⚠️
-                      </div>
-                      <div className="space-y-1">
-                        <p className="font-bold">Onboarding Pipeline Failed</p>
-                        <p className="text-[11px] text-rose-700">
-                          The asset generation process encountered an error.
-                          Please verify your integration setups (e.g. Google
-                          Drive parent permissions or Notion database
-                          credentials) and click <strong>Run Pipeline</strong>{" "}
-                          to try again.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Resource Links Section */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <SlidersHorizontal className="h-3.5 w-3.5" /> Workspace
-                        Connections (Generated)
-                      </h3>
-                      <Button
-                        onClick={handleRunPipeline}
-                        disabled={isRunningPipeline}
-                        className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-300 text-white font-bold text-xs h-8 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm"
-                      >
-                        {isRunningPipeline ? (
-                          <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Running Pipeline...
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-3.5 w-3.5 fill-white" />
-                            Run Pipeline
-                          </>
-                        )}
-                      </Button>
-                    </div>
-
-                    {(() => {
-                      const driveWarning =
-                        selectedClient.status === "failed" && !editDrive
-                          ? "⚠️ Pipeline failed - link missing"
-                          : onboardingSettings &&
-                              !onboardingSettings.googleDriveEnabled
-                            ? "⚠️ Google Drive integration is disabled"
-                            : !editDrive
-                              ? "(Pending run)"
-                              : null;
-
-                      const notionWarning =
-                        selectedClient.status === "failed" && !editNotion
-                          ? "⚠️ Pipeline failed - link missing"
-                          : onboardingSettings &&
-                              !onboardingSettings.notionEnabled
-                            ? "⚠️ Notion integration is disabled"
-                            : !editNotion
-                              ? "(Pending run)"
-                              : null;
-
-                      const signalWarning =
-                        selectedClient.status === "failed" && !editSignal
-                          ? "⚠️ Pipeline failed - link missing"
-                          : !editSignal
-                            ? "(Pending run)"
-                            : null;
-
-                      return (
-                        <div className="grid gap-3">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
-                              <span>1. Google Drive Assets Folder</span>
-                              {driveWarning && (
-                                <span
-                                  className={cn(
-                                    "font-bold text-[9px]",
-                                    driveWarning.startsWith("⚠️")
-                                      ? "text-rose-600"
-                                      : "text-amber-600",
-                                  )}
-                                >
-                                  {driveWarning}
-                                </span>
-                              )}
-                            </label>
-                            <div className="flex gap-2">
-                              <Input
-                                value={editDrive}
-                                onChange={(e) => setEditDrive(e.target.value)}
-                                placeholder="Pending generation..."
-                                className={cn(
-                                  "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
-                                  driveWarning?.startsWith("⚠️") &&
-                                    "border-rose-300 bg-rose-50/20 placeholder-rose-450 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
-                                )}
-                              />
-                              {editDrive && (
-                                <a
-                                  href={editDrive}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
-                              <span>2. Notion Client Dashboard</span>
-                              {notionWarning && (
-                                <span
-                                  className={cn(
-                                    "font-bold text-[9px]",
-                                    notionWarning.startsWith("⚠️")
-                                      ? "text-rose-600"
-                                      : "text-amber-600",
-                                  )}
-                                >
-                                  {notionWarning}
-                                </span>
-                              )}
-                            </label>
-                            <div className="flex gap-2">
-                              <Input
-                                value={editNotion}
-                                onChange={(e) => setEditNotion(e.target.value)}
-                                placeholder="Pending generation..."
-                                className={cn(
-                                  "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
-                                  notionWarning?.startsWith("⚠️") &&
-                                    "border-rose-300 bg-rose-50/20 placeholder-rose-455 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
-                                )}
-                              />
-                              {editNotion && (
-                                <a
-                                  href={editNotion}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between">
-                              <span>3. Signal Group Chat Invite Link</span>
-                              {signalWarning && (
-                                <span
-                                  className={cn(
-                                    "font-bold text-[9px]",
-                                    signalWarning.startsWith("⚠️")
-                                      ? "text-rose-600"
-                                      : "text-amber-600",
-                                  )}
-                                >
-                                  {signalWarning}
-                                </span>
-                              )}
-                            </label>
-                            <div className="flex gap-2">
-                              <Input
-                                value={editSignal}
-                                onChange={(e) => setEditSignal(e.target.value)}
-                                placeholder="Pending generation..."
-                                className={cn(
-                                  "bg-white border-slate-200 text-xs flex-1 h-9 rounded-lg text-slate-800",
-                                  signalWarning?.startsWith("⚠️") &&
-                                    "border-rose-300 bg-rose-50/20 placeholder-rose-455 text-rose-800 focus-visible:ring-rose-450 focus:border-rose-450",
-                                )}
-                              />
-                              {editSignal && (
-                                <a
-                                  href={editSignal}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-3 bg-slate-100 hover:bg-slate-250 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 border border-slate-200 transition-colors"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    <div className="flex justify-end">
-                      <Button
-                        onClick={handleSaveLinks}
-                        disabled={isUpdatingLinks}
-                        className="bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-800 font-bold text-xs py-1.5 px-3 rounded-lg cursor-pointer"
-                      >
-                        {isUpdatingLinks
-                          ? "Saving..."
-                          : "Save Link Adjustments"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Link Ad Account Section */}
-                  <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
-                    <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <LinkIcon className="h-4 w-4 text-indigo-600" /> Link
-                      Portfolio Ad Account
-                    </h4>
-                    <p className="text-[11px] text-slate-500">
-                      Assign this client onboarding workspace to an imported
-                      Google Ads account to display performance data.
-                    </p>
-                    <div className="flex gap-2">
-                      <select
-                        value={selectedAdAccountId}
-                        onChange={(e) => setSelectedAdAccountId(e.target.value)}
-                        className="flex-1 bg-white border border-slate-200 text-xs rounded-lg px-3 py-1.5 text-slate-800 outline-none focus:border-indigo-500"
-                      >
-                        <option value="">
-                          -- Select connected ad account --
-                        </option>
-                        {adAccountsList.map((acc) => (
-                          <option key={acc.id} value={acc.id}>
-                            {acc.name} ({acc.googleAccountId})
-                          </option>
-                        ))}
-                      </select>
-                      <Button
-                        onClick={handleLinkAdAccount}
-                        disabled={isLinkingAccount || !selectedAdAccountId}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 rounded-lg cursor-pointer"
-                      >
-                        {isLinkingAccount ? "Linking..." : "Link Account"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* GoHighLevel CRM Automation Section */}
-                  {(() => {
-                    const config = onboardingSettings?.workflowConfig;
-                    const nodes = config?.nodes || [];
-                    const edges = config?.edges || [];
-                    const outgoingMap = new Map<string, string>();
-                    for (const e of edges) {
-                      if (e.source && e.target)
-                        outgoingMap.set(e.source, e.target);
-                    }
-                    const chain: string[] = [];
-                    let current = "trigger";
-                    while (current && !chain.includes(current)) {
-                      chain.push(current);
-                      current = outgoingMap.get(current) || "";
-                    }
-                    const isGhlInWorkflow =
-                      chain.includes("ghl") ||
-                      nodes.some((n: any) => n.id === "ghl");
-
-                    if (!isGhlInWorkflow) return null;
-
-                    const ghlNode = nodes.find((n: any) => n.id === "ghl");
-                    const ghlMode =
-                      ghlNode?.data?.mode || "update-opportunity-stage";
-
-                    return (
-                      <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                            <img
-                              src="/images/logos/ghl.svg"
-                              alt=""
-                              className="w-4 h-4"
-                            />
-                            GoHighLevel CRM Automation
-                          </h4>
-                          {selectedClient.ghlStatus === "success" && (
-                            <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Completed
-                            </span>
-                          )}
-                          {selectedClient.ghlStatus === "failed" && (
-                            <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3" /> Failed
-                            </span>
-                          )}
-                          {selectedClient.ghlStatus === "in_progress" && (
-                            <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
-                              <RefreshCw className="w-3 h-3 animate-spin" /> In
-                              Progress
-                            </span>
-                          )}
-                          {(!selectedClient.ghlStatus ||
-                            selectedClient.ghlStatus === "pending") && (
-                            <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> Pending
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-2 py-1 inline-block">
-                          Task Mode:{" "}
-                          <span className="text-slate-800 font-bold capitalize">
-                            {ghlMode.replace(/-/g, " ")}
-                          </span>
-                        </div>
-
-                        {selectedClient.ghlStatus === "success" && (
-                          <div className="space-y-2">
-                            <p className="text-[11px] text-slate-600">
-                              CRM automation task executed successfully during
-                              client onboarding.
-                            </p>
-                            {selectedClient.ghlSubAccountId && (
-                              <a
-                                href={`https://app.gohighlevel.com/location/${selectedClient.ghlSubAccountId}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline bg-white p-2 rounded-lg border border-slate-200 w-full justify-between"
-                              >
-                                <span>Open GHL Sub-Account Location</span>
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            )}
-                            {selectedClient.ghlContactId &&
-                              !selectedClient.ghlSubAccountId && (
-                                <div className="text-[10px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200">
-                                  Contact ID: {selectedClient.ghlContactId}
-                                </div>
-                              )}
-                          </div>
-                        )}
-
-                        {selectedClient.ghlStatus === "failed" && (
-                          <div className="space-y-2">
-                            <div className="bg-rose-50 border border-rose-200 rounded-lg p-2.5 space-y-1">
-                              <div className="flex items-center justify-between">
-                                <p className="text-[11px] font-semibold text-rose-800">
-                                  Automation Encountered an Issue
-                                </p>
-                                {selectedClient.ghlError && (
-                                  <span
-                                    title={selectedClient.ghlError}
-                                    className="cursor-help text-rose-500 hover:text-rose-700 p-0.5"
-                                  >
-                                    <HelpCircle className="w-3.5 h-3.5" />
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-rose-600 leading-snug line-clamp-2">
-                                {selectedClient.ghlError ||
-                                  "Sub-account or CRM API provisioning failed. Check credentials and retry."}
-                              </p>
-                            </div>
-
-                            <Button
-                              onClick={handleRetryGhl}
-                              disabled={isRetryingGhl}
-                              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-1.5 px-3 rounded-lg cursor-pointer flex items-center justify-center gap-1.5"
-                            >
-                              <RefreshCw
-                                className={cn(
-                                  "w-3.5 h-3.5",
-                                  isRetryingGhl && "animate-spin",
-                                )}
-                              />
-                              {isRetryingGhl
-                                ? "Retrying Automation..."
-                                : "Retry GHL Automation Task"}
-                            </Button>
-                          </div>
-                        )}
-
-                        {(!selectedClient.ghlStatus ||
-                          selectedClient.ghlStatus === "pending" ||
-                          selectedClient.ghlStatus === "in_progress") && (
-                          <div className="flex items-center justify-between pt-1 gap-2">
-                            <p className="text-[11px] text-slate-500 flex-1">
-                              Trigger or retry configured GHL task for this
-                              client.
-                            </p>
-                            <Button
-                              onClick={handleRetryGhl}
-                              disabled={isRetryingGhl}
-                              variant="outline"
-                              className="text-xs h-7 px-2.5 font-bold cursor-pointer shrink-0"
-                            >
-                              {isRetryingGhl ? "Running..." : "Run Task"}
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Email Outbox & Live Preview */}
-                  <div className="border-t border-slate-200 pt-4 space-y-4">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                      <Mail className="h-3.5 w-3.5" /> Email Onboarding Outbox
-                    </h3>
-
-                    {/* Collapsible Email Subject & Body Editor */}
-                    <div className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setIsEditingEmailTemplate(!isEditingEmailTemplate)
-                        }
-                        className="w-full flex items-center justify-between text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2.5 hover:bg-slate-50 transition-all cursor-pointer shadow-sm"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <Pencil className="w-3.5 h-3.5 text-indigo-600" />
-                          Edit Email Subject & Body Template
-                        </span>
-                        {isEditingEmailTemplate ? (
-                          <ChevronUp className="w-4 h-4 text-slate-400" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-slate-400" />
-                        )}
-                      </button>
-
-                      {isEditingEmailTemplate && (
-                        <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-3 transition-all animate-in fade-in duration-150">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                              Email Subject
-                            </label>
-                            <Input
-                              value={emailSubject}
-                              onChange={(e) => setEmailSubject(e.target.value)}
-                              className="bg-white border-slate-200 text-xs h-9 rounded-lg text-slate-800"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                              Email Body Template
-                            </label>
-                            <textarea
-                              value={emailBody}
-                              onChange={(e) => setEmailBody(e.target.value)}
-                              className="w-full min-h-[160px] text-xs font-mono p-3 bg-white border border-slate-200 rounded-xl focus:border-indigo-500 outline-none leading-relaxed text-slate-700 resize-y"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Dynamic Template Preview (Always Visible) */}
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                            Dynamic Template Preview
-                          </label>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                navigator.clipboard.writeText(emailSubject);
-                                setCopiedField("subject");
-                                toast.success(
-                                  "Email subject copied to clipboard!",
-                                );
-                                setTimeout(() => setCopiedField(null), 2000);
-                              }}
-                              className="h-6 px-2 text-[10px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
-                              title="Copy Email Subject"
-                            >
-                              {copiedField === "subject" ? (
-                                <Check className="h-3 w-3 text-emerald-600" />
-                              ) : (
-                                <Copy className="h-3 w-3 text-slate-400" />
-                              )}
-                              Subject
-                            </Button>
-
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                const compiled = compileOnboardingEmail({
-                                  primaryContactName:
-                                    selectedClient.primaryContactName,
-                                  clientName: selectedClient.clientName,
-                                  driveFolderLink: editDrive || "#",
-                                  notionDashboardLink: editNotion || "#",
-                                  signalGroupLink: editSignal || "#",
-                                  googleAdsAccess:
-                                    selectedClient.googleAdsAccess,
-                                  metaAdsAccess: selectedClient.metaAdsAccess,
-                                  customTemplate: emailBody || undefined,
-                                });
-                                navigator.clipboard.writeText(compiled.text);
-                                setCopiedField("body");
-                                toast.success("Compiled email body copied!");
-                                setTimeout(() => setCopiedField(null), 2000);
-                              }}
-                              className="h-6 px-2 text-[10px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
-                              title="Copy Email Body Text"
-                            >
-                              {copiedField === "body" ? (
-                                <Check className="h-3 w-3 text-emerald-600" />
-                              ) : (
-                                <Copy className="h-3 w-3 text-slate-400" />
-                              )}
-                              Body
-                            </Button>
-
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                const compiled = compileOnboardingEmail({
-                                  primaryContactName:
-                                    selectedClient.primaryContactName,
-                                  clientName: selectedClient.clientName,
-                                  driveFolderLink: editDrive || "#",
-                                  notionDashboardLink: editNotion || "#",
-                                  signalGroupLink: editSignal || "#",
-                                  googleAdsAccess:
-                                    selectedClient.googleAdsAccess,
-                                  metaAdsAccess: selectedClient.metaAdsAccess,
-                                  customTemplate: emailBody || undefined,
-                                });
-                                const fullContent = `To: ${selectedClient.contactEmail}\nSubject: ${emailSubject}\n\n${compiled.text}`;
-                                navigator.clipboard.writeText(fullContent);
-                                setCopiedField("full");
-                                toast.success("Full onboarding email copied!");
-                                setTimeout(() => setCopiedField(null), 2000);
-                              }}
-                              className="h-6 px-2 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md gap-1 flex items-center cursor-pointer transition-all"
-                              title="Copy Full Email (To, Subject & Body)"
-                            >
-                              {copiedField === "full" ? (
-                                <Check className="h-3 w-3 text-emerald-600" />
-                              ) : (
-                                <Copy className="h-3 w-3 text-indigo-600" />
-                              )}
-                              Full Email
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="border border-slate-200 rounded-xl bg-slate-50 p-4 h-64 overflow-y-auto text-xs text-slate-800 space-y-3 select-none">
-                          <div className="border-b border-slate-200 pb-2 mb-2">
-                            <p className="text-[10px] text-slate-500">
-                              To: {selectedClient.contactEmail}
-                            </p>
-                            <p className="text-[10px] text-slate-700 font-semibold">
-                              Subject: {emailSubject}
-                            </p>
-                          </div>
-                          <div
-                            // biome-ignore lint/security/noDangerouslySetInnerHtml: rendering email preview
-                            dangerouslySetInnerHTML={{
-                              __html: compileOnboardingEmail({
-                                primaryContactName:
-                                  selectedClient.primaryContactName,
-                                clientName: selectedClient.clientName,
-                                driveFolderLink: editDrive || "#",
-                                notionDashboardLink: editNotion || "#",
-                                signalGroupLink: editSignal || "#",
-                                googleAdsAccess: selectedClient.googleAdsAccess,
-                                metaAdsAccess: selectedClient.metaAdsAccess,
-                                customTemplate: emailBody || undefined,
-                              }).html,
-                            }}
-                            className="bg-white text-slate-800 p-4 rounded-lg shadow scale-[0.95] origin-top border border-slate-200"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleSendEmail}
-                        disabled={
-                          isSendingEmail ||
-                          !editDrive ||
-                          !editNotion ||
-                          !editSignal
-                        }
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-300 text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-                      >
-                        {isSendingEmail ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />{" "}
-                            Dispatching...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="h-4 w-4" /> Send Onboarding Email
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    {(!editDrive || !editNotion || !editSignal) && (
-                      <p className="text-[10px] text-amber-600 flex items-center gap-1">
-                        <Info className="h-3.5 w-3.5" /> Please wait for links
-                        to finish generating (or input manually) before sending.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: CALL HISTORY & AI INTELLIGENCE */}
-              {drawerTab === "calls" && (
-                <div className="py-1">
-                  <ClientCallHistory
-                    clientId={selectedClient.id}
-                    clientName={selectedClient.clientName}
-                    contactPhone={selectedClient.contactPhone}
-                    contactEmail={selectedClient.contactEmail}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Bottom Actions (Finalize Onboarding) */}
-            <div className="border-t border-slate-200 pt-4 mt-6 flex gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setSelectedClient(null)}
-                className="w-1/3 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl text-xs py-2.5"
-              >
-                Close View
-              </Button>
-              <Button
-                onClick={handleFinalize}
-                disabled={isFinalizing || selectedClient.status === "completed"}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-300 text-white font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                {isFinalizing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Finalizing...
-                  </>
-                ) : selectedClient.status === "completed" ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" /> Onboarding Finalized
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" /> Finalize Client
-                    Onboarding
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 5. Create Client Drawer Modal */}
+      {/* 4. Create Client Modal */}
       {isNewClientOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-md p-6 rounded-2xl space-y-6 shadow-2xl relative max-h-[90vh] overflow-y-auto text-slate-800">
-            {/* Header */}
-            <div className="flex justify-between items-start border-b border-slate-200 pb-3">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-6 space-y-6 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
               <div>
-                <h2 className="text-md font-bold text-slate-900 flex items-center gap-1.5">
-                  <UserPlus className="h-5 w-5 text-indigo-600" /> Onboard New
-                  Client
+                <h2 className="text-lg font-bold text-slate-900">
+                  Onboard New Client
                 </h2>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Import details directly from GoHighLevel or enter details
-                  manually.
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Link an existing GoHighLevel contact or create a manual entry.
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setIsNewClientOpen(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
               >
                 ✕
               </button>
             </div>
 
-            {/* GHL Search bar */}
-            <div className="space-y-2 relative">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                Search GHL Contacts (Auto-fill)
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                <Input
-                  placeholder="Type name, email, or business to search..."
-                  value={ghlSearchQuery}
-                  onChange={(e) => setGhlSearchQuery(e.target.value)}
-                  className="pl-9 bg-white border-slate-200 focus:border-indigo-500 text-xs h-9 rounded-xl text-slate-800"
-                />
-              </div>
-
-              {/* Autocomplete suggestions */}
-              {loadingGhl && (
-                <div className="absolute w-full mt-1 bg-white border border-slate-200 p-3 rounded-lg z-10 text-xs text-slate-400 text-center shadow-lg">
-                  <Loader2 className="h-4 w-4 animate-spin mx-auto text-indigo-500 mb-1" />{" "}
-                  Searching CRM...
-                </div>
-              )}
-              {ghlResults.length > 0 && (
-                <ul className="absolute w-full mt-1 bg-white border border-slate-200 rounded-xl z-10 max-h-48 overflow-y-auto divide-y divide-slate-100 shadow-xl">
-                  {ghlResults.map((contact) => (
-                    <li key={contact.id}>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectGhlContact(contact)}
-                        className="w-full text-left p-2.5 hover:bg-slate-50 text-xs transition-colors flex items-start justify-between gap-2"
-                      >
-                        <div>
-                          <p className="font-bold text-slate-800">
-                            {contact.name}
-                          </p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">
-                            {contact.email}
-                          </p>
-                        </div>
-                        {contact.companyName && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 truncate max-w-[120px]">
-                            {contact.companyName}
-                          </span>
-                        )}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {selectedGhlContact && (
-              <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-[11px] text-slate-600 flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-indigo-800">
-                    LinkedIn CRM Record:
-                  </p>
-                  <p className="text-slate-500 mt-0.5">
-                    {selectedGhlContact.name} ({selectedGhlContact.id})
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedGhlContact(null)}
-                  className="text-rose-600 hover:text-rose-800 font-bold"
-                >
-                  Unlink
-                </button>
-              </div>
-            )}
-
-            {/* Manual form */}
             <form onSubmit={handleCreateClient} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                  Client Business Name *
+              {/* GoHighLevel Contact Search Autocomplete */}
+              <div className="space-y-1.5 relative">
+                <label className="block text-xs font-bold text-slate-700">
+                  Search from GoHighLevel Contact (Optional)
+                </label>
+                <div className="relative">
+                  <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={ghlSearchQuery}
+                    onChange={(e) => setGhlSearchQuery(e.target.value)}
+                    placeholder="Type name, company, or email to search GHL..."
+                    className="pl-9 text-xs h-9 bg-slate-50"
+                  />
+                  {loadingGhl && (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  )}
+                </div>
+
+                {/* Dropdown list */}
+                {ghlResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-10 bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                    {ghlResults.map((c) => (
+                      <div
+                        key={c.id}
+                        onClick={() => handleSelectGhlContact(c)}
+                        className="p-2.5 hover:bg-indigo-50 cursor-pointer text-xs transition-colors"
+                      >
+                        <p className="font-bold text-slate-800">
+                          {c.companyName || c.name}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          {c.name} ({c.email})
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedGhlContact && (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2 flex items-center justify-between text-xs text-indigo-700 mt-2">
+                    <span>
+                      Linked to GHL Contact:{" "}
+                      <strong>{selectedGhlContact.name}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedGhlContact(null)}
+                      className="text-indigo-400 hover:text-indigo-700"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Client Business Name */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  Client / Business Name{" "}
+                  <span className="text-rose-500">*</span>
                 </label>
                 <Input
-                  required
-                  placeholder="e.g. KGN Homes"
                   value={formClientName}
                   onChange={(e) => setFormClientName(e.target.value)}
-                  className="bg-white border-slate-200 text-xs h-9 rounded-xl text-slate-800"
+                  placeholder="e.g. Acme Solar Solutions"
+                  required
+                  className="text-xs h-9"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Contact Name *
-                  </label>
-                  <Input
-                    required
-                    placeholder="e.g. Sultan"
-                    value={formContactName}
-                    onChange={(e) => setFormContactName(e.target.value)}
-                    className="bg-white border-slate-200 text-xs h-9 rounded-xl text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Contact Email *
-                  </label>
-                  <Input
-                    required
-                    type="email"
-                    placeholder="e.g. sultan@gmail.com"
-                    value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
-                    className="bg-white border-slate-200 text-xs h-9 rounded-xl text-slate-800"
-                  />
-                </div>
-              </div>
-
-              {/* Service packages */}
-              <div className="space-y-2 border-t border-slate-200 pt-3">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  Service Package Inclusions
+              {/* Primary Contact Name */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  Primary Contact Person{" "}
+                  <span className="text-rose-500">*</span>
                 </label>
-
-                <div className="flex gap-6">
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formGoogleAds}
-                      onChange={(e) => setFormGoogleAds(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 bg-white h-4 w-4 animate-none"
-                    />
-                    Google Ads Access Instructions
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formMetaAds}
-                      onChange={(e) => setFormMetaAds(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 bg-white h-4 w-4 animate-none"
-                    />
-                    Meta Ads Access Instructions
-                  </label>
-                </div>
+                <Input
+                  value={formContactName}
+                  onChange={(e) => setFormContactName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  required
+                  className="text-xs h-9"
+                />
               </div>
 
-              {/* Actions */}
-              <div className="border-t border-slate-200 pt-4 flex gap-2">
+              {/* Contact Email */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  Contact Email <span className="text-rose-500">*</span>
+                </label>
+                <Input
+                  type="email"
+                  value={formEmail}
+                  onChange={(e) => setFormEmail(e.target.value)}
+                  placeholder="john@acmesolar.com.au"
+                  required
+                  className="text-xs h-9"
+                />
+              </div>
+
+              {/* Access Flags */}
+              <div className="pt-2 border-t border-slate-100 flex gap-4">
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formGoogleAds}
+                    onChange={(e) => setFormGoogleAds(e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Request Google Ads Access
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formMetaAds}
+                    onChange={(e) => setFormMetaAds(e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Request Meta Ads Access
+                </label>
+              </div>
+
+              {/* Form Buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="ghost"
                   onClick={() => setIsNewClientOpen(false)}
-                  className="w-1/3 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl text-xs py-2"
+                  className="text-xs text-slate-500 hover:text-slate-800"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4"
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Adding...
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Adding...
                     </>
                   ) : (
-                    <>
-                      <Sparkles className="h-4 w-4 text-indigo-300" /> Start
-                      Onboarding
-                    </>
+                    "Create Client & Launch Dashboard"
                   )}
                 </Button>
               </div>
