@@ -213,14 +213,46 @@ export default function ClientDetailPageClient({
 
   const handleSendEmail = async () => {
     if (!client) return;
+
+    if (!editSignal || !editSignal.trim()) {
+      toast.error(
+        "Please fill in the Signal Chat Group link before sending the welcome email.",
+      );
+      return;
+    }
+    if (!editDrive || !editDrive.trim()) {
+      toast.error(
+        "Please fill in the Google Drive Folder link before sending the welcome email.",
+      );
+      return;
+    }
+    if (!editNotion || !editNotion.trim()) {
+      toast.error(
+        "Please fill in the Notion Dashboard link before sending the welcome email.",
+      );
+      return;
+    }
+
     setIsSendingEmail(true);
     try {
+      // Auto-save the workspace links to the database before dispatching
+      const saveRes = await updateClientOnboardingAction(client.id, {
+        driveFolderLink: editDrive.trim() || null,
+        notionDashboardLink: editNotion.trim() || null,
+        signalGroupLink: editSignal.trim() || null,
+      });
+
+      if (!saveRes.success) {
+        toast.error(saveRes.error || "Failed to save workspace links.");
+        return;
+      }
+
       const emailContent = compileOnboardingEmail({
         primaryContactName: client.primaryContactName,
         clientName: client.clientName,
-        driveFolderLink: editDrive,
-        notionDashboardLink: editNotion,
-        signalGroupLink: editSignal,
+        driveFolderLink: editDrive.trim(),
+        notionDashboardLink: editNotion.trim(),
+        signalGroupLink: editSignal.trim(),
         googleAdsAccess: client.googleAdsAccess,
         metaAdsAccess: client.metaAdsAccess,
         customTemplate: emailBody || undefined,
@@ -235,6 +267,13 @@ export default function ClientDetailPageClient({
 
       if (res.success) {
         toast.success("Onboarding email dispatched successfully!");
+        setClient({
+          ...client,
+          driveFolderLink: editDrive.trim(),
+          notionDashboardLink: editNotion.trim(),
+          signalGroupLink: editSignal.trim(),
+          status: "email_sent",
+        });
       } else {
         toast.error(res.error || "Failed to dispatch email.");
       }
@@ -874,9 +913,7 @@ export default function ClientDetailPageClient({
               </p>
               <Button
                 onClick={handleSendEmail}
-                disabled={
-                  isSendingEmail || !editDrive || !editNotion || !editSignal
-                }
+                disabled={isSendingEmail}
                 className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-300 text-white font-bold text-xs h-9 px-5 rounded-lg flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 {isSendingEmail ? (

@@ -666,8 +666,8 @@ async function executeOnboardingPipeline(
       }
     }
 
-    // 5. Signal Link
-    const signalGroupLink = `https://signal.group/#CjVKB-${slug}-mock-chat`;
+    // 5. Signal Link - Kept empty by default (no mock strings)
+    const signalGroupLink = record.signalGroupLink || null;
 
     await db
       .update(clientOnboardings)
@@ -805,6 +805,14 @@ export async function sendOnboardingEmailAction(
       where: eq(clientOnboardings.id, onboardingId),
     });
     if (!record) return { success: false, error: "Client not found" };
+
+    if (!record.signalGroupLink || !record.signalGroupLink.trim()) {
+      return {
+        success: false,
+        error:
+          "Signal Chat Group link is required. Please fill in the Signal Chat Group link before sending the welcome email.",
+      };
+    }
 
     const settings = await db.query.organizationOnboardingSettings.findFirst({
       where: eq(

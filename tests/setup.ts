@@ -46,6 +46,7 @@ const mockDbQuery = {
     findFirst: vi.fn().mockResolvedValue({
       id: "org-test-uprise",
       name: "Test Org",
+      brandName: "Uprise Digital",
     }),
   },
   member: {
@@ -230,6 +231,14 @@ const mockDbQuery = {
     findFirst: vi.fn().mockResolvedValue({
       id: 1,
       criticalSpendThreshold: 70,
+    }),
+  },
+  organizationOnboardingSettings: {
+    findFirst: vi.fn().mockResolvedValue({
+      id: 1,
+      organizationId: "org-test-uprise",
+      welcomeEmailSubject: "Welcome to Uprise Digital - Let's get started!",
+      welcomeEmailTemplate: "",
     }),
   },
   briefingSettings: {

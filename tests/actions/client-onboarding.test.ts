@@ -3,11 +3,18 @@ import {
   associateAdAccountAction,
   createClientOnboardingAction,
   deleteClientOnboardingAction,
+  sendOnboardingEmailAction,
   updateClientOnboardingAction,
 } from "@/actions/client-onboarding.actions";
 import { db } from "@/db";
 import { auth } from "@/lib/auth";
 import { compileOnboardingEmail } from "@/lib/onboarding-email";
+
+vi.mock("@/lib/email-service", () => ({
+  sendSystemEmail: vi
+    .fn()
+    .mockResolvedValue({ success: true, resendId: "mock-email-123" }),
+}));
 
 describe("Client Onboarding Actions", () => {
   beforeEach(() => {
@@ -88,6 +95,58 @@ describe("Client Onboarding Actions", () => {
   describe("associateAdAccountAction", () => {
     it("should update the adAccount mapping to associate the client onboarding ID", async () => {
       const result = await associateAdAccountAction(101, 42);
+
+      expect(result.success).toBe(true);
+      expect(db.update).toHaveBeenCalled();
+    });
+  });
+
+  describe("sendOnboardingEmailAction", () => {
+    it("should error if signal group link is missing/empty", async () => {
+      vi.mocked(db.query.clientOnboardings.findFirst).mockResolvedValueOnce({
+        id: 101,
+        organizationId: "org-test-uprise",
+        clientName: "KGN Homes",
+        primaryContactName: "Sultan",
+        contactEmail: "sultan@kgnhomes.com.au",
+        googleAdsAccess: true,
+        metaAdsAccess: true,
+        driveFolderLink: "https://drive.mock/folder",
+        notionDashboardLink: "https://notion.mock/dashboard",
+        signalGroupLink: "",
+        status: "ready_to_review",
+        googleAdsStatus: "pending",
+        metaAdsStatus: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      const result = await sendOnboardingEmailAction(101);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Signal Chat Group link is required");
+    });
+
+    it("should successfully send email when signal group link is filled", async () => {
+      vi.mocked(db.query.clientOnboardings.findFirst).mockResolvedValueOnce({
+        id: 101,
+        organizationId: "org-test-uprise",
+        clientName: "KGN Homes",
+        primaryContactName: "Sultan",
+        contactEmail: "sultan@kgnhomes.com.au",
+        googleAdsAccess: true,
+        metaAdsAccess: true,
+        driveFolderLink: "https://drive.mock/folder",
+        notionDashboardLink: "https://notion.mock/dashboard",
+        signalGroupLink: "https://signal.group/#real-link",
+        status: "ready_to_review",
+        googleAdsStatus: "pending",
+        metaAdsStatus: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+
+      const result = await sendOnboardingEmailAction(101);
 
       expect(result.success).toBe(true);
       expect(db.update).toHaveBeenCalled();
