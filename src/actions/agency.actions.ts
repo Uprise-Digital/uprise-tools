@@ -20,6 +20,7 @@ import { getAuthOrgContext } from "@/lib/auth-helpers";
 import {
   formatUTCDate,
   getMelbourneTodayStr,
+  getPreviousPeriodDateRange,
   parseUTCDate,
 } from "@/lib/date-utils";
 import {
@@ -331,7 +332,11 @@ export async function getAgencyPortfolioMetricsAction(
     const accountIds = activeAccounts.map((a) => a.id);
     if (accountIds.length === 0) return { success: true, data: null };
 
-    // 2. Fetch all performance data for these accounts in the date range
+    // 1.5 Calculate Previous Period date range
+    const { prevStartDate, prevEndDate, durationDays } =
+      getPreviousPeriodDateRange(startDate, endDate);
+
+    // 2. Fetch current performance data for these accounts in the date range
     const allPerformance = await db.query.adPerformanceDaily.findMany({
       where: and(
         gte(adPerformanceDaily.date, startDate),
@@ -339,13 +344,21 @@ export async function getAgencyPortfolioMetricsAction(
       ),
     });
 
-    // 3. Aggregate Agency Totals
+    // 2.5 Fetch previous period performance data
+    const prevPerformance = await db.query.adPerformanceDaily.findMany({
+      where: and(
+        gte(adPerformanceDaily.date, prevStartDate),
+        lte(adPerformanceDaily.date, prevEndDate),
+      ),
+    });
+
+    // 3. Aggregate Current Agency Totals
     let totalSpend = 0;
     let totalClicks = 0;
     let totalImpressions = 0;
     let totalConversions = 0;
 
-    // 4. Map account breakdown
+    // 4. Map account breakdown for current period
     const accountBreakdownMap: Record<number, any> = {};
     activeAccounts.forEach((acc) => {
       accountBreakdownMap[acc.id] = {
@@ -353,7 +366,7 @@ export async function getAgencyPortfolioMetricsAction(
         name: acc.name,
         googleAccountId: acc.googleAccountId,
         googleStatus: acc.googleStatus,
-        targetCpa: acc.targetCpa ? parseFloat(acc.targetCpa) : 0, // ← ADD THIS LINE
+        targetCpa: acc.targetCpa ? parseFloat(acc.targetCpa) : 0,
         spend: 0,
         clicks: 0,
         impressions: 0,
@@ -413,14 +426,171 @@ export async function getAgencyPortfolioMetricsAction(
       }
     });
 
-    // 5. Format Breakdown & Calculate derived metrics (CPA, CTR)
+    // 4.6 Aggregate Previous Period Totals & Account breakdown
+    let prevTotalSpend = 0;
+    let prevTotalClicks = 0;
+    let prevTotalImpressions = 0;
+    let prevTotalConversions = 0;
+
+    const prevAccountBreakdownMap: Record<
+      number,
+      {
+        spend: number;
+        clicks: number;
+        impressions: number;
+        conversions: number;
+      }
+    > = {};
+    activeAccounts.forEach((acc) => {
+      prevAccountBreakdownMap[acc.id] = {
+        spend: 0,
+        clicks: 0,
+        impressions: 0,
+        conversions: 0,
+      };
+    });
+
+    prevPerformance.forEach((row) => {
+      const spend = Number(row.spend || 0);
+      const clicks = Number(row.clicks || 0);
+      const impressions = Number(row.impressions || 0);
+      const conversions = Number(row.conversions || 0);
+
+      const isAccountActive = Boolean(prevAccountBreakdownMap[row.adAccountId]);
+      if (onlyActiveAccounts && !isAccountActive) {
+        return;
+      }
+
+      prevTotalSpend += spend;
+      prevTotalClicks += clicks;
+      prevTotalImpressions += impressions;
+      prevTotalConversions += conversions;
+
+      if (prevAccountBreakdownMap[row.adAccountId]) {
+        prevAccountBreakdownMap[row.adAccountId].spend += spend;
+        prevAccountBreakdownMap[row.adAccountId].clicks += clicks;
+        prevAccountBreakdownMap[row.adAccountId].impressions += impressions;
+        prevAccountBreakdownMap[row.adAccountId].conversions += conversions;
+      }
+    });
+
+    // Helper functions for delta calculations
+    const calcPctDelta = (curr: number, prev: number): number | null => {
+      if (prev === 0) return null;
+      return parseFloat((((curr - prev) / prev) * 100).toFixed(2));
+    };
+    const calcAbsDelta = (curr: number, prev: number): number => {
+      return parseFloat((curr - prev).toFixed(2));
+    };
+
+    // Current Whale vs Non-Whale calculation
+    const currentWhales = Object.values(accountBreakdownMap).filter(
+      (a: any) => totalSpend > 0 && a.spend > totalSpend * 0.25,
+    );
+    const whaleSpend = currentWhales.reduce(
+      (s: number, w: any) => s + w.spend,
+      0,
+    );
+    const whaleConv = currentWhales.reduce(
+      (s: number, w: any) => s + w.conversions,
+      0,
+    );
+    const nonWhaleSpend = totalSpend - whaleSpend;
+    const nonWhaleConv = totalConversions - whaleConv;
+    const nonWhaleCpa = nonWhaleConv > 0 ? nonWhaleSpend / nonWhaleConv : 0;
+    const whaleSpendShare =
+      totalSpend > 0 ? (whaleSpend / totalSpend) * 100 : 0;
+
+    // Previous Whale vs Non-Whale calculation
+    const prevWhales = Object.values(prevAccountBreakdownMap).filter(
+      (a: any) => prevTotalSpend > 0 && a.spend > prevTotalSpend * 0.25,
+    );
+    const prevWhaleSpend = prevWhales.reduce(
+      (s: number, w: any) => s + w.spend,
+      0,
+    );
+    const prevWhaleConv = prevWhales.reduce(
+      (s: number, w: any) => s + w.conversions,
+      0,
+    );
+    const prevNonWhaleSpend = prevTotalSpend - prevWhaleSpend;
+    const prevNonWhaleConv = prevTotalConversions - prevWhaleConv;
+    const prevNonWhaleCpa =
+      prevNonWhaleConv > 0 ? prevNonWhaleSpend / prevNonWhaleConv : 0;
+    const prevWhaleSpendShare =
+      prevTotalSpend > 0 ? (prevWhaleSpend / prevTotalSpend) * 100 : 0;
+
+    const currentCpa =
+      totalConversions > 0 ? totalSpend / totalConversions : 0;
+    const currentCtr =
+      totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+    const currentCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
+
+    const prevCpa =
+      prevTotalConversions > 0 ? prevTotalSpend / prevTotalConversions : 0;
+    const prevCtr =
+      prevTotalImpressions > 0 ? (prevTotalClicks / prevTotalImpressions) * 100 : 0;
+    const prevCpc = prevTotalClicks > 0 ? prevTotalSpend / prevTotalClicks : 0;
+
+    // 5. Format Breakdown & Calculate derived metrics (CPA, CTR, Deltas)
     const accountBreakdown = Object.values(accountBreakdownMap)
-      .map((acc) => ({
-        ...acc,
-        cpa: acc.conversions > 0 ? acc.spend / acc.conversions : 0,
-        ctr: acc.impressions > 0 ? (acc.clicks / acc.impressions) * 100 : 0,
-        cpc: acc.clicks > 0 ? acc.spend / acc.clicks : 0,
-      }))
+      .map((acc) => {
+        const cpa = acc.conversions > 0 ? acc.spend / acc.conversions : 0;
+        const ctr =
+          acc.impressions > 0 ? (acc.clicks / acc.impressions) * 100 : 0;
+        const cpc = acc.clicks > 0 ? acc.spend / acc.clicks : 0;
+
+        const prevAcc = prevAccountBreakdownMap[acc.accountId] || {
+          spend: 0,
+          clicks: 0,
+          impressions: 0,
+          conversions: 0,
+        };
+        const prevAccCpa =
+          prevAcc.conversions > 0 ? prevAcc.spend / prevAcc.conversions : 0;
+        const prevAccCtr =
+          prevAcc.impressions > 0
+            ? (prevAcc.clicks / prevAcc.impressions) * 100
+            : 0;
+        const prevAccCpc =
+          prevAcc.clicks > 0 ? prevAcc.spend / prevAcc.clicks : 0;
+
+        const spendDeltaPct = calcPctDelta(acc.spend, prevAcc.spend);
+        const convDeltaPct = calcPctDelta(acc.conversions, prevAcc.conversions);
+        const convDeltaAbs = acc.conversions - prevAcc.conversions;
+        const cpaDeltaPct =
+          acc.conversions > 0 && prevAcc.conversions > 0
+            ? calcPctDelta(cpa, prevAccCpa)
+            : null;
+        const cpaDeltaAbs =
+          acc.conversions > 0 && prevAcc.conversions > 0
+            ? calcAbsDelta(cpa, prevAccCpa)
+            : null;
+
+        return {
+          ...acc,
+          cpa,
+          ctr,
+          cpc,
+          previous: {
+            spend: prevAcc.spend,
+            conversions: prevAcc.conversions,
+            cpa: prevAccCpa,
+            clicks: prevAcc.clicks,
+            impressions: prevAcc.impressions,
+            ctr: prevAccCtr,
+            cpc: prevAccCpc,
+          },
+          deltas: {
+            spendDeltaPct,
+            spendDeltaAbs: calcAbsDelta(acc.spend, prevAcc.spend),
+            convDeltaPct,
+            convDeltaAbs,
+            cpaDeltaPct,
+            cpaDeltaAbs,
+          },
+        };
+      })
       .sort((a, b) => b.spend - a.spend); // Sort by highest spend
 
     const dailyTotals = Object.values(dailyTotalsMap).sort((a, b) =>
@@ -436,10 +606,54 @@ export async function getAgencyPortfolioMetricsAction(
           clicks: totalClicks,
           impressions: totalImpressions,
           conversions: totalConversions,
-          cpa: totalConversions > 0 ? totalSpend / totalConversions : 0,
-          ctr:
-            totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
-          cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+          cpa: currentCpa,
+          ctr: currentCtr,
+          cpc: currentCpc,
+          nonWhaleCpa,
+          whaleSpendShare,
+        },
+        previousAgencyTotals: {
+          spend: prevTotalSpend,
+          clicks: prevTotalClicks,
+          impressions: prevTotalImpressions,
+          conversions: prevTotalConversions,
+          cpa: prevCpa,
+          ctr: prevCtr,
+          cpc: prevCpc,
+          nonWhaleCpa: prevNonWhaleCpa,
+          whaleSpendShare: prevWhaleSpendShare,
+        },
+        deltas: {
+          spendDeltaPct: calcPctDelta(totalSpend, prevTotalSpend),
+          spendDeltaAbs: calcAbsDelta(totalSpend, prevTotalSpend),
+          conversionsDeltaPct: calcPctDelta(
+            totalConversions,
+            prevTotalConversions,
+          ),
+          conversionsDeltaAbs: calcAbsDelta(
+            totalConversions,
+            prevTotalConversions,
+          ),
+          cpaDeltaPct: calcPctDelta(currentCpa, prevCpa),
+          cpaDeltaAbs: calcAbsDelta(currentCpa, prevCpa),
+          clicksDeltaPct: calcPctDelta(totalClicks, prevTotalClicks),
+          clicksDeltaAbs: calcAbsDelta(totalClicks, prevTotalClicks),
+          impressionsDeltaPct: calcPctDelta(
+            totalImpressions,
+            prevTotalImpressions,
+          ),
+          ctrDeltaPts: parseFloat((currentCtr - prevCtr).toFixed(2)),
+          cpcDeltaAbs: calcAbsDelta(currentCpc, prevCpc),
+          nonWhaleCpaDeltaPct: calcPctDelta(nonWhaleCpa, prevNonWhaleCpa),
+          nonWhaleCpaDeltaAbs: calcAbsDelta(nonWhaleCpa, prevNonWhaleCpa),
+          whaleSpendShareDeltaPts: parseFloat(
+            (whaleSpendShare - prevWhaleSpendShare).toFixed(2),
+          ),
+        },
+        previousPeriod: {
+          startDate: prevStartDate,
+          endDate: prevEndDate,
+          durationDays,
         },
         accountBreakdown,
         dailyTotals,

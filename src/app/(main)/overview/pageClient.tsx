@@ -227,6 +227,101 @@ export default function AgencyReportsClient() {
     return date.toLocaleDateString();
   };
 
+  // Delta Badge component for Period-over-Period comparisons
+  const DeltaBadge = ({
+    deltaPct,
+    deltaAbs,
+    type = "standard", // "standard" (up=green, down=red) | "inverted" (down=green, up=red, e.g. CPA) | "neutral" (spend) | "points" (pts)
+    formatAs = "pct", // "pct" | "currency" | "number"
+    prefix = "",
+    suffix = "",
+    size = "sm",
+  }: {
+    deltaPct?: number | null;
+    deltaAbs?: number | null;
+    type?: "standard" | "inverted" | "neutral" | "points";
+    formatAs?: "pct" | "currency" | "number";
+    prefix?: string;
+    suffix?: string;
+    size?: "xs" | "sm";
+  }) => {
+    if (deltaPct === null || deltaPct === undefined || isNaN(deltaPct)) {
+      return (
+        <span className="text-[10px] text-slate-400 font-medium">— vs prior</span>
+      );
+    }
+
+    if (
+      deltaPct === 0 &&
+      (deltaAbs === 0 || deltaAbs === null || deltaAbs === undefined)
+    ) {
+      return (
+        <span className="text-[10px] text-slate-400 font-medium">
+          0.0% vs prior
+        </span>
+      );
+    }
+
+    const isPositive = deltaPct > 0;
+
+    let colorClasses = "text-slate-600 bg-slate-100 border-slate-200";
+    const icon = isPositive ? "▲" : "▼";
+
+    if (type === "standard") {
+      // Higher is better (e.g. conversions)
+      colorClasses = isPositive
+        ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+        : "text-rose-700 bg-rose-50 border-rose-200";
+    } else if (type === "inverted") {
+      // Lower is better (e.g. CPA, CPC)
+      colorClasses = isPositive
+        ? "text-rose-700 bg-rose-50 border-rose-200"
+        : "text-emerald-700 bg-emerald-50 border-emerald-200";
+    } else if (type === "neutral" || type === "points") {
+      // Spend or points
+      colorClasses = isPositive
+        ? "text-indigo-700 bg-indigo-50 border-indigo-200"
+        : "text-slate-700 bg-slate-100 border-slate-200";
+    }
+
+    let text = "";
+    if (formatAs === "pct") {
+      text = `${isPositive ? "+" : ""}${deltaPct.toFixed(1)}%`;
+    } else if (
+      formatAs === "currency" &&
+      deltaAbs !== null &&
+      deltaAbs !== undefined
+    ) {
+      text = `${isPositive ? "+" : "-"}${fCur(Math.abs(deltaAbs))} (${isPositive ? "+" : ""}${deltaPct.toFixed(1)}%)`;
+    } else if (
+      formatAs === "number" &&
+      deltaAbs !== null &&
+      deltaAbs !== undefined
+    ) {
+      text = `${isPositive ? "+" : ""}${deltaAbs} (${isPositive ? "+" : ""}${deltaPct.toFixed(1)}%)`;
+    }
+
+    if (type === "points") {
+      text = `${isPositive ? "+" : ""}${deltaPct.toFixed(1)}% pts`;
+    }
+
+    const textSize =
+      size === "xs"
+        ? "text-[9px] px-1 py-0.5"
+        : "text-[10px] px-1.5 py-0.5";
+
+    return (
+      <span
+        className={`inline-flex items-center gap-0.5 font-bold rounded border ${textSize} ${colorClasses}`}
+      >
+        <span className="text-[8px] leading-none">{icon}</span>
+        {prefix}
+        {text}
+        {suffix}
+      </span>
+    );
+  };
+
   // Calculate Dynamic Churn Risk
   const getChurnRisk = (acc: any, blendedCpa: number) => {
     if (acc.spend === 0)
@@ -293,8 +388,14 @@ export default function AgencyReportsClient() {
       "Google ID",
       "Churn Risk",
       "Spend",
+      "Prior Spend",
+      "Spend Delta (%)",
       "Conversions",
+      "Prior Conversions",
+      "Conv Delta (%)",
       "CPA",
+      "Prior CPA",
+      "CPA Delta (%)",
       "CTR",
       "CPC",
     ];
@@ -305,8 +406,14 @@ export default function AgencyReportsClient() {
         acc.googleAccountId,
         risk.label,
         acc.spend,
+        acc.previous?.spend ?? "",
+        acc.deltas?.spendDeltaPct ?? "",
         acc.conversions,
+        acc.previous?.conversions ?? "",
+        acc.deltas?.convDeltaPct ?? "",
         acc.cpa,
+        acc.previous?.cpa ?? "",
+        acc.deltas?.cpaDeltaPct ?? "",
         acc.ctr,
         acc.cpc,
       ];
@@ -783,7 +890,8 @@ export default function AgencyReportsClient() {
             <Users className="h-7 w-7 text-blue-600" /> Agency God View
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Macro portfolio performance and critical alerts.
+            Macro portfolio performance, period-over-period deltas, and critical
+            alerts.
           </p>
         </div>
 
@@ -837,20 +945,50 @@ export default function AgencyReportsClient() {
         </div>
       </div>
 
-      {/* ── CONDENSED 6-GRID KPIS ── */}
+      {/* ── PERIOD-OVER-PERIOD COMPARISON BANNER ── */}
+      {portfolio?.previousPeriod && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-gradient-to-r from-slate-50 to-blue-50/40 border border-slate-200/80 rounded-xl text-xs text-slate-600 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-bold text-slate-800 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-blue-600" /> Period
+              Comparison:
+            </span>
+            <span className="text-slate-500">
+              Current (
+              <strong className="text-slate-800 font-semibold">
+                {startDate} → {endDate}
+              </strong>
+              ) vs. Prior Period (
+              <strong className="text-slate-800 font-semibold">
+                {portfolio.previousPeriod.startDate} →{" "}
+                {portfolio.previousPeriod.endDate}
+              </strong>
+              )
+            </span>
+          </div>
+          <span className="text-[11px] font-semibold text-blue-700 bg-white border border-blue-200/60 px-2.5 py-0.5 rounded-full shadow-xs">
+            {portfolio.previousPeriod.durationDays}-day equal window
+          </span>
+        </div>
+      )}
+
+      {/* ── CONDENSED 6-GRID KPIS WITH DELTAS ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* Card 1: All Accounts */}
         <Card className="py-0 m-0 shadow-sm border-slate-200">
           <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                 All Accounts
               </p>
               <p className="text-lg font-black text-slate-900">
                 {portfolio?.agencyTotals?.activeAccountsCount || 0}
               </p>
+              <p className="text-[10px] text-slate-400 font-medium">
+                Active Client Accounts
+              </p>
             </div>
-            <div className="p-2 rounded-lg bg-indigo-50 shrink-0">
+            <div className="p-2 rounded-lg bg-indigo-50 shrink-0 self-start">
               <Users className="h-3.5 w-3.5 text-indigo-600" />
             </div>
           </CardContent>
@@ -859,15 +997,23 @@ export default function AgencyReportsClient() {
         {/* Card 2: Blended Spend */}
         <Card className="py-0 m-0 shadow-sm border-slate-200">
           <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                 Blended Spend
               </p>
               <p className="text-lg font-black text-slate-900">
                 {fCur(totalSpend)}
               </p>
+              <div>
+                <DeltaBadge
+                  deltaPct={portfolio?.deltas?.spendDeltaPct}
+                  deltaAbs={portfolio?.deltas?.spendDeltaAbs}
+                  type="neutral"
+                  suffix=" vs prior"
+                />
+              </div>
             </div>
-            <div className="p-2 rounded-lg bg-blue-50 shrink-0">
+            <div className="p-2 rounded-lg bg-blue-50 shrink-0 self-start">
               <DollarSign className="h-3.5 w-3.5 text-blue-600" />
             </div>
           </CardContent>
@@ -876,15 +1022,23 @@ export default function AgencyReportsClient() {
         {/* Card 3: Total Conversions */}
         <Card className="py-0 m-0 shadow-sm border-slate-200">
           <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                 Total Conv.
               </p>
               <p className="text-lg font-black text-slate-900">
                 {fNum(totalConv)}
               </p>
+              <div>
+                <DeltaBadge
+                  deltaPct={portfolio?.deltas?.conversionsDeltaPct}
+                  deltaAbs={portfolio?.deltas?.conversionsDeltaAbs}
+                  type="standard"
+                  formatAs="number"
+                />
+              </div>
             </div>
-            <div className="p-2 rounded-lg bg-emerald-50 shrink-0">
+            <div className="p-2 rounded-lg bg-emerald-50 shrink-0 self-start">
               <Target className="h-3.5 w-3.5 text-emerald-600" />
             </div>
           </CardContent>
@@ -893,15 +1047,23 @@ export default function AgencyReportsClient() {
         {/* Card 4: Blended CPA */}
         <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-2 border-l-indigo-500">
           <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
                 Blended CPA
               </p>
               <p className="text-lg font-black text-slate-900">
                 {fCur(portfolio?.agencyTotals?.cpa || 0)}
               </p>
+              <div>
+                <DeltaBadge
+                  deltaPct={portfolio?.deltas?.cpaDeltaPct}
+                  deltaAbs={portfolio?.deltas?.cpaDeltaAbs}
+                  type="inverted"
+                  formatAs="currency"
+                />
+              </div>
             </div>
-            <div className="p-2 rounded-lg bg-slate-100 shrink-0">
+            <div className="p-2 rounded-lg bg-slate-100 shrink-0 self-start">
               <Activity className="h-3.5 w-3.5 text-slate-600" />
             </div>
           </CardContent>
@@ -910,15 +1072,23 @@ export default function AgencyReportsClient() {
         {/* Card 5: Non-Whale CPA */}
         <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-2 border-l-emerald-500 bg-emerald-50/10">
           <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-700">
                 Non-Whale CPA
               </p>
               <p className="text-lg font-black text-emerald-800">
                 {fCur(nonWhaleCpa)}
               </p>
+              <div>
+                <DeltaBadge
+                  deltaPct={portfolio?.deltas?.nonWhaleCpaDeltaPct}
+                  deltaAbs={portfolio?.deltas?.nonWhaleCpaDeltaAbs}
+                  type="inverted"
+                  formatAs="currency"
+                />
+              </div>
             </div>
-            <div className="p-2 rounded-lg bg-emerald-50 shrink-0">
+            <div className="p-2 rounded-lg bg-emerald-50 shrink-0 self-start">
               <Scale className="h-3.5 w-3.5 text-emerald-600" />
             </div>
           </CardContent>
@@ -927,15 +1097,22 @@ export default function AgencyReportsClient() {
         {/* Card 6: Whale Spend Share */}
         <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-2 border-l-amber-500 bg-amber-50/10">
           <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <p className="text-[9px] font-bold uppercase tracking-wider text-amber-700">
                 Whale Spend
               </p>
               <p className="text-lg font-black text-amber-800">
                 {fPct(whaleSpendShare)}
               </p>
+              <div>
+                <DeltaBadge
+                  deltaPct={portfolio?.deltas?.whaleSpendShareDeltaPts}
+                  type="points"
+                  suffix=" vs prior"
+                />
+              </div>
             </div>
-            <div className="p-2 rounded-lg bg-amber-50 shrink-0">
+            <div className="p-2 rounded-lg bg-amber-50 shrink-0 self-start">
               <Activity className="h-3.5 w-3.5 text-amber-600" />
             </div>
           </CardContent>
@@ -1800,21 +1977,75 @@ export default function AgencyReportsClient() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {fCur(acc.spend)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-bold text-emerald-600">
-                      {fNum(acc.conversions)}
+                      <div className="font-semibold text-slate-900">
+                        {fCur(acc.spend)}
+                      </div>
+                      {acc.deltas?.spendDeltaPct !== null &&
+                      acc.deltas?.spendDeltaPct !== undefined ? (
+                        <div className="text-[10px] text-slate-400">
+                          {acc.deltas.spendDeltaPct > 0 ? "+" : ""}
+                          {acc.deltas.spendDeltaPct.toFixed(1)}% vs prior
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-300">—</div>
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      <span
-                        className={
-                          acc.cpa > portfolio?.agencyTotals?.cpa * 1.5
-                            ? "text-red-600 font-bold bg-red-50 px-2 py-1 rounded"
-                            : ""
-                        }
-                      >
-                        {fCur(acc.cpa)}
-                      </span>
+                      <div className="font-bold text-emerald-600">
+                        {fNum(acc.conversions)}
+                      </div>
+                      {acc.deltas?.convDeltaPct !== null &&
+                      acc.deltas?.convDeltaPct !== undefined ? (
+                        <div
+                          className={`text-[10px] font-medium ${
+                            acc.deltas.convDeltaPct >= 0
+                              ? "text-emerald-600"
+                              : "text-rose-600"
+                          }`}
+                        >
+                          {acc.deltas.convDeltaPct > 0 ? "+" : ""}
+                          {acc.deltas.convDeltaPct.toFixed(1)}% (
+                          {acc.deltas.convDeltaAbs > 0 ? "+" : ""}
+                          {acc.deltas.convDeltaAbs})
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-300">—</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span
+                          className={
+                            acc.cpa > (portfolio?.agencyTotals?.cpa || 0) * 1.5
+                              ? "text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded"
+                              : "font-semibold text-slate-800"
+                          }
+                        >
+                          {fCur(acc.cpa)}
+                        </span>
+                        {acc.deltas?.cpaDeltaPct !== null &&
+                        acc.deltas?.cpaDeltaPct !== undefined ? (
+                          <span
+                            className={`text-[10px] font-medium px-1 rounded ${
+                              acc.deltas.cpaDeltaPct < 0
+                                ? "text-emerald-700 bg-emerald-50"
+                                : acc.deltas.cpaDeltaPct > 0
+                                  ? "text-rose-700 bg-rose-50"
+                                  : "text-slate-500"
+                            }`}
+                          >
+                            {acc.deltas.cpaDeltaPct < 0
+                              ? "▼"
+                              : acc.deltas.cpaDeltaPct > 0
+                                ? "▲"
+                                : ""}{" "}
+                            {acc.deltas.cpaDeltaPct > 0 ? "+" : ""}
+                            {acc.deltas.cpaDeltaPct.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-300">—</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       <span

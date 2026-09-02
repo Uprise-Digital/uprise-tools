@@ -125,3 +125,35 @@ export function getPreviousMonthInfo(nowDate = new Date()) {
     endDate,
   };
 }
+
+/**
+ * Calculates an exact equal-length previous period.
+ * For example, if current is 2026-08-01 to 2026-08-31 (31 days),
+ * the previous period is 2026-07-01 to 2026-07-31 (31 days).
+ */
+export function getPreviousPeriodDateRange(startDate: string, endDate: string) {
+  const cleanStart = startDate.split("T")[0].trim();
+  const cleanEnd = endDate.split("T")[0].trim();
+
+  const start = parseUTCDate(cleanStart);
+  const end = parseUTCDate(cleanEnd);
+
+  // Difference in days
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  // Previous period end is 1 day before current start
+  const prevEnd = new Date(start.getTime());
+  prevEnd.setUTCDate(prevEnd.getUTCDate() - 1);
+
+  // Previous period start is diffDays before previous end
+  const prevStart = new Date(prevEnd.getTime());
+  prevStart.setUTCDate(prevStart.getUTCDate() - diffDays);
+
+  return {
+    prevStartDate: formatUTCDate(prevStart),
+    prevEndDate: formatUTCDate(prevEnd),
+    durationDays: diffDays + 1,
+  };
+}
+
