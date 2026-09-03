@@ -675,12 +675,13 @@ export async function runPageSpeedAudit(
           const clsScore = Number((clsAudit.numericValue ?? 0).toFixed(3));
           const clsDisplay = clsAudit.displayValue || clsScore.toString();
 
-          const inpAudit =
-            audits["interaction-to-next-paint"] ||
-            audits["total-blocking-time"] ||
-            {};
-          const inpMs = Math.round(inpAudit.numericValue ?? 0);
-          const inpDisplay = inpAudit.displayValue || `${inpMs} ms`;
+          const tbtAudit = audits["total-blocking-time"] || {};
+          const inpAudit = audits["interaction-to-next-paint"] || {};
+          const inpMs = Math.round(
+            tbtAudit.numericValue ?? inpAudit.numericValue ?? 0,
+          );
+          const inpDisplay =
+            tbtAudit.displayValue || inpAudit.displayValue || `${inpMs} ms`;
 
           const fcpAudit = audits["first-contentful-paint"] || {};
           const fcpMs = Math.round(fcpAudit.numericValue ?? 0);

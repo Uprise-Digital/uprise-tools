@@ -965,7 +965,7 @@ export default function SpeedTestingClientPage({
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
-                              Interaction to Next Paint (INP)
+                              Total Blocking Time (TBT)
                             </span>
                             <Badge
                               variant="outline"
@@ -985,8 +985,7 @@ export default function SpeedTestingClientPage({
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-500 leading-normal pt-1">
-                            Target &le; 200ms. UI response latency on tap /
-                            click.
+                            Target &le; 200ms. Main-thread JS blocking delay (INP equivalent).
                           </p>
                         </div>
                       );
