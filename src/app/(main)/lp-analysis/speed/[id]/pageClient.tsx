@@ -1632,6 +1632,30 @@ export default function SpeedTestingClientPage({
                   💡 <strong>Mobile vs Desktop Realism</strong>: Mobile profiles simulate a standard 4G network (1.63 Mbps, 150ms roundtrip) 
                   and 4x CPU slowdown factor (emulating a mid-range Moto G4 device). This matches Google Ads Landing Page Experience grading criteria.
                 </div>
+
+                {/* OFFICIAL GOOGLE DOCS & CALCULATOR LINK CARD */}
+                <div className="flex items-center justify-between p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs">
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-blue-950 flex items-center gap-1.5">
+                      <ExternalLink className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                      Official Google Lighthouse Calculator
+                    </div>
+                    <p className="text-[11px] text-blue-800">
+                      Simulate how metric improvements change your exact score in real-time.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href="https://googlechrome.github.io/lighthouse/scorecalc/"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[11px] inline-flex items-center gap-1 shadow-xs transition-colors"
+                    >
+                      Open Calculator
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                </div>
               </div>
             )}
 
