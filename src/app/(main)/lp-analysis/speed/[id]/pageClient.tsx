@@ -237,7 +237,9 @@ export default function SpeedTestingClientPage({
 }: SpeedTestingClientPageProps) {
   const router = useRouter();
   const [data, setData] = useState<LandingPageSpeedData>(initialData);
-  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+  const [device, setDevice] = useState<"mobile" | "desktop">(
+    initialData.latestTest?.device || "mobile",
+  );
   const [isRunningTest, setIsRunningTest] = useState(false);
   const [isTogglingWeekly, setIsTogglingWeekly] = useState(false);
   const [expandedOpportunityIds, setExpandedOpportunityIds] = useState<
@@ -248,10 +250,32 @@ export default function SpeedTestingClientPage({
   );
 
   const landingPage = data.landingPage;
-  const currentTest =
-    (selectedAuditId
-      ? data.history.find((h) => h.id === selectedAuditId)
-      : null) || data.latestTest;
+
+  // Reactively switch between Mobile and Desktop views
+  const handleDeviceChange = (newDevice: "mobile" | "desktop") => {
+    setDevice(newDevice);
+    const matching = data.history.find((h) => h.device === newDevice);
+    if (matching) {
+      setSelectedAuditId(matching.id);
+    } else {
+      setSelectedAuditId(null);
+    }
+  };
+
+  // Select historical run from table
+  const handleSelectHistory = (h: PageSpeedAuditResultWithMeta) => {
+    setDevice(h.device);
+    setSelectedAuditId(h.id);
+  };
+
+  // Determine active test matching the selected device
+  const currentTest = React.useMemo(() => {
+    if (selectedAuditId) {
+      const found = data.history.find((h) => h.id === selectedAuditId);
+      if (found && found.device === device) return found;
+    }
+    return data.history.find((h) => h.device === device) || null;
+  }, [selectedAuditId, device, data.history]);
 
   // Toggle weekly automated check
   const handleToggleWeekly = async (checked: boolean) => {
@@ -311,6 +335,7 @@ export default function SpeedTestingClientPage({
         latestTest: newTest,
         history: [newTest, ...prev.history.filter((h) => h.id !== newTest.id)],
       }));
+      setDevice(newTest.device);
       setSelectedAuditId(newTest.id);
 
       toast.success(
@@ -416,10 +441,10 @@ export default function SpeedTestingClientPage({
             <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold">
               <button
                 type="button"
-                onClick={() => setDevice("mobile")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+                onClick={() => handleDeviceChange("mobile")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all cursor-pointer ${
                   device === "mobile"
-                    ? "bg-white text-slate-900 shadow-xs"
+                    ? "bg-white text-slate-900 shadow-xs font-bold"
                     : "text-slate-500 hover:text-slate-900"
                 }`}
               >
@@ -427,10 +452,10 @@ export default function SpeedTestingClientPage({
               </button>
               <button
                 type="button"
-                onClick={() => setDevice("desktop")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+                onClick={() => handleDeviceChange("desktop")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all cursor-pointer ${
                   device === "desktop"
-                    ? "bg-white text-slate-900 shadow-xs"
+                    ? "bg-white text-slate-900 shadow-xs font-bold"
                     : "text-slate-500 hover:text-slate-900"
                 }`}
               >
@@ -463,45 +488,137 @@ export default function SpeedTestingClientPage({
       {/* MAIN CONTENT BODY */}
       <div className="max-w-7xl mx-auto px-6 pt-6 space-y-6">
         {!currentTest ? (
-          /* EMPTY STATE - NO AUDIT YET */
-          <Card className="border-dashed border-2 border-slate-300 bg-white text-center py-16 px-6">
-            <CardContent className="max-w-md mx-auto space-y-4">
-              <div className="h-14 w-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto text-indigo-600 shadow-xs">
-                <Gauge className="h-7 w-7" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  No Speed Test Run Yet
-                </h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  Run a real-time Google PageSpeed Insights & Core Web Vitals
-                  audit to analyze page performance, mobile load latency, and
-                  Quality Score impact.
-                </p>
-              </div>
-
-              <div className="pt-2">
-                <Button
-                  onClick={handleRunSpeedTest}
-                  disabled={isRunningTest}
-                  size="lg"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md"
-                >
-                  {isRunningTest ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Auditing {landingPage.url}...
-                    </>
+          /* EMPTY STATE FOR SELECTED DEVICE */
+          <div className="space-y-6">
+            <Card className="border-dashed border-2 border-slate-300 bg-white text-center py-16 px-6">
+              <CardContent className="max-w-md mx-auto space-y-4">
+                <div className="h-14 w-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto text-indigo-600 shadow-xs">
+                  {device === "mobile" ? (
+                    <Smartphone className="h-7 w-7" />
                   ) : (
-                    <>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Run Initial Speed Test ({device.toUpperCase()})
-                    </>
+                    <Laptop className="h-7 w-7" />
                   )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    No {device === "mobile" ? "Mobile" : "Desktop"} Speed Test Run Yet
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Run a real-time {device} performance audit for{" "}
+                    <strong>{landingPage.campaignName}</strong> to measure Core
+                    Web Vitals on {device}.
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    onClick={handleRunSpeedTest}
+                    disabled={isRunningTest}
+                    size="lg"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md"
+                  >
+                    {isRunningTest ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Auditing ({device.toUpperCase()})...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Run {device === "mobile" ? "Mobile" : "Desktop"} Speed Test
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* AUDIT HISTORY TABLE IF OTHER RUNS EXIST */}
+            {data.history.length > 0 && (
+              <Card className="bg-white border-slate-200/90 shadow-xs">
+                <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-slate-600" />
+                        Previous Speed Audits ({data.history.length})
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        Select a past run to view detailed performance metrics
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <TableHead className="pl-6">Date</TableHead>
+                        <TableHead>Device</TableHead>
+                        <TableHead>Score</TableHead>
+                        <TableHead>LCP</TableHead>
+                        <TableHead>CLS</TableHead>
+                        <TableHead>Trigger</TableHead>
+                        <TableHead className="text-right pr-6">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.history.map((h) => {
+                        const scoreM = getScoreColor(h.performanceScore);
+                        return (
+                          <TableRow
+                            key={h.id}
+                            className="text-xs hover:bg-slate-50/70"
+                          >
+                            <TableCell className="pl-6 text-slate-700">
+                              {new Date(h.createdAt).toLocaleDateString(
+                                "en-GB",
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </TableCell>
+                            <TableCell className="capitalize font-semibold">
+                              {h.device}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-bold ${scoreM.bg} ${scoreM.text} ${scoreM.border}`}
+                              >
+                                {h.performanceScore} / 100
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{h.lcpDisplay || "N/A"}</TableCell>
+                            <TableCell>{h.clsDisplay || "N/A"}</TableCell>
+                            <TableCell>
+                              <span className="text-[10px] font-semibold text-slate-500">
+                                {h.triggerSource.replace("_", " ")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right pr-6">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-800"
+                                onClick={() => handleSelectHistory(h)}
+                              >
+                                View Insights
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         ) : (
           /* AUDIT RESULTS CONTENT */
           <>
@@ -1066,14 +1183,14 @@ export default function SpeedTestingClientPage({
             </Card>
 
             {/* AUDIT HISTORY TABLE */}
-            {data.history.length > 1 && (
+            {data.history.length > 0 && (
               <Card className="bg-white border-slate-200/90 shadow-xs">
                 <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                         <Clock className="h-4 w-4 text-slate-600" />
-                        Speed Audit History
+                        Speed Audit History ({data.history.length})
                       </CardTitle>
                       <CardDescription className="text-xs text-slate-500">
                         Historical speed scans for this campaign landing page
@@ -1096,7 +1213,7 @@ export default function SpeedTestingClientPage({
                     </TableHeader>
                     <TableBody>
                       {data.history.map((h) => {
-                        const isSelected = h.id === currentTest.id;
+                        const isSelected = currentTest?.id === h.id;
                         const scoreM = getScoreColor(h.performanceScore);
                         return (
                           <TableRow
@@ -1119,7 +1236,7 @@ export default function SpeedTestingClientPage({
                                 },
                               )}
                             </TableCell>
-                            <TableCell className="capitalize">
+                            <TableCell className="capitalize font-medium">
                               {h.device}
                             </TableCell>
                             <TableCell>
@@ -1147,7 +1264,7 @@ export default function SpeedTestingClientPage({
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-800"
-                                  onClick={() => setSelectedAuditId(h.id)}
+                                  onClick={() => handleSelectHistory(h)}
                                 >
                                   View Insights
                                 </Button>
