@@ -313,27 +313,36 @@ function calculateLighthouseScore(
         ? 1.4
         : 2.0; // 4x slowdown
 
-  // FCP = TTFB + CSS render blocking delay
+  // FCP = TTFB + HTML download + Web fonts delay + CSS render blocking delay + initial DOM parse
+  const baseBrowserInitDelay = (device === "mobile" ? 800 : 200) * networkLatencyMultiplier;
+  const webFontsDelay = Math.min(fontCount * 250 * networkLatencyMultiplier, 1200);
   const criticalCssDelay = Math.min(
-    stylesheets.length * (device === "mobile" ? 70 : 40) * cpuSlowdownMultiplier,
-    1500,
+    (stylesheets.length * 150 + 200) * cpuSlowdownMultiplier,
+    1800,
   );
-  const fcpMs = Math.round(ttfbMs + htmlDownloadMs + criticalCssDelay);
+  const domParseDelay = Math.min((totalDomElements / 300) * 100 * cpuSlowdownMultiplier, 800);
+  const fcpMs = Math.max(
+    device === "mobile" ? 1100 : 400,
+    Math.round(ttfbMs + htmlDownloadMs + baseBrowserInitDelay + webFontsDelay + criticalCssDelay + domParseDelay),
+  );
 
   // LCP = FCP + Hero image / major element load + JS execution
   const heroImageDelay =
     images.length > 0
-      ? ((device === "mobile" ? 500 : 300) +
-          Math.min((estimatedImageBytes / 200000) * 120, 1000)) *
+      ? ((device === "mobile" ? 900 : 400) +
+          Math.min((estimatedImageBytes / 200000) * 250, 1800)) *
         networkLatencyMultiplier
-      : 200;
+      : 300;
   const jsExecutionDelay = Math.min(
-    (syncScriptCount * 80 + thirdPartyScriptCount * 55) *
+    (syncScriptCount * 120 + thirdPartyScriptCount * 85 + (estimatedJsBytes / 100000) * 150) *
       cpuSlowdownMultiplier,
-    2200,
+    3000,
   );
-  const lcpMs = Math.round(
-    fcpMs + heroImageDelay + jsExecutionDelay * (device === "mobile" ? 0.65 : 0.35),
+  const lcpMs = Math.max(
+    fcpMs + 500,
+    Math.round(
+      fcpMs + heroImageDelay + jsExecutionDelay * (device === "mobile" ? 0.75 : 0.45),
+    ),
   );
 
   // CLS = Unsized images penalty + font shift + layout shift
@@ -342,18 +351,19 @@ function calculateLighthouseScore(
   const clsScore = Number(Math.min(baseCls, 0.45).toFixed(3));
 
   // TBT / INP = Main-thread blocking time from JS parsing and marketing tags
+  const baseTbt = device === "mobile" ? 80 : 30;
+  const jsWeightTbt = (estimatedJsBytes / 100000) * 60;
+  const scriptCountTbt = syncScriptCount * 65 + thirdPartyScriptCount * 80;
   const inpMs = Math.min(
     Math.round(
-      (device === "mobile" ? 40 : 20) +
-        (syncScriptCount * 45 + thirdPartyScriptCount * 65) *
-          (cpuSlowdownMultiplier * 0.8),
+      (baseTbt + jsWeightTbt + scriptCountTbt) * (cpuSlowdownMultiplier * 0.9),
     ),
-    1200,
+    2000,
   );
 
   // Speed Index = Visual progression during load
   const speedIndexMs = Math.round(
-    fcpMs + (lcpMs - fcpMs) * (device === "mobile" ? 0.72 : 0.58),
+    fcpMs + (lcpMs - fcpMs) * (device === "mobile" ? 0.78 : 0.60) + (totalDomElements / 500) * 100 * cpuSlowdownMultiplier,
   );
 
   // 7. Calculate Official Lighthouse v10/v11 Performance Score
@@ -611,7 +621,8 @@ export async function runPageSpeedAudit(
     process.env.PAGESPEED_API_KEY ||
     process.env.GOOGLE_PAGESPEED_API_KEY;
 
-  if (apiKey || requestedEngine === "google") {
+  // In 'auto' or 'google' mode, attempt Google Cloud PageSpeed Insights API first
+  if (requestedEngine === "google" || requestedEngine === "auto") {
     try {
       const urlObj = new URL(
         "https://www.googleapis.com/pagespeedonline/v5/runPagespeed",
