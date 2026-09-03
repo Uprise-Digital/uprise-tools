@@ -468,6 +468,7 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
       campaignName: m.campaignName,
       url: m.url,
       status: m.status,
+      weeklySpeedCheck: m.weeklySpeedCheck ?? false,
       updatedAt: m.updatedAt,
       latestAudit,
       audits: campaignAudits.map((a) => ({

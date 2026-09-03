@@ -526,6 +526,7 @@ export const adAccountRelations = relations(adAccounts, ({ many, one }) => ({
   negativeKeywordSuggestions: many(negativeKeywordSuggestions),
   campaignLandingPages: many(campaignLandingPages),
   landingPageAudits: many(landingPageAudits),
+  landingPageSpeedTests: many(landingPageSpeedTests),
   clientOnboarding: one(clientOnboardings, {
     fields: [adAccounts.clientOnboardingId],
     references: [clientOnboardings.id],
@@ -903,6 +904,7 @@ export const campaignLandingPages = pgTable(
     campaignName: text("campaign_name").notNull(),
     url: text("url").notNull(),
     status: text("status").notNull().default("ENABLED"),
+    weeklySpeedCheck: boolean("weekly_speed_check").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -942,13 +944,63 @@ export const landingPageAudits = pgTable("landing_page_audits", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }).enableRLS();
 
+export const landingPageSpeedTests = pgTable(
+  "landing_page_speed_tests",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id").notNull().default("default-org"),
+    adAccountId: integer("ad_account_id")
+      .references(() => adAccounts.id, { onDelete: "cascade" })
+      .notNull(),
+    campaignLandingPageId: integer("campaign_landing_page_id").references(
+      () => campaignLandingPages.id,
+      { onDelete: "cascade" },
+    ),
+    url: text("url").notNull(),
+    device: text("device").notNull().default("mobile"), // "mobile" | "desktop"
+    performanceScore: integer("performance_score").notNull(), // 0-100
+    accessibilityScore: integer("accessibility_score"),
+    bestPracticesScore: integer("best_practices_score"),
+    seoScore: integer("seo_score"),
+    // Core Web Vitals
+    lcpMs: integer("lcp_ms"),
+    lcpDisplay: text("lcp_display"),
+    clsScore: doublePrecision("cls_score"),
+    clsDisplay: text("cls_display"),
+    inpMs: integer("inp_ms"),
+    inpDisplay: text("inp_display"),
+    fcpMs: integer("fcp_ms"),
+    fcpDisplay: text("fcp_display"),
+    ttfbMs: integer("ttfb_ms"),
+    ttfbDisplay: text("ttfb_display"),
+    speedIndexMs: integer("speed_index_ms"),
+    speedIndexDisplay: text("speed_index_display"),
+    totalByteWeight: integer("total_byte_weight"),
+    // Structured Opportunities & Diagnostics
+    opportunities: jsonb("opportunities"),
+    diagnostics: jsonb("diagnostics"),
+    cruxData: jsonb("crux_data"),
+    rawMetrics: jsonb("raw_metrics"),
+    status: text("status").notNull().default("COMPLETED"), // "COMPLETED" | "FAILED"
+    errorMessage: text("error_message"),
+    triggerSource: text("trigger_source").notNull().default("MANUAL"), // "MANUAL" | "WEEKLY_CRON"
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    accountIdx: index("idx_lp_speed_account").on(table.adAccountId),
+    urlIdx: index("idx_lp_speed_url").on(table.url),
+    orgIdx: index("idx_lp_speed_org").on(table.organizationId),
+  }),
+).enableRLS();
+
 export const campaignLandingPagesRelations = relations(
   campaignLandingPages,
-  ({ one }) => ({
+  ({ one, many }) => ({
     account: one(adAccounts, {
       fields: [campaignLandingPages.adAccountId],
       references: [adAccounts.id],
     }),
+    speedTests: many(landingPageSpeedTests),
   }),
 );
 
@@ -958,6 +1010,20 @@ export const landingPageAuditsRelations = relations(
     account: one(adAccounts, {
       fields: [landingPageAudits.adAccountId],
       references: [adAccounts.id],
+    }),
+  }),
+);
+
+export const landingPageSpeedTestsRelations = relations(
+  landingPageSpeedTests,
+  ({ one }) => ({
+    account: one(adAccounts, {
+      fields: [landingPageSpeedTests.adAccountId],
+      references: [adAccounts.id],
+    }),
+    campaignLandingPage: one(campaignLandingPages, {
+      fields: [landingPageSpeedTests.campaignLandingPageId],
+      references: [campaignLandingPages.id],
     }),
   }),
 );

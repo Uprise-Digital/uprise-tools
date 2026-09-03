@@ -8,6 +8,7 @@ import {
   ChevronUp,
   Edit2,
   ExternalLink,
+  Gauge,
   Globe,
   Loader2,
   MoreHorizontal,
@@ -17,6 +18,7 @@ import {
   Save,
   Search,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
@@ -74,6 +76,7 @@ interface CampaignLP {
   campaignName: string;
   url: string;
   status: string;
+  weeklySpeedCheck?: boolean;
   updatedAt: Date;
   latestAudit: {
     id: number;
@@ -506,6 +509,14 @@ export default function LpAnalysisClientPage({
                                 title={`Status: ${c.status === "ENABLED" ? "Active" : "Paused"}`}
                               />
                               <span>{c.campaignName}</span>
+                              {c.weeklySpeedCheck && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-blue-600 bg-blue-50 border border-blue-200/60 rounded px-1.5 py-0.5 shrink-0 ml-1.5"
+                                  title="Weekly Speed Testing active"
+                                >
+                                  <Zap className="h-2.5 w-2.5" /> Weekly
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="text-xs">
@@ -582,9 +593,9 @@ export default function LpAnalysisClientPage({
                                 >
                                   {c.latestAudit.score} / 100
                                 </Badge>
-                                <span className="text-[9px] text-slate-400 font-semibold pl-0.5 whitespace-nowrap">
+                                <span className="text-[10px] text-slate-400 font-medium">
                                   {new Date(c.latestAudit.createdAt)
-                                    .toLocaleDateString("en-AU", {
+                                    .toLocaleDateString("en-GB", {
                                       day: "numeric",
                                       month: "short",
                                       hour: "2-digit",
@@ -631,6 +642,16 @@ export default function LpAnalysisClientPage({
                                 >
                                   <Play className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
                                   Run CRO Audit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={!c.url}
+                                  onClick={() => {
+                                    router.push(`/lp-analysis/speed/${c.id}`);
+                                  }}
+                                  className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer p-2 rounded focus:bg-slate-50 focus:text-slate-800"
+                                >
+                                  <Gauge className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                                  Speed Testing
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   disabled={!c.latestAudit}

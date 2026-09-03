@@ -1,0 +1,1169 @@
+"use client";
+
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowLeft,
+  ArrowUpRight,
+  Calendar,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  ExternalLink,
+  FileCode,
+  Gauge,
+  HelpCircle,
+  ImageIcon,
+  Info,
+  Laptop,
+  Layers,
+  Loader2,
+  Play,
+  RefreshCw,
+  Server,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { toast } from "sonner";
+import {
+  type LandingPageSpeedData,
+  type PageSpeedAuditResultWithMeta,
+  runLandingPageSpeedTestAction,
+  toggleWeeklySpeedCheckAction,
+} from "@/actions/lp-speed.actions";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+interface SpeedTestingClientPageProps {
+  initialData: LandingPageSpeedData;
+}
+
+function formatBytes(bytes?: number | null): string {
+  if (!bytes || bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KiB", "MiB", "GiB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+function getScoreColor(score: number): {
+  text: string;
+  bg: string;
+  border: string;
+  ring: string;
+  label: string;
+} {
+  if (score >= 90) {
+    return {
+      text: "text-emerald-600",
+      bg: "bg-emerald-50",
+      border: "border-emerald-200",
+      ring: "text-emerald-500",
+      label: "Good",
+    };
+  }
+  if (score >= 50) {
+    return {
+      text: "text-amber-600",
+      bg: "bg-amber-50",
+      border: "border-amber-200",
+      ring: "text-amber-500",
+      label: "Needs Improvement",
+    };
+  }
+  return {
+    text: "text-rose-600",
+    bg: "bg-rose-50",
+    border: "border-rose-200",
+    ring: "text-rose-500",
+    label: "Poor",
+  };
+}
+
+function getMetricStatus(
+  metricName: "LCP" | "CLS" | "INP" | "FCP" | "TTFB" | "SpeedIndex",
+  valMs?: number | null,
+  clsScore?: number | null,
+): { label: "Good" | "Needs Improvement" | "Poor"; color: string; bg: string } {
+  if (metricName === "CLS") {
+    const val = clsScore ?? 0;
+    if (val <= 0.1)
+      return {
+        label: "Good",
+        color: "text-emerald-700",
+        bg: "bg-emerald-50 border-emerald-200",
+      };
+    if (val <= 0.25)
+      return {
+        label: "Needs Improvement",
+        color: "text-amber-700",
+        bg: "bg-amber-50 border-amber-200",
+      };
+    return {
+      label: "Poor",
+      color: "text-rose-700",
+      bg: "bg-rose-50 border-rose-200",
+    };
+  }
+
+  const ms = valMs ?? 0;
+
+  switch (metricName) {
+    case "LCP":
+      if (ms <= 2500)
+        return {
+          label: "Good",
+          color: "text-emerald-700",
+          bg: "bg-emerald-50 border-emerald-200",
+        };
+      if (ms <= 4000)
+        return {
+          label: "Needs Improvement",
+          color: "text-amber-700",
+          bg: "bg-amber-50 border-amber-200",
+        };
+      return {
+        label: "Poor",
+        color: "text-rose-700",
+        bg: "bg-rose-50 border-rose-200",
+      };
+    case "INP":
+      if (ms <= 200)
+        return {
+          label: "Good",
+          color: "text-emerald-700",
+          bg: "bg-emerald-50 border-emerald-200",
+        };
+      if (ms <= 500)
+        return {
+          label: "Needs Improvement",
+          color: "text-amber-700",
+          bg: "bg-amber-50 border-amber-200",
+        };
+      return {
+        label: "Poor",
+        color: "text-rose-700",
+        bg: "bg-rose-50 border-rose-200",
+      };
+    case "FCP":
+      if (ms <= 1800)
+        return {
+          label: "Good",
+          color: "text-emerald-700",
+          bg: "bg-emerald-50 border-emerald-200",
+        };
+      if (ms <= 3000)
+        return {
+          label: "Needs Improvement",
+          color: "text-amber-700",
+          bg: "bg-amber-50 border-amber-200",
+        };
+      return {
+        label: "Poor",
+        color: "text-rose-700",
+        bg: "bg-rose-50 border-rose-200",
+      };
+    case "TTFB":
+      if (ms <= 800)
+        return {
+          label: "Good",
+          color: "text-emerald-700",
+          bg: "bg-emerald-50 border-emerald-200",
+        };
+      if (ms <= 1800)
+        return {
+          label: "Needs Improvement",
+          color: "text-amber-700",
+          bg: "bg-amber-50 border-amber-200",
+        };
+      return {
+        label: "Poor",
+        color: "text-rose-700",
+        bg: "bg-rose-50 border-rose-200",
+      };
+    case "SpeedIndex":
+      if (ms <= 3400)
+        return {
+          label: "Good",
+          color: "text-emerald-700",
+          bg: "bg-emerald-50 border-emerald-200",
+        };
+      if (ms <= 5800)
+        return {
+          label: "Needs Improvement",
+          color: "text-amber-700",
+          bg: "bg-amber-50 border-amber-200",
+        };
+      return {
+        label: "Poor",
+        color: "text-rose-700",
+        bg: "bg-rose-50 border-rose-200",
+      };
+    default:
+      return {
+        label: "Good",
+        color: "text-emerald-700",
+        bg: "bg-emerald-50 border-emerald-200",
+      };
+  }
+}
+
+export default function SpeedTestingClientPage({
+  initialData,
+}: SpeedTestingClientPageProps) {
+  const router = useRouter();
+  const [data, setData] = useState<LandingPageSpeedData>(initialData);
+  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+  const [isRunningTest, setIsRunningTest] = useState(false);
+  const [isTogglingWeekly, setIsTogglingWeekly] = useState(false);
+  const [expandedOpportunityIds, setExpandedOpportunityIds] = useState<
+    Record<string, boolean>
+  >({});
+  const [selectedAuditId, setSelectedAuditId] = useState<number | null>(
+    initialData.latestTest?.id || null,
+  );
+
+  const landingPage = data.landingPage;
+  const currentTest =
+    (selectedAuditId
+      ? data.history.find((h) => h.id === selectedAuditId)
+      : null) || data.latestTest;
+
+  // Toggle weekly automated check
+  const handleToggleWeekly = async (checked: boolean) => {
+    try {
+      setIsTogglingWeekly(true);
+      // Optimistic state
+      setData((prev) => ({
+        ...prev,
+        landingPage: {
+          ...prev.landingPage,
+          weeklySpeedCheck: checked,
+        },
+      }));
+
+      const res = await toggleWeeklySpeedCheckAction(landingPage.id, checked);
+      if (!res.success) {
+        // Revert
+        setData((prev) => ({
+          ...prev,
+          landingPage: {
+            ...prev.landingPage,
+            weeklySpeedCheck: !checked,
+          },
+        }));
+        toast.error(res.error || "Failed to update weekly check setting.");
+      } else {
+        toast.success(
+          checked
+            ? "Added to weekly automated check!"
+            : "Removed from weekly automated check.",
+        );
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update weekly check.");
+    } finally {
+      setIsTogglingWeekly(false);
+    }
+  };
+
+  // Run on-demand PageSpeed test
+  const handleRunSpeedTest = async () => {
+    if (isRunningTest) return;
+    try {
+      setIsRunningTest(true);
+      toast.info(`Running Google PageSpeed audit (${device.toUpperCase()})...`);
+
+      const res = await runLandingPageSpeedTestAction(landingPage.id, device);
+
+      if (!res.success || !res.data) {
+        toast.error(res.error || "Speed test failed. Please try again.");
+        return;
+      }
+
+      const newTest = res.data;
+      setData((prev) => ({
+        ...prev,
+        latestTest: newTest,
+        history: [newTest, ...prev.history.filter((h) => h.id !== newTest.id)],
+      }));
+      setSelectedAuditId(newTest.id);
+
+      toast.success(
+        `Audit completed! Performance Score: ${newTest.performanceScore}/100`,
+      );
+    } catch (err: any) {
+      toast.error(err.message || "An unexpected error occurred.");
+    } finally {
+      setIsRunningTest(false);
+    }
+  };
+
+  const toggleOpportunity = (id: string) => {
+    setExpandedOpportunityIds((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const scoreMeta = currentTest
+    ? getScoreColor(currentTest.performanceScore)
+    : null;
+
+  return (
+    <div className="min-h-screen bg-slate-50/60 pb-16">
+      {/* TOP STICKY HEADER */}
+      <div className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-6 py-4 shadow-xs">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/lp-analysis?accountId=${landingPage.adAccountId}`}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-md transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Landing Pages
+            </Link>
+
+            <div className="h-4 w-px bg-slate-200" />
+
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-bold text-slate-900 leading-tight">
+                  {landingPage.campaignName}
+                </h1>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-semibold text-slate-600 bg-slate-50 border-slate-200"
+                >
+                  {landingPage.accountName}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <a
+                  href={landingPage.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 hover:underline"
+                >
+                  {landingPage.url}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* ACTION BAR: WEEKLY TOGGLE & RUN TEST */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* WEEKLY CHECK TOGGLE CARD */}
+            <div
+              className={`flex items-center gap-3 px-3.5 py-1.5 rounded-lg border transition-all ${
+                landingPage.weeklySpeedCheck
+                  ? "bg-blue-50/80 border-blue-200/90 text-blue-950"
+                  : "bg-slate-100/70 border-slate-200 text-slate-700"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Zap
+                  className={`h-4 w-4 ${
+                    landingPage.weeklySpeedCheck
+                      ? "text-blue-600 fill-blue-500"
+                      : "text-slate-400"
+                  }`}
+                />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold leading-tight">
+                    Add to weekly check
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium leading-none">
+                    {landingPage.weeklySpeedCheck
+                      ? "Weekly automated scan & alerts active"
+                      : "Audit on-demand only"}
+                  </span>
+                </div>
+              </div>
+              <Switch
+                checked={landingPage.weeklySpeedCheck}
+                onCheckedChange={handleToggleWeekly}
+                disabled={isTogglingWeekly}
+                className="data-[state=checked]:bg-blue-600 ml-1"
+              />
+            </div>
+
+            {/* DEVICE STRATEGY SELECTOR */}
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setDevice("mobile")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+                  device === "mobile"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                <Smartphone className="h-3.5 w-3.5" /> Mobile
+              </button>
+              <button
+                type="button"
+                onClick={() => setDevice("desktop")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+                  device === "desktop"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                <Laptop className="h-3.5 w-3.5" /> Desktop
+              </button>
+            </div>
+
+            {/* RUN AUDIT BUTTON */}
+            <Button
+              onClick={handleRunSpeedTest}
+              disabled={isRunningTest}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 shadow-xs px-4"
+            >
+              {isRunningTest ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  Auditing Speed...
+                </>
+              ) : (
+                <>
+                  <Play className="h-3.5 w-3.5 mr-1.5 fill-current" />
+                  Run Speed Test
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN CONTENT BODY */}
+      <div className="max-w-7xl mx-auto px-6 pt-6 space-y-6">
+        {!currentTest ? (
+          /* EMPTY STATE - NO AUDIT YET */
+          <Card className="border-dashed border-2 border-slate-300 bg-white text-center py-16 px-6">
+            <CardContent className="max-w-md mx-auto space-y-4">
+              <div className="h-14 w-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto text-indigo-600 shadow-xs">
+                <Gauge className="h-7 w-7" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  No Speed Test Run Yet
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Run a real-time Google PageSpeed Insights & Core Web Vitals
+                  audit to analyze page performance, mobile load latency, and
+                  Quality Score impact.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  onClick={handleRunSpeedTest}
+                  disabled={isRunningTest}
+                  size="lg"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md"
+                >
+                  {isRunningTest ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Auditing {landingPage.url}...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Run Initial Speed Test ({device.toUpperCase()})
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          /* AUDIT RESULTS CONTENT */
+          <>
+            {/* HERO PERFORMANCE ROW */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              {/* MAIN PERFORMANCE GAUGE CARD */}
+              <Card className="md:col-span-4 bg-white border-slate-200/90 shadow-xs overflow-hidden flex flex-col justify-between">
+                <CardHeader className="pb-2 border-b border-slate-100 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Gauge className="h-4 w-4 text-indigo-600" />
+                      Performance Score
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] uppercase font-bold tracking-wider bg-white"
+                    >
+                      {currentTest.device}
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs text-slate-500">
+                    Lighthouse performance benchmark
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="pt-6 pb-6 text-center flex flex-col items-center justify-center">
+                  <div className="relative flex items-center justify-center">
+                    {/* CIRCULAR BADGE DISPLAY */}
+                    <div
+                      className={`h-36 w-36 rounded-full flex flex-col items-center justify-center border-8 ${
+                        scoreMeta?.border || "border-slate-200"
+                      } ${scoreMeta?.bg || "bg-slate-50"} shadow-inner`}
+                    >
+                      <span
+                        className={`text-4xl font-black tracking-tight ${
+                          scoreMeta?.text || "text-slate-800"
+                        }`}
+                      >
+                        {currentTest.performanceScore}
+                      </span>
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                        / 100
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-1">
+                    <Badge
+                      className={`font-bold px-2.5 py-0.5 text-xs ${
+                        scoreMeta?.bg || ""
+                      } ${scoreMeta?.text || ""} border ${
+                        scoreMeta?.border || ""
+                      }`}
+                    >
+                      {scoreMeta?.label}
+                    </Badge>
+                    <p className="text-[11px] text-slate-400 font-medium">
+                      Audited on{" "}
+                      {new Date(currentTest.createdAt).toLocaleDateString(
+                        "en-GB",
+                        {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )}{" "}
+                      via {currentTest.triggerSource.replace("_", " ")}
+                    </p>
+                  </div>
+                </CardContent>
+
+                {/* CATEGORY SCORES FOOTER */}
+                <div className="grid grid-cols-3 border-t border-slate-150 bg-slate-50/70 text-center py-2.5 px-2 text-xs">
+                  <div className="border-r border-slate-200">
+                    <div className="text-[10px] text-slate-500 font-semibold">
+                      Accessibility
+                    </div>
+                    <div className="font-bold text-slate-800">
+                      {currentTest.accessibilityScore !== null &&
+                      currentTest.accessibilityScore !== undefined
+                        ? `${currentTest.accessibilityScore}`
+                        : "N/A"}
+                    </div>
+                  </div>
+                  <div className="border-r border-slate-200">
+                    <div className="text-[10px] text-slate-500 font-semibold">
+                      Best Practices
+                    </div>
+                    <div className="font-bold text-slate-800">
+                      {currentTest.bestPracticesScore !== null &&
+                      currentTest.bestPracticesScore !== undefined
+                        ? `${currentTest.bestPracticesScore}`
+                        : "N/A"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-500 font-semibold">
+                      SEO
+                    </div>
+                    <div className="font-bold text-slate-800">
+                      {currentTest.seoScore !== null &&
+                      currentTest.seoScore !== undefined
+                        ? `${currentTest.seoScore}`
+                        : "N/A"}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* CORE WEB VITALS MATRIX (8 COLS) */}
+              <div className="md:col-span-8 space-y-4">
+                <Card className="bg-white border-slate-200/90 shadow-xs">
+                  <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-emerald-600" />
+                          Core Web Vitals & Key Timings
+                        </CardTitle>
+                        <CardDescription className="text-xs text-slate-500">
+                          Directly influences Google Ads Landing Page Experience
+                          & Quality Score
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
+                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />{" "}
+                        Good (&le; 2.5s)
+                        <span className="inline-block h-2 w-2 rounded-full bg-amber-500 ml-2" />{" "}
+                        Needs Work
+                        <span className="inline-block h-2 w-2 rounded-full bg-rose-500 ml-2" />{" "}
+                        Poor (&gt; 4s)
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {/* 1. LCP */}
+                    {(() => {
+                      const st = getMetricStatus("LCP", currentTest.lcpMs);
+                      return (
+                        <div
+                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <span className="text-xs font-bold text-slate-800">
+                              Largest Contentful Paint (LCP)
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] font-extrabold uppercase px-1.5 py-0 border ${st.color} bg-white/80`}
+                            >
+                              {st.label}
+                            </Badge>
+                          </div>
+                          <div className="my-2">
+                            <span
+                              className={`text-2xl font-black tracking-tight ${st.color}`}
+                            >
+                              {currentTest.lcpDisplay ||
+                                (currentTest.lcpMs
+                                  ? `${(currentTest.lcpMs / 1000).toFixed(1)} s`
+                                  : "N/A")}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-tight">
+                            Target &le; 2.5s. Main visual element rendering
+                            time.
+                          </p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 2. INP / TBT */}
+                    {(() => {
+                      const st = getMetricStatus("INP", currentTest.inpMs);
+                      return (
+                        <div
+                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <span className="text-xs font-bold text-slate-800">
+                              Interaction to Next Paint (INP)
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] font-extrabold uppercase px-1.5 py-0 border ${st.color} bg-white/80`}
+                            >
+                              {st.label}
+                            </Badge>
+                          </div>
+                          <div className="my-2">
+                            <span
+                              className={`text-2xl font-black tracking-tight ${st.color}`}
+                            >
+                              {currentTest.inpDisplay ||
+                                (currentTest.inpMs
+                                  ? `${currentTest.inpMs} ms`
+                                  : "N/A")}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-tight">
+                            Target &le; 200ms. UI response latency on tap /
+                            click.
+                          </p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 3. CLS */}
+                    {(() => {
+                      const st = getMetricStatus(
+                        "CLS",
+                        null,
+                        currentTest.clsScore,
+                      );
+                      return (
+                        <div
+                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <span className="text-xs font-bold text-slate-800">
+                              Cumulative Layout Shift (CLS)
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] font-extrabold uppercase px-1.5 py-0 border ${st.color} bg-white/80`}
+                            >
+                              {st.label}
+                            </Badge>
+                          </div>
+                          <div className="my-2">
+                            <span
+                              className={`text-2xl font-black tracking-tight ${st.color}`}
+                            >
+                              {currentTest.clsDisplay ||
+                                currentTest.clsScore?.toString() ||
+                                "0.0"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-tight">
+                            Target &le; 0.1. Visual stability & layout jumping.
+                          </p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 4. FCP */}
+                    {(() => {
+                      const st = getMetricStatus("FCP", currentTest.fcpMs);
+                      return (
+                        <div
+                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <span className="text-xs font-bold text-slate-800">
+                              First Contentful Paint (FCP)
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] font-extrabold uppercase px-1.5 py-0 border ${st.color} bg-white/80`}
+                            >
+                              {st.label}
+                            </Badge>
+                          </div>
+                          <div className="my-2">
+                            <span
+                              className={`text-2xl font-black tracking-tight ${st.color}`}
+                            >
+                              {currentTest.fcpDisplay ||
+                                (currentTest.fcpMs
+                                  ? `${(currentTest.fcpMs / 1000).toFixed(1)} s`
+                                  : "N/A")}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-tight">
+                            Target &le; 1.8s. Time until first text or image
+                            appears.
+                          </p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 5. TTFB */}
+                    {(() => {
+                      const st = getMetricStatus("TTFB", currentTest.ttfbMs);
+                      return (
+                        <div
+                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <span className="text-xs font-bold text-slate-800">
+                              Time to First Byte (TTFB)
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] font-extrabold uppercase px-1.5 py-0 border ${st.color} bg-white/80`}
+                            >
+                              {st.label}
+                            </Badge>
+                          </div>
+                          <div className="my-2">
+                            <span
+                              className={`text-2xl font-black tracking-tight ${st.color}`}
+                            >
+                              {currentTest.ttfbDisplay ||
+                                (currentTest.ttfbMs
+                                  ? `${currentTest.ttfbMs} ms`
+                                  : "N/A")}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-tight">
+                            Target &le; 800ms. Server response & host latency.
+                          </p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 6. Speed Index */}
+                    {(() => {
+                      const st = getMetricStatus(
+                        "SpeedIndex",
+                        currentTest.speedIndexMs,
+                      );
+                      return (
+                        <div
+                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <span className="text-xs font-bold text-slate-800">
+                              Speed Index
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] font-extrabold uppercase px-1.5 py-0 border ${st.color} bg-white/80`}
+                            >
+                              {st.label}
+                            </Badge>
+                          </div>
+                          <div className="my-2">
+                            <span
+                              className={`text-2xl font-black tracking-tight ${st.color}`}
+                            >
+                              {currentTest.speedIndexDisplay ||
+                                (currentTest.speedIndexMs
+                                  ? `${(currentTest.speedIndexMs / 1000).toFixed(1)} s`
+                                  : "N/A")}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-tight">
+                            Target &le; 3.4s. Visual progression during page
+                            load.
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* RESOURCE WEIGHTS & DIAGNOSTICS */}
+            {currentTest.diagnostics && (
+              <Card className="bg-white border-slate-200/90 shadow-xs">
+                <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-blue-600" />
+                        Payload & Resource Weight Breakdown
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        Total transfer size:{" "}
+                        <strong className="text-slate-800">
+                          {formatBytes(currentTest.totalByteWeight)}
+                        </strong>
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                        JavaScript
+                      </span>
+                      <span className="text-sm font-bold text-slate-900 mt-1 block">
+                        {formatBytes(currentTest.diagnostics.jsBytes)}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                        Images
+                      </span>
+                      <span className="text-sm font-bold text-slate-900 mt-1 block">
+                        {formatBytes(currentTest.diagnostics.imageBytes)}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                        Stylesheets
+                      </span>
+                      <span className="text-sm font-bold text-slate-900 mt-1 block">
+                        {formatBytes(currentTest.diagnostics.cssBytes)}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                        Web Fonts
+                      </span>
+                      <span className="text-sm font-bold text-slate-900 mt-1 block">
+                        {formatBytes(currentTest.diagnostics.fontBytes)}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                        HTML Document
+                      </span>
+                      <span className="text-sm font-bold text-slate-900 mt-1 block">
+                        {formatBytes(currentTest.diagnostics.htmlBytes)}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                        3rd-Party Tags
+                      </span>
+                      <span className="text-sm font-bold text-slate-900 mt-1 block">
+                        {formatBytes(currentTest.diagnostics.thirdPartyBytes)}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* HIGH-IMPACT OPTIMIZATION OPPORTUNITIES */}
+            <Card className="bg-white border-slate-200/90 shadow-xs">
+              <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                      Top Speed Opportunities & Fixes
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      Ranked by estimated load time and payload reduction
+                    </CardDescription>
+                  </div>
+                  {currentTest.opportunities && (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs font-bold text-slate-700"
+                    >
+                      {currentTest.opportunities.length} Improvements Identified
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+
+              <CardContent className="pt-4 divide-y divide-slate-150">
+                {currentTest.opportunities &&
+                currentTest.opportunities.length > 0 ? (
+                  currentTest.opportunities.map((opp: any) => {
+                    const isExpanded = !!expandedOpportunityIds[opp.id];
+                    return (
+                      <div key={opp.id} className="py-3.5 first:pt-0 last:pb-0">
+                        <div
+                          onClick={() => toggleOpportunity(opp.id)}
+                          className="flex items-start justify-between cursor-pointer group hover:bg-slate-50/60 p-2 rounded-lg transition-colors -mx-2"
+                        >
+                          <div className="flex items-start gap-3">
+                            <button className="text-slate-400 group-hover:text-slate-700 mt-0.5">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </button>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                {opp.title}
+                              </h4>
+                              <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2 max-w-2xl">
+                                {opp.description.replace(/\[.*?\]\(.*?\)/g, "")}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 ml-4">
+                            {opp.wastedMs ? (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-extrabold text-rose-700 bg-rose-50 border-rose-200"
+                              >
+                                Save ~{(opp.wastedMs / 1000).toFixed(2)}s
+                              </Badge>
+                            ) : opp.wastedBytes ? (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-extrabold text-amber-700 bg-amber-50 border-amber-200"
+                              >
+                                Save ~{formatBytes(opp.wastedBytes)}
+                              </Badge>
+                            ) : opp.displayValue ? (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-semibold text-slate-600 bg-slate-50"
+                              >
+                                {opp.displayValue}
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* EXPANDED OFFENDING URLS / ASSETS */}
+                        {isExpanded && opp.items && opp.items.length > 0 && (
+                          <div className="mt-2.5 ml-7 mr-2 p-3 bg-slate-50 rounded-lg border border-slate-200/80 space-y-2">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                              Offending Assets / Requests
+                            </span>
+                            <div className="space-y-1.5 divide-y divide-slate-200/60">
+                              {opp.items.map((sub: any, sIdx: number) => (
+                                <div
+                                  key={sIdx}
+                                  className="pt-1.5 first:pt-0 flex items-center justify-between text-xs gap-4"
+                                >
+                                  <span className="font-mono text-[11px] text-slate-700 truncate max-w-xl">
+                                    {sub.url || sub.node || "Inline Resource"}
+                                  </span>
+                                  <div className="flex items-center gap-2 shrink-0 text-[10px] font-semibold text-slate-500">
+                                    {sub.wastedBytes && (
+                                      <span>
+                                        {formatBytes(sub.wastedBytes)}
+                                      </span>
+                                    )}
+                                    {sub.wastedMs && (
+                                      <span>{sub.wastedMs} ms</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="py-6 text-center text-xs text-slate-500">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto mb-1.5" />
+                    Great job! No major high-impact performance bottlenecks
+                    detected.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* AUDIT HISTORY TABLE */}
+            {data.history.length > 1 && (
+              <Card className="bg-white border-slate-200/90 shadow-xs">
+                <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-slate-600" />
+                        Speed Audit History
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        Historical speed scans for this campaign landing page
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <TableHead className="pl-6">Date</TableHead>
+                        <TableHead>Device</TableHead>
+                        <TableHead>Score</TableHead>
+                        <TableHead>LCP</TableHead>
+                        <TableHead>CLS</TableHead>
+                        <TableHead>Trigger</TableHead>
+                        <TableHead className="text-right pr-6">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.history.map((h) => {
+                        const isSelected = h.id === currentTest.id;
+                        const scoreM = getScoreColor(h.performanceScore);
+                        return (
+                          <TableRow
+                            key={h.id}
+                            className={`text-xs ${
+                              isSelected
+                                ? "bg-indigo-50/40 font-semibold"
+                                : "hover:bg-slate-50/70"
+                            }`}
+                          >
+                            <TableCell className="pl-6 text-slate-700">
+                              {new Date(h.createdAt).toLocaleDateString(
+                                "en-GB",
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </TableCell>
+                            <TableCell className="capitalize">
+                              {h.device}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-bold ${scoreM.bg} ${scoreM.text} ${scoreM.border}`}
+                              >
+                                {h.performanceScore} / 100
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{h.lcpDisplay || "N/A"}</TableCell>
+                            <TableCell>{h.clsDisplay || "N/A"}</TableCell>
+                            <TableCell>
+                              <span className="text-[10px] font-semibold text-slate-500">
+                                {h.triggerSource.replace("_", " ")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right pr-6">
+                              {isSelected ? (
+                                <span className="text-[10px] text-indigo-600 font-bold">
+                                  Currently Viewing
+                                </span>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-800"
+                                  onClick={() => setSelectedAuditId(h.id)}
+                                >
+                                  View Insights
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
