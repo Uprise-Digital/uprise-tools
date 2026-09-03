@@ -486,12 +486,12 @@ export default function SpeedTestingClientPage({
       </div>
 
       {/* MAIN CONTENT BODY */}
-      <div className="max-w-7xl mx-auto px-6 pt-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {!currentTest ? (
           /* EMPTY STATE FOR SELECTED DEVICE */
-          <div className="space-y-6">
-            <Card className="border-dashed border-2 border-slate-300 bg-white text-center py-16 px-6">
-              <CardContent className="max-w-md mx-auto space-y-4">
+          <div className="space-y-8">
+            <Card className="border-dashed border-2 border-slate-300 bg-white text-center py-16 px-6 gap-0 shadow-xs rounded-xl overflow-hidden">
+              <CardContent className="max-w-md mx-auto space-y-4 p-0">
                 <div className="h-14 w-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto text-indigo-600 shadow-xs">
                   {device === "mobile" ? (
                     <Smartphone className="h-7 w-7" />
@@ -535,18 +535,16 @@ export default function SpeedTestingClientPage({
 
             {/* AUDIT HISTORY TABLE IF OTHER RUNS EXIST */}
             {data.history.length > 0 && (
-              <Card className="bg-white border-slate-200/90 shadow-xs">
-                <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-slate-600" />
-                        Previous Speed Audits ({data.history.length})
-                      </CardTitle>
-                      <CardDescription className="text-xs text-slate-500">
-                        Select a past run to view detailed performance metrics
-                      </CardDescription>
-                    </div>
+              <Card className="bg-white border border-slate-200/90 shadow-xs rounded-xl gap-0 py-0 overflow-hidden">
+                <CardHeader className="p-4 px-6 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between [.border-b]:pb-4 gap-0">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-slate-600" />
+                      Previous Speed Audits ({data.history.length})
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500 mt-0.5">
+                      Select a past run to view detailed performance metrics
+                    </CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -625,26 +623,26 @@ export default function SpeedTestingClientPage({
             {/* HERO PERFORMANCE ROW */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
               {/* MAIN PERFORMANCE GAUGE CARD */}
-              <Card className="md:col-span-4 bg-white border-slate-200/90 shadow-xs overflow-hidden flex flex-col justify-between">
-                <CardHeader className="pb-2 border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center justify-between">
+              <Card className="md:col-span-4 bg-white border border-slate-200/90 shadow-xs rounded-xl overflow-hidden flex flex-col justify-between gap-0 py-0">
+                <CardHeader className="p-4 px-6 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between [.border-b]:pb-4 gap-0">
+                  <div>
                     <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                       <Gauge className="h-4 w-4 text-indigo-600" />
                       Performance Score
                     </CardTitle>
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] uppercase font-bold tracking-wider bg-white"
-                    >
-                      {currentTest.device}
-                    </Badge>
+                    <CardDescription className="text-xs text-slate-500 mt-0.5">
+                      Lighthouse performance benchmark
+                    </CardDescription>
                   </div>
-                  <CardDescription className="text-xs text-slate-500">
-                    Lighthouse performance benchmark
-                  </CardDescription>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] uppercase font-bold tracking-wider bg-white border-slate-200"
+                  >
+                    {currentTest.device}
+                  </Badge>
                 </CardHeader>
 
-                <CardContent className="pt-6 pb-6 text-center flex flex-col items-center justify-center">
+                <CardContent className="p-6 text-center flex flex-col items-center justify-center">
                   <div className="relative flex items-center justify-center">
                     {/* CIRCULAR BADGE DISPLAY */}
                     <div
@@ -693,12 +691,12 @@ export default function SpeedTestingClientPage({
                 </CardContent>
 
                 {/* CATEGORY SCORES FOOTER */}
-                <div className="grid grid-cols-3 border-t border-slate-150 bg-slate-50/70 text-center py-2.5 px-2 text-xs">
+                <div className="grid grid-cols-3 border-t border-slate-150 bg-slate-50/70 text-center py-3 px-2 text-xs">
                   <div className="border-r border-slate-200">
                     <div className="text-[10px] text-slate-500 font-semibold">
                       Accessibility
                     </div>
-                    <div className="font-bold text-slate-800">
+                    <div className="font-bold text-slate-800 mt-0.5">
                       {currentTest.accessibilityScore !== null &&
                       currentTest.accessibilityScore !== undefined
                         ? `${currentTest.accessibilityScore}`
@@ -709,7 +707,7 @@ export default function SpeedTestingClientPage({
                     <div className="text-[10px] text-slate-500 font-semibold">
                       Best Practices
                     </div>
-                    <div className="font-bold text-slate-800">
+                    <div className="font-bold text-slate-800 mt-0.5">
                       {currentTest.bestPracticesScore !== null &&
                       currentTest.bestPracticesScore !== undefined
                         ? `${currentTest.bestPracticesScore}`
@@ -720,7 +718,7 @@ export default function SpeedTestingClientPage({
                     <div className="text-[10px] text-slate-500 font-semibold">
                       SEO
                     </div>
-                    <div className="font-bold text-slate-800">
+                    <div className="font-bold text-slate-800 mt-0.5">
                       {currentTest.seoScore !== null &&
                       currentTest.seoScore !== undefined
                         ? `${currentTest.seoScore}`
@@ -731,38 +729,35 @@ export default function SpeedTestingClientPage({
               </Card>
 
               {/* CORE WEB VITALS MATRIX (8 COLS) */}
-              <div className="md:col-span-8 space-y-4">
-                <Card className="bg-white border-slate-200/90 shadow-xs">
-                  <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                          <Activity className="h-4 w-4 text-emerald-600" />
-                          Core Web Vitals & Key Timings
-                        </CardTitle>
-                        <CardDescription className="text-xs text-slate-500">
-                          Directly influences Google Ads Landing Page Experience
-                          & Quality Score
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
-                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />{" "}
-                        Good (&le; 2.5s)
-                        <span className="inline-block h-2 w-2 rounded-full bg-amber-500 ml-2" />{" "}
-                        Needs Work
-                        <span className="inline-block h-2 w-2 rounded-full bg-rose-500 ml-2" />{" "}
-                        Poor (&gt; 4s)
-                      </div>
-                    </div>
-                  </CardHeader>
+              <Card className="md:col-span-8 bg-white border border-slate-200/90 shadow-xs rounded-xl gap-0 py-0 overflow-hidden">
+                <CardHeader className="p-4 px-6 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between [.border-b]:pb-4 gap-0">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-emerald-600" />
+                      Core Web Vitals & Key Timings
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500 mt-0.5">
+                      Directly influences Google Ads Landing Page Experience & Quality Score
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />{" "}
+                    Good (&le; 2.5s)
+                    <span className="inline-block h-2 w-2 rounded-full bg-amber-500 ml-2" />{" "}
+                    Needs Work
+                    <span className="inline-block h-2 w-2 rounded-full bg-rose-500 ml-2" />{" "}
+                    Poor (&gt; 4s)
+                  </div>
+                </CardHeader>
 
-                  <CardContent className="pt-5 pb-6 px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* 1. LCP */}
                     {(() => {
                       const st = getMetricStatus("LCP", currentTest.lcpMs);
                       return (
                         <div
-                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[140px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -798,7 +793,7 @@ export default function SpeedTestingClientPage({
                       const st = getMetricStatus("INP", currentTest.inpMs);
                       return (
                         <div
-                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[140px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -838,7 +833,7 @@ export default function SpeedTestingClientPage({
                       );
                       return (
                         <div
-                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[140px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -872,7 +867,7 @@ export default function SpeedTestingClientPage({
                       const st = getMetricStatus("FCP", currentTest.fcpMs);
                       return (
                         <div
-                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[140px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -908,7 +903,7 @@ export default function SpeedTestingClientPage({
                       const st = getMetricStatus("TTFB", currentTest.ttfbMs);
                       return (
                         <div
-                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[140px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -946,7 +941,7 @@ export default function SpeedTestingClientPage({
                       );
                       return (
                         <div
-                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[140px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -976,33 +971,31 @@ export default function SpeedTestingClientPage({
                         </div>
                       );
                     })()}
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* RESOURCE WEIGHTS & DIAGNOSTICS */}
             {currentTest.diagnostics && (
-              <Card className="bg-white border-slate-200/90 shadow-xs">
-                <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <Layers className="h-4 w-4 text-blue-600" />
-                        Payload & Resource Weight Breakdown
-                      </CardTitle>
-                      <CardDescription className="text-xs text-slate-500">
-                        Total transfer size:{" "}
-                        <strong className="text-slate-800">
-                          {formatBytes(currentTest.totalByteWeight)}
-                        </strong>
-                      </CardDescription>
-                    </div>
+              <Card className="bg-white border border-slate-200/90 shadow-xs rounded-xl gap-0 py-0 overflow-hidden">
+                <CardHeader className="p-4 px-6 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between [.border-b]:pb-4 gap-0">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-blue-600" />
+                      Payload & Resource Weight Breakdown
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500 mt-0.5">
+                      Total transfer size:{" "}
+                      <strong className="text-slate-800">
+                        {formatBytes(currentTest.totalByteWeight)}
+                      </strong>
+                    </CardDescription>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-5 pb-6 px-6">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3.5">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                         JavaScript
                       </span>
@@ -1011,7 +1004,7 @@ export default function SpeedTestingClientPage({
                       </span>
                     </div>
 
-                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                         Images
                       </span>
@@ -1020,7 +1013,7 @@ export default function SpeedTestingClientPage({
                       </span>
                     </div>
 
-                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                         Stylesheets
                       </span>
@@ -1029,7 +1022,7 @@ export default function SpeedTestingClientPage({
                       </span>
                     </div>
 
-                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                         Web Fonts
                       </span>
@@ -1038,7 +1031,7 @@ export default function SpeedTestingClientPage({
                       </span>
                     </div>
 
-                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                         HTML Document
                       </span>
@@ -1047,7 +1040,7 @@ export default function SpeedTestingClientPage({
                       </span>
                     </div>
 
-                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
                         3rd-Party Tags
                       </span>
@@ -1061,39 +1054,37 @@ export default function SpeedTestingClientPage({
             )}
 
             {/* HIGH-IMPACT OPTIMIZATION OPPORTUNITIES */}
-            <Card className="bg-white border-slate-200/90 shadow-xs">
-              <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-amber-500" />
-                      Top Speed Opportunities & Fixes
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500">
-                      Ranked by estimated load time and payload reduction
-                    </CardDescription>
-                  </div>
-                  {currentTest.opportunities && (
-                    <Badge
-                      variant="secondary"
-                      className="text-xs font-bold text-slate-700"
-                    >
-                      {currentTest.opportunities.length} Improvements Identified
-                    </Badge>
-                  )}
+            <Card className="bg-white border border-slate-200/90 shadow-xs rounded-xl gap-0 py-0 overflow-hidden">
+              <CardHeader className="p-4 px-6 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between [.border-b]:pb-4 gap-0">
+                <div>
+                  <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    Top Speed Opportunities & Fixes
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500 mt-0.5">
+                    Ranked by estimated load time and payload reduction
+                  </CardDescription>
                 </div>
+                {currentTest.opportunities && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs font-bold text-slate-700"
+                  >
+                    {currentTest.opportunities.length} Improvements Identified
+                  </Badge>
+                )}
               </CardHeader>
 
-              <CardContent className="pt-5 pb-6 px-6 divide-y divide-slate-150">
+              <CardContent className="p-6 divide-y divide-slate-100">
                 {currentTest.opportunities &&
                 currentTest.opportunities.length > 0 ? (
                   currentTest.opportunities.map((opp: any) => {
                     const isExpanded = !!expandedOpportunityIds[opp.id];
                     return (
-                      <div key={opp.id} className="py-3.5 first:pt-0 last:pb-0">
+                      <div key={opp.id} className="py-4 first:pt-0 last:pb-0">
                         <div
                           onClick={() => toggleOpportunity(opp.id)}
-                          className="flex items-start justify-between cursor-pointer group hover:bg-slate-50/60 p-2 rounded-lg transition-colors -mx-2"
+                          className="flex items-start justify-between cursor-pointer group hover:bg-slate-50/60 p-2.5 rounded-lg transition-colors -mx-2.5"
                         >
                           <div className="flex items-start gap-3">
                             <button className="text-slate-400 group-hover:text-slate-700 mt-0.5">
@@ -1141,15 +1132,15 @@ export default function SpeedTestingClientPage({
 
                         {/* EXPANDED OFFENDING URLS / ASSETS */}
                         {isExpanded && opp.items && opp.items.length > 0 && (
-                          <div className="mt-2.5 ml-7 mr-2 p-3 bg-slate-50 rounded-lg border border-slate-200/80 space-y-2">
+                          <div className="mt-3 ml-7 mr-2 p-3.5 bg-slate-50 rounded-lg border border-slate-200/80 space-y-2">
                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                               Offending Assets / Requests
                             </span>
-                            <div className="space-y-1.5 divide-y divide-slate-200/60">
+                            <div className="space-y-2 divide-y divide-slate-200/60">
                               {opp.items.map((sub: any, sIdx: number) => (
                                 <div
                                   key={sIdx}
-                                  className="pt-1.5 first:pt-0 flex items-center justify-between text-xs gap-4"
+                                  className="pt-2 first:pt-0 flex items-center justify-between text-xs gap-4"
                                 >
                                   <span className="font-mono text-[11px] text-slate-700 truncate max-w-xl">
                                     {sub.url || sub.node || "Inline Resource"}
@@ -1184,18 +1175,16 @@ export default function SpeedTestingClientPage({
 
             {/* AUDIT HISTORY TABLE */}
             {data.history.length > 0 && (
-              <Card className="bg-white border-slate-200/90 shadow-xs">
-                <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-slate-600" />
-                        Speed Audit History ({data.history.length})
-                      </CardTitle>
-                      <CardDescription className="text-xs text-slate-500">
-                        Historical speed scans for this campaign landing page
-                      </CardDescription>
-                    </div>
+              <Card className="bg-white border border-slate-200/90 shadow-xs rounded-xl gap-0 py-0 overflow-hidden">
+                <CardHeader className="p-4 px-6 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between [.border-b]:pb-4 gap-0">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-slate-600" />
+                      Speed Audit History ({data.history.length})
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500 mt-0.5">
+                      Historical speed scans for this campaign landing page
+                    </CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
