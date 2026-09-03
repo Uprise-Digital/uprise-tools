@@ -59,15 +59,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -1439,21 +1439,24 @@ export default function SpeedTestingClientPage({
         )}
       </div>
 
-      {/* AUDIT SETTINGS & METHODOLOGY TRANSPARENCY MODAL */}
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-0 overflow-hidden bg-white rounded-2xl gap-0 shadow-2xl border border-slate-200">
-          <DialogHeader className="p-4 sm:p-6 pb-4 border-b border-slate-100 bg-slate-50/60">
-            <div className="flex items-center gap-2">
+      {/* AUDIT SETTINGS & METHODOLOGY TRANSPARENCY SIDEBAR (SHEET) */}
+      <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-lg md:max-w-xl p-0 flex flex-col justify-between overflow-hidden bg-white shadow-2xl border-l border-slate-200"
+        >
+          <SheetHeader className="p-4 sm:p-6 pb-4 border-b border-slate-100 bg-slate-50/70 shrink-0">
+            <div className="flex items-center gap-2 pr-6">
               <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
                 <SlidersHorizontal className="h-4 w-4" />
               </div>
               <div>
-                <DialogTitle className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-                  Speed Audit Settings & Simulation Parameters
-                </DialogTitle>
-                <DialogDescription className="text-xs text-slate-500 mt-0.5">
-                  Complete transparency into scoring formulas, hardware emulation, and provider keys.
-                </DialogDescription>
+                <SheetTitle className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                  Speed Audit Settings & Simulation
+                </SheetTitle>
+                <SheetDescription className="text-xs text-slate-500 mt-0.5">
+                  Transparency into scoring formulas, hardware emulation, and provider keys.
+                </SheetDescription>
               </div>
             </div>
 
@@ -1504,9 +1507,9 @@ export default function SpeedTestingClientPage({
                 🔔 Thresholds
               </button>
             </div>
-          </DialogHeader>
+          </SheetHeader>
 
-          <div className="p-6 max-h-[60vh] overflow-y-auto space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
             {/* TAB 1: METHODOLOGY & WEIGHTS */}
             {settingsTab === "methodology" && (
               <div className="space-y-4">
@@ -1969,8 +1972,8 @@ export default function SpeedTestingClientPage({
             )}
           </div>
 
-          {/* MODAL FOOTER */}
-          <div className="p-4 px-6 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between">
+          {/* SIDEBAR FOOTER */}
+          <div className="p-4 px-6 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between shrink-0">
             <Button
               type="button"
               variant="ghost"
@@ -2004,8 +2007,8 @@ export default function SpeedTestingClientPage({
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
