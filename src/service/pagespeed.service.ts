@@ -198,47 +198,136 @@ async function profileLandingPageDirectly(
 
   const totalDomElements = $("*").length;
 
-  // 6. Compute Core Web Vitals based on real factors
+/**
+ * Approximates the complementary error function erfc(x) for Lighthouse log-normal distribution scoring.
+ */
+function erfc(x: number): number {
+  const z = Math.abs(x);
+  const t = 1.0 / (1.0 + 0.5 * z);
+  const ans =
+    t *
+    Math.exp(
+      -z * z -
+        1.26551223 +
+        t *
+          (1.00002368 +
+            t *
+              (0.37409196 +
+                t *
+                  (0.09678418 +
+                    t *
+                      (-0.18628806 +
+                        t *
+                          (0.27886807 +
+                            t *
+                              (-1.13520398 +
+                                t *
+                                  (1.48851587 +
+                                    t *
+                                      (-0.82215223 +
+                                        t * 0.17087277)))))))),
+    );
+  return x >= 0 ? ans : 2.0 - ans;
+}
+
+/**
+ * Computes official Google Lighthouse log-normal metric score (0 to 1).
+ * @param value Measured metric value
+ * @param p10 10th percentile (scores ~0.90)
+ * @param median Median value (scores 0.50)
+ */
+function calculateLighthouseScore(
+  value: number,
+  p10: number,
+  median: number,
+): number {
+  if (value <= 0) return 1.0;
+  const mu = Math.log(median);
+  const sigma = Math.abs(Math.log(p10) - mu) / 1.28155;
+  const z = (Math.log(value) - mu) / (sigma * Math.SQRT2);
+  const score = 0.5 * erfc(z);
+  return Math.max(0, Math.min(1, score));
+}
+
+  // 6. Compute Core Web Vitals based on real factors & mobile throttling
   // FCP = TTFB + CSS render blocking delay
-  const criticalCssDelay = Math.min(stylesheets.length * (device === "mobile" ? 110 : 60), 1200);
+  const criticalCssDelay = Math.min(
+    stylesheets.length * (device === "mobile" ? 140 : 60),
+    1500,
+  );
   const fcpMs = Math.round(ttfbMs + htmlDownloadMs + criticalCssDelay);
 
-  // LCP = FCP + Hero image load + JS execution
-  const deviceMultiplier = device === "mobile" ? 1.4 : 1.0;
-  const heroImageDelay = images.length > 0 ? (device === "mobile" ? 750 : 450) : 200;
-  const jsExecutionDelay = Math.min(syncScriptCount * (device === "mobile" ? 140 : 80), 1600);
-  const lcpMs = Math.round(fcpMs + (heroImageDelay + jsExecutionDelay) * deviceMultiplier);
-
-  // CLS = Unsized images penalty + font shift
-  const unsizedClsPenalty = Math.min(unsizedImageCount * 0.025, 0.2);
-  const baseCls = 0.01 + unsizedClsPenalty + (fontCount > 2 ? 0.02 : 0.0);
-  const clsScore = Number(Math.min(baseCls, 0.45).toFixed(3));
-
-  // INP / TBT = Heavy scripts & third-party tags
-  const inpMs = Math.min(
-    Math.round(50 + syncScriptCount * 25 + thirdPartyScriptCount * 30 * deviceMultiplier),
-    650,
+  // LCP = FCP + Hero image / major element load + JS execution
+  const deviceMultiplier = device === "mobile" ? 1.6 : 1.0;
+  const heroImageDelay =
+    images.length > 0
+      ? (device === "mobile" ? 950 : 450) + Math.min(estimatedImageBytes / (device === "mobile" ? 120000 : 400000) * 100, 1200)
+      : 250;
+  const jsExecutionDelay = Math.min(
+    (syncScriptCount * 120 + thirdPartyScriptCount * 80) *
+      (device === "mobile" ? 1.8 : 0.8),
+    2200,
+  );
+  const lcpMs = Math.round(
+    fcpMs + heroImageDelay + jsExecutionDelay * (device === "mobile" ? 0.7 : 0.4),
   );
 
-  // Speed Index = Visual progression
-  const speedIndexMs = Math.round(fcpMs + (lcpMs - fcpMs) * 0.65);
+  // CLS = Unsized images penalty + font shift + layout shift
+  const unsizedClsPenalty = Math.min(unsizedImageCount * 0.03, 0.25);
+  const baseCls = 0.015 + unsizedClsPenalty + (fontCount > 2 ? 0.025 : 0.0);
+  const clsScore = Number(Math.min(baseCls, 0.45).toFixed(3));
 
-  // 7. Calculate Performance Score (0-100)
-  // LCP weight: 25%, TBT/INP: 25%, CLS: 15%, FCP: 10%, Speed Index: 15%, TTFB: 10%
-  const lcpScore = lcpMs <= 2500 ? 100 : lcpMs <= 4000 ? Math.max(50, 100 - ((lcpMs - 2500) / 1500) * 50) : Math.max(10, 50 - ((lcpMs - 4000) / 2500) * 40);
-  const inpScore = inpMs <= 200 ? 100 : inpMs <= 500 ? Math.max(50, 100 - ((inpMs - 200) / 300) * 50) : Math.max(15, 50 - ((inpMs - 500) / 400) * 35);
-  const clsMetricScore = clsScore <= 0.1 ? 100 : clsScore <= 0.25 ? Math.max(50, 100 - ((clsScore - 0.1) / 0.15) * 50) : Math.max(15, 50 - ((clsScore - 0.25) / 0.2) * 35);
-  const fcpScore = fcpMs <= 1800 ? 100 : fcpMs <= 3000 ? Math.max(50, 100 - ((fcpMs - 1800) / 1200) * 50) : Math.max(20, 50 - ((fcpMs - 3000) / 2000) * 30);
-  const siScore = speedIndexMs <= 3400 ? 100 : speedIndexMs <= 5800 ? Math.max(50, 100 - ((speedIndexMs - 3400) / 2400) * 50) : Math.max(20, 50 - ((speedIndexMs - 5800) / 3000) * 30);
-  const ttfbScore = ttfbMs <= 800 ? 100 : ttfbMs <= 1800 ? Math.max(50, 100 - ((ttfbMs - 800) / 1000) * 50) : Math.max(20, 50 - ((ttfbMs - 1800) / 1500) * 30);
+  // TBT / INP = Main-thread blocking time from JS parsing and marketing tags
+  const inpMs = Math.min(
+    Math.round(
+      (device === "mobile" ? 80 : 30) +
+        syncScriptCount * (device === "mobile" ? 65 : 20) +
+        thirdPartyScriptCount * (device === "mobile" ? 90 : 35),
+    ),
+    1200,
+  );
+
+  // Speed Index = Visual progression during load
+  const speedIndexMs = Math.round(
+    fcpMs + (lcpMs - fcpMs) * (device === "mobile" ? 0.75 : 0.6),
+  );
+
+  // 7. Calculate Official Lighthouse v10/v11 Performance Score
+  // Weights: LCP (25%), TBT/INP (30%), CLS (25%), FCP (10%), Speed Index (10%)
+  const isMobile = device === "mobile";
+  const lcpMetricScore = calculateLighthouseScore(
+    lcpMs,
+    isMobile ? 2500 : 1200,
+    isMobile ? 4000 : 2400,
+  );
+  const tbtMetricScore = calculateLighthouseScore(
+    inpMs,
+    isMobile ? 200 : 100,
+    isMobile ? 600 : 300,
+  );
+  const clsMetricScore = calculateLighthouseScore(
+    clsScore,
+    0.1,
+    0.25,
+  );
+  const fcpMetricScore = calculateLighthouseScore(
+    fcpMs,
+    isMobile ? 1800 : 900,
+    isMobile ? 3000 : 1600,
+  );
+  const siMetricScore = calculateLighthouseScore(
+    speedIndexMs,
+    isMobile ? 3400 : 1300,
+    isMobile ? 5800 : 2300,
+  );
 
   const performanceScore = Math.round(
-    lcpScore * 0.25 +
-      inpScore * 0.25 +
-      clsMetricScore * 0.15 +
-      fcpScore * 0.1 +
-      siScore * 0.15 +
-      ttfbScore * 0.1,
+    (lcpMetricScore * 0.25 +
+      tbtMetricScore * 0.3 +
+      clsMetricScore * 0.25 +
+      fcpMetricScore * 0.1 +
+      siMetricScore * 0.1) *
+      100,
   );
 
   // 8. Calculate Secondary Category Scores
