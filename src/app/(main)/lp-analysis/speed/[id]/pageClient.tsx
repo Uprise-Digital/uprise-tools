@@ -490,87 +490,83 @@ export default function SpeedTestingClientPage({
   return (
     <div className="min-h-screen bg-slate-50/60 pb-16">
       {/* TOP STICKY HEADER */}
-      <div className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-6 py-4 shadow-xs">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
+      <div className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-4 sm:px-6 py-3.5 shadow-xs">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          {/* LINE 1: BACK BUTTON, TITLE, ACCOUNT BADGE, URL */}
+          <div className="flex items-center gap-2.5 min-w-0">
             <Link
               href={`/lp-analysis?accountId=${landingPage.adAccountId}`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-md transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to Landing Pages
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Back</span>
             </Link>
 
-            <div className="h-4 w-px bg-slate-200" />
+            <div className="h-4 w-px bg-slate-200 shrink-0" />
 
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold text-slate-900 leading-tight">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
                   {landingPage.campaignName}
                 </h1>
                 <Badge
                   variant="outline"
-                  className="text-[10px] font-semibold text-slate-600 bg-slate-50 border-slate-200"
+                  className="text-[10px] font-semibold text-slate-600 bg-slate-50 border-slate-200 shrink-0"
                 >
                   {landingPage.accountName}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 min-w-0">
                 <a
                   href={landingPage.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 hover:underline"
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 hover:underline truncate max-w-[280px] sm:max-w-md"
                 >
-                  {landingPage.url}
-                  <ExternalLink className="h-3 w-3" />
+                  <span className="truncate">{landingPage.url}</span>
+                  <ExternalLink className="h-3 w-3 shrink-0" />
                 </a>
               </div>
             </div>
           </div>
 
-          {/* ACTION BAR: WEEKLY TOGGLE & RUN TEST */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* WEEKLY CHECK TOGGLE CARD */}
+          {/* LINE 2 / RIGHT CONTROLS: WEEKLY CHECK, DEVICE TOGGLE, SETTINGS COG, RUN TEST */}
+          <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap shrink-0 pt-2 lg:pt-0 border-t border-slate-100 lg:border-0">
+            {/* WEEKLY CHECK TOGGLE PILL */}
             <div
-              className={`flex items-center gap-3 px-3.5 py-1.5 rounded-lg border transition-all ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs font-semibold shrink-0 ${
                 landingPage.weeklySpeedCheck
-                  ? "bg-blue-50/80 border-blue-200/90 text-blue-950"
+                  ? "bg-blue-50/80 border-blue-200 text-blue-950"
                   : "bg-slate-100/70 border-slate-200 text-slate-700"
               }`}
+              title={
+                landingPage.weeklySpeedCheck
+                  ? "Weekly automated scan & alerts active"
+                  : "Audit on-demand only"
+              }
             >
-              <div className="flex items-center gap-2">
-                <Zap
-                  className={`h-4 w-4 ${
-                    landingPage.weeklySpeedCheck
-                      ? "text-blue-600 fill-blue-500"
-                      : "text-slate-400"
-                  }`}
-                />
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold leading-tight">
-                    Add to weekly check
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-medium leading-none">
-                    {landingPage.weeklySpeedCheck
-                      ? "Weekly automated scan & alerts active"
-                      : "Audit on-demand only"}
-                  </span>
-                </div>
-              </div>
+              <Zap
+                className={`h-3.5 w-3.5 shrink-0 ${
+                  landingPage.weeklySpeedCheck
+                    ? "text-blue-600 fill-blue-500"
+                    : "text-slate-400"
+                }`}
+              />
+              <span className="text-xs font-bold leading-none">Weekly check</span>
               <Switch
                 checked={landingPage.weeklySpeedCheck}
                 onCheckedChange={handleToggleWeekly}
                 disabled={isTogglingWeekly}
-                className="data-[state=checked]:bg-blue-600 ml-1"
+                className="data-[state=checked]:bg-blue-600 ml-0.5 scale-90"
               />
             </div>
 
             {/* DEVICE STRATEGY SELECTOR */}
-            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold">
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold shrink-0">
               <button
                 type="button"
                 onClick={() => handleDeviceChange("mobile")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md transition-all cursor-pointer ${
                   device === "mobile"
                     ? "bg-white text-slate-900 shadow-xs font-bold"
                     : "text-slate-500 hover:text-slate-900"
@@ -581,7 +577,7 @@ export default function SpeedTestingClientPage({
               <button
                 type="button"
                 onClick={() => handleDeviceChange("desktop")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md transition-all cursor-pointer ${
                   device === "desktop"
                     ? "bg-white text-slate-900 shadow-xs font-bold"
                     : "text-slate-500 hover:text-slate-900"
@@ -591,32 +587,32 @@ export default function SpeedTestingClientPage({
               </button>
             </div>
 
-            {/* AUDIT SETTINGS & METHODOLOGY BUTTON */}
+            {/* AUDIT SETTINGS COG ICON BUTTON */}
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => {
                 setTempSettings(auditSettings);
                 setKeyVerificationResult(null);
                 setIsSettingsOpen(true);
               }}
-              className="h-9 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border-slate-200 shadow-xs gap-1.5 cursor-pointer"
+              className="h-9 w-9 text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900 border-slate-200 shadow-xs cursor-pointer shrink-0 rounded-lg"
+              title="Speed Audit Settings & Simulation Parameters"
             >
-              <SlidersHorizontal className="h-3.5 w-3.5 text-indigo-600" />
-              Audit Settings & Methodology
+              <Settings className="h-4 w-4 text-slate-600" />
             </Button>
 
             {/* RUN AUDIT BUTTON */}
             <Button
               onClick={handleRunSpeedTest}
               disabled={isRunningTest}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 shadow-xs px-4"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 shadow-xs px-3.5 shrink-0"
             >
               {isRunningTest ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                  Auditing Speed...
+                  Auditing...
                 </>
               ) : (
                 <>
@@ -1445,14 +1441,14 @@ export default function SpeedTestingClientPage({
 
       {/* AUDIT SETTINGS & METHODOLOGY TRANSPARENCY MODAL */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden bg-white rounded-2xl gap-0 shadow-2xl border border-slate-200">
-          <DialogHeader className="p-6 pb-4 border-b border-slate-100 bg-slate-50/60">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-0 overflow-hidden bg-white rounded-2xl gap-0 shadow-2xl border border-slate-200">
+          <DialogHeader className="p-4 sm:p-6 pb-4 border-b border-slate-100 bg-slate-50/60">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+              <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
                 <SlidersHorizontal className="h-4 w-4" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold text-slate-900">
+                <DialogTitle className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
                   Speed Audit Settings & Simulation Parameters
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 mt-0.5">
@@ -1461,51 +1457,51 @@ export default function SpeedTestingClientPage({
               </div>
             </div>
 
-            {/* TAB SELECTOR */}
-            <div className="flex items-center gap-1.5 mt-4 p-1 rounded-xl bg-slate-200/60 border border-slate-200/80 text-xs font-semibold">
+            {/* RESPONSIVE TAB SELECTOR */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 mt-4 p-1 rounded-xl bg-slate-200/60 border border-slate-200/80 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setSettingsTab("methodology")}
-                className={`flex-1 py-1.5 px-2.5 rounded-lg transition-all cursor-pointer text-center ${
+                className={`py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center text-[11px] sm:text-xs truncate ${
                   settingsTab === "methodology"
                     ? "bg-white text-indigo-700 shadow-xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                📊 Methodology & Weights
+                📊 Methodology
               </button>
               <button
                 type="button"
                 onClick={() => setSettingsTab("engine")}
-                className={`flex-1 py-1.5 px-2.5 rounded-lg transition-all cursor-pointer text-center ${
+                className={`py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center text-[11px] sm:text-xs truncate ${
                   settingsTab === "engine"
                     ? "bg-white text-indigo-700 shadow-xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                ☁️ Engine & API Key
+                ☁️ Engine & API
               </button>
               <button
                 type="button"
                 onClick={() => setSettingsTab("simulation")}
-                className={`flex-1 py-1.5 px-2.5 rounded-lg transition-all cursor-pointer text-center ${
+                className={`py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center text-[11px] sm:text-xs truncate ${
                   settingsTab === "simulation"
                     ? "bg-white text-indigo-700 shadow-xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                ⚙️ Simulation & Throttle
+                ⚙️ Simulation
               </button>
               <button
                 type="button"
                 onClick={() => setSettingsTab("alerts")}
-                className={`flex-1 py-1.5 px-2.5 rounded-lg transition-all cursor-pointer text-center ${
+                className={`py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center text-[11px] sm:text-xs truncate ${
                   settingsTab === "alerts"
                     ? "bg-white text-indigo-700 shadow-xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                🔔 Health Thresholds
+                🔔 Thresholds
               </button>
             </div>
           </DialogHeader>

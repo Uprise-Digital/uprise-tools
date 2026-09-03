@@ -122,6 +122,7 @@ describe("Landing Page Speed Testing Actions", () => {
           fontBytes: 30000,
           htmlBytes: 20000,
           otherBytes: 0,
+          thirdPartyBytes: 150000,
         },
         engineUsed: "Real-Time Edge Profiler (Lighthouse v11 Algorithm)",
       };
