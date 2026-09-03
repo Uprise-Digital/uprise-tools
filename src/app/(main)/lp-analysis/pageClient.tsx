@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -643,30 +644,44 @@ export default function LpAnalysisClientPage({
                                   <Play className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
                                   Run CRO Audit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  disabled={!c.url}
-                                  onClick={() => {
-                                    router.push(`/lp-analysis/speed/${c.id}`);
-                                  }}
-                                  className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer p-2 rounded focus:bg-slate-50 focus:text-slate-800"
-                                >
-                                  <Gauge className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                                  Speed Testing
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  disabled={!c.latestAudit}
-                                  onClick={() => {
-                                    if (c.latestAudit) {
-                                      router.push(
-                                        `/lp-analysis/${c.latestAudit.id}`,
-                                      );
-                                    }
-                                  }}
-                                  className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer p-2 rounded focus:bg-slate-50 focus:text-slate-800"
-                                >
-                                  <ExternalLink className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                                  Open Latest Audit
-                                </DropdownMenuItem>
+                                {c.url ? (
+                                  <DropdownMenuItem asChild>
+                                    <Link
+                                      href={`/lp-analysis/speed/${c.id}`}
+                                      className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer p-2 rounded focus:bg-slate-50 focus:text-slate-800 w-full"
+                                    >
+                                      <Gauge className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                                      Speed Testing
+                                    </Link>
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    disabled
+                                    className="flex items-center gap-2 text-xs font-bold text-slate-400 p-2 rounded"
+                                  >
+                                    <Gauge className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+                                    Speed Testing
+                                  </DropdownMenuItem>
+                                )}
+                                {c.latestAudit ? (
+                                  <DropdownMenuItem asChild>
+                                    <Link
+                                      href={`/lp-analysis/${c.latestAudit.id}`}
+                                      className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer p-2 rounded focus:bg-slate-50 focus:text-slate-800 w-full"
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                                      Open Latest Audit
+                                    </Link>
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    disabled
+                                    className="flex items-center gap-2 text-xs font-bold text-slate-400 p-2 rounded"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+                                    Open Latest Audit
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                   disabled={!c.audits || c.audits.length < 2}
                                   onClick={() => {
