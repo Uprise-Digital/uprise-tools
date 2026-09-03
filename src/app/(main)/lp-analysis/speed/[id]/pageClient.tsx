@@ -639,13 +639,13 @@ export default function SpeedTestingClientPage({
                     </div>
                   </CardHeader>
 
-                  <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  <CardContent className="pt-5 pb-6 px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {/* 1. LCP */}
                     {(() => {
                       const st = getMetricStatus("LCP", currentTest.lcpMs);
                       return (
                         <div
-                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -668,7 +668,7 @@ export default function SpeedTestingClientPage({
                                   : "N/A")}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
+                          <p className="text-[11px] text-slate-500 leading-normal pt-1">
                             Target &le; 2.5s. Main visual element rendering
                             time.
                           </p>
@@ -681,7 +681,7 @@ export default function SpeedTestingClientPage({
                       const st = getMetricStatus("INP", currentTest.inpMs);
                       return (
                         <div
-                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -704,7 +704,7 @@ export default function SpeedTestingClientPage({
                                   : "N/A")}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
+                          <p className="text-[11px] text-slate-500 leading-normal pt-1">
                             Target &le; 200ms. UI response latency on tap /
                             click.
                           </p>
@@ -721,7 +721,7 @@ export default function SpeedTestingClientPage({
                       );
                       return (
                         <div
-                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -743,7 +743,7 @@ export default function SpeedTestingClientPage({
                                 "0.0"}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
+                          <p className="text-[11px] text-slate-500 leading-normal pt-1">
                             Target &le; 0.1. Visual stability & layout jumping.
                           </p>
                         </div>
@@ -755,7 +755,7 @@ export default function SpeedTestingClientPage({
                       const st = getMetricStatus("FCP", currentTest.fcpMs);
                       return (
                         <div
-                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -778,7 +778,7 @@ export default function SpeedTestingClientPage({
                                   : "N/A")}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
+                          <p className="text-[11px] text-slate-500 leading-normal pt-1">
                             Target &le; 1.8s. Time until first text or image
                             appears.
                           </p>
@@ -791,7 +791,7 @@ export default function SpeedTestingClientPage({
                       const st = getMetricStatus("TTFB", currentTest.ttfbMs);
                       return (
                         <div
-                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -814,7 +814,7 @@ export default function SpeedTestingClientPage({
                                   : "N/A")}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
+                          <p className="text-[11px] text-slate-500 leading-normal pt-1">
                             Target &le; 800ms. Server response & host latency.
                           </p>
                         </div>
@@ -829,7 +829,7 @@ export default function SpeedTestingClientPage({
                       );
                       return (
                         <div
-                          className={`p-3.5 rounded-xl border ${st.bg} flex flex-col justify-between`}
+                          className={`p-4 rounded-xl border ${st.bg} flex flex-col justify-between min-h-[135px] shadow-xs`}
                         >
                           <div className="flex items-start justify-between">
                             <span className="text-xs font-bold text-slate-800">
@@ -852,7 +852,7 @@ export default function SpeedTestingClientPage({
                                   : "N/A")}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
+                          <p className="text-[11px] text-slate-500 leading-normal pt-1">
                             Target &le; 3.4s. Visual progression during page
                             load.
                           </p>
@@ -883,7 +883,7 @@ export default function SpeedTestingClientPage({
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-4">
+                <CardContent className="pt-5 pb-6 px-6">
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
                       <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
@@ -967,7 +967,7 @@ export default function SpeedTestingClientPage({
                 </div>
               </CardHeader>
 
-              <CardContent className="pt-4 divide-y divide-slate-150">
+              <CardContent className="pt-5 pb-6 px-6 divide-y divide-slate-150">
                 {currentTest.opportunities &&
                 currentTest.opportunities.length > 0 ? (
                   currentTest.opportunities.map((opp: any) => {
