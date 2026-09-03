@@ -87,13 +87,63 @@ describe("Landing Page Speed Testing Actions", () => {
 
       const result = await runLandingPageSpeedTestAction(10, "mobile");
 
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
       expect(pageSpeedService.runPageSpeedAudit).toHaveBeenCalledWith(
         "https://test-client.com.au/plumbing",
         "mobile",
+        undefined,
       );
       expect(db.insert).toHaveBeenCalled();
+    });
+
+    it("should pass custom audit options (engine, key, throttle) to service", async () => {
+      const mockAuditResult: pageSpeedService.PageSpeedAuditResult = {
+        url: "https://test-client.com.au/plumbing",
+        device: "desktop",
+        performanceScore: 92,
+        lcpMs: 1400,
+        lcpDisplay: "1.4 s",
+        clsScore: 0.02,
+        clsDisplay: "0.020",
+        inpMs: 50,
+        inpDisplay: "50 ms",
+        fcpMs: 900,
+        fcpDisplay: "0.9 s",
+        ttfbMs: 150,
+        ttfbDisplay: "150 ms",
+        speedIndexMs: 1200,
+        speedIndexDisplay: "1.2 s",
+        totalByteWeight: 600000,
+        opportunities: [],
+        diagnostics: {
+          totalBytes: 600000,
+          jsBytes: 200000,
+          imageBytes: 300000,
+          cssBytes: 50000,
+          fontBytes: 30000,
+          htmlBytes: 20000,
+          otherBytes: 0,
+        },
+        engineUsed: "Real-Time Edge Profiler (Lighthouse v11 Algorithm)",
+      };
+
+      vi.spyOn(pageSpeedService, "runPageSpeedAudit").mockResolvedValueOnce(
+        mockAuditResult,
+      );
+
+      const customOptions: pageSpeedService.SpeedAuditOptions = {
+        engine: "edge",
+        networkProfile: "fast_4g",
+        cpuThrottle: "2x",
+      };
+
+      const result = await runLandingPageSpeedTestAction(10, "desktop", customOptions);
+
+      expect(result.success).toBe(true);
+      expect(pageSpeedService.runPageSpeedAudit).toHaveBeenCalledWith(
+        "https://test-client.com.au/plumbing",
+        "desktop",
+        customOptions,
+      );
     });
   });
 

@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Activity,
   AlertCircle,
@@ -8,36 +6,47 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clock,
+  Cloud,
+  Cpu,
   ExternalLink,
   FileCode,
   Gauge,
+  Globe,
   HelpCircle,
   ImageIcon,
   Info,
+  Key,
   Laptop,
   Layers,
   Loader2,
   Play,
   RefreshCw,
   Server,
+  Settings,
+  ShieldAlert,
   ShieldCheck,
+  Sliders,
+  SlidersHorizontal,
   Smartphone,
   Sparkles,
+  Terminal,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   type LandingPageSpeedData,
   type PageSpeedAuditResultWithMeta,
   runLandingPageSpeedTestAction,
   toggleWeeklySpeedCheckAction,
+  verifyGooglePageSpeedApiKeyAction,
 } from "@/actions/lp-speed.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +57,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -57,6 +75,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+export interface UserSpeedSettings {
+  engine: "auto" | "google" | "edge";
+  apiKey: string;
+  networkProfile: "standard_4g" | "fast_4g" | "unthrottled";
+  cpuThrottle: "4x" | "2x" | "1x";
+  minScoreAlert: number;
+  maxLcpAlert: number;
+  maxTtfbAlert: number;
+}
+
+const DEFAULT_SPEED_SETTINGS: UserSpeedSettings = {
+  engine: "auto",
+  apiKey: "",
+  networkProfile: "standard_4g",
+  cpuThrottle: "4x",
+  minScoreAlert: 80,
+  maxLcpAlert: 2.5,
+  maxTtfbAlert: 800,
+};
 
 interface SpeedTestingClientPageProps {
   initialData: LandingPageSpeedData;
@@ -249,6 +287,80 @@ export default function SpeedTestingClientPage({
     initialData.latestTest?.id || null,
   );
 
+  // User-configurable speed audit & methodology settings
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<
+    "methodology" | "engine" | "simulation" | "alerts"
+  >("methodology");
+  const [auditSettings, setAuditSettings] = useState<UserSpeedSettings>(
+    DEFAULT_SPEED_SETTINGS,
+  );
+  const [tempSettings, setTempSettings] = useState<UserSpeedSettings>(
+    DEFAULT_SPEED_SETTINGS,
+  );
+  const [isVerifyingKey, setIsVerifyingKey] = useState(false);
+  const [keyVerificationResult, setKeyVerificationResult] = useState<{
+    success?: boolean;
+    message?: string;
+  } | null>(null);
+
+  // Load user settings from localStorage on client mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("uprise_speed_audit_settings");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setAuditSettings((prev) => ({ ...prev, ...parsed }));
+        setTempSettings((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch {
+      // Ignore localStorage read errors
+    }
+  }, []);
+
+  const handleSaveSettings = () => {
+    setAuditSettings(tempSettings);
+    try {
+      localStorage.setItem(
+        "uprise_speed_audit_settings",
+        JSON.stringify(tempSettings),
+      );
+      toast.success("Audit configuration and simulation settings saved!");
+    } catch {
+      toast.error("Failed to save settings to local storage.");
+    }
+    setIsSettingsOpen(false);
+  };
+
+  const handleVerifyApiKey = async () => {
+    if (!tempSettings.apiKey.trim()) {
+      toast.error("Please enter a Google PageSpeed API key first.");
+      return;
+    }
+    try {
+      setIsVerifyingKey(true);
+      setKeyVerificationResult(null);
+      const res = await verifyGooglePageSpeedApiKeyAction(tempSettings.apiKey);
+      setKeyVerificationResult({
+        success: res.success,
+        message: res.message,
+      });
+      if (res.success) {
+        toast.success("Google PageSpeed API Key verified successfully!");
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err: any) {
+      setKeyVerificationResult({
+        success: false,
+        message: err.message || "Failed to verify API key.",
+      });
+      toast.error("Failed to verify API key.");
+    } finally {
+      setIsVerifyingKey(false);
+    }
+  };
+
   const landingPage = data.landingPage;
 
   // Reactively switch between Mobile and Desktop views
@@ -315,17 +427,31 @@ export default function SpeedTestingClientPage({
     }
   };
 
-  // Run on-demand PageSpeed test
+  // Run on-demand PageSpeed test with active configuration
   const handleRunSpeedTest = async () => {
     if (isRunningTest) return;
     try {
       setIsRunningTest(true);
-      toast.info(`Running Google PageSpeed audit (${device.toUpperCase()})...`);
+      const engineLabel =
+        auditSettings.engine === "google"
+          ? "Google Cloud API"
+          : auditSettings.engine === "edge"
+            ? "Real-Time Edge Profiler"
+            : "Auto Provider";
 
-      const res = await runLandingPageSpeedTestAction(landingPage.id, device);
+      toast.info(
+        `Running speed audit (${device.toUpperCase()}) via ${engineLabel}...`,
+      );
+
+      const res = await runLandingPageSpeedTestAction(landingPage.id, device, {
+        engine: auditSettings.engine,
+        apiKey: auditSettings.apiKey,
+        networkProfile: auditSettings.networkProfile,
+        cpuThrottle: auditSettings.cpuThrottle,
+      });
 
       if (!res.success || !res.data) {
-        toast.error(res.error || "Speed test failed. Please try again.");
+        toast.error(res.error || "Speed test failed. Please check your settings.");
         return;
       }
 
@@ -339,7 +465,7 @@ export default function SpeedTestingClientPage({
       setSelectedAuditId(newTest.id);
 
       toast.success(
-        `Audit completed! Performance Score: ${newTest.performanceScore}/100`,
+        `Audit completed! Score: ${newTest.performanceScore}/100 (${newTest.engineUsed || "Lighthouse Engine"})`,
       );
     } catch (err: any) {
       toast.error(err.message || "An unexpected error occurred.");
@@ -462,6 +588,22 @@ export default function SpeedTestingClientPage({
                 <Laptop className="h-3.5 w-3.5" /> Desktop
               </button>
             </div>
+
+            {/* AUDIT SETTINGS & METHODOLOGY BUTTON */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setTempSettings(auditSettings);
+                setKeyVerificationResult(null);
+                setIsSettingsOpen(true);
+              }}
+              className="h-9 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border-slate-200 shadow-xs gap-1.5 cursor-pointer"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-indigo-600" />
+              Audit Settings & Methodology
+            </Button>
 
             {/* RUN AUDIT BUTTON */}
             <Button
@@ -630,16 +772,44 @@ export default function SpeedTestingClientPage({
                       <Gauge className="h-4 w-4 text-indigo-600" />
                       Performance Score
                     </CardTitle>
-                    <CardDescription className="text-xs text-slate-500 mt-0.5">
-                      Lighthouse performance benchmark
-                    </CardDescription>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <CardDescription className="text-xs text-slate-500">
+                        Lighthouse v11 model
+                      </CardDescription>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSettingsTab("methodology");
+                          setIsSettingsOpen(true);
+                        }}
+                        className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <Info className="h-3 w-3" /> Methodology
+                      </button>
+                    </div>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] uppercase font-bold tracking-wider bg-white border-slate-200"
-                  >
-                    {currentTest.device}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-semibold bg-white text-slate-600 border-slate-200 flex items-center gap-1"
+                    >
+                      {currentTest.engineUsed?.includes("Google") ? (
+                        <>
+                          <Cloud className="h-2.5 w-2.5 text-sky-500" /> Cloud API
+                        </>
+                      ) : (
+                        <>
+                          <Cpu className="h-2.5 w-2.5 text-indigo-500" /> Profiler
+                        </>
+                      )}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] uppercase font-bold tracking-wider bg-white border-slate-200"
+                    >
+                      {currentTest.device}
+                    </Badge>
+                  </div>
                 </CardHeader>
 
                 <CardContent className="p-6 text-center flex flex-col items-center justify-center">
@@ -1270,6 +1440,574 @@ export default function SpeedTestingClientPage({
           </>
         )}
       </div>
+
+      {/* AUDIT SETTINGS & METHODOLOGY TRANSPARENCY MODAL */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden bg-white rounded-2xl gap-0 shadow-2xl border border-slate-200">
+          <DialogHeader className="p-6 pb-4 border-b border-slate-100 bg-slate-50/60">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <SlidersHorizontal className="h-4 w-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-slate-900">
+                  Speed Audit Settings & Simulation Parameters
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500 mt-0.5">
+                  Complete transparency into scoring formulas, hardware emulation, and provider keys.
+                </DialogDescription>
+              </div>
+            </div>
+
+            {/* TAB SELECTOR */}
+            <div className="flex items-center gap-1.5 mt-4 p-1 rounded-xl bg-slate-200/60 border border-slate-200/80 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setSettingsTab("methodology")}
+                className={`flex-1 py-1.5 px-2.5 rounded-lg transition-all cursor-pointer text-center ${
+                  settingsTab === "methodology"
+                    ? "bg-white text-indigo-700 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                📊 Methodology & Weights
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsTab("engine")}
+                className={`flex-1 py-1.5 px-2.5 rounded-lg transition-all cursor-pointer text-center ${
+                  settingsTab === "engine"
+                    ? "bg-white text-indigo-700 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                ☁️ Engine & API Key
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsTab("simulation")}
+                className={`flex-1 py-1.5 px-2.5 rounded-lg transition-all cursor-pointer text-center ${
+                  settingsTab === "simulation"
+                    ? "bg-white text-indigo-700 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                ⚙️ Simulation & Throttle
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsTab("alerts")}
+                className={`flex-1 py-1.5 px-2.5 rounded-lg transition-all cursor-pointer text-center ${
+                  settingsTab === "alerts"
+                    ? "bg-white text-indigo-700 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                🔔 Health Thresholds
+              </button>
+            </div>
+          </DialogHeader>
+
+          <div className="p-6 max-h-[60vh] overflow-y-auto space-y-6">
+            {/* TAB 1: METHODOLOGY & WEIGHTS */}
+            {settingsTab === "methodology" && (
+              <div className="space-y-4">
+                <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-4 text-xs text-indigo-950 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-indigo-900 text-sm">
+                    <Info className="h-4 w-4 text-indigo-600 shrink-0" />
+                    How Uprise Computes Speed Scores
+                  </div>
+                  <p className="leading-relaxed text-indigo-800">
+                    Scores use the official <strong>Google Lighthouse v10/v11 log-normal distribution curves</strong>. 
+                    Rather than arbitrary linear tiers, raw metric times (ms) are evaluated via complementary error functions (erfc) 
+                    against industry-calibrated p10 and median control points.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Official Metric Weighting Distribution
+                  </div>
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50/80 text-[11px] font-bold text-slate-600">
+                          <TableHead className="pl-4">Core Web Vital</TableHead>
+                          <TableHead>Weight</TableHead>
+                          <TableHead>Target (Good / Needs Impr.)</TableHead>
+                          <TableHead>What It Measures</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody className="text-xs">
+                        <TableRow>
+                          <TableCell className="pl-4 font-bold text-indigo-950">
+                            Total Blocking Time (TBT / INP)
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="bg-amber-100 text-amber-800 border-amber-200 font-bold">
+                              30%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-600">
+                            &le; 200 ms / 600 ms
+                          </TableCell>
+                          <TableCell className="text-slate-500">
+                            Main-thread CPU delay from heavy tracking scripts (GTM, Meta, CallRail).
+                          </TableCell>
+                        </TableRow>
+
+                        <TableRow>
+                          <TableCell className="pl-4 font-bold text-indigo-950">
+                            Largest Contentful Paint (LCP)
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 font-bold">
+                              25%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-600">
+                            &le; 2.5 s / 4.0 s
+                          </TableCell>
+                          <TableCell className="text-slate-500">
+                            Render time of the main hero element or headline image.
+                          </TableCell>
+                        </TableRow>
+
+                        <TableRow>
+                          <TableCell className="pl-4 font-bold text-indigo-950">
+                            Cumulative Layout Shift (CLS)
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 font-bold">
+                              25%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-600">
+                            &le; 0.10 / 0.25
+                          </TableCell>
+                          <TableCell className="text-slate-500">
+                            Visual jumpiness caused by unsized images or dynamically injected widgets.
+                          </TableCell>
+                        </TableRow>
+
+                        <TableRow>
+                          <TableCell className="pl-4 font-bold text-indigo-950">
+                            First Contentful Paint (FCP)
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="bg-slate-100 text-slate-800 border-slate-200 font-bold">
+                              10%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-600">
+                            &le; 1.8 s / 3.0 s
+                          </TableCell>
+                          <TableCell className="text-slate-500">
+                            Initial server response & critical stylesheet download speed.
+                          </TableCell>
+                        </TableRow>
+
+                        <TableRow>
+                          <TableCell className="pl-4 font-bold text-indigo-950">
+                            Speed Index (SI)
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="bg-slate-100 text-slate-800 border-slate-200 font-bold">
+                              10%
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-600">
+                            &le; 3.4 s / 5.8 s
+                          </TableCell>
+                          <TableCell className="text-slate-500">
+                            Visual progression and pixel fill rate across viewport.
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3 leading-relaxed">
+                  💡 <strong>Mobile vs Desktop Realism</strong>: Mobile profiles simulate a standard 4G network (1.63 Mbps, 150ms roundtrip) 
+                  and 4x CPU slowdown factor (emulating a mid-range Moto G4 device). This matches Google Ads Landing Page Experience grading criteria.
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: ENGINE & API KEY */}
+            {settingsTab === "engine" && (
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <Label className="text-xs font-bold text-slate-900">
+                    Execution Engine Strategy
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTempSettings((prev) => ({ ...prev, engine: "auto" }))
+                      }
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        tempSettings.engine === "auto"
+                          ? "bg-indigo-50/70 border-indigo-500 ring-2 ring-indigo-500/20"
+                          : "bg-white border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900">
+                          Auto (Hybrid)
+                        </span>
+                        {tempSettings.engine === "auto" && (
+                          <Check className="h-3.5 w-3.5 text-indigo-600" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-2">
+                        Uses Google Cloud API if key is present; falls back to Edge Profiler seamlessly.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTempSettings((prev) => ({
+                          ...prev,
+                          engine: "google",
+                        }))
+                      }
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        tempSettings.engine === "google"
+                          ? "bg-sky-50/70 border-sky-500 ring-2 ring-sky-500/20"
+                          : "bg-white border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900">
+                          Google API Only
+                        </span>
+                        {tempSettings.engine === "google" && (
+                          <Check className="h-3.5 w-3.5 text-sky-600" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-2">
+                        Directly queries Google PageSpeed Insights API servers. Requires active API key.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTempSettings((prev) => ({ ...prev, engine: "edge" }))
+                      }
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        tempSettings.engine === "edge"
+                          ? "bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20"
+                          : "bg-white border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900">
+                          Edge Profiler
+                        </span>
+                        {tempSettings.engine === "edge" && (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-2">
+                        Real-time Lighthouse v11 engine. Zero Google API rate limits or quota caps.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <Key className="h-3.5 w-3.5 text-slate-500" />
+                        Custom Google PageSpeed API Key
+                      </Label>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Optional. If left blank, server defaults or the local Edge Profiler will be used.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="password"
+                      placeholder="AIzaSy..."
+                      value={tempSettings.apiKey}
+                      onChange={(e) => {
+                        setTempSettings((prev) => ({
+                          ...prev,
+                          apiKey: e.target.value,
+                        }));
+                        setKeyVerificationResult(null);
+                      }}
+                      className="text-xs font-mono"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleVerifyApiKey}
+                      disabled={isVerifyingKey || !tempSettings.apiKey.trim()}
+                      className="shrink-0 h-9 text-xs font-semibold cursor-pointer"
+                    >
+                      {isVerifyingKey ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                          Testing...
+                        </>
+                      ) : (
+                        "Test Key"
+                      )}
+                    </Button>
+                  </div>
+
+                  {keyVerificationResult && (
+                    <div
+                      className={`text-xs p-3 rounded-xl border flex items-center gap-2 ${
+                        keyVerificationResult.success
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : "bg-rose-50 text-rose-800 border-rose-200"
+                      }`}
+                    >
+                      {keyVerificationResult.success ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                      )}
+                      <span>{keyVerificationResult.message}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: HARDWARE & NETWORK SIMULATION */}
+            {settingsTab === "simulation" && (
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <Label className="text-xs font-bold text-slate-900">
+                    Mobile Network Latency & Throughput Profile
+                  </Label>
+                  <div className="space-y-2">
+                    {[
+                      {
+                        id: "standard_4g",
+                        label: "Standard 4G (Google Lighthouse Default)",
+                        desc: "1.63 Mbps throughput, 150ms roundtrip latency. Matches Google Ads grading.",
+                      },
+                      {
+                        id: "fast_4g",
+                        label: "Fast 4G / 5G Mobile",
+                        desc: "10 Mbps throughput, 40ms roundtrip latency. Emulates top-tier urban cellular networks.",
+                      },
+                      {
+                        id: "unthrottled",
+                        label: "Unthrottled Broadband",
+                        desc: "Direct network throughput with zero artificial transfer delays.",
+                      },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() =>
+                          setTempSettings((prev) => ({
+                            ...prev,
+                            networkProfile: item.id as any,
+                          }))
+                        }
+                        className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                          tempSettings.networkProfile === item.id
+                            ? "bg-indigo-50/70 border-indigo-500 ring-1 ring-indigo-500/20"
+                            : "bg-white border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-bold text-slate-900">
+                            {item.label}
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">
+                            {item.desc}
+                          </div>
+                        </div>
+                        {tempSettings.networkProfile === item.id && (
+                          <Check className="h-4 w-4 text-indigo-600 shrink-0 ml-2" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <Label className="text-xs font-bold text-slate-900">
+                    Mobile CPU Throttling Factor
+                  </Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      {
+                        id: "4x",
+                        label: "4× Slowdown",
+                        desc: "Lighthouse baseline (Moto G4)",
+                      },
+                      {
+                        id: "2x",
+                        label: "2× Slowdown",
+                        desc: "Modern mid-range phone",
+                      },
+                      {
+                        id: "1x",
+                        label: "1× (No Throttle)",
+                        desc: "Full host CPU power",
+                      },
+                    ].map((cpu) => (
+                      <button
+                        key={cpu.id}
+                        type="button"
+                        onClick={() =>
+                          setTempSettings((prev) => ({
+                            ...prev,
+                            cpuThrottle: cpu.id as any,
+                          }))
+                        }
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          tempSettings.cpuThrottle === cpu.id
+                            ? "bg-indigo-50/70 border-indigo-500 ring-1 ring-indigo-500/20"
+                            : "bg-white border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900">
+                            {cpu.label}
+                          </span>
+                          {tempSettings.cpuThrottle === cpu.id && (
+                            <Check className="h-3.5 w-3.5 text-indigo-600" />
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-500 mt-1">
+                          {cpu.desc}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: ALERT THRESHOLDS */}
+            {settingsTab === "alerts" && (
+              <div className="space-y-5">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-600">
+                  Configure health alert triggers for weekly automated scans. If an audit falls below these limits, an automated triage alert is flagged.
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-900">
+                      Min Performance Score
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={tempSettings.minScoreAlert}
+                      onChange={(e) =>
+                        setTempSettings((prev) => ({
+                          ...prev,
+                          minScoreAlert: Number(e.target.value) || 0,
+                        }))
+                      }
+                      className="text-xs"
+                    />
+                    <p className="text-[10px] text-slate-500">Alert if score &lt; {tempSettings.minScoreAlert}</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-900">
+                      Max LCP Target (Seconds)
+                    </Label>
+                    <Input
+                      type="number"
+                      step={0.1}
+                      min={0.5}
+                      max={10}
+                      value={tempSettings.maxLcpAlert}
+                      onChange={(e) =>
+                        setTempSettings((prev) => ({
+                          ...prev,
+                          maxLcpAlert: Number(e.target.value) || 0,
+                        }))
+                      }
+                      className="text-xs"
+                    />
+                    <p className="text-[10px] text-slate-500">Alert if LCP &gt; {tempSettings.maxLcpAlert}s</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-900">
+                      Max TTFB Target (ms)
+                    </Label>
+                    <Input
+                      type="number"
+                      step={50}
+                      min={100}
+                      max={3000}
+                      value={tempSettings.maxTtfbAlert}
+                      onChange={(e) =>
+                        setTempSettings((prev) => ({
+                          ...prev,
+                          maxTtfbAlert: Number(e.target.value) || 0,
+                        }))
+                      }
+                      className="text-xs"
+                    />
+                    <p className="text-[10px] text-slate-500">Alert if TTFB &gt; {tempSettings.maxTtfbAlert}ms</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* MODAL FOOTER */}
+          <div className="p-4 px-6 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setTempSettings(DEFAULT_SPEED_SETTINGS);
+                toast.info("Reset to default Lighthouse v11 parameters.");
+              }}
+              className="text-xs text-slate-500 hover:text-slate-800 cursor-pointer"
+            >
+              Reset to Defaults
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSettingsOpen(false)}
+                className="text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveSettings}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs px-4 cursor-pointer"
+              >
+                Save & Apply Settings
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

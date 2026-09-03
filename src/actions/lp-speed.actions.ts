@@ -12,7 +12,9 @@ import { logAction } from "@/lib/audit";
 import { getAuthOrgContext } from "@/lib/auth-helpers";
 import {
   type PageSpeedAuditResult,
+  type SpeedAuditOptions,
   runPageSpeedAudit,
+  verifyGooglePageSpeedApiKey,
 } from "@/service/pagespeed.service";
 
 export interface LandingPageSpeedData {
@@ -55,8 +57,29 @@ export interface PageSpeedAuditResultWithMeta {
   opportunities?: any;
   diagnostics?: any;
   cruxData?: any;
+  rawMetrics?: any;
+  engineUsed?: string | null;
+  simulationSettings?: any;
   triggerSource: string;
   createdAt: Date;
+}
+
+/**
+ * Verifies a user-provided Google PageSpeed Insights API key
+ */
+export async function verifyGooglePageSpeedApiKeyAction(
+  apiKey: string,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const ctx = await getAuthOrgContext();
+    if (!ctx) {
+      return { success: false, message: "Unauthorized" };
+    }
+    const res = await verifyGooglePageSpeedApiKey(apiKey);
+    return { success: res.valid, message: res.message };
+  } catch (err: any) {
+    return { success: false, message: err.message || "Failed to verify key" };
+  }
 }
 
 /**
@@ -87,33 +110,39 @@ export async function getLandingPageSpeedDataAction(
       orderBy: [desc(landingPageSpeedTests.createdAt)],
     });
 
-    const mappedHistory: PageSpeedAuditResultWithMeta[] = history.map((h) => ({
-      id: h.id,
-      url: h.url,
-      device: (h.device as "mobile" | "desktop") || "mobile",
-      performanceScore: h.performanceScore,
-      accessibilityScore: h.accessibilityScore,
-      bestPracticesScore: h.bestPracticesScore,
-      seoScore: h.seoScore,
-      lcpMs: h.lcpMs,
-      lcpDisplay: h.lcpDisplay,
-      clsScore: h.clsScore,
-      clsDisplay: h.clsDisplay,
-      inpMs: h.inpMs,
-      inpDisplay: h.inpDisplay,
-      fcpMs: h.fcpMs,
-      fcpDisplay: h.fcpDisplay,
-      ttfbMs: h.ttfbMs,
-      ttfbDisplay: h.ttfbDisplay,
-      speedIndexMs: h.speedIndexMs,
-      speedIndexDisplay: h.speedIndexDisplay,
-      totalByteWeight: h.totalByteWeight,
-      opportunities: h.opportunities,
-      diagnostics: h.diagnostics,
-      cruxData: h.cruxData,
-      triggerSource: h.triggerSource,
-      createdAt: h.createdAt,
-    }));
+    const mappedHistory: PageSpeedAuditResultWithMeta[] = history.map((h) => {
+      const raw = (h.rawMetrics as any) || {};
+      return {
+        id: h.id,
+        url: h.url,
+        device: (h.device as "mobile" | "desktop") || "mobile",
+        performanceScore: h.performanceScore,
+        accessibilityScore: h.accessibilityScore,
+        bestPracticesScore: h.bestPracticesScore,
+        seoScore: h.seoScore,
+        lcpMs: h.lcpMs,
+        lcpDisplay: h.lcpDisplay,
+        clsScore: h.clsScore,
+        clsDisplay: h.clsDisplay,
+        inpMs: h.inpMs,
+        inpDisplay: h.inpDisplay,
+        fcpMs: h.fcpMs,
+        fcpDisplay: h.fcpDisplay,
+        ttfbMs: h.ttfbMs,
+        ttfbDisplay: h.ttfbDisplay,
+        speedIndexMs: h.speedIndexMs,
+        speedIndexDisplay: h.speedIndexDisplay,
+        totalByteWeight: h.totalByteWeight,
+        opportunities: h.opportunities,
+        diagnostics: h.diagnostics,
+        cruxData: h.cruxData,
+        rawMetrics: h.rawMetrics,
+        engineUsed: raw.engineUsed || (h.triggerSource === "WEEKLY_CRON" ? "Weekly Automated Engine" : "Lighthouse v11 Profiler"),
+        simulationSettings: raw.simulationSettings,
+        triggerSource: h.triggerSource,
+        createdAt: h.createdAt,
+      };
+    });
 
     return {
       success: true,
@@ -148,6 +177,7 @@ export async function getLandingPageSpeedDataAction(
 export async function runLandingPageSpeedTestAction(
   campaignLandingPageId: number,
   device: "mobile" | "desktop" = "mobile",
+  options?: SpeedAuditOptions,
 ): Promise<{
   success: boolean;
   data?: PageSpeedAuditResultWithMeta;
@@ -170,8 +200,8 @@ export async function runLandingPageSpeedTestAction(
       };
     }
 
-    // 1. Run PageSpeed Audit
-    const audit = await runPageSpeedAudit(lp.url, device);
+    // 1. Run PageSpeed Audit with User Options
+    const audit = await runPageSpeedAudit(lp.url, device, options);
 
     const targetOrgId = ctx.orgId || lp.organizationId || "default-org";
 
@@ -204,6 +234,11 @@ export async function runLandingPageSpeedTestAction(
         opportunities: audit.opportunities,
         diagnostics: audit.diagnostics,
         cruxData: audit.cruxData,
+        rawMetrics: {
+          engineUsed: audit.engineUsed,
+          simulationSettings: audit.simulationSettings,
+          optionsUsed: options,
+        },
         triggerSource: "MANUAL",
         status: "COMPLETED",
       })
@@ -219,6 +254,7 @@ export async function runLandingPageSpeedTestAction(
         url: lp.url,
         device,
         performanceScore: audit.performanceScore,
+        engineUsed: audit.engineUsed,
       },
     );
 
@@ -249,11 +285,17 @@ export async function runLandingPageSpeedTestAction(
       opportunities: inserted.opportunities,
       diagnostics: inserted.diagnostics,
       cruxData: inserted.cruxData,
+      rawMetrics: inserted.rawMetrics,
+      engineUsed: audit.engineUsed,
+      simulationSettings: audit.simulationSettings,
       triggerSource: inserted.triggerSource,
       createdAt: inserted.createdAt,
     };
 
-    return { success: true, data: result };
+    return {
+      success: true,
+      data: result,
+    };
   } catch (error: any) {
     console.error("[runLandingPageSpeedTestAction Error]:", error);
     return {

@@ -40,6 +40,13 @@ export interface PageSpeedCruxData {
   fcp?: { percentile: number; category: string };
 }
 
+export interface SpeedAuditOptions {
+  engine?: "auto" | "google" | "edge";
+  apiKey?: string;
+  networkProfile?: "standard_4g" | "fast_4g" | "unthrottled";
+  cpuThrottle?: "4x" | "2x" | "1x";
+}
+
 export interface PageSpeedAuditResult {
   url: string;
   device: "mobile" | "desktop";
@@ -64,6 +71,43 @@ export interface PageSpeedAuditResult {
   diagnostics: PageSpeedDiagnostics;
   cruxData?: PageSpeedCruxData;
   rawMetrics?: Record<string, any>;
+  engineUsed?: string;
+  simulationSettings?: {
+    engine: string;
+    networkProfile: string;
+    cpuThrottle: string;
+    weights: {
+      tbt: number;
+      lcp: number;
+      cls: number;
+      fcp: number;
+      speedIndex: number;
+    };
+  };
+}
+
+/**
+ * Verifies if a user-supplied Google PageSpeed Insights API Key is valid and active.
+ */
+export async function verifyGooglePageSpeedApiKey(apiKey: string): Promise<{
+  valid: boolean;
+  message: string;
+}> {
+  if (!apiKey || !apiKey.trim()) {
+    return { valid: false, message: "Please provide a non-empty Google API key." };
+  }
+  try {
+    const url = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https://www.google.com&strategy=desktop&category=PERFORMANCE&key=${encodeURIComponent(apiKey.trim())}`;
+    const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+    if (res.ok) {
+      return { valid: true, message: "Google PageSpeed Insights API Key verified successfully!" };
+    }
+    const errData = await res.json().catch(() => ({}));
+    const errMsg = errData.error?.message || `HTTP ${res.status}: ${res.statusText}`;
+    return { valid: false, message: `Google API Error: ${errMsg}` };
+  } catch (err: any) {
+    return { valid: false, message: `Network error verifying key: ${err.message}` };
+  }
 }
 
 /**
@@ -72,6 +116,7 @@ export interface PageSpeedAuditResult {
 async function profileLandingPageDirectly(
   targetUrl: string,
   device: "mobile" | "desktop" = "mobile",
+  options?: SpeedAuditOptions,
 ): Promise<PageSpeedAuditResult> {
   const userAgent =
     device === "mobile"
@@ -249,27 +294,46 @@ function calculateLighthouseScore(
   return Math.max(0, Math.min(1, score));
 }
 
-  // 6. Compute Core Web Vitals based on real factors & mobile throttling
+  // 6. Compute Core Web Vitals based on real factors & configurable throttling
+  const networkProfile = options?.networkProfile || (device === "mobile" ? "standard_4g" : "unthrottled");
+  const cpuThrottle = options?.cpuThrottle || (device === "mobile" ? "4x" : "1x");
+
+  // Latency & CPU multipliers based on configuration
+  const networkLatencyMultiplier =
+    networkProfile === "unthrottled"
+      ? 1.0
+      : networkProfile === "fast_4g"
+        ? 1.25
+        : 1.6; // standard_4g
+
+  const cpuSlowdownMultiplier =
+    cpuThrottle === "1x"
+      ? 1.0
+      : cpuThrottle === "2x"
+        ? 1.4
+        : 2.0; // 4x slowdown
+
   // FCP = TTFB + CSS render blocking delay
   const criticalCssDelay = Math.min(
-    stylesheets.length * (device === "mobile" ? 140 : 60),
+    stylesheets.length * (device === "mobile" ? 70 : 40) * cpuSlowdownMultiplier,
     1500,
   );
   const fcpMs = Math.round(ttfbMs + htmlDownloadMs + criticalCssDelay);
 
   // LCP = FCP + Hero image / major element load + JS execution
-  const deviceMultiplier = device === "mobile" ? 1.6 : 1.0;
   const heroImageDelay =
     images.length > 0
-      ? (device === "mobile" ? 950 : 450) + Math.min(estimatedImageBytes / (device === "mobile" ? 120000 : 400000) * 100, 1200)
-      : 250;
+      ? ((device === "mobile" ? 500 : 300) +
+          Math.min((estimatedImageBytes / 200000) * 120, 1000)) *
+        networkLatencyMultiplier
+      : 200;
   const jsExecutionDelay = Math.min(
-    (syncScriptCount * 120 + thirdPartyScriptCount * 80) *
-      (device === "mobile" ? 1.8 : 0.8),
+    (syncScriptCount * 80 + thirdPartyScriptCount * 55) *
+      cpuSlowdownMultiplier,
     2200,
   );
   const lcpMs = Math.round(
-    fcpMs + heroImageDelay + jsExecutionDelay * (device === "mobile" ? 0.7 : 0.4),
+    fcpMs + heroImageDelay + jsExecutionDelay * (device === "mobile" ? 0.65 : 0.35),
   );
 
   // CLS = Unsized images penalty + font shift + layout shift
@@ -280,20 +344,20 @@ function calculateLighthouseScore(
   // TBT / INP = Main-thread blocking time from JS parsing and marketing tags
   const inpMs = Math.min(
     Math.round(
-      (device === "mobile" ? 80 : 30) +
-        syncScriptCount * (device === "mobile" ? 65 : 20) +
-        thirdPartyScriptCount * (device === "mobile" ? 90 : 35),
+      (device === "mobile" ? 40 : 20) +
+        (syncScriptCount * 45 + thirdPartyScriptCount * 65) *
+          (cpuSlowdownMultiplier * 0.8),
     ),
     1200,
   );
 
   // Speed Index = Visual progression during load
   const speedIndexMs = Math.round(
-    fcpMs + (lcpMs - fcpMs) * (device === "mobile" ? 0.75 : 0.6),
+    fcpMs + (lcpMs - fcpMs) * (device === "mobile" ? 0.72 : 0.58),
   );
 
   // 7. Calculate Official Lighthouse v10/v11 Performance Score
-  // Weights: LCP (25%), TBT/INP (30%), CLS (25%), FCP (10%), Speed Index (10%)
+  // Weights: TBT/INP (30%), LCP (25%), CLS (25%), FCP (10%), Speed Index (10%)
   const isMobile = device === "mobile";
   const lcpMetricScore = calculateLighthouseScore(
     lcpMs,
@@ -322,8 +386,8 @@ function calculateLighthouseScore(
   );
 
   const performanceScore = Math.round(
-    (lcpMetricScore * 0.25 +
-      tbtMetricScore * 0.3 +
+    (tbtMetricScore * 0.3 +
+      lcpMetricScore * 0.25 +
       clsMetricScore * 0.25 +
       fcpMetricScore * 0.1 +
       siMetricScore * 0.1) *
@@ -505,6 +569,19 @@ function calculateLighthouseScore(
     totalByteWeight,
     opportunities,
     diagnostics,
+    engineUsed: "Real-Time Edge Profiler (Lighthouse v11 Algorithm)",
+    simulationSettings: {
+      engine: "Real-Time Edge Profiler (Lighthouse v11 Algorithm)",
+      networkProfile,
+      cpuThrottle,
+      weights: {
+        tbt: 30,
+        lcp: 25,
+        cls: 25,
+        fcp: 10,
+        speedIndex: 10,
+      },
+    },
   };
 }
 
@@ -514,17 +591,27 @@ function calculateLighthouseScore(
 export async function runPageSpeedAudit(
   targetUrl: string,
   device: "mobile" | "desktop" = "mobile",
+  options?: SpeedAuditOptions,
 ): Promise<PageSpeedAuditResult> {
   let validUrl = targetUrl.trim();
   if (!validUrl.startsWith("http://") && !validUrl.startsWith("https://")) {
     validUrl = `https://${validUrl}`;
   }
 
-  // Only use dedicated PageSpeed key if explicitly provided
-  const apiKey =
-    process.env.PAGESPEED_API_KEY || process.env.GOOGLE_PAGESPEED_API_KEY;
+  const requestedEngine = options?.engine || "auto";
 
-  if (apiKey) {
+  // If user explicitly configured Edge Profiler, execute directly
+  if (requestedEngine === "edge") {
+    return await profileLandingPageDirectly(validUrl, device, options);
+  }
+
+  // User-provided API key takes precedence, followed by environment variables
+  const apiKey =
+    options?.apiKey?.trim() ||
+    process.env.PAGESPEED_API_KEY ||
+    process.env.GOOGLE_PAGESPEED_API_KEY;
+
+  if (apiKey || requestedEngine === "google") {
     try {
       const urlObj = new URL(
         "https://www.googleapis.com/pagespeedonline/v5/runPagespeed",
@@ -535,10 +622,12 @@ export async function runPageSpeedAudit(
       urlObj.searchParams.append("category", "ACCESSIBILITY");
       urlObj.searchParams.append("category", "BEST_PRACTICES");
       urlObj.searchParams.append("category", "SEO");
-      urlObj.searchParams.set("key", apiKey);
+      if (apiKey) {
+        urlObj.searchParams.set("key", apiKey);
+      }
 
       console.log(
-        `[PageSpeed Service] Querying PageSpeed Insights API for ${validUrl} (${device})...`,
+        `[PageSpeed Service] Querying Google PageSpeed Insights API for ${validUrl} (${device})...`,
       );
 
       const response = await fetch(urlObj.toString(), {
@@ -729,13 +818,35 @@ export async function runPageSpeedAudit(
                 ? Math.round(audits["mainthread-work-breakdown"].numericValue)
                 : undefined,
             },
+            engineUsed: "Google Cloud PageSpeed API",
+            simulationSettings: {
+              engine: "Google Cloud PageSpeed API",
+              networkProfile: "Google Cloud Remote Runner",
+              cpuThrottle: device === "mobile" ? "4x (Moto G4)" : "1x (Broadband)",
+              weights: {
+                tbt: 30,
+                lcp: 25,
+                cls: 25,
+                fcp: 10,
+                speedIndex: 10,
+              },
+            },
           };
         }
+      } else if (requestedEngine === "google") {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(
+          errData.error?.message ||
+            `Google PageSpeed API returned HTTP ${response.status}: ${response.statusText}`,
+        );
       }
-    } catch (apiErr) {
+    } catch (apiErr: any) {
+      if (requestedEngine === "google") {
+        throw apiErr;
+      }
       console.warn(
         "[PageSpeed API Warning] Google API unavailable, falling back to direct profiler:",
-        apiErr,
+        apiErr.message,
       );
     }
   }
@@ -744,5 +855,5 @@ export async function runPageSpeedAudit(
   console.log(
     `[PageSpeed Service] Executing direct real-time audit for ${validUrl} (${device})...`,
   );
-  return await profileLandingPageDirectly(validUrl, device);
+  return await profileLandingPageDirectly(validUrl, device, options);
 }
