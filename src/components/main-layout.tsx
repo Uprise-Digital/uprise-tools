@@ -40,6 +40,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { UserMenu } from "@/components/user-menu";
+import { NotificationBell } from "@/components/notification-bell";
 import { setActiveOrgCookieAction } from "@/actions/onboarding.actions";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -330,6 +331,8 @@ export function MainLayout({
             {pathname?.startsWith("/settings") && "Dashboard / Settings"}
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell />
+            <div className="h-4 w-px bg-slate-200" />
             <span className="text-xs font-bold text-slate-500">{userName}</span>
             <UserMenu initials={userInitials} />
           </div>
@@ -407,7 +410,10 @@ export function MainLayout({
             </span>
           </div>
 
-          <UserMenu initials={userInitials} />
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <UserMenu initials={userInitials} />
+          </div>
         </header>
 
         {/* 3. CONTENT AREA SCROLL WRAPPER */}

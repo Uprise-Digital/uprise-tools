@@ -14,11 +14,8 @@ import {
   fetchAccountMonthlySummary,
 } from "@/lib/google-ads";
 import { buildReportEmailHtml } from "@/lib/report-email-template";
-import {
-  fetchAccountDataFromDb,
-  getPreviousMonthInfo,
-  transformAdsData,
-} from "@/lib/report-utils";
+import { fetchAccountDataFromDb, getPreviousMonthInfo, transformAdsData } from "@/lib/report-utils";
+import { createOrgNotification } from "@/service/notification.service";
 import { MyReportPDF } from "@/service/pdf-service";
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_build_key");
@@ -193,6 +190,31 @@ export async function POST(request: Request) {
       },
     );
 
+    // Dispatch In-App Notification to Org Members on Success
+    if (schedule.organizationId) {
+      try {
+        await createOrgNotification({
+          organizationId: schedule.organizationId,
+          adAccountId: schedule.adAccountId,
+          type: "report_generated",
+          severity: "success",
+          title: `Report Delivered: ${clientName}`,
+          message: `Performance report for ${prevMonth.monthName} ${prevMonth.year} was successfully emailed to ${schedule.recipientEmail}.`,
+          link: "/reports",
+          metadata: {
+            scheduleId,
+            recipient: schedule.recipientEmail,
+            clientName,
+          },
+        });
+      } catch (notifErr) {
+        console.error(
+          "[Job API] Failed to create report success notification:",
+          notifErr,
+        );
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error(`[Job API] Critical failure:`, error);
@@ -219,8 +241,24 @@ export async function POST(request: Request) {
         status: "failed",
         error: error.message || "Unknown on-demand job error",
       });
+
+      if (schedule?.organizationId) {
+        await createOrgNotification({
+          organizationId: schedule.organizationId,
+          adAccountId: schedule.adAccountId,
+          type: "report_failed",
+          severity: "critical",
+          title: `Report Delivery Failed: ${clientName || "Client"}`,
+          message: `Failed to deliver scheduled report to ${rec}: ${error.message || "Internal error"}.`,
+          link: "/reports",
+          metadata: {
+            scheduleId,
+            error: error.message,
+          },
+        });
+      }
     } catch (logErr) {
-      console.error("[Job API] Failed to write failure emailLog:", logErr);
+      console.error("[Job API] Failed to write failure emailLog or notification:", logErr);
     }
 
     // Returning a 500 status code triggers the Cloudflare Worker's 'catch' block

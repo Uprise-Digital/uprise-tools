@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { getAuthOrgContext } from "@/lib/auth-helpers";
+import { createNotification } from "@/service/notification.service";
 import {
   type PageSpeedAuditResult,
   type SpeedAuditOptions,
@@ -257,6 +258,29 @@ export async function runLandingPageSpeedTestAction(
         engineUsed: audit.engineUsed,
       },
     );
+
+    // 4. Send alert if score is low / degraded
+    if (audit.performanceScore < 60 || (audit.lcpMs && audit.lcpMs > 4000)) {
+      try {
+        await createNotification({
+          userId: ctx.userId,
+          organizationId: targetOrgId,
+          adAccountId: lp.adAccountId,
+          type: "lp_speed_degraded",
+          severity: audit.performanceScore < 50 ? "critical" : "warning",
+          title: `Low Speed Score: ${audit.performanceScore}/100 (${lp.campaignName || "Landing Page"})`,
+          message: `Audited ${lp.url}. LCP: ${audit.lcpDisplay || "N/A"}, TBT: ${audit.inpDisplay || "N/A"}. High impact on Quality Score.`,
+          link: `/lp-analysis/speed/${lp.id}`,
+          metadata: {
+            score: audit.performanceScore,
+            lcpMs: audit.lcpMs,
+            url: lp.url,
+          },
+        });
+      } catch (e) {
+        console.error("Failed to create speed notification:", e);
+      }
+    }
 
     revalidatePath("/lp-analysis");
     revalidatePath(`/lp-analysis/speed/${campaignLandingPageId}`);

@@ -20,6 +20,7 @@ import {
   fetchSearchTermsReport,
 } from "@/lib/google-ads";
 import { generateNegativeKeywordSuggestions } from "@/lib/negative-keyword-service";
+import { createOrgNotification } from "@/service/notification.service";
 
 /**
  * Utility function to check auth session.
@@ -474,6 +475,36 @@ export async function generateSuggestionsInternal(
         turboModeActive: account.negativeKeywordTurboMode,
       },
     );
+  }
+
+  // 7. Dispatch in-app notification to org members if new suggestions found
+  if (newSuggestions.length > 0 && account.organizationId) {
+    try {
+      const totalWasted = newSuggestions.reduce(
+        (acc, s) => acc + (Number(s.spend) || 0),
+        0,
+      );
+      await createOrgNotification({
+        organizationId: account.organizationId,
+        adAccountId: account.id,
+        type: "negative_keywords_added",
+        severity: "warning",
+        title: `${newSuggestions.length} New Negative Keyword${newSuggestions.length > 1 ? "s" : ""} (${account.name})`,
+        message: `Identified ${newSuggestions.length} search term${newSuggestions.length > 1 ? "s" : ""} with wasted spend${totalWasted > 0 ? ` ($${totalWasted.toFixed(0)})` : ""}. ${pushedCount > 0 ? `${pushedCount} auto-applied via Turbo.` : `${savedCount} ready for review.`}`,
+        link: `/accounts/${account.id}`,
+        metadata: {
+          adAccountId: account.id,
+          newSuggestionsAdded: newSuggestions.length,
+          pushedDirectly: pushedCount,
+          savedForReview: savedCount,
+        },
+      });
+    } catch (notifErr) {
+      console.error(
+        "Failed to create negative keywords notification:",
+        notifErr,
+      );
+    }
   }
 
   return {

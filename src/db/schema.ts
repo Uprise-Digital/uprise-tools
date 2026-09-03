@@ -1224,3 +1224,52 @@ export const callRecordsRelations = relations(callRecords, ({ one }) => ({
     references: [clientOnboardings.id],
   }),
 }));
+
+// --- 32. NOTIFICATIONS & ALERTS ---
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .references(() => organization.id, { onDelete: "cascade" }),
+    adAccountId: integer("ad_account_id")
+      .references(() => adAccounts.id, { onDelete: "set null" }),
+    type: varchar("type", { length: 64 }).notNull(), // 'lp_speed_degraded' | 'negative_keywords_added' | 'negative_keywords_waste' | 'report_generated' | 'report_failed'
+    severity: varchar("severity", { length: 32 }).notNull().default("info"), // 'critical' | 'warning' | 'info' | 'success'
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    link: text("link"),
+    metadata: jsonb("metadata"),
+    isRead: boolean("is_read").notNull().default(false),
+    readAt: timestamp("read_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+    index("notifications_user_idx").on(sql`user_id`),
+    index("notifications_org_idx").on(sql`organization_id`),
+    index("notifications_is_read_idx").on(sql`is_read`),
+    index("notifications_created_at_idx").on(sql`created_at`),
+  ],
+).enableRLS();
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(user, {
+    fields: [notifications.userId],
+    references: [user.id],
+  }),
+  organization: one(organization, {
+    fields: [notifications.organizationId],
+    references: [organization.id],
+  }),
+  adAccount: one(adAccounts, {
+    fields: [notifications.adAccountId],
+    references: [adAccounts.id],
+  }),
+}));

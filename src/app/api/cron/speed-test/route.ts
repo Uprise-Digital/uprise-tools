@@ -11,6 +11,7 @@ import {
   user,
 } from "@/db/schema";
 import { logEmail } from "@/lib/audit";
+import { createOrgNotification } from "@/service/notification.service";
 import { runPageSpeedAudit } from "@/service/pagespeed.service";
 
 export const maxDuration = 300; // 5 minutes
@@ -242,6 +243,27 @@ export async function processWeeklySpeedChecks() {
 
   for (const [orgId, issues] of orgIssuesMap.entries()) {
     try {
+      // 1. Dispatch In-App Notification to all Org Members
+      const hasCritical = issues.some((i) => i.performanceScore < 50);
+      const avgScore = Math.round(
+        issues.reduce((acc, i) => acc + i.performanceScore, 0) / issues.length,
+      );
+      await createOrgNotification({
+        organizationId: orgId,
+        type: "lp_speed_degraded",
+        severity: hasCritical ? "critical" : "warning",
+        title: `Landing Page Speed Alert (${issues.length} page${issues.length > 1 ? "s" : ""})`,
+        message: `Weekly sentinel detected performance regressions on ${issues.map((i) => i.campaignName || i.accountName).slice(0, 2).join(", ")}${issues.length > 2 ? ` and ${issues.length - 2} more` : ""}. Average score: ${avgScore}/100.`,
+        link:
+          issues.length === 1
+            ? `/lp-analysis/speed/${issues[0].campaignLandingPageId}`
+            : "/lp-analysis",
+        metadata: {
+          issuesCount: issues.length,
+          issues: issues.slice(0, 5),
+        },
+      });
+
       // Find organization details and team recipients
       const org = await withBypassTenantDb(async (tx) => {
         return await tx.query.organization.findFirst({
