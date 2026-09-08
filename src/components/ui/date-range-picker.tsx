@@ -2,11 +2,17 @@
 
 import {
   endOfMonth,
+  endOfQuarter,
+  endOfYear,
   format,
   parseISO,
   startOfMonth,
+  startOfQuarter,
+  startOfYear,
   subDays,
   subMonths,
+  subQuarters,
+  subYears,
 } from "date-fns";
 import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -71,6 +77,11 @@ export function DateRangePicker({
           startDate: format(subDays(today, 29), "yyyy-MM-dd"),
           endDate: todayStr,
         };
+      case "last3Months":
+        return {
+          startDate: format(subMonths(today, 3), "yyyy-MM-dd"),
+          endDate: todayStr,
+        };
       case "thisMonth":
         return {
           startDate: format(startOfMonth(today), "yyyy-MM-dd"),
@@ -81,6 +92,30 @@ export function DateRangePicker({
         return {
           startDate: format(startOfMonth(lastM), "yyyy-MM-dd"),
           endDate: format(endOfMonth(lastM), "yyyy-MM-dd"),
+        };
+      }
+      case "thisQuarter":
+        return {
+          startDate: format(startOfQuarter(today), "yyyy-MM-dd"),
+          endDate: todayStr,
+        };
+      case "lastQuarter": {
+        const lastQ = subQuarters(today, 1);
+        return {
+          startDate: format(startOfQuarter(lastQ), "yyyy-MM-dd"),
+          endDate: format(endOfQuarter(lastQ), "yyyy-MM-dd"),
+        };
+      }
+      case "thisYear":
+        return {
+          startDate: format(startOfYear(today), "yyyy-MM-dd"),
+          endDate: todayStr,
+        };
+      case "lastYear": {
+        const lastY = subYears(today, 1);
+        return {
+          startDate: format(startOfYear(lastY), "yyyy-MM-dd"),
+          endDate: format(endOfYear(lastY), "yyyy-MM-dd"),
         };
       }
       default:
@@ -137,18 +172,32 @@ export function DateRangePicker({
             { key: "last7", label: "Last 7 Days" },
             { key: "last14", label: "Last 14 Days" },
             { key: "last30", label: "Last 30 Days" },
+            { key: "last3Months", label: "Last 3 Months" },
             { key: "thisMonth", label: "This Month" },
             { key: "lastMonth", label: "Last Month" },
-          ].map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => handleApplyPreset(item.key)}
-              className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg text-left transition-colors cursor-pointer"
-            >
-              {item.label}
-            </button>
-          ))}
+            { key: "thisQuarter", label: "This Quarter" },
+            { key: "lastQuarter", label: "Last Quarter" },
+            { key: "thisYear", label: "This Year" },
+            { key: "lastYear", label: "Last Year" },
+          ].map((item) => {
+            const pRange = getPresetDates(item.key);
+            const isActive =
+              startDate === pRange.startDate && endDate === pRange.endDate;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => handleApplyPreset(item.key)}
+                className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg text-left transition-colors cursor-pointer ${
+                  isActive
+                    ? "bg-indigo-50 text-indigo-600 font-bold"
+                    : "text-slate-700 hover:text-indigo-600 hover:bg-indigo-50"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="border-t border-slate-100 pt-3 space-y-3">
