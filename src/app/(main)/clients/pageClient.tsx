@@ -139,6 +139,8 @@ export default function ClientsDirectoryClient() {
   const [ghlSearchQuery, setGhlSearchQuery] = useState("");
   const [ghlResults, setGhlResults] = useState<any[]>([]);
   const [loadingGhl, setLoadingGhl] = useState(false);
+  const [ghlSearchError, setGhlSearchError] = useState<string | null>(null);
+  const [hasSearchedGhl, setHasSearchedGhl] = useState(false);
   const [selectedGhlContact, setSelectedGhlContact] = useState<any | null>(
     null,
   );
@@ -181,23 +183,34 @@ export default function ClientsDirectoryClient() {
 
   // GHL Search Debounce
   useEffect(() => {
-    if (!ghlSearchQuery.trim()) {
+    if (!ghlSearchQuery.trim() || ghlSearchQuery.trim().length < 2) {
       setGhlResults([]);
+      setGhlSearchError(null);
+      setHasSearchedGhl(false);
       return;
     }
 
     const delayDebounce = setTimeout(async () => {
       setLoadingGhl(true);
+      setGhlSearchError(null);
       try {
         const res = await fetch(
-          `/api/gohighlevel/search?q=${encodeURIComponent(ghlSearchQuery)}`,
+          `/api/gohighlevel/search?q=${encodeURIComponent(ghlSearchQuery.trim())}`,
         );
         const data = await res.json();
-        if (data.contacts) {
+        if (res.ok && data.contacts) {
           setGhlResults(data.contacts);
+          setHasSearchedGhl(true);
+        } else if (!res.ok || data.error) {
+          setGhlSearchError(
+            data.error || "Failed to search GoHighLevel contacts.",
+          );
+          setGhlResults([]);
+          setHasSearchedGhl(true);
         }
       } catch (err) {
         console.error("Failed to search GHL:", err);
+        setGhlSearchError("Network error while searching GoHighLevel.");
       } finally {
         setLoadingGhl(false);
       }
@@ -264,6 +277,8 @@ export default function ClientsDirectoryClient() {
     setFormPhone(contact.phone || "");
     setGhlSearchQuery("");
     setGhlResults([]);
+    setGhlSearchError(null);
+    setHasSearchedGhl(false);
   };
 
   const handleCreateClient = async (e: React.FormEvent) => {
@@ -1148,11 +1163,21 @@ export default function ClientsDirectoryClient() {
                           {c.companyName || c.name}
                         </p>
                         <p className="text-[11px] text-slate-500">
-                          {c.name} ({c.email})
+                          {c.name} {c.email ? `(${c.email})` : c.phone ? `(${c.phone})` : ""}
                         </p>
                       </div>
                     ))}
                   </div>
+                )}
+
+                {hasSearchedGhl && !loadingGhl && ghlResults.length === 0 && !ghlSearchError && (
+                  <div className="absolute top-full left-0 right-0 z-10 bg-white border border-slate-200 rounded-xl shadow-lg mt-1 p-3 text-center text-xs text-slate-500">
+                    No matching GoHighLevel contacts found.
+                  </div>
+                )}
+
+                {ghlSearchError && (
+                  <p className="text-[11px] text-rose-500 mt-1">{ghlSearchError}</p>
                 )}
 
                 {selectedGhlContact && (

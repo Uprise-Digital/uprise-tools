@@ -187,6 +187,33 @@ describe("Client Onboarding API Routes", () => {
       expect(body.contacts).toEqual(mockContacts);
     });
 
+    it("should return 200 and contacts when query is passed via 'q' parameter", async () => {
+      const mockContacts = [
+        {
+          id: "ct_test_102",
+          name: "Fred Smith",
+          email: "fred@smith.com",
+          companyName: "Fred's Carpentry",
+          phone: "+61499887766",
+        },
+      ];
+      vi.mocked(searchGhlContacts).mockResolvedValueOnce(mockContacts);
+
+      const req = new Request(
+        "http://localhost/api/gohighlevel/search?q=fred",
+        {
+          method: "GET",
+        },
+      );
+
+      const response = await handleGhlSearchProxy(req as any);
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.success).toBe(true);
+      expect(body.contacts).toEqual(mockContacts);
+    });
+
     it("should return 500 and the error description if the GHL search service fails", async () => {
       vi.mocked(searchGhlContacts).mockRejectedValueOnce(
         new Error("GHL API is currently offline"),
