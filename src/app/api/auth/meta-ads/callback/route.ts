@@ -1,6 +1,6 @@
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { metaAdsConnections } from "@/db/schema";
 import { auth } from "@/lib/auth";

@@ -156,4 +156,3 @@ export function getPreviousPeriodDateRange(startDate: string, endDate: string) {
     durationDays: diffDays + 1,
   };
 }
-

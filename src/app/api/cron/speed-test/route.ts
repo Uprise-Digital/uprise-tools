@@ -123,7 +123,9 @@ function buildSpeedAlertHtml(props: {
 }
 
 export async function processWeeklySpeedChecks() {
-  console.log("[Cron Speed Test] Initiating weekly landing page speed audits...");
+  console.log(
+    "[Cron Speed Test] Initiating weekly landing page speed audits...",
+  );
 
   // 1. Fetch all landing pages enrolled in weekly speed checks across active accounts
   const enrolledPages = await withBypassTenantDb(async (tx) => {
@@ -203,9 +205,11 @@ export async function processWeeklySpeedChecks() {
 
       if (isLowScore || isSlowLcp || isHighCls) {
         let reason = "Performance regression detected";
-        if (isLowScore) reason = "Mobile performance score critically low (< 50)";
+        if (isLowScore)
+          reason = "Mobile performance score critically low (< 50)";
         else if (isSlowLcp) reason = `LCP latency slow (${audit.lcpDisplay})`;
-        else if (isHighCls) reason = `Layout shift unstable (${audit.clsDisplay})`;
+        else if (isHighCls)
+          reason = `Layout shift unstable (${audit.clsDisplay})`;
 
         const issue: SpeedAlertIssue = {
           campaignLandingPageId: page.id,
@@ -253,7 +257,12 @@ export async function processWeeklySpeedChecks() {
         type: "lp_speed_degraded",
         severity: hasCritical ? "critical" : "warning",
         title: `Landing Page Speed Alert (${issues.length} page${issues.length > 1 ? "s" : ""})`,
-        message: `Weekly sentinel detected performance regressions on ${issues.map((i) => i.campaignName || i.accountName).slice(0, 2).join(", ")}${issues.length > 2 ? ` and ${issues.length - 2} more` : ""}. Average score: ${avgScore}/100.`,
+        message: `Weekly sentinel detected performance regressions on ${issues
+          .map((i) => i.campaignName || i.accountName)
+          .slice(0, 2)
+          .join(
+            ", ",
+          )}${issues.length > 2 ? ` and ${issues.length - 2} more` : ""}. Average score: ${avgScore}/100.`,
         link:
           issues.length === 1
             ? `/lp-analysis/speed/${issues[0].campaignLandingPageId}`

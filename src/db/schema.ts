@@ -1233,10 +1233,12 @@ export const notifications = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    organizationId: text("organization_id")
-      .references(() => organization.id, { onDelete: "cascade" }),
-    adAccountId: integer("ad_account_id")
-      .references(() => adAccounts.id, { onDelete: "set null" }),
+    organizationId: text("organization_id").references(() => organization.id, {
+      onDelete: "cascade",
+    }),
+    adAccountId: integer("ad_account_id").references(() => adAccounts.id, {
+      onDelete: "set null",
+    }),
     type: varchar("type", { length: 64 }).notNull(), // 'lp_speed_degraded' | 'negative_keywords_added' | 'negative_keywords_waste' | 'report_generated' | 'report_failed'
     severity: varchar("severity", { length: 32 }).notNull().default("info"), // 'critical' | 'warning' | 'info' | 'success'
     title: text("title").notNull(),

@@ -24,7 +24,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type React from "react";
 import { useState } from "react";
+import { setActiveOrgCookieAction } from "@/actions/onboarding.actions";
 import { BackgroundTasksIndicator } from "@/components/background-tasks-indicator";
+import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -40,8 +42,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { UserMenu } from "@/components/user-menu";
-import { NotificationBell } from "@/components/notification-bell";
-import { setActiveOrgCookieAction } from "@/actions/onboarding.actions";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 

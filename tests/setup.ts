@@ -417,6 +417,41 @@ const mockDbQuery = {
       account: { name: "Test Trade Account" },
     }),
   },
+  metaAdsConnections: {
+    findFirst: vi.fn().mockResolvedValue({
+      id: 1,
+      organizationId: "org-test-uprise",
+      connectedEmail: "System User (Uprise)",
+      metaUserId: "meta-user-123",
+      businessId: "2448649278688629",
+      accessToken: "iv:tag:ciphertext",
+      tokenExpiresAt: null,
+      status: "active",
+      accessLevel: "system_user",
+      autoAddAccounts: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+    findMany: vi.fn().mockResolvedValue([]),
+  },
+  metaAdAccounts: {
+    findFirst: vi.fn().mockResolvedValue(null),
+    findMany: vi.fn().mockResolvedValue([
+      {
+        id: 1,
+        organizationId: "org-test-uprise",
+        connectionId: 1,
+        metaAccountId: "1234567890",
+        name: "Test Meta Client Account",
+        currencyCode: "USD",
+        timeZone: "Australia/Melbourne",
+        isActive: true,
+        accountStatus: 1,
+        lastSyncedAt: new Date(),
+        syncStatus: "success",
+      },
+    ]),
+  },
 };
 
 vi.mock("@/db", () => {

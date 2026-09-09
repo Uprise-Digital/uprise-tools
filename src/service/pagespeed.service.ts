@@ -94,19 +94,32 @@ export async function verifyGooglePageSpeedApiKey(apiKey: string): Promise<{
   message: string;
 }> {
   if (!apiKey || !apiKey.trim()) {
-    return { valid: false, message: "Please provide a non-empty Google API key." };
+    return {
+      valid: false,
+      message: "Please provide a non-empty Google API key.",
+    };
   }
   try {
     const url = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https://www.google.com&strategy=desktop&category=PERFORMANCE&key=${encodeURIComponent(apiKey.trim())}`;
-    const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
     if (res.ok) {
-      return { valid: true, message: "Google PageSpeed Insights API Key verified successfully!" };
+      return {
+        valid: true,
+        message: "Google PageSpeed Insights API Key verified successfully!",
+      };
     }
     const errData = await res.json().catch(() => ({}));
-    const errMsg = errData.error?.message || `HTTP ${res.status}: ${res.statusText}`;
+    const errMsg =
+      errData.error?.message || `HTTP ${res.status}: ${res.statusText}`;
     return { valid: false, message: `Google API Error: ${errMsg}` };
   } catch (err: any) {
-    return { valid: false, message: `Network error verifying key: ${err.message}` };
+    return {
+      valid: false,
+      message: `Network error verifying key: ${err.message}`,
+    };
   }
 }
 
@@ -144,7 +157,12 @@ async function profileLandingPageDirectly(
   const $ = cheerio.load(html);
 
   // 1. Analyze Scripts
-  const scripts: Array<{ src?: string; async: boolean; defer: boolean; type?: string }> = [];
+  const scripts: Array<{
+    src?: string;
+    async: boolean;
+    defer: boolean;
+    type?: string;
+  }> = [];
   let syncScriptCount = 0;
   let thirdPartyScriptCount = 0;
   let estimatedJsBytes = 0;
@@ -171,7 +189,12 @@ async function profileLandingPageDirectly(
         lower.includes("chat");
 
       if (isThirdParty) thirdPartyScriptCount++;
-      if (!isAsync && !isDefer && type !== "module" && type !== "application/ld+json") {
+      if (
+        !isAsync &&
+        !isDefer &&
+        type !== "module" &&
+        type !== "application/ld+json"
+      ) {
         syncScriptCount++;
       }
       scripts.push({ src, async: isAsync, defer: isDefer, type });
@@ -195,7 +218,12 @@ async function profileLandingPageDirectly(
   });
 
   // 3. Analyze Images
-  const images: Array<{ src?: string; hasDimensions: boolean; isLazy: boolean; isLegacyFormat: boolean }> = [];
+  const images: Array<{
+    src?: string;
+    hasDimensions: boolean;
+    isLazy: boolean;
+    isLegacyFormat: boolean;
+  }> = [];
   let unsizedImageCount = 0;
   let unlazyImageCount = 0;
   let legacyFormatCount = 0;
@@ -243,60 +271,61 @@ async function profileLandingPageDirectly(
 
   const totalDomElements = $("*").length;
 
-/**
- * Approximates the complementary error function erfc(x) for Lighthouse log-normal distribution scoring.
- */
-function erfc(x: number): number {
-  const z = Math.abs(x);
-  const t = 1.0 / (1.0 + 0.5 * z);
-  const ans =
-    t *
-    Math.exp(
-      -z * z -
-        1.26551223 +
-        t *
-          (1.00002368 +
-            t *
-              (0.37409196 +
-                t *
-                  (0.09678418 +
-                    t *
-                      (-0.18628806 +
-                        t *
-                          (0.27886807 +
-                            t *
-                              (-1.13520398 +
-                                t *
-                                  (1.48851587 +
-                                    t *
-                                      (-0.82215223 +
-                                        t * 0.17087277)))))))),
-    );
-  return x >= 0 ? ans : 2.0 - ans;
-}
+  /**
+   * Approximates the complementary error function erfc(x) for Lighthouse log-normal distribution scoring.
+   */
+  function erfc(x: number): number {
+    const z = Math.abs(x);
+    const t = 1.0 / (1.0 + 0.5 * z);
+    const ans =
+      t *
+      Math.exp(
+        -z * z -
+          1.26551223 +
+          t *
+            (1.00002368 +
+              t *
+                (0.37409196 +
+                  t *
+                    (0.09678418 +
+                      t *
+                        (-0.18628806 +
+                          t *
+                            (0.27886807 +
+                              t *
+                                (-1.13520398 +
+                                  t *
+                                    (1.48851587 +
+                                      t * (-0.82215223 + t * 0.17087277)))))))),
+      );
+    return x >= 0 ? ans : 2.0 - ans;
+  }
 
-/**
- * Computes official Google Lighthouse log-normal metric score (0 to 1).
- * @param value Measured metric value
- * @param p10 10th percentile (scores ~0.90)
- * @param median Median value (scores 0.50)
- */
-function calculateLighthouseScore(
-  value: number,
-  p10: number,
-  median: number,
-): number {
-  if (value <= 0) return 1.0;
-  const mu = Math.log(median);
-  const sigma = Math.abs(Math.log(p10) - mu) / 1.28155;
-  const z = (Math.log(value) - mu) / (sigma * Math.SQRT2);
-  const score = 0.5 * erfc(z);
-  return Math.max(0, Math.min(1, score));
-}
+  /**
+   * Computes official Google Lighthouse log-normal metric score (0 to 1).
+   * @param value Measured metric value
+   * @param p10 10th percentile (scores ~0.90)
+   * @param median Median value (scores 0.50)
+   */
+  function calculateLighthouseScore(
+    value: number,
+    p10: number,
+    median: number,
+  ): number {
+    if (value <= 0) return 1.0;
+    const mu = Math.log(median);
+    const sigma = Math.abs(Math.log(p10) - mu) / 1.28155;
+    const z = (Math.log(value) - mu) / (sigma * Math.SQRT2);
+    const score = 0.5 * erfc(z);
+    return Math.max(0, Math.min(1, score));
+  }
 
   // 6. Compute Core Web Vitals based on real factors & configurable throttling
-  const networkProfile = options?.networkProfile || (device === "mobile" ? "standard_4g" : "unthrottled");
-  const cpuThrottle = options?.cpuThrottle || (device === "mobile" ? "4x" : "1x");
+  const networkProfile =
+    options?.networkProfile ||
+    (device === "mobile" ? "standard_4g" : "unthrottled");
+  const cpuThrottle =
+    options?.cpuThrottle || (device === "mobile" ? "4x" : "1x");
 
   // Latency & CPU multipliers based on configuration
   const networkLatencyMultiplier =
@@ -307,23 +336,33 @@ function calculateLighthouseScore(
         : 1.6; // standard_4g
 
   const cpuSlowdownMultiplier =
-    cpuThrottle === "1x"
-      ? 1.0
-      : cpuThrottle === "2x"
-        ? 1.4
-        : 2.0; // 4x slowdown
+    cpuThrottle === "1x" ? 1.0 : cpuThrottle === "2x" ? 1.4 : 2.0; // 4x slowdown
 
   // FCP = TTFB + HTML download + Web fonts delay + CSS render blocking delay + initial DOM parse
-  const baseBrowserInitDelay = (device === "mobile" ? 800 : 200) * networkLatencyMultiplier;
-  const webFontsDelay = Math.min(fontCount * 250 * networkLatencyMultiplier, 1200);
+  const baseBrowserInitDelay =
+    (device === "mobile" ? 800 : 200) * networkLatencyMultiplier;
+  const webFontsDelay = Math.min(
+    fontCount * 250 * networkLatencyMultiplier,
+    1200,
+  );
   const criticalCssDelay = Math.min(
     (stylesheets.length * 150 + 200) * cpuSlowdownMultiplier,
     1800,
   );
-  const domParseDelay = Math.min((totalDomElements / 300) * 100 * cpuSlowdownMultiplier, 800);
+  const domParseDelay = Math.min(
+    (totalDomElements / 300) * 100 * cpuSlowdownMultiplier,
+    800,
+  );
   const fcpMs = Math.max(
     device === "mobile" ? 1100 : 400,
-    Math.round(ttfbMs + htmlDownloadMs + baseBrowserInitDelay + webFontsDelay + criticalCssDelay + domParseDelay),
+    Math.round(
+      ttfbMs +
+        htmlDownloadMs +
+        baseBrowserInitDelay +
+        webFontsDelay +
+        criticalCssDelay +
+        domParseDelay,
+    ),
   );
 
   // LCP = FCP + Hero image / major element load + JS execution
@@ -334,14 +373,18 @@ function calculateLighthouseScore(
         networkLatencyMultiplier
       : 300;
   const jsExecutionDelay = Math.min(
-    (syncScriptCount * 120 + thirdPartyScriptCount * 85 + (estimatedJsBytes / 100000) * 150) *
+    (syncScriptCount * 120 +
+      thirdPartyScriptCount * 85 +
+      (estimatedJsBytes / 100000) * 150) *
       cpuSlowdownMultiplier,
     3000,
   );
   const lcpMs = Math.max(
     fcpMs + 500,
     Math.round(
-      fcpMs + heroImageDelay + jsExecutionDelay * (device === "mobile" ? 0.75 : 0.45),
+      fcpMs +
+        heroImageDelay +
+        jsExecutionDelay * (device === "mobile" ? 0.75 : 0.45),
     ),
   );
 
@@ -363,7 +406,9 @@ function calculateLighthouseScore(
 
   // Speed Index = Visual progression during load
   const speedIndexMs = Math.round(
-    fcpMs + (lcpMs - fcpMs) * (device === "mobile" ? 0.78 : 0.60) + (totalDomElements / 500) * 100 * cpuSlowdownMultiplier,
+    fcpMs +
+      (lcpMs - fcpMs) * (device === "mobile" ? 0.78 : 0.6) +
+      (totalDomElements / 500) * 100 * cpuSlowdownMultiplier,
   );
 
   // 7. Calculate Official Lighthouse v10/v11 Performance Score
@@ -379,11 +424,7 @@ function calculateLighthouseScore(
     isMobile ? 200 : 100,
     isMobile ? 600 : 300,
   );
-  const clsMetricScore = calculateLighthouseScore(
-    clsScore,
-    0.1,
-    0.25,
-  );
+  const clsMetricScore = calculateLighthouseScore(clsScore, 0.1, 0.25);
   const fcpMetricScore = calculateLighthouseScore(
     fcpMs,
     isMobile ? 1800 : 900,
@@ -755,8 +796,7 @@ export async function runPageSpeedAudit(
             }
           }
 
-          const resSummary =
-            audits["resource-summary"]?.details?.items || [];
+          const resSummary = audits["resource-summary"]?.details?.items || [];
           let jsBytes = 0;
           let imageBytes = 0;
           let cssBytes = 0;
@@ -834,7 +874,8 @@ export async function runPageSpeedAudit(
             simulationSettings: {
               engine: "Google Cloud PageSpeed API",
               networkProfile: "Google Cloud Remote Runner",
-              cpuThrottle: device === "mobile" ? "4x (Moto G4)" : "1x (Broadband)",
+              cpuThrottle:
+                device === "mobile" ? "4x (Moto G4)" : "1x (Broadband)",
               weights: {
                 tbt: 30,
                 lcp: 25,

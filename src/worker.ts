@@ -1,13 +1,13 @@
-import { Worker, Job } from "bullmq";
+import { type Job, Worker } from "bullmq";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
 import { backgroundTasks } from "./db/schema";
-import { redisConnection } from "./lib/redis";
 import {
-  ONBOARDING_QUEUE_NAME,
   BRIEFING_QUEUE_NAME,
+  ONBOARDING_QUEUE_NAME,
   SYNC_QUEUE_NAME,
 } from "./lib/queues";
+import { redisConnection } from "./lib/redis";
 
 console.log(
   "[Worker] Starting Uprise Tools Redis Background Worker process...",

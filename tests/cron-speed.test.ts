@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GET, POST, processWeeklySpeedChecks } from "@/app/api/cron/speed-test/route";
+import {
+  GET,
+  POST,
+  processWeeklySpeedChecks,
+} from "@/app/api/cron/speed-test/route";
 import { db } from "@/db";
 import * as pageSpeedService from "@/service/pagespeed.service";
 
@@ -23,9 +27,12 @@ describe("Weekly Landing Page Speed Test Cron Route", () => {
     });
 
     it("should return 401 when secret query param is invalid on GET", async () => {
-      const req = new Request("http://localhost/api/cron/speed-test?secret=invalid_secret", {
-        method: "GET",
-      });
+      const req = new Request(
+        "http://localhost/api/cron/speed-test?secret=invalid_secret",
+        {
+          method: "GET",
+        },
+      );
 
       const res = await GET(req);
       expect(res.status).toBe(401);

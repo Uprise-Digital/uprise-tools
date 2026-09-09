@@ -96,6 +96,8 @@ interface SettingsClientProps {
     accessLevel: string;
     errorMessage?: string | null;
     autoAddAccounts: boolean;
+    isPermanent?: boolean;
+    tokenExpiresAt?: string | null;
     createdAt: string;
   } | null;
   orgName: string;

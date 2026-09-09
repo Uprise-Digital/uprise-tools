@@ -12,7 +12,9 @@ import {
 /**
  * Fetch notifications for the current authenticated user.
  */
-export async function getNotificationsAction(filter: "all" | "unread" | "critical" = "all") {
+export async function getNotificationsAction(
+  filter: "all" | "unread" | "critical" = "all",
+) {
   const ctx = await getAuthOrgContext();
   if (!ctx) {
     return { success: false, error: "Unauthorized", notifications: [] };
@@ -29,7 +31,11 @@ export async function getNotificationsAction(filter: "all" | "unread" | "critica
     return { success: true, notifications: rows };
   } catch (err: any) {
     console.error("[Notification Action] Failed to fetch notifications:", err);
-    return { success: false, error: err.message || "Failed to fetch notifications", notifications: [] };
+    return {
+      success: false,
+      error: err.message || "Failed to fetch notifications",
+      notifications: [],
+    };
   }
 }
 
@@ -72,7 +78,10 @@ export async function markNotificationAsReadAction(notificationId: string) {
 
     return { success: true, updated };
   } catch (err: any) {
-    console.error("[Notification Action] Failed to mark notification as read:", err);
+    console.error(
+      "[Notification Action] Failed to mark notification as read:",
+      err,
+    );
     return { success: false, error: err.message || "Failed to mark as read" };
   }
 }
@@ -95,7 +104,10 @@ export async function markAllNotificationsAsReadAction() {
     return { success: true, count: updated.length };
   } catch (err: any) {
     console.error("[Notification Action] Failed to mark all as read:", err);
-    return { success: false, error: err.message || "Failed to mark all as read" };
+    return {
+      success: false,
+      error: err.message || "Failed to mark all as read",
+    };
   }
 }
 
@@ -117,6 +129,9 @@ export async function deleteNotificationAction(notificationId: string) {
     return { success: true, deleted };
   } catch (err: any) {
     console.error("[Notification Action] Failed to delete notification:", err);
-    return { success: false, error: err.message || "Failed to delete notification" };
+    return {
+      success: false,
+      error: err.message || "Failed to delete notification",
+    };
   }
 }

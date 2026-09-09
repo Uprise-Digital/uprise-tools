@@ -14,7 +14,11 @@ import {
   fetchAccountMonthlySummary,
 } from "@/lib/google-ads";
 import { buildReportEmailHtml } from "@/lib/report-email-template";
-import { fetchAccountDataFromDb, getPreviousMonthInfo, transformAdsData } from "@/lib/report-utils";
+import {
+  fetchAccountDataFromDb,
+  getPreviousMonthInfo,
+  transformAdsData,
+} from "@/lib/report-utils";
 import { createOrgNotification } from "@/service/notification.service";
 import { MyReportPDF } from "@/service/pdf-service";
 
@@ -258,7 +262,10 @@ export async function POST(request: Request) {
         });
       }
     } catch (logErr) {
-      console.error("[Job API] Failed to write failure emailLog or notification:", logErr);
+      console.error(
+        "[Job API] Failed to write failure emailLog or notification:",
+        logErr,
+      );
     }
 
     // Returning a 500 status code triggers the Cloudflare Worker's 'catch' block

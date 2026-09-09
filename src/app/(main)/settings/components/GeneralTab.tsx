@@ -6,6 +6,7 @@ import {
   Database,
   Download,
   Image as ImageIcon,
+  Key,
   Loader2,
   Plus,
   RefreshCw,
@@ -16,13 +17,16 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  connectMetaPermanentTokenAction,
+  disconnectMetaAdsAction,
+  getMetaAdAccountsAction,
+  syncMetaAdAccountsAction,
+  updateMetaAutoSyncSettingsAction,
+} from "@/actions/meta-settings.actions";
 import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
 import { exportOrganizationDataAction } from "@/actions/organization-export.actions";
 import { deleteOrganizationAction } from "@/actions/organization-offboarding.actions";
-import {
-  disconnectMetaAdsAction,
-  updateMetaAutoSyncSettingsAction,
-} from "@/actions/meta-settings.actions";
 import {
   disconnectGoogleAdsAction,
   getOrganizationBrandingAction,
@@ -97,6 +101,8 @@ interface GeneralTabProps {
     accessLevel: string;
     errorMessage?: string | null;
     autoAddAccounts: boolean;
+    isPermanent?: boolean;
+    tokenExpiresAt?: string | null;
     createdAt: string;
   } | null;
   accounts: AccountSyncData[];
@@ -227,6 +233,101 @@ export function GeneralTab({
       toast.error(err.message || "An error occurred.");
     } finally {
       setDisconnectingMeta(false);
+    }
+  };
+
+  // Meta System User Permanent Token State
+  const [metaConnectModalOpen, setMetaConnectModalOpen] = useState(false);
+  const [metaTokenInput, setMetaTokenInput] = useState("");
+  const [metaBusinessIdInput, setMetaBusinessIdInput] =
+    useState("2448649278688629");
+  const [connectingMetaToken, setConnectingMetaToken] = useState(false);
+  const [metaConnectError, setMetaConnectError] = useState<string | null>(null);
+
+  // Meta Synced Ad Accounts State
+  const [metaAdAccountsList, setMetaAdAccountsList] = useState<
+    Array<{
+      id: number;
+      metaAccountId: string;
+      name: string;
+      currencyCode: string | null;
+      timeZone: string | null;
+      isActive: boolean;
+      accountStatus: number;
+      lastSyncedAt: string | null;
+      syncStatus: string | null;
+    }>
+  >([]);
+  const [loadingMetaAccounts, setLoadingMetaAccounts] = useState(false);
+  const [syncingMetaAccounts, setSyncingMetaAccounts] = useState(false);
+
+  const fetchMetaAccounts = async () => {
+    if (!metaConnection) return;
+    setLoadingMetaAccounts(true);
+    try {
+      const res = await getMetaAdAccountsAction();
+      if (res.success && res.accounts) {
+        setMetaAdAccountsList(res.accounts);
+      }
+    } catch (e) {
+      console.error("Failed to load Meta ad accounts:", e);
+    } finally {
+      setLoadingMetaAccounts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (metaConnection) {
+      fetchMetaAccounts();
+    }
+  }, [metaConnection]);
+
+  const handleSyncMetaAccounts = async () => {
+    setSyncingMetaAccounts(true);
+    try {
+      const res = await syncMetaAdAccountsAction();
+      if (res.success) {
+        toast.success(
+          `Synchronized ${res.syncedAccountsCount} Meta ad accounts!`,
+        );
+        await fetchMetaAccounts();
+      } else {
+        toast.error(res.error || "Failed to sync Meta ad accounts.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred during sync.");
+    } finally {
+      setSyncingMetaAccounts(false);
+    }
+  };
+
+  const handleConnectPermanentToken = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!metaTokenInput.trim()) {
+      setMetaConnectError("Please provide your Meta System User Access Token.");
+      return;
+    }
+    setConnectingMetaToken(true);
+    setMetaConnectError(null);
+    try {
+      const res = await connectMetaPermanentTokenAction({
+        accessToken: metaTokenInput,
+        businessId: metaBusinessIdInput,
+      });
+      if (res.success) {
+        toast.success(
+          res.message || "Meta System User connected successfully!",
+        );
+        setMetaConnectModalOpen(false);
+        setMetaTokenInput("");
+        window.location.reload();
+      } else {
+        setMetaConnectError(res.error || "Failed to connect Meta System User.");
+      }
+    } catch (err: any) {
+      setMetaConnectError(err.message || "An unexpected error occurred.");
+    } finally {
+      setConnectingMetaToken(false);
     }
   };
 
@@ -759,58 +860,210 @@ export function GeneralTab({
         {/* META BUSINESS API CONNECTION CARD */}
         <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
-              <Database className="w-4 h-4 text-blue-600" />
-              Meta Business API Connection
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Link and manage your top-level Meta Business Manager (Read-Only)
-              connection.
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                  <Database className="w-4 h-4 text-blue-600" />
+                  Meta Business API Connection
+                </CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  Synchronize client ad accounts and performance metrics using a
+                  permanent System User Access Token.
+                </CardDescription>
+              </div>
+              {metaConnection && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] font-semibold border-none px-2.5 py-1",
+                    metaConnection.isPermanent
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-amber-100 text-amber-800",
+                  )}
+                >
+                  {metaConnection.isPermanent
+                    ? "Permanent Token (Never Expires)"
+                    : "60-Day OAuth"}
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-6">
             {metaConnection ? (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl">
                   <div className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                     <div className="text-xs leading-relaxed">
                       <p className="font-extrabold flex items-center gap-2">
-                        ✅ Connected Successfully
+                        Connected Successfully
                         <Badge
                           variant="outline"
                           className="bg-emerald-100 text-emerald-800 text-[10px] border-none font-semibold"
                         >
-                          Read-Only
+                          {metaConnection.isPermanent ? "Permanent" : "Active"}
                         </Badge>
                       </p>
                       <p className="text-emerald-700 mt-0.5">
-                        Your agency is synchronized with Meta Business Suite.
+                        Your agency is linked to Meta Business Suite as{" "}
+                        <strong className="text-emerald-900">
+                          {metaConnection.connectedEmail}
+                        </strong>
+                        .
                       </p>
                     </div>
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={syncingMetaAccounts}
+                    onClick={handleSyncMetaAccounts}
+                    className="bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-100 text-xs font-semibold h-8 flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <RefreshCw
+                      className={cn(
+                        "w-3.5 h-3.5",
+                        syncingMetaAccounts && "animate-spin",
+                      )}
+                    />
+                    {syncingMetaAccounts ? "Syncing..." : "Sync Accounts Now"}
+                  </Button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                   <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Connected Meta Account
+                      Connected User / System User
                     </span>
-                    <span className="font-semibold text-slate-800 block mt-1">
+                    <span className="font-semibold text-slate-800 block mt-1 truncate">
                       {metaConnection.connectedEmail}
                     </span>
                   </div>
                   <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Access Level
+                      Business Manager ID
                     </span>
-                    <span className="font-semibold text-slate-800 font-mono block mt-1 uppercase">
-                      {metaConnection.accessLevel || "Read-Only"}
+                    <span className="font-semibold text-slate-800 font-mono block mt-1">
+                      {metaConnection.businessId || "2448649278688629"}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Discovered Ad Accounts
+                    </span>
+                    <span className="font-semibold text-slate-800 block mt-1">
+                      {loadingMetaAccounts ? (
+                        <span className="text-slate-400">Loading...</span>
+                      ) : (
+                        `${metaAdAccountsList.length} Accounts Synced`
+                      )}
                     </span>
                   </div>
                 </div>
 
-                <div className="pt-2 flex items-center justify-between">
+                {/* DISCOVERED AD ACCOUNTS TABLE */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Synced Client Ad Accounts
+                    </h4>
+                    <span className="text-[11px] text-slate-400">
+                      Auto-discovered from Meta Business Manager
+                    </span>
+                  </div>
+
+                  {loadingMetaAccounts ? (
+                    <div className="py-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                      Loading discovered accounts...
+                    </div>
+                  ) : metaAdAccountsList.length > 0 ? (
+                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                      <div className="max-h-56 overflow-y-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-50 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                            <tr>
+                              <th className="py-2.5 px-3">Status</th>
+                              <th className="py-2.5 px-3">Account Name</th>
+                              <th className="py-2.5 px-3">Account ID</th>
+                              <th className="py-2.5 px-3">Currency</th>
+                              <th className="py-2.5 px-3">Timezone</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {metaAdAccountsList.map((acc) => (
+                              <tr
+                                key={acc.id}
+                                className="hover:bg-slate-50/80 transition-colors"
+                              >
+                                <td className="py-2 px-3">
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
+                                      acc.isActive
+                                        ? "bg-emerald-50 text-emerald-700"
+                                        : "bg-slate-100 text-slate-600",
+                                    )}
+                                  >
+                                    <span
+                                      className={cn(
+                                        "w-1.5 h-1.5 rounded-full",
+                                        acc.isActive
+                                          ? "bg-emerald-500"
+                                          : "bg-slate-400",
+                                      )}
+                                    />
+                                    {acc.isActive ? "Active" : "Inactive"}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-3 font-medium text-slate-800">
+                                  {acc.name}
+                                </td>
+                                <td className="py-2 px-3 font-mono text-[11px] text-slate-500">
+                                  act_{acc.metaAccountId}
+                                </td>
+                                <td className="py-2 px-3 font-medium text-slate-600">
+                                  {acc.currencyCode || "USD"}
+                                </td>
+                                <td className="py-2 px-3 text-slate-500 truncate max-w-[140px]">
+                                  {acc.timeZone || "Melbourne"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center space-y-1">
+                      <p className="text-xs font-semibold text-slate-700">
+                        No Client Ad Accounts Discovered Yet
+                      </p>
+                      <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                        Make sure client advertising accounts or Partner Assets
+                        are assigned to your System User in Meta Business
+                        Manager, then click{" "}
+                        <strong className="text-slate-700">
+                          Sync Accounts Now
+                        </strong>
+                        .
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                  <Button
+                    type="button"
+                    onClick={() => setMetaConnectModalOpen(true)}
+                    variant="ghost"
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 text-xs font-semibold h-8"
+                  >
+                    <Key className="w-3.5 h-3.5 mr-1.5" />
+                    Update Token
+                  </Button>
+
                   <Button
                     type="button"
                     onClick={() => setMetaDisconnectDialogOpen(true)}
@@ -824,27 +1077,39 @@ export function GeneralTab({
               </div>
             ) : (
               <div className="space-y-4 text-center py-6">
-                <div className="inline-flex p-3 bg-slate-100 border rounded-full text-slate-400">
-                  <AlertTriangle className="w-6 h-6" />
+                <div className="inline-flex p-3 bg-blue-50 border border-blue-100 rounded-full text-blue-600">
+                  <Key className="w-6 h-6" />
                 </div>
-                <div className="max-w-sm mx-auto space-y-1">
+                <div className="max-w-md mx-auto space-y-1">
                   <p className="font-bold text-slate-800 text-sm">
-                    No Connected Meta Business Account
+                    Connect Meta Business Manager
                   </p>
-                  <p className="text-xs text-slate-500">
-                    Connect your Facebook / Meta Business Manager in Read-Only
-                    mode to enable cross-platform reporting and lead form sync.
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Connect your agency using a permanent System User Token to
+                    sync client ad accounts and cross-platform campaign metrics
+                    without recurring 60-day OAuth expirations.
                   </p>
                 </div>
-                <Button
-                  asChild
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
-                >
-                  <a href="/api/auth/meta-ads">
-                    <Database className="w-3.5 h-3.5" />
-                    Connect Meta Business (Read-Only)
-                  </a>
-                </Button>
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => setMetaConnectModalOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    Connect via Permanent System User Token
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="text-xs text-slate-600 hover:text-slate-900 border-slate-200"
+                  >
+                    <a href="/api/auth/meta-ads">
+                      <Database className="w-3.5 h-3.5 mr-1" />
+                      OAuth 2.0 Fallback (60-day)
+                    </a>
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
@@ -1660,6 +1925,108 @@ export function GeneralTab({
               </Button>
             </div>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CONNECT META SYSTEM USER PERMANENT TOKEN DIALOG */}
+      <Dialog
+        open={metaConnectModalOpen}
+        onOpenChange={(open) => {
+          setMetaConnectModalOpen(open);
+          if (!open) {
+            setMetaConnectError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg bg-slate-900 border-slate-800 text-slate-100">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-100 flex items-center gap-2">
+              <Key className="w-5 h-5 text-blue-500 shrink-0" />
+              Connect Meta Permanent System User Token
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400 mt-1 leading-relaxed">
+              Use a permanent System User token generated from your agency's
+              Meta Business Manager. Unlike standard user OAuth logins, this
+              token never expires and directly accesses all partner client ad
+              accounts.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={handleConnectPermanentToken}
+            className="space-y-4 py-2"
+          >
+            {metaConnectError && (
+              <div className="p-3 bg-red-950/60 border border-red-800 text-red-300 text-xs rounded-lg flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <span>{metaConnectError}</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-200">
+                System User Access Token{" "}
+                <span className="text-rose-400">*</span>
+              </Label>
+              <Input
+                type="password"
+                placeholder="EAA..."
+                value={metaTokenInput}
+                onChange={(e) => setMetaTokenInput(e.target.value)}
+                className="bg-slate-950 border-slate-800 text-slate-100 font-mono text-xs focus:ring-blue-500"
+                required
+              />
+              <p className="text-[11px] text-slate-400 leading-normal">
+                Generated in Meta Business Settings &gt; Users &gt; System Users
+                with expiration set to <strong>Never</strong>. Required scopes:{" "}
+                <code className="text-blue-300">ads_read</code>,{" "}
+                <code className="text-blue-300">read_insights</code>,{" "}
+                <code className="text-blue-300">business_management</code>.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-200">
+                Meta Business Manager ID
+              </Label>
+              <Input
+                type="text"
+                placeholder="2448649278688629"
+                value={metaBusinessIdInput}
+                onChange={(e) => setMetaBusinessIdInput(e.target.value)}
+                className="bg-slate-950 border-slate-800 text-slate-100 font-mono text-xs focus:ring-blue-500"
+              />
+              <p className="text-[11px] text-slate-400">
+                Agency Business ID where client assets are linked (defaults to{" "}
+                <code className="text-slate-300">2448649278688629</code>).
+              </p>
+            </div>
+
+            <DialogFooter className="border-t border-slate-800 pt-4 flex items-center justify-end gap-2 bg-slate-900">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setMetaConnectModalOpen(false)}
+                className="text-slate-400 hover:text-white text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={connectingMetaToken}
+                className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4"
+              >
+                {connectingMetaToken ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    Verifying &amp; Connecting...
+                  </>
+                ) : (
+                  "Verify & Connect"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

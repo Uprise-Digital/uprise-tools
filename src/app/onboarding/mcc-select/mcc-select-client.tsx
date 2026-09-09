@@ -487,7 +487,9 @@ export default function MccSelectClient({
 
               <Button
                 type="button"
-                onClick={() => (window.location.href = "/overview")}
+                onClick={() => {
+                  window.location.href = "/overview";
+                }}
                 variant="ghost"
                 className="w-full py-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-semibold text-xs cursor-pointer transition-colors"
               >

@@ -696,7 +696,7 @@ export async function sendStalledOpportunitiesReminderAction() {
 export async function getSalesReminderSettingsAction() {
   try {
     const ctx = await getAuthOrgContext();
-    let orgId = ctx?.orgId;
+    const orgId = ctx?.orgId;
 
     if (!orgId) {
       return {

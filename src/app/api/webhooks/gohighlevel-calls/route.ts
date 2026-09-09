@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { type NextRequest, NextResponse, after } from "next/server";
+import { after, type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { callRecords } from "@/db/schema";
 import { autoProcessGhlCallRecord } from "@/service/call-intelligence-service";

@@ -1163,21 +1163,31 @@ export default function ClientsDirectoryClient() {
                           {c.companyName || c.name}
                         </p>
                         <p className="text-[11px] text-slate-500">
-                          {c.name} {c.email ? `(${c.email})` : c.phone ? `(${c.phone})` : ""}
+                          {c.name}{" "}
+                          {c.email
+                            ? `(${c.email})`
+                            : c.phone
+                              ? `(${c.phone})`
+                              : ""}
                         </p>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {hasSearchedGhl && !loadingGhl && ghlResults.length === 0 && !ghlSearchError && (
-                  <div className="absolute top-full left-0 right-0 z-10 bg-white border border-slate-200 rounded-xl shadow-lg mt-1 p-3 text-center text-xs text-slate-500">
-                    No matching GoHighLevel contacts found.
-                  </div>
-                )}
+                {hasSearchedGhl &&
+                  !loadingGhl &&
+                  ghlResults.length === 0 &&
+                  !ghlSearchError && (
+                    <div className="absolute top-full left-0 right-0 z-10 bg-white border border-slate-200 rounded-xl shadow-lg mt-1 p-3 text-center text-xs text-slate-500">
+                      No matching GoHighLevel contacts found.
+                    </div>
+                  )}
 
                 {ghlSearchError && (
-                  <p className="text-[11px] text-rose-500 mt-1">{ghlSearchError}</p>
+                  <p className="text-[11px] text-rose-500 mt-1">
+                    {ghlSearchError}
+                  </p>
                 )}
 
                 {selectedGhlContact && (

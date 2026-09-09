@@ -162,6 +162,10 @@ export default async function SettingsPage() {
         accessLevel: metaConnectionRecord.accessLevel,
         errorMessage: metaConnectionRecord.errorMessage,
         autoAddAccounts: metaConnectionRecord.autoAddAccounts ?? false,
+        isPermanent: !metaConnectionRecord.tokenExpiresAt,
+        tokenExpiresAt: metaConnectionRecord.tokenExpiresAt
+          ? metaConnectionRecord.tokenExpiresAt.toISOString()
+          : null,
         createdAt: metaConnectionRecord.createdAt.toISOString(),
       }
     : null;

@@ -44,9 +44,10 @@ describe("Notification Actions & Service", () => {
         },
       ];
 
-      vi.spyOn(notificationService, "getUserNotifications").mockResolvedValueOnce(
-        mockNotifications as any,
-      );
+      vi.spyOn(
+        notificationService,
+        "getUserNotifications",
+      ).mockResolvedValueOnce(mockNotifications as any);
 
       const result = await getNotificationsAction("all");
       expect(result.success).toBe(true);
@@ -110,9 +111,11 @@ describe("Notification Actions & Service", () => {
 
   describe("deleteNotificationAction", () => {
     it("should delete a notification", async () => {
-      vi.spyOn(notificationService, "deleteNotification").mockResolvedValueOnce({
-        id: "notif-1",
-      } as any);
+      vi.spyOn(notificationService, "deleteNotification").mockResolvedValueOnce(
+        {
+          id: "notif-1",
+        } as any,
+      );
 
       const result = await deleteNotificationAction("notif-1");
       expect(result.success).toBe(true);

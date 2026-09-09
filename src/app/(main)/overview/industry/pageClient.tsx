@@ -41,11 +41,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { toast } from "sonner";
 import {
+  type AccountIndustryMetric,
   autoClassifyAccountIndustriesAction,
   getIndustryPortfolioMetricsAction,
   type IndustryGroupMetric,
   type IndustryPortfolioData,
-  type AccountIndustryMetric,
   updateAccountIndustryAction,
 } from "@/actions/industry-analytics.actions";
 import { Badge } from "@/components/ui/badge";
@@ -91,8 +91,8 @@ import {
 import {
   getAllIndustries,
   getIndustryMeta,
-  type IndustryKey,
   INDUSTRY_KEYS,
+  type IndustryKey,
 } from "@/lib/industry-config";
 import { cn } from "@/lib/utils";
 

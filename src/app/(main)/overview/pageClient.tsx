@@ -43,7 +43,6 @@ import {
   ZAxis,
 } from "recharts";
 import { toast } from "sonner";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   getAgencyPortfolioMetricsAction,
   getOrGenerateAgencyAiInsightsAction,
@@ -58,6 +57,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -247,7 +247,9 @@ export default function AgencyReportsClient() {
   }) => {
     if (deltaPct === null || deltaPct === undefined || isNaN(deltaPct)) {
       return (
-        <span className="text-[10px] text-slate-400 font-medium">— vs prior</span>
+        <span className="text-[10px] text-slate-400 font-medium">
+          — vs prior
+        </span>
       );
     }
 
@@ -306,9 +308,7 @@ export default function AgencyReportsClient() {
     }
 
     const textSize =
-      size === "xs"
-        ? "text-[9px] px-1 py-0.5"
-        : "text-[10px] px-1.5 py-0.5";
+      size === "xs" ? "text-[9px] px-1 py-0.5" : "text-[10px] px-1.5 py-0.5";
 
     return (
       <span
@@ -950,8 +950,7 @@ export default function AgencyReportsClient() {
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-gradient-to-r from-slate-50 to-blue-50/40 border border-slate-200/80 rounded-xl text-xs text-slate-600 shadow-xs">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-bold text-slate-800 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-blue-600" /> Period
-              Comparison:
+              <Clock className="w-3.5 h-3.5 text-blue-600" /> Period Comparison:
             </span>
             <span className="text-slate-500">
               Current (

@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createOrganizationAction } from "@/actions/onboarding.actions";
-import { authClient } from "@/lib/auth-client";
 import { OnboardingStepper } from "@/components/onboarding-stepper";
 import { Button } from "@/components/ui/button";
+import { authClient } from "@/lib/auth-client";
 
 interface OnboardingClientProps {
   initialUser: {

@@ -9,10 +9,10 @@ import { generateContentTracked } from "@/lib/ai-logger";
 import { logAction } from "@/lib/audit";
 import { getAuthOrgContext } from "@/lib/auth-helpers";
 import {
-  type IndustryKey,
-  INDUSTRY_KEYS,
-  getIndustryMeta,
   classifyAccountByRules,
+  getIndustryMeta,
+  INDUSTRY_KEYS,
+  type IndustryKey,
 } from "@/lib/industry-config";
 
 export interface AccountIndustryMetric {

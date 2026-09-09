@@ -13,8 +13,8 @@ import { getAuthOrgContext } from "@/lib/auth-helpers";
 import { createNotification } from "@/service/notification.service";
 import {
   type PageSpeedAuditResult,
-  type SpeedAuditOptions,
   runPageSpeedAudit,
+  type SpeedAuditOptions,
   verifyGooglePageSpeedApiKey,
 } from "@/service/pagespeed.service";
 
@@ -103,11 +103,17 @@ export async function getLandingPageSpeedDataAction(
     });
 
     if (!lp) {
-      return { success: false, error: "Campaign landing page record not found in database." };
+      return {
+        success: false,
+        error: "Campaign landing page record not found in database.",
+      };
     }
 
     const history = await db.query.landingPageSpeedTests.findMany({
-      where: eq(landingPageSpeedTests.campaignLandingPageId, campaignLandingPageId),
+      where: eq(
+        landingPageSpeedTests.campaignLandingPageId,
+        campaignLandingPageId,
+      ),
       orderBy: [desc(landingPageSpeedTests.createdAt)],
     });
 
@@ -138,7 +144,11 @@ export async function getLandingPageSpeedDataAction(
         diagnostics: h.diagnostics,
         cruxData: h.cruxData,
         rawMetrics: h.rawMetrics,
-        engineUsed: raw.engineUsed || (h.triggerSource === "WEEKLY_CRON" ? "Weekly Automated Engine" : "Lighthouse v11 Profiler"),
+        engineUsed:
+          raw.engineUsed ||
+          (h.triggerSource === "WEEKLY_CRON"
+            ? "Weekly Automated Engine"
+            : "Lighthouse v11 Profiler"),
         simulationSettings: raw.simulationSettings,
         triggerSource: h.triggerSource,
         createdAt: h.createdAt,

@@ -520,8 +520,7 @@ export async function getAgencyPortfolioMetricsAction(
     const prevWhaleSpendShare =
       prevTotalSpend > 0 ? (prevWhaleSpend / prevTotalSpend) * 100 : 0;
 
-    const currentCpa =
-      totalConversions > 0 ? totalSpend / totalConversions : 0;
+    const currentCpa = totalConversions > 0 ? totalSpend / totalConversions : 0;
     const currentCtr =
       totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
     const currentCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
@@ -529,7 +528,9 @@ export async function getAgencyPortfolioMetricsAction(
     const prevCpa =
       prevTotalConversions > 0 ? prevTotalSpend / prevTotalConversions : 0;
     const prevCtr =
-      prevTotalImpressions > 0 ? (prevTotalClicks / prevTotalImpressions) * 100 : 0;
+      prevTotalImpressions > 0
+        ? (prevTotalClicks / prevTotalImpressions) * 100
+        : 0;
     const prevCpc = prevTotalClicks > 0 ? prevTotalSpend / prevTotalClicks : 0;
 
     // 5. Format Breakdown & Calculate derived metrics (CPA, CTR, Deltas)

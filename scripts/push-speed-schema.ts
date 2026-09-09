@@ -1,5 +1,7 @@
 import dotenv from "dotenv";
+
 dotenv.config({ path: ".env.local" });
+
 import postgres from "postgres";
 
 async function main() {

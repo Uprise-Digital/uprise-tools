@@ -75,7 +75,9 @@ export async function createNotification(params: CreateNotificationParams) {
  * Creates a notification for ALL members of an organization (fan-out).
  * Useful for workspace-level alerts like LP speed degradation or report completions.
  */
-export async function createOrgNotification(params: CreateOrgNotificationParams) {
+export async function createOrgNotification(
+  params: CreateOrgNotificationParams,
+) {
   return await withBypassTenantDb(async (tx) => {
     // 1. Fetch all members belonging to this organization
     const orgMembers = await tx
@@ -102,10 +104,7 @@ export async function createOrgNotification(params: CreateOrgNotificationParams)
       createdAt: new Date(),
     }));
 
-    const created = await tx
-      .insert(notifications)
-      .values(records)
-      .returning();
+    const created = await tx.insert(notifications).values(records).returning();
 
     return created;
   });
@@ -114,8 +113,16 @@ export async function createOrgNotification(params: CreateOrgNotificationParams)
 /**
  * Retrieves notifications for a specific user with filtering and pagination.
  */
-export async function getUserNotifications(options: GetUserNotificationsOptions) {
-  const { userId, organizationId, filter = "all", limit = 20, offset = 0 } = options;
+export async function getUserNotifications(
+  options: GetUserNotificationsOptions,
+) {
+  const {
+    userId,
+    organizationId,
+    filter = "all",
+    limit = 20,
+    offset = 0,
+  } = options;
 
   return await withBypassTenantDb(async (tx) => {
     const conditions = [eq(notifications.userId, userId)];

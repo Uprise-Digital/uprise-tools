@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState, useTransition } from "react";
+import type React from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   deleteNotificationAction,
   getNotificationsAction,
@@ -145,7 +146,10 @@ export function NotificationBell() {
     }
   }, [open, filter]);
 
-  const handleMarkAsRead = async (item: NotificationItem, e?: React.MouseEvent) => {
+  const handleMarkAsRead = async (
+    item: NotificationItem,
+    e?: React.MouseEvent,
+  ) => {
     if (e) e.stopPropagation();
     if (item.isRead) return;
 
@@ -221,7 +225,9 @@ export function NotificationBell() {
         {/* HEADER */}
         <div className="p-3.5 px-4 bg-slate-50/90 border-b border-slate-200/80 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-slate-900">Notifications</span>
+            <span className="font-bold text-sm text-slate-900">
+              Notifications
+            </span>
             {unreadCount > 0 && (
               <Badge
                 variant="outline"

@@ -962,11 +962,13 @@ export default function ClientDetailPageClient({
                     <div className="text-[11px] text-slate-600 flex items-center gap-2 flex-wrap pt-0.5">
                       {isEmailSent && emailSentDate ? (
                         <span>
-                          <strong>Sent At:</strong> {formatDateTime(emailSentDate)}
+                          <strong>Sent At:</strong>{" "}
+                          {formatDateTime(emailSentDate)}
                         </span>
                       ) : (
                         <span>
-                          <strong>Status:</strong> Ready to dispatch to {client.contactEmail}
+                          <strong>Status:</strong> Ready to dispatch to{" "}
+                          {client.contactEmail}
                         </span>
                       )}
                       <span>•</span>
@@ -1121,7 +1123,8 @@ export default function ClientDetailPageClient({
                       <>
                         <span className="text-amber-500">⚠️</span>
                         <span>
-                          Workspace links incomplete (Signal, Drive, or Notion missing)
+                          Workspace links incomplete (Signal, Drive, or Notion
+                          missing)
                         </span>
                       </>
                     ) : (
@@ -1163,7 +1166,8 @@ export default function ClientDetailPageClient({
                 >
                   {isSendingEmail ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Dispatching...
+                      <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                      Dispatching...
                     </>
                   ) : isEmailSent ? (
                     <>
@@ -1288,11 +1292,13 @@ export default function ClientDetailPageClient({
                         >
                           {isSuccess ? (
                             <>
-                              <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Delivered
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600" />{" "}
+                              Delivered
                             </>
                           ) : (
                             <>
-                              <AlertCircle className="h-3 w-3 text-rose-600" /> Failed
+                              <AlertCircle className="h-3 w-3 text-rose-600" />{" "}
+                              Failed
                             </>
                           )}
                         </span>
@@ -1308,7 +1314,9 @@ export default function ClientDetailPageClient({
                     <div className="flex items-center justify-between text-[11px] text-slate-500 pl-1">
                       <span>
                         Recipient:{" "}
-                        <strong className="text-slate-700">{log.recipient}</strong>
+                        <strong className="text-slate-700">
+                          {log.recipient}
+                        </strong>
                       </span>
                       {log.resendId && (
                         <div className="flex items-center gap-1 font-mono text-[10px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">

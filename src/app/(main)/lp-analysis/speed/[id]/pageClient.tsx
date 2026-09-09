@@ -107,7 +107,7 @@ function formatBytes(bytes?: number | null): string {
   const k = 1024;
   const sizes = ["B", "KiB", "MiB", "GiB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
 }
 
 function getScoreColor(score: number): {
@@ -453,7 +453,9 @@ export default function SpeedTestingClientPage({
       });
 
       if (!res.success || !res.data) {
-        toast.error(res.error || "Speed test failed. Please check your settings.");
+        toast.error(
+          res.error || "Speed test failed. Please check your settings.",
+        );
         return;
       }
 
@@ -552,7 +554,9 @@ export default function SpeedTestingClientPage({
                     : "text-slate-400"
                 }`}
               />
-              <span className="text-xs font-bold leading-none">Weekly check</span>
+              <span className="text-xs font-bold leading-none">
+                Weekly check
+              </span>
               <Switch
                 checked={landingPage.weeklySpeedCheck}
                 onCheckedChange={handleToggleWeekly}
@@ -641,7 +645,8 @@ export default function SpeedTestingClientPage({
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
-                    No {device === "mobile" ? "Mobile" : "Desktop"} Speed Test Run Yet
+                    No {device === "mobile" ? "Mobile" : "Desktop"} Speed Test
+                    Run Yet
                   </h2>
                   <p className="text-sm text-slate-500 mt-1">
                     Run a real-time {device} performance audit for{" "}
@@ -665,7 +670,8 @@ export default function SpeedTestingClientPage({
                     ) : (
                       <>
                         <Sparkles className="h-4 w-4 mr-2" />
-                        Run {device === "mobile" ? "Mobile" : "Desktop"} Speed Test
+                        Run {device === "mobile" ? "Mobile" : "Desktop"} Speed
+                        Test
                       </>
                     )}
                   </Button>
@@ -697,7 +703,9 @@ export default function SpeedTestingClientPage({
                         <TableHead>LCP</TableHead>
                         <TableHead>CLS</TableHead>
                         <TableHead>Trigger</TableHead>
-                        <TableHead className="text-right pr-6">Action</TableHead>
+                        <TableHead className="text-right pr-6">
+                          Action
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -793,11 +801,13 @@ export default function SpeedTestingClientPage({
                     >
                       {currentTest.engineUsed?.includes("Google") ? (
                         <>
-                          <Cloud className="h-2.5 w-2.5 text-sky-500" /> Cloud API
+                          <Cloud className="h-2.5 w-2.5 text-sky-500" /> Cloud
+                          API
                         </>
                       ) : (
                         <>
-                          <Cpu className="h-2.5 w-2.5 text-indigo-500" /> Profiler
+                          <Cpu className="h-2.5 w-2.5 text-indigo-500" />{" "}
+                          Profiler
                         </>
                       )}
                     </Badge>
@@ -905,7 +915,8 @@ export default function SpeedTestingClientPage({
                       Core Web Vitals & Key Timings
                     </CardTitle>
                     <CardDescription className="text-xs text-slate-500 mt-0.5">
-                      Directly influences Google Ads Landing Page Experience & Quality Score
+                      Directly influences Google Ads Landing Page Experience &
+                      Quality Score
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
@@ -985,7 +996,8 @@ export default function SpeedTestingClientPage({
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-500 leading-normal pt-1">
-                            Target &le; 200ms. Main-thread JS blocking delay (INP equivalent).
+                            Target &le; 200ms. Main-thread JS blocking delay
+                            (INP equivalent).
                           </p>
                         </div>
                       );
@@ -1364,7 +1376,9 @@ export default function SpeedTestingClientPage({
                         <TableHead>LCP</TableHead>
                         <TableHead>CLS</TableHead>
                         <TableHead>Trigger</TableHead>
-                        <TableHead className="text-right pr-6">Action</TableHead>
+                        <TableHead className="text-right pr-6">
+                          Action
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1454,7 +1468,8 @@ export default function SpeedTestingClientPage({
                   Speed Audit Settings & Simulation
                 </SheetTitle>
                 <SheetDescription className="text-xs text-slate-500 mt-0.5">
-                  Transparency into scoring formulas, hardware emulation, and provider keys.
+                  Transparency into scoring formulas, hardware emulation, and
+                  provider keys.
                 </SheetDescription>
               </div>
             </div>
@@ -1518,8 +1533,12 @@ export default function SpeedTestingClientPage({
                     How Uprise Computes Speed Scores
                   </div>
                   <p className="leading-relaxed text-indigo-800">
-                    Scores use the official <strong>Google Lighthouse v10/v11 log-normal distribution curves</strong>. 
-                    Rather than arbitrary linear tiers, raw metric times (ms) are evaluated via complementary error functions (erfc) 
+                    Scores use the official{" "}
+                    <strong>
+                      Google Lighthouse v10/v11 log-normal distribution curves
+                    </strong>
+                    . Rather than arbitrary linear tiers, raw metric times (ms)
+                    are evaluated via complementary error functions (erfc)
                     against industry-calibrated p10 and median control points.
                   </p>
                 </div>
@@ -1552,7 +1571,8 @@ export default function SpeedTestingClientPage({
                             &le; 200 ms / 600 ms
                           </TableCell>
                           <TableCell className="text-slate-500">
-                            Main-thread CPU delay from heavy tracking scripts (GTM, Meta, CallRail).
+                            Main-thread CPU delay from heavy tracking scripts
+                            (GTM, Meta, CallRail).
                           </TableCell>
                         </TableRow>
 
@@ -1569,7 +1589,8 @@ export default function SpeedTestingClientPage({
                             &le; 2.5 s / 4.0 s
                           </TableCell>
                           <TableCell className="text-slate-500">
-                            Render time of the main hero element or headline image.
+                            Render time of the main hero element or headline
+                            image.
                           </TableCell>
                         </TableRow>
 
@@ -1586,7 +1607,8 @@ export default function SpeedTestingClientPage({
                             &le; 0.10 / 0.25
                           </TableCell>
                           <TableCell className="text-slate-500">
-                            Visual jumpiness caused by unsized images or dynamically injected widgets.
+                            Visual jumpiness caused by unsized images or
+                            dynamically injected widgets.
                           </TableCell>
                         </TableRow>
 
@@ -1603,7 +1625,8 @@ export default function SpeedTestingClientPage({
                             &le; 1.8 s / 3.0 s
                           </TableCell>
                           <TableCell className="text-slate-500">
-                            Initial server response & critical stylesheet download speed.
+                            Initial server response & critical stylesheet
+                            download speed.
                           </TableCell>
                         </TableRow>
 
@@ -1620,7 +1643,8 @@ export default function SpeedTestingClientPage({
                             &le; 3.4 s / 5.8 s
                           </TableCell>
                           <TableCell className="text-slate-500">
-                            Visual progression and pixel fill rate across viewport.
+                            Visual progression and pixel fill rate across
+                            viewport.
                           </TableCell>
                         </TableRow>
                       </TableBody>
@@ -1629,8 +1653,11 @@ export default function SpeedTestingClientPage({
                 </div>
 
                 <div className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3 leading-relaxed">
-                  💡 <strong>Mobile vs Desktop Realism</strong>: Mobile profiles simulate a standard 4G network (1.63 Mbps, 150ms roundtrip) 
-                  and 4x CPU slowdown factor (emulating a mid-range Moto G4 device). This matches Google Ads Landing Page Experience grading criteria.
+                  💡 <strong>Mobile vs Desktop Realism</strong>: Mobile profiles
+                  simulate a standard 4G network (1.63 Mbps, 150ms roundtrip)
+                  and 4x CPU slowdown factor (emulating a mid-range Moto G4
+                  device). This matches Google Ads Landing Page Experience
+                  grading criteria.
                 </div>
 
                 {/* OFFICIAL GOOGLE DOCS & CALCULATOR LINK CARD */}
@@ -1641,7 +1668,8 @@ export default function SpeedTestingClientPage({
                       Official Google Lighthouse Calculator
                     </div>
                     <p className="text-[11px] text-blue-800">
-                      Simulate how metric improvements change your exact score in real-time.
+                      Simulate how metric improvements change your exact score
+                      in real-time.
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -1687,7 +1715,8 @@ export default function SpeedTestingClientPage({
                         )}
                       </div>
                       <p className="text-[11px] text-slate-500 mt-2">
-                        Uses Google Cloud API if key is present; falls back to Edge Profiler seamlessly.
+                        Uses Google Cloud API if key is present; falls back to
+                        Edge Profiler seamlessly.
                       </p>
                     </button>
 
@@ -1714,7 +1743,8 @@ export default function SpeedTestingClientPage({
                         )}
                       </div>
                       <p className="text-[11px] text-slate-500 mt-2">
-                        Directly queries Google PageSpeed Insights API servers. Requires active API key.
+                        Directly queries Google PageSpeed Insights API servers.
+                        Requires active API key.
                       </p>
                     </button>
 
@@ -1738,7 +1768,8 @@ export default function SpeedTestingClientPage({
                         )}
                       </div>
                       <p className="text-[11px] text-slate-500 mt-2">
-                        Real-time Lighthouse v11 engine. Zero Google API rate limits or quota caps.
+                        Real-time Lighthouse v11 engine. Zero Google API rate
+                        limits or quota caps.
                       </p>
                     </button>
                   </div>
@@ -1752,7 +1783,8 @@ export default function SpeedTestingClientPage({
                         Custom Google PageSpeed API Key
                       </Label>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Optional. If left blank, server defaults or the local Edge Profiler will be used.
+                        Optional. If left blank, server defaults or the local
+                        Edge Profiler will be used.
                       </p>
                     </div>
                   </div>
@@ -1925,7 +1957,9 @@ export default function SpeedTestingClientPage({
             {settingsTab === "alerts" && (
               <div className="space-y-5">
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-600">
-                  Configure health alert triggers for weekly automated scans. If an audit falls below these limits, an automated triage alert is flagged.
+                  Configure health alert triggers for weekly automated scans. If
+                  an audit falls below these limits, an automated triage alert
+                  is flagged.
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1946,7 +1980,9 @@ export default function SpeedTestingClientPage({
                       }
                       className="text-xs"
                     />
-                    <p className="text-[10px] text-slate-500">Alert if score &lt; {tempSettings.minScoreAlert}</p>
+                    <p className="text-[10px] text-slate-500">
+                      Alert if score &lt; {tempSettings.minScoreAlert}
+                    </p>
                   </div>
 
                   <div className="space-y-1.5">
@@ -1967,7 +2003,9 @@ export default function SpeedTestingClientPage({
                       }
                       className="text-xs"
                     />
-                    <p className="text-[10px] text-slate-500">Alert if LCP &gt; {tempSettings.maxLcpAlert}s</p>
+                    <p className="text-[10px] text-slate-500">
+                      Alert if LCP &gt; {tempSettings.maxLcpAlert}s
+                    </p>
                   </div>
 
                   <div className="space-y-1.5">
@@ -1988,7 +2026,9 @@ export default function SpeedTestingClientPage({
                       }
                       className="text-xs"
                     />
-                    <p className="text-[10px] text-slate-500">Alert if TTFB &gt; {tempSettings.maxTtfbAlert}ms</p>
+                    <p className="text-[10px] text-slate-500">
+                      Alert if TTFB &gt; {tempSettings.maxTtfbAlert}ms
+                    </p>
                   </div>
                 </div>
               </div>

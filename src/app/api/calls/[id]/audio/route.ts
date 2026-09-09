@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { callRecords } from "@/db/schema";
-import { getGhlCredentials } from "@/service/gohighlevel-service";
 import { fetchGhlCallAudioBuffer } from "@/service/call-intelligence-service";
+import { getGhlCredentials } from "@/service/gohighlevel-service";
 
 export async function GET(
   req: NextRequest,

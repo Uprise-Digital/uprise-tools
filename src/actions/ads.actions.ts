@@ -3,12 +3,12 @@
 import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { classifyAccountsBatchInternal } from "@/actions/industry-analytics.actions";
 import { db } from "@/db";
 import { adAccounts, googleAdsConnections, member } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { getAuthOrgContext } from "@/lib/auth-helpers";
 import { fetchMCCAccounts } from "@/lib/google-ads";
-import { classifyAccountsBatchInternal } from "@/actions/industry-analytics.actions";
 
 export async function syncAdAccountsAction() {
   const ctx = await getAuthOrgContext();

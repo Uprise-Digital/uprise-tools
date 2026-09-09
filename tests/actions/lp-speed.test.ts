@@ -137,7 +137,11 @@ describe("Landing Page Speed Testing Actions", () => {
         cpuThrottle: "2x",
       };
 
-      const result = await runLandingPageSpeedTestAction(10, "desktop", customOptions);
+      const result = await runLandingPageSpeedTestAction(
+        10,
+        "desktop",
+        customOptions,
+      );
 
       expect(result.success).toBe(true);
       expect(pageSpeedService.runPageSpeedAudit).toHaveBeenCalledWith(
