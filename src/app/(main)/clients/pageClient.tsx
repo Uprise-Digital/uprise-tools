@@ -47,6 +47,7 @@ import {
   createClientOnboardingAction,
   deleteClientOnboardingAction,
   getClientOnboardingsAction,
+  migrateGhlRecordsToClientsAndContactsAction,
   syncAllGhlClientsAction,
   syncGhlCallNotesAction,
 } from "@/actions/client-onboarding.actions";
@@ -164,6 +165,7 @@ export default function ClientsDirectoryClient() {
   // Syncing states
   const [isSyncingGhl, setIsSyncingGhl] = useState(false);
   const [isSyncingNotes, setIsSyncingNotes] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
 
   // Form states (New Client modal)
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
@@ -306,6 +308,29 @@ export default function ClientsDirectoryClient() {
       toast.error(err.message || "Call Notes Sync failed", { id: toastId });
     } finally {
       setIsSyncingNotes(false);
+    }
+  };
+
+  const handleMigrateGhl = async () => {
+    setIsMigrating(true);
+    const toastId = toast.loading(
+      "Organizing 251 GHL records into canonical Clients and linked Contacts...",
+    );
+    try {
+      const res = await migrateGhlRecordsToClientsAndContactsAction();
+      if (res.success) {
+        toast.success(
+          `Migration Complete! Organized ${res.totalRawRecords} records into ${res.clientsCreated} unique Client(s), ${res.contactsCreated} Contact(s), and linked ${res.accountsLinked} ad account(s).`,
+          { id: toastId, duration: 6000 },
+        );
+        await loadData();
+      } else {
+        toast.error(res.error || "Migration failed", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Migration failed", { id: toastId });
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -652,6 +677,22 @@ export default function ClientsDirectoryClient() {
               )}
             />
             {isSyncingNotes ? "Syncing Notes..." : "Auto-Sync GHL Call Notes"}
+          </Button>
+
+          <Button
+            onClick={handleMigrateGhl}
+            disabled={isMigrating}
+            variant="outline"
+            className="border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-bold text-xs h-9 px-3.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
+            title="Deduplicate & organize 250+ GHL records into canonical Clients and Contacts relational records, linking Google and Meta accounts automatically."
+          >
+            <Building2
+              className={cn(
+                "h-3.5 w-3.5 text-indigo-600",
+                isMigrating && "animate-spin",
+              )}
+            />
+            {isMigrating ? "Organizing..." : "Organize CRM (Clients & Contacts)"}
           </Button>
 
           <Button

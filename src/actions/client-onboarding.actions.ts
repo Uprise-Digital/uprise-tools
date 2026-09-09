@@ -10,6 +10,8 @@ import {
   backgroundTasks,
   callRecords,
   clientOnboardings,
+  clients,
+  contacts,
   emailLogs,
   member,
   metaAdAccounts,
@@ -82,13 +84,51 @@ export async function getClientOnboardingsAction() {
     const { orgId } = await getSessionOrgId();
     if (!orgId) return { success: false, error: "No active organization" };
 
-    // Auto-migrate new columns if missing in Postgres DB schema
+    // Auto-migrate new columns and core clients / contacts tables if missing in Postgres DB schema
     try {
       await db.execute(
-        sql`ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_sub_account_id" text;
+        sql`CREATE TABLE IF NOT EXISTS "clients" (
+              "id" serial PRIMARY KEY,
+              "organization_id" text NOT NULL REFERENCES "organization"("id") ON DELETE CASCADE,
+              "name" text NOT NULL,
+              "legal_business_name" text,
+              "industry" text NOT NULL DEFAULT 'OTHER',
+              "sub_niche" text,
+              "website_url" text,
+              "status" text NOT NULL DEFAULT 'active',
+              "drive_folder_link" text,
+              "notion_dashboard_link" text,
+              "signal_group_link" text,
+              "ghl_sub_account_id" text,
+              "created_at" timestamp NOT NULL DEFAULT now(),
+              "updated_at" timestamp NOT NULL DEFAULT now()
+            );
+            CREATE TABLE IF NOT EXISTS "contacts" (
+              "id" serial PRIMARY KEY,
+              "organization_id" text NOT NULL REFERENCES "organization"("id") ON DELETE CASCADE,
+              "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL,
+              "ghl_contact_id" text,
+              "ghl_opportunity_id" text,
+              "first_name" text,
+              "last_name" text,
+              "name" text NOT NULL,
+              "email" text,
+              "phone" text,
+              "job_title" text,
+              "is_primary" boolean NOT NULL DEFAULT false,
+              "pipeline_stage" text,
+              "status" text NOT NULL DEFAULT 'active',
+              "created_at" timestamp NOT NULL DEFAULT now(),
+              "updated_at" timestamp NOT NULL DEFAULT now()
+            );
+            ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_sub_account_id" text;
             ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_status" text DEFAULT 'pending';
             ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_error" text;
-            ALTER TABLE "meta_ad_accounts" ADD COLUMN IF NOT EXISTS "client_onboarding_id" integer REFERENCES "client_onboardings"("id") ON DELETE SET NULL;`,
+            ALTER TABLE "ad_accounts" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
+            ALTER TABLE "meta_ad_accounts" ADD COLUMN IF NOT EXISTS "client_onboarding_id" integer REFERENCES "client_onboardings"("id") ON DELETE SET NULL;
+            ALTER TABLE "meta_ad_accounts" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
+            ALTER TABLE "call_records" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
+            ALTER TABLE "call_records" ADD COLUMN IF NOT EXISTS "contact_id" integer REFERENCES "contacts"("id") ON DELETE SET NULL;`,
       );
     } catch (migErr) {
       console.warn("DB columns migration check warning:", migErr);
@@ -1312,3 +1352,215 @@ export async function syncGhlCallNotesAction() {
     };
   }
 }
+
+/**
+ * Migration routine to organize all GHL records from `client_onboardings`
+ * into canonical `clients` (business entities) and `contacts` (people).
+ */
+export async function migrateGhlRecordsToClientsAndContactsAction() {
+  try {
+    const { orgId } = await getSessionOrgId();
+    if (!orgId) return { success: false, error: "No active organization" };
+
+    // 1. Ensure tables and columns exist
+    await db.execute(
+      sql`CREATE TABLE IF NOT EXISTS "clients" (
+            "id" serial PRIMARY KEY,
+            "organization_id" text NOT NULL REFERENCES "organization"("id") ON DELETE CASCADE,
+            "name" text NOT NULL,
+            "legal_business_name" text,
+            "industry" text NOT NULL DEFAULT 'OTHER',
+            "sub_niche" text,
+            "website_url" text,
+            "status" text NOT NULL DEFAULT 'active',
+            "drive_folder_link" text,
+            "notion_dashboard_link" text,
+            "signal_group_link" text,
+            "ghl_sub_account_id" text,
+            "created_at" timestamp NOT NULL DEFAULT now(),
+            "updated_at" timestamp NOT NULL DEFAULT now()
+          );
+          CREATE TABLE IF NOT EXISTS "contacts" (
+            "id" serial PRIMARY KEY,
+            "organization_id" text NOT NULL REFERENCES "organization"("id") ON DELETE CASCADE,
+            "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL,
+            "ghl_contact_id" text,
+            "ghl_opportunity_id" text,
+            "first_name" text,
+            "last_name" text,
+            "name" text NOT NULL,
+            "email" text,
+            "phone" text,
+            "job_title" text,
+            "is_primary" boolean NOT NULL DEFAULT false,
+            "pipeline_stage" text,
+            "status" text NOT NULL DEFAULT 'active',
+            "created_at" timestamp NOT NULL DEFAULT now(),
+            "updated_at" timestamp NOT NULL DEFAULT now()
+          );
+          ALTER TABLE "ad_accounts" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
+          ALTER TABLE "meta_ad_accounts" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
+          ALTER TABLE "call_records" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
+          ALTER TABLE "call_records" ADD COLUMN IF NOT EXISTS "contact_id" integer REFERENCES "contacts"("id") ON DELETE SET NULL;`,
+    );
+
+    // 2. Fetch all raw onboarding records
+    const rawRecords = await db.query.clientOnboardings.findMany({
+      where: eq(clientOnboardings.organizationId, orgId),
+      with: {
+        adAccounts: true,
+        metaAdAccounts: true,
+      },
+      orderBy: [desc(clientOnboardings.createdAt)],
+    });
+
+    console.log(`[Migration] Starting migration of ${rawRecords.length} records into Clients and Contacts...`);
+
+    // Fetch existing clients and contacts to prevent duplicates
+    const existingClients = await db.query.clients.findMany({
+      where: eq(clients.organizationId, orgId),
+    });
+    const clientByNameMap = new Map<string, typeof existingClients[0]>();
+    for (const c of existingClients) {
+      clientByNameMap.set(c.name.trim().toLowerCase(), c);
+    }
+
+    const existingContacts = await db.query.contacts.findMany({
+      where: eq(contacts.organizationId, orgId),
+    });
+    const contactByGhlIdMap = new Map<string, typeof existingContacts[0]>();
+    const contactByEmailMap = new Map<string, typeof existingContacts[0]>();
+    for (const ct of existingContacts) {
+      if (ct.ghlContactId) contactByGhlIdMap.set(ct.ghlContactId, ct);
+      if (ct.email) contactByEmailMap.set(ct.email.trim().toLowerCase(), ct);
+    }
+
+    let clientsCreated = 0;
+    let contactsCreated = 0;
+    let accountsLinked = 0;
+
+    for (const rec of rawRecords) {
+      const clientName = (rec.clientName || rec.primaryContactName || "Unnamed Client").trim();
+      const normClientName = clientName.toLowerCase();
+
+      // 3. Find or create Client
+      let clientRecord = clientByNameMap.get(normClientName);
+      if (!clientRecord) {
+        const [insertedClient] = await db
+          .insert(clients)
+          .values({
+            organizationId: orgId,
+            name: clientName,
+            status: rec.status === "completed" ? "active" : rec.status === "disqualified" ? "disqualified" : "onboarding",
+            driveFolderLink: rec.driveFolderLink || null,
+            notionDashboardLink: rec.notionDashboardLink || null,
+            signalGroupLink: rec.signalGroupLink || null,
+            ghlSubAccountId: rec.ghlSubAccountId || null,
+            createdAt: rec.createdAt,
+            updatedAt: rec.updatedAt,
+          })
+          .returning();
+        clientRecord = insertedClient;
+        clientByNameMap.set(normClientName, insertedClient);
+        clientsCreated++;
+      }
+
+      // 4. Find or create Contact
+      const email = (rec.contactEmail || "").trim().toLowerCase();
+      const ghlId = rec.ghlContactId;
+      let contactRecord = (ghlId ? contactByGhlIdMap.get(ghlId) : undefined) || (email ? contactByEmailMap.get(email) : undefined);
+
+      if (!contactRecord) {
+        const nameParts = (rec.primaryContactName || "").trim().split(/\s+/);
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
+        const [insertedContact] = await db
+          .insert(contacts)
+          .values({
+            organizationId: orgId,
+            clientId: clientRecord.id,
+            ghlContactId: rec.ghlContactId || null,
+            ghlOpportunityId: rec.ghlOpportunityId || null,
+            firstName,
+            lastName,
+            name: rec.primaryContactName || clientName,
+            email: rec.contactEmail || null,
+            phone: rec.contactPhone || null,
+            isPrimary: true,
+            pipelineStage: rec.ghlPipelineStage || null,
+            status: rec.status === "disqualified" ? "disqualified" : "active",
+            createdAt: rec.createdAt,
+            updatedAt: rec.updatedAt,
+          })
+          .returning();
+        contactRecord = insertedContact;
+        if (ghlId) contactByGhlIdMap.set(ghlId, insertedContact);
+        if (email) contactByEmailMap.set(email, insertedContact);
+        contactsCreated++;
+      } else if (!contactRecord.clientId) {
+        // Link existing contact to this client
+        await db
+          .update(contacts)
+          .set({ clientId: clientRecord.id })
+          .where(eq(contacts.id, contactRecord.id));
+      }
+
+      // 5. Migrate linked Google Ad Accounts to this Client
+      if (rec.adAccounts && rec.adAccounts.length > 0) {
+        for (const gAcc of rec.adAccounts) {
+          await db
+            .update(adAccounts)
+            .set({ clientId: clientRecord.id })
+            .where(eq(adAccounts.id, gAcc.id));
+          accountsLinked++;
+        }
+      }
+
+      // 6. Migrate linked Meta Ad Accounts to this Client
+      if (rec.metaAdAccounts && rec.metaAdAccounts.length > 0) {
+        for (const mAcc of rec.metaAdAccounts) {
+          await db
+            .update(metaAdAccounts)
+            .set({ clientId: clientRecord.id })
+            .where(eq(metaAdAccounts.id, mAcc.id));
+          accountsLinked++;
+        }
+      }
+
+      // 7. Update call records for this client/contact
+      if (rec.id || rec.ghlContactId) {
+        await db
+          .update(callRecords)
+          .set({
+            clientId: clientRecord.id,
+            contactId: contactRecord.id,
+          })
+          .where(
+            and(
+              eq(callRecords.organizationId, orgId),
+              rec.ghlContactId
+                ? eq(callRecords.ghlContactId, rec.ghlContactId)
+                : eq(callRecords.clientOnboardingId, rec.id),
+            ),
+          );
+      }
+    }
+
+    revalidatePath("/clients");
+    revalidatePath("/accounts");
+    revalidatePath("/overview/industry");
+
+    return {
+      success: true as const,
+      totalRawRecords: rawRecords.length,
+      clientsCreated,
+      contactsCreated,
+      accountsLinked,
+    };
+  } catch (error: any) {
+    console.error("Migration error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+

@@ -7,6 +7,7 @@ export interface BaseAdAccount {
   googleStatus: string;
   industry?: string | null;
   subNiche?: string | null;
+  clientId?: number | null;
   clientOnboardingId?: number | null;
   reportSchedules?: any[];
   emailLogs?: any[];
@@ -29,6 +30,7 @@ export interface BaseMetaAdAccount {
   monthlyBudgetCap?: string | null;
   industry?: string | null;
   subNiche?: string | null;
+  clientId?: number | null;
   clientOnboardingId?: number | null;
   createdAt?: Date | string | null;
 }
@@ -44,6 +46,7 @@ export interface UnifiedAccountRow {
   primaryPlatform: "google" | "meta";
 
   // Client link reference
+  clientId?: number | null;
   clientOnboardingId?: number | null;
 
   // Google Ads details (if available)
@@ -194,16 +197,17 @@ export function unifyAccounts(
   const unifiedList: UnifiedAccountRow[] = [];
   const matchedMetaIds = new Set<number>();
 
-  // 1. Index Meta accounts by clientOnboardingId, normalized name, and stem name
+  // 1. Index Meta accounts by clientId/clientOnboardingId, normalized name, and stem name
   const metaByClientIdMap = new Map<number, BaseMetaAdAccount[]>();
   const metaByNameMap = new Map<string, BaseMetaAdAccount[]>();
   const metaByStemMap = new Map<string, BaseMetaAdAccount[]>();
 
   for (const meta of metaAccounts) {
-    if (meta.clientOnboardingId) {
-      const existing = metaByClientIdMap.get(meta.clientOnboardingId) || [];
+    const cId = meta.clientId || meta.clientOnboardingId;
+    if (cId) {
+      const existing = metaByClientIdMap.get(cId) || [];
       existing.push(meta);
-      metaByClientIdMap.set(meta.clientOnboardingId, existing);
+      metaByClientIdMap.set(cId, existing);
     }
     const norm = normalizeAccountName(meta.name);
     if (norm) {
@@ -223,11 +227,12 @@ export function unifyAccounts(
   for (const gAcc of googleAccounts) {
     const normName = normalizeAccountName(gAcc.name);
     const stemName = stemAccountName(gAcc.name);
+    const gClientId = gAcc.clientId || gAcc.clientOnboardingId;
 
     // Pass 0: Explicit Client Association (Source of Truth!)
-    let metaMatch = gAcc.clientOnboardingId
+    let metaMatch = gClientId
       ? metaByClientIdMap
-          .get(gAcc.clientOnboardingId)
+          .get(gClientId)
           ?.find((m) => !matchedMetaIds.has(m.id))
       : undefined;
 
@@ -256,6 +261,7 @@ export function unifyAccounts(
         platforms: ["google", "meta"],
         primaryId: gAcc.id,
         primaryPlatform: "google",
+        clientId: gAcc.clientId || metaMatch.clientId || null,
         clientOnboardingId: gAcc.clientOnboardingId || metaMatch.clientOnboardingId || null,
         googleId: gAcc.id,
         googleAccountId: gAcc.googleAccountId,
@@ -282,6 +288,7 @@ export function unifyAccounts(
         platforms: ["google"],
         primaryId: gAcc.id,
         primaryPlatform: "google",
+        clientId: gAcc.clientId || null,
         clientOnboardingId: gAcc.clientOnboardingId || null,
         googleId: gAcc.id,
         googleAccountId: gAcc.googleAccountId,
@@ -305,6 +312,7 @@ export function unifyAccounts(
         platforms: ["meta"],
         primaryId: meta.id,
         primaryPlatform: "meta",
+        clientId: meta.clientId || null,
         clientOnboardingId: meta.clientOnboardingId || null,
         metaId: meta.id,
         metaAccountId: meta.metaAccountId,

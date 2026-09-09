@@ -216,6 +216,9 @@ export const metaAdAccounts = pgTable(
       () => clientOnboardings.id,
       { onDelete: "set null" },
     ),
+    clientId: integer("client_id").references(() => clients.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   () => [
@@ -240,6 +243,69 @@ export const usageLogs = pgTable("usage_logs", {
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }).enableRLS();
+
+// --- 2.5 CLIENTS & CONTACTS (CORE CRM ENTITIES) ---
+export const clients = pgTable(
+  "clients",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    legalBusinessName: text("legal_business_name"),
+    industry: text("industry").default("OTHER").notNull(),
+    subNiche: text("sub_niche"),
+    websiteUrl: text("website_url"),
+    status: text("status").default("active").notNull(), // 'lead', 'onboarding', 'active', 'churned', 'disqualified'
+    driveFolderLink: text("drive_folder_link"),
+    notionDashboardLink: text("notion_dashboard_link"),
+    signalGroupLink: text("signal_group_link"),
+    ghlSubAccountId: text("ghl_sub_account_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
+
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    clientId: integer("client_id").references(() => clients.id, {
+      onDelete: "set null",
+    }),
+    ghlContactId: text("ghl_contact_id"),
+    ghlOpportunityId: text("ghl_opportunity_id"),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    name: text("name").notNull(),
+    email: text("email"),
+    phone: text("phone"),
+    jobTitle: text("job_title"),
+    isPrimary: boolean("is_primary").default(false).notNull(),
+    pipelineStage: text("pipeline_stage"),
+    status: text("status").default("active").notNull(), // 'lead', 'active', 'disqualified'
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("contacts_client_id_idx").on(table.clientId),
+    index("contacts_ghl_contact_id_idx").on(table.ghlContactId),
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+  ],
+).enableRLS();
 
 export const clientOnboardings = pgTable(
   "client_onboardings",
@@ -317,6 +383,9 @@ export const adAccounts = pgTable(
       () => clientOnboardings.id,
       { onDelete: "set null" },
     ),
+    clientId: integer("client_id").references(() => clients.id, {
+      onDelete: "set null",
+    }),
     lastNegativeGenerationExplanation: text(
       "last_negative_generation_explanation",
     ),
@@ -509,6 +578,29 @@ export const pipelineRevivalPlans = pgTable(
 );
 
 // --- 7. RELATIONS ---
+export const clientsRelations = relations(clients, ({ one, many }) => ({
+  organization: one(organization, {
+    fields: [clients.organizationId],
+    references: [organization.id],
+  }),
+  contacts: many(contacts),
+  adAccounts: many(adAccounts),
+  metaAdAccounts: many(metaAdAccounts),
+  callRecords: many(callRecords),
+}));
+
+export const contactsRelations = relations(contacts, ({ one, many }) => ({
+  organization: one(organization, {
+    fields: [contacts.organizationId],
+    references: [organization.id],
+  }),
+  client: one(clients, {
+    fields: [contacts.clientId],
+    references: [clients.id],
+  }),
+  callRecords: many(callRecords),
+}));
+
 export const clientOnboardingRelations = relations(
   clientOnboardings,
   ({ one, many }) => ({
@@ -525,6 +617,10 @@ export const metaAdAccountRelations = relations(metaAdAccounts, ({ one }) => ({
   clientOnboarding: one(clientOnboardings, {
     fields: [metaAdAccounts.clientOnboardingId],
     references: [clientOnboardings.id],
+  }),
+  client: one(clients, {
+    fields: [metaAdAccounts.clientId],
+    references: [clients.id],
   }),
 }));
 
@@ -544,6 +640,10 @@ export const adAccountRelations = relations(adAccounts, ({ many, one }) => ({
   clientOnboarding: one(clientOnboardings, {
     fields: [adAccounts.clientOnboardingId],
     references: [clientOnboardings.id],
+  }),
+  client: one(clients, {
+    fields: [adAccounts.clientId],
+    references: [clients.id],
   }),
 }));
 
@@ -1183,6 +1283,12 @@ export const callRecords = pgTable(
       () => clientOnboardings.id,
       { onDelete: "set null" },
     ),
+    clientId: integer("client_id").references(() => clients.id, {
+      onDelete: "set null",
+    }),
+    contactId: integer("contact_id").references(() => contacts.id, {
+      onDelete: "set null",
+    }),
     ghlLocationId: text("ghl_location_id").notNull(),
     ghlConversationId: text("ghl_conversation_id"),
     ghlMessageId: text("ghl_message_id").notNull().unique(),
@@ -1233,9 +1339,17 @@ export const callRecordsRelations = relations(callRecords, ({ one }) => ({
     fields: [callRecords.organizationId],
     references: [organization.id],
   }),
-  client: one(clientOnboardings, {
+  clientOnboarding: one(clientOnboardings, {
     fields: [callRecords.clientOnboardingId],
     references: [clientOnboardings.id],
+  }),
+  client: one(clients, {
+    fields: [callRecords.clientId],
+    references: [clients.id],
+  }),
+  contact: one(contacts, {
+    fields: [callRecords.contactId],
+    references: [contacts.id],
   }),
 }));
 
