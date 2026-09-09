@@ -50,6 +50,7 @@ import {
   syncAllGhlClientsAction,
   syncGhlCallNotesAction,
 } from "@/actions/client-onboarding.actions";
+import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -749,16 +750,16 @@ export default function ClientsDirectoryClient() {
 
                     {/* Connected Ad Accounts */}
                     <TableCell className="py-3">
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1 items-start">
                         {client.adAccounts && client.adAccounts.length > 0 ? (
                           client.adAccounts.map((acc) => (
                             <span
                               key={acc.id}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200"
-                              title={`Google: ${acc.name} (${acc.googleAccountId})`}
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-700 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors"
+                              title={`Google Ads: ${acc.name} (${acc.googleAccountId})`}
                             >
-                              <span className="font-mono text-[9px] font-bold text-blue-800">G</span>
-                              <span className="truncate max-w-[120px]">{acc.name}</span>
+                              <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate max-w-[130px] font-medium">{acc.name}</span>
                             </span>
                           ))
                         ) : null}
@@ -767,11 +768,11 @@ export default function ClientsDirectoryClient() {
                           client.metaAdAccounts.map((acc) => (
                             <span
                               key={acc.id}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200"
-                              title={`Meta: ${acc.name} (${acc.metaAccountId})`}
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-700 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors"
+                              title={`Meta Ads: ${acc.name} (${acc.metaAccountId})`}
                             >
-                              <span className="font-mono text-[9px] font-bold text-purple-800">M</span>
-                              <span className="truncate max-w-[120px]">{acc.name}</span>
+                              <MetaLogo className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate max-w-[130px] font-medium">{acc.name}</span>
                             </span>
                           ))
                         ) : null}
