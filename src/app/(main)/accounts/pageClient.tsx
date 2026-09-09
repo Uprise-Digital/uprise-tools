@@ -216,37 +216,57 @@ export default function AccountsClientPage({
     const mCtr = mImpressions > 0 ? (mClicks / mImpressions) * 100 : 0;
     const mCpc = mClicks > 0 ? mSpend / mClicks : 0;
 
-    // Blended calculations
-    const totalSpend = gSpend + mSpend;
-    const totalConversions = gConversions + mConversions;
-    const totalClicks = gClicks + mClicks;
-    const totalImpressions = gImpressions + mImpressions;
+    // Determine metrics based on active platformFilter
+    let spend = 0;
+    let conversions = 0;
+    let clicks = 0;
+    let impressions = 0;
+    let cpa = 0;
+    let ctr = 0;
+    let cpc = 0;
 
-    const cpa =
-      totalConversions > 0
-        ? totalSpend / totalConversions
-        : gSpend > 0
-          ? gCpa
-          : mCpa;
-    const ctr =
-      totalImpressions > 0
-        ? (totalClicks / totalImpressions) * 100
-        : gImpressions > 0
-          ? gCtr
-          : mCtr;
-    const cpc =
-      totalClicks > 0 ? totalSpend / totalClicks : gClicks > 0 ? gCpc : mCpc;
+    if (platformFilter === "google") {
+      spend = gSpend;
+      conversions = gConversions;
+      clicks = gClicks;
+      impressions = gImpressions;
+      cpa = gCpa;
+      ctr = gCtr;
+      cpc = gCpc;
+    } else if (platformFilter === "meta") {
+      spend = mSpend;
+      conversions = mConversions;
+      clicks = mClicks;
+      impressions = mImpressions;
+      cpa = mCpa;
+      ctr = mCtr;
+      cpc = mCpc;
+    } else {
+      // Blended calculations
+      spend = gSpend + mSpend;
+      conversions = gConversions + mConversions;
+      clicks = gClicks + mClicks;
+      impressions = gImpressions + mImpressions;
+      cpa = conversions > 0 ? spend / conversions : gSpend > 0 ? gCpa : mCpa;
+      ctr =
+        impressions > 0
+          ? (clicks / impressions) * 100
+          : gImpressions > 0
+            ? gCtr
+            : mCtr;
+      cpc = clicks > 0 ? spend / clicks : gClicks > 0 ? gCpc : mCpc;
+    }
 
-    const blendedCpa = portfolio?.agencyTotals?.cpa || 0;
+    const baselineCpa = portfolio?.agencyTotals?.cpa || 0;
     const risk = getChurnRisk(
-      { spend: totalSpend, conversions: totalConversions, cpa, ctr, cpc },
-      blendedCpa,
+      { spend, conversions, cpa, ctr, cpc },
+      baselineCpa,
     );
 
     return {
       ...acc,
-      spend: totalSpend,
-      conversions: totalConversions,
+      spend,
+      conversions,
       cpa,
       ctr,
       cpc,
@@ -416,7 +436,11 @@ export default function AccountsClientPage({
       "Churn Risk",
       "Spend",
       "Conversions",
-      "Blended CPA",
+      platformFilter === "google"
+        ? "Google CPA"
+        : platformFilter === "meta"
+          ? "Meta CPA"
+          : "Blended CPA",
       "CTR",
       "CPC",
       "Status",
@@ -467,6 +491,25 @@ export default function AccountsClientPage({
   };
 
   const handleRowClick = (acc: any) => {
+    if (platformFilter === "meta") {
+      if (acc.metaAccountId) {
+        window.open(
+          `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${acc.metaAccountId}`,
+          "_blank",
+          "noopener,noreferrer",
+        );
+      }
+      return;
+    }
+
+    if (platformFilter === "google") {
+      if (acc.googleId) {
+        router.push(`/accounts/${acc.googleId}`);
+      }
+      return;
+    }
+
+    // Default 'all' platform behavior
     if (acc.googleId) {
       router.push(`/accounts/${acc.googleId}`);
     } else if (acc.metaAccountId) {
@@ -549,8 +592,11 @@ export default function AccountsClientPage({
               </Badge>
             </div>
             <CardDescription className="text-xs">
-              Blended cross-platform performance and individual channel health
-              monitoring.
+              {platformFilter === "google"
+                ? "Google Ads performance and account health monitoring."
+                : platformFilter === "meta"
+                  ? "Meta Ads performance and account health monitoring."
+                  : "Blended cross-platform performance and individual channel health monitoring."}
             </CardDescription>
           </div>
 
@@ -802,7 +848,12 @@ export default function AccountsClientPage({
                     onClick={() => handleSort("cpa")}
                     className="flex items-center hover:text-slate-900 font-bold focus:outline-none ml-auto"
                   >
-                    Blended CPA {renderSortIndicator("cpa")}
+                    {platformFilter === "google"
+                      ? "Google CPA"
+                      : platformFilter === "meta"
+                        ? "Meta CPA"
+                        : "Blended CPA"}{" "}
+                    {renderSortIndicator("cpa")}
                   </button>
                 </TableHead>
                 <TableHead className="font-bold text-right">
@@ -858,8 +909,9 @@ export default function AccountsClientPage({
                 </TableRow>
               ) : (
                 paginatedAccounts.map((acc) => {
-                  const isBlended = acc.platforms.length > 1;
-                  const isExpanded = expandedKeys.has(acc.key);
+                  const isBlended =
+                    platformFilter === "all" && acc.platforms.length > 1;
+                  const isExpanded = isBlended && expandedKeys.has(acc.key);
 
                   return (
                     <>
@@ -868,7 +920,7 @@ export default function AccountsClientPage({
                         className="hover:bg-slate-50/50 transition-colors cursor-pointer group"
                         onClick={() => handleRowClick(acc)}
                       >
-                        {/* EXPAND TOGGLE (For Blended Multi-channel rows) */}
+                        {/* EXPAND TOGGLE (For Blended Multi-channel rows in All Platforms view) */}
                         <TableCell className="w-8 pl-4 pr-0 py-4">
                           {isBlended ? (
                             <button
@@ -896,35 +948,43 @@ export default function AccountsClientPage({
                               {/* Status dot */}
                               <span
                                 title={
-                                  acc.googleStatus === "ENABLED"
-                                    ? "Google Ads: Active"
-                                    : acc.googleStatus === "CANCELED"
-                                      ? "Google Ads: Cancelled"
-                                      : acc.googleStatus === "SUSPENDED"
-                                        ? "Google Ads: Suspended"
-                                        : acc.googleStatus === "DELINKED"
-                                          ? "Google Ads: Delinked / Archived"
-                                          : acc.isActive
-                                            ? "Active Account"
-                                            : "Inactive Account"
+                                  platformFilter === "meta"
+                                    ? acc.metaAccountStatus === 1
+                                      ? "Meta Ads: Active"
+                                      : "Meta Ads: Inactive"
+                                    : acc.googleStatus === "ENABLED"
+                                      ? "Google Ads: Active"
+                                      : acc.googleStatus === "CANCELED"
+                                        ? "Google Ads: Cancelled"
+                                        : acc.googleStatus === "SUSPENDED"
+                                          ? "Google Ads: Suspended"
+                                          : acc.googleStatus === "DELINKED"
+                                            ? "Google Ads: Delinked / Archived"
+                                            : acc.isActive
+                                              ? "Active Account"
+                                              : "Inactive Account"
                                 }
                                 className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
-                                  acc.googleStatus === "ENABLED" ||
-                                  (!acc.googleStatus && acc.isActive)
-                                    ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
-                                    : acc.googleStatus === "CANCELED" ||
-                                        acc.googleStatus === "DELINKED"
-                                      ? "bg-slate-400"
-                                      : acc.googleStatus === "SUSPENDED"
-                                        ? "bg-rose-500 shadow-sm shadow-rose-500/30"
-                                        : "bg-amber-500"
+                                  platformFilter === "meta"
+                                    ? acc.metaAccountStatus === 1
+                                      ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
+                                      : "bg-slate-400"
+                                    : acc.googleStatus === "ENABLED" ||
+                                        (!acc.googleStatus && acc.isActive)
+                                      ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
+                                      : acc.googleStatus === "CANCELED" ||
+                                          acc.googleStatus === "DELINKED"
+                                        ? "bg-slate-400"
+                                        : acc.googleStatus === "SUSPENDED"
+                                          ? "bg-rose-500 shadow-sm shadow-rose-500/30"
+                                          : "bg-amber-500"
                                 }`}
                               />
                               <span className="text-sm font-semibold text-slate-900">
                                 {acc.name}
                               </span>
 
-                              {/* Multi-channel Blended badge */}
+                              {/* Multi-channel Blended badge (only in All Platforms view) */}
                               {isBlended && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200">
                                   <Layers className="w-2.5 h-2.5" />
@@ -935,25 +995,27 @@ export default function AccountsClientPage({
 
                             {/* IDs and Platform badges */}
                             <div className="flex flex-wrap items-center gap-2 pl-4.5 mt-1">
-                              {/* Google Badge */}
-                              {acc.googleAccountId && (
-                                <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded">
-                                  <span className="font-semibold text-[9px]">
-                                    G
+                              {/* Google Badge (hidden if filtered to Meta) */}
+                              {platformFilter !== "meta" &&
+                                acc.googleAccountId && (
+                                  <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded">
+                                    <span className="font-semibold text-[9px]">
+                                      G
+                                    </span>
+                                    {acc.googleAccountId}
                                   </span>
-                                  {acc.googleAccountId}
-                                </span>
-                              )}
+                                )}
 
-                              {/* Meta Badge */}
-                              {acc.metaAccountId && (
-                                <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.2 rounded">
-                                  <span className="font-semibold text-[9px]">
-                                    Meta
+                              {/* Meta Badge (hidden if filtered to Google) */}
+                              {platformFilter !== "google" &&
+                                acc.metaAccountId && (
+                                  <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.2 rounded">
+                                    <span className="font-semibold text-[9px]">
+                                      Meta
+                                    </span>
+                                    act_{acc.metaAccountId}
                                   </span>
-                                  act_{acc.metaAccountId}
-                                </span>
-                              )}
+                                )}
 
                               {/* Industry Badge */}
                               {acc.industry && acc.industry !== "OTHER" && (
@@ -1024,10 +1086,24 @@ export default function AccountsClientPage({
                         {/* STATUS */}
                         <TableCell className="py-4">
                           <Badge
-                            variant={acc.isActive ? "default" : "secondary"}
+                            variant={
+                              platformFilter === "meta"
+                                ? acc.metaAccountStatus === 1
+                                  ? "default"
+                                  : "secondary"
+                                : acc.isActive
+                                  ? "default"
+                                  : "secondary"
+                            }
                             className="rounded-md text-[10px] px-2 py-0.5 font-bold"
                           >
-                            {acc.isActive ? "Active" : "Inactive"}
+                            {platformFilter === "meta"
+                              ? acc.metaAccountStatus === 1
+                                ? "Active"
+                                : "Inactive"
+                              : acc.isActive
+                                ? "Active"
+                                : "Inactive"}
                           </Badge>
                         </TableCell>
 
@@ -1037,7 +1113,25 @@ export default function AccountsClientPage({
                             className="flex justify-end items-center gap-2"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {acc.googleId ? (
+                            {platformFilter === "meta" ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  if (acc.metaAccountId) {
+                                    window.open(
+                                      `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${acc.metaAccountId}`,
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    );
+                                  }
+                                }}
+                                className="h-8 text-xs text-slate-500 hover:text-slate-900 flex items-center gap-1 px-2"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                Meta Ads
+                              </Button>
+                            ) : acc.googleId ? (
                               <ReportAutomationTrigger
                                 adAccount={{
                                   id: acc.googleId,
@@ -1070,7 +1164,7 @@ export default function AccountsClientPage({
                         </TableCell>
                       </TableRow>
 
-                      {/* DRILL-DOWN SUB-ROWS (When Blended Account is Expanded) */}
+                      {/* DRILL-DOWN SUB-ROWS (When Blended Account is Expanded in All Platforms view) */}
                       {isBlended && isExpanded && (
                         <>
                           {/* Google Channel Sub-Row */}
