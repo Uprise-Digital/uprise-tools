@@ -44,7 +44,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   createClientOnboardingAction,
-  deleteClientOnboardingAction,
+  deleteClientAction,
   getCrmDirectoryDataAction,
   migrateGhlRecordsToClientsAndContactsAction,
   syncAllGhlClientsAction,
@@ -307,14 +307,14 @@ export default function ClientsDirectoryClient() {
   };
 
   const handleDeleteClient = async (clientId: number, clientName: string) => {
-    if (!confirm(`Are you sure you want to delete ${clientName}? This will remove associated onboarding records.`)) {
+    if (!confirm(`Are you sure you want to delete ${clientName}? This will unlink any connected ad accounts and contacts.`)) {
       return;
     }
 
     try {
-      const res = await deleteClientOnboardingAction(clientId);
+      const res = await deleteClientAction(clientId);
       if (res.success) {
-        toast.success("Client record deleted.");
+        toast.success(`Client "${clientName}" deleted.`);
         loadData();
       } else {
         toast.error(res.error || "Failed to delete client.");

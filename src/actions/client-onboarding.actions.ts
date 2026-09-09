@@ -360,6 +360,39 @@ export async function deleteClientOnboardingAction(id: number) {
 }
 
 /**
+ * Deletes a canonical Client entity from the clients table, unlinking associated ad accounts, contacts, and calls.
+ */
+export async function deleteClientAction(clientId: number) {
+  try {
+    const { orgId, userId } = await getSessionOrgId();
+    if (!orgId) return { success: false as const, error: "No active organization" };
+
+    // 1. Unlink ad accounts
+    await db.update(adAccounts).set({ clientId: null }).where(eq(adAccounts.clientId, clientId));
+    await db.update(metaAdAccounts).set({ clientId: null }).where(eq(metaAdAccounts.clientId, clientId));
+
+    // 2. Unlink contacts
+    await db.update(contacts).set({ clientId: null }).where(eq(contacts.clientId, clientId));
+
+    // 3. Unlink call records
+    await db.update(callRecords).set({ clientId: null }).where(eq(callRecords.clientId, clientId));
+
+    // 4. Delete the client record
+    await db.delete(clients).where(and(eq(clients.id, clientId), eq(clients.organizationId, orgId)));
+
+    await logAction(userId, "DELETE_CLIENT", "clients", clientId, {});
+
+    revalidatePath("/clients");
+    revalidatePath("/contacts");
+    revalidatePath("/accounts");
+    return { success: true as const };
+  } catch (error: any) {
+    console.error("deleteClientAction error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
  * Links or unlinks a connected Google Ad Account to a client record.
  */
 export async function associateAdAccountAction(
@@ -1505,29 +1538,40 @@ export async function migrateGhlRecordsToClientsAndContactsAction() {
     let accountsLinked = 0;
 
     for (const rec of rawRecords) {
-      const clientName = (rec.clientName || rec.primaryContactName || "Unnamed Client").trim();
-      const normClientName = clientName.toLowerCase();
+      // Determine if this record represents a true business Client
+      const hasAds = (rec.adAccounts && rec.adAccounts.length > 0) || (rec.metaAdAccounts && rec.metaAdAccounts.length > 0);
+      const rawClientName = (rec.clientName || "").trim();
+      const rawContactName = (rec.primaryContactName || "").trim();
+      const isPhoneOrEmail = /^[\d\s+()/-]+$/.test(rawClientName) || rawClientName.includes("@");
+      const isJustPersonName = rawClientName.toLowerCase() === rawContactName.toLowerCase();
+      const isTrueBusinessClient = hasAds || (rawClientName.length > 2 && !isPhoneOrEmail && !isJustPersonName);
 
-      // 3. Find or create Client
-      let clientRecord = clientByNameMap.get(normClientName);
-      if (!clientRecord) {
-        const [insertedClient] = await db
-          .insert(clients)
-          .values({
-            organizationId: orgId,
-            name: clientName,
-            status: rec.status === "completed" ? "active" : rec.status === "disqualified" ? "disqualified" : "onboarding",
-            driveFolderLink: rec.driveFolderLink || null,
-            notionDashboardLink: rec.notionDashboardLink || null,
-            signalGroupLink: rec.signalGroupLink || null,
-            ghlSubAccountId: rec.ghlSubAccountId || null,
-            createdAt: rec.createdAt,
-            updatedAt: rec.updatedAt,
-          })
-          .returning();
-        clientRecord = insertedClient;
-        clientByNameMap.set(normClientName, insertedClient);
-        clientsCreated++;
+      let clientRecord: any = null;
+      if (isTrueBusinessClient) {
+        const clientName = (rawClientName || rawContactName || "Unnamed Business").trim();
+        const normClientName = clientName.toLowerCase();
+
+        // 3. Find or create Client
+        clientRecord = clientByNameMap.get(normClientName);
+        if (!clientRecord) {
+          const [insertedClient] = await db
+            .insert(clients)
+            .values({
+              organizationId: orgId,
+              name: clientName,
+              status: rec.status === "completed" ? "active" : rec.status === "disqualified" ? "disqualified" : "onboarding",
+              driveFolderLink: rec.driveFolderLink || null,
+              notionDashboardLink: rec.notionDashboardLink || null,
+              signalGroupLink: rec.signalGroupLink || null,
+              ghlSubAccountId: rec.ghlSubAccountId || null,
+              createdAt: rec.createdAt,
+              updatedAt: rec.updatedAt,
+            })
+            .returning();
+          clientRecord = insertedClient;
+          clientByNameMap.set(normClientName, insertedClient);
+          clientsCreated++;
+        }
       }
 
       // 4. Find or create Contact
@@ -1544,12 +1588,12 @@ export async function migrateGhlRecordsToClientsAndContactsAction() {
           .insert(contacts)
           .values({
             organizationId: orgId,
-            clientId: clientRecord.id,
+            clientId: clientRecord ? clientRecord.id : null,
             ghlContactId: rec.ghlContactId || null,
             ghlOpportunityId: rec.ghlOpportunityId || null,
             firstName,
             lastName,
-            name: rec.primaryContactName || clientName,
+            name: rec.primaryContactName || rawClientName || "Unnamed Contact",
             email: rec.contactEmail || null,
             phone: rec.contactPhone || null,
             isPrimary: true,
@@ -1563,7 +1607,7 @@ export async function migrateGhlRecordsToClientsAndContactsAction() {
         if (ghlId) contactByGhlIdMap.set(ghlId, insertedContact);
         if (email) contactByEmailMap.set(email, insertedContact);
         contactsCreated++;
-      } else if (!contactRecord.clientId) {
+      } else if (!contactRecord.clientId && clientRecord) {
         // Link existing contact to this client
         await db
           .update(contacts)
@@ -1572,7 +1616,7 @@ export async function migrateGhlRecordsToClientsAndContactsAction() {
       }
 
       // 5. Migrate linked Google Ad Accounts to this Client
-      if (rec.adAccounts && rec.adAccounts.length > 0) {
+      if (clientRecord && rec.adAccounts && rec.adAccounts.length > 0) {
         for (const gAcc of rec.adAccounts) {
           await db
             .update(adAccounts)
@@ -1583,7 +1627,7 @@ export async function migrateGhlRecordsToClientsAndContactsAction() {
       }
 
       // 6. Migrate linked Meta Ad Accounts to this Client
-      if (rec.metaAdAccounts && rec.metaAdAccounts.length > 0) {
+      if (clientRecord && rec.metaAdAccounts && rec.metaAdAccounts.length > 0) {
         for (const mAcc of rec.metaAdAccounts) {
           await db
             .update(metaAdAccounts)
@@ -1598,7 +1642,7 @@ export async function migrateGhlRecordsToClientsAndContactsAction() {
         await db
           .update(callRecords)
           .set({
-            clientId: clientRecord.id,
+            clientId: clientRecord ? clientRecord.id : null,
             contactId: contactRecord.id,
           })
           .where(
