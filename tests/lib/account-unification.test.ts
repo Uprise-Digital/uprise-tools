@@ -98,4 +98,39 @@ describe("unifyAccounts", () => {
     expect(mOnly?.metaAccountId).toBe("999888777");
     expect(mOnly?.googleAccountId).toBeUndefined();
   });
+
+  it("merges accounts with plural and spacing variations like 'X Tech Renewables' and 'xTechs Renewables'", () => {
+    const googleAccounts: BaseAdAccount[] = [
+      {
+        id: 724,
+        googleAccountId: "7240382007",
+        name: "X Tech Renewables",
+        currencyCode: "AUD",
+        isActive: true,
+        googleStatus: "ENABLED",
+        industry: "ENERGY",
+      },
+    ];
+
+    const metaAccounts: BaseMetaAdAccount[] = [
+      {
+        id: 988,
+        metaAccountId: "act_988231820415384",
+        name: "xTechs Renewables",
+        currencyCode: "AUD",
+        timeZone: "Australia/Melbourne",
+        isActive: true,
+        accountStatus: 1,
+      },
+    ];
+
+    const unified = unifyAccounts(googleAccounts, metaAccounts);
+
+    expect(unified).toHaveLength(1);
+    expect(unified[0].platforms).toEqual(["google", "meta"]);
+    expect(unified[0].googleAccountId).toBe("7240382007");
+    expect(unified[0].metaAccountId).toBe("act_988231820415384");
+    expect(unified[0].industry).toBe("ENERGY");
+  });
 });
+

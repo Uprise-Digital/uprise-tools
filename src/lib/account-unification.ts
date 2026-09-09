@@ -85,6 +85,75 @@ export function normalizeAccountName(name: string): string {
 }
 
 /**
+ * Helper to compute Levenshtein distance between two short strings
+ */
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+
+  const row = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    let prev = i;
+    for (let j = 1; j <= n; j++) {
+      const val = a[i - 1] === b[j - 1] ? row[j - 1] : Math.min(row[j - 1], prev, row[j]) + 1;
+      row[j - 1] = prev;
+      prev = val;
+    }
+    row[n] = prev;
+  }
+  return row[n];
+}
+
+/**
+ * Strips common plurals and token endings for stem-level matching.
+ * e.g., "xtechs" -> "xtech", "renewables" -> "renewable"
+ */
+export function stemAccountName(name: string): string {
+  if (!name) return "";
+  // First normalize
+  const norm = normalizeAccountName(name);
+  if (!norm) return "";
+
+  // Strip trailing 's' or plural endings across known segments or words
+  return norm
+    .replace(/ies\b/g, "y")
+    .replace(/es\b/g, "")
+    .replace(/s\b/g, "");
+}
+
+/**
+ * Determines if two normalized or raw account names are a fuzzy match:
+ * 1. Exact normalized match
+ * 2. Stemmed match (e.g. xtech vs xtechs)
+ * 3. One contains the other if length is significant (>= 6 chars)
+ * 4. Levenshtein edit distance <= 1 for names >= 6 chars
+ */
+export function isAccountMatch(googleName: string, metaName: string): boolean {
+  const gNorm = normalizeAccountName(googleName);
+  const mNorm = normalizeAccountName(metaName);
+  if (!gNorm || !mNorm) return false;
+  if (gNorm === mNorm) return true;
+
+  const gStem = stemAccountName(googleName);
+  const mStem = stemAccountName(metaName);
+  if (gStem && mStem && gStem === mStem) return true;
+
+  // If one contains the other and length difference is at most 2 characters
+  if (gNorm.length >= 6 && mNorm.length >= 6) {
+    if (gNorm.includes(mNorm) || mNorm.includes(gNorm)) {
+      if (Math.abs(gNorm.length - mNorm.length) <= 2) return true;
+    }
+
+    // Levenshtein distance 1 (handles single typo, missing 's', hyphenation difference)
+    if (levenshteinDistance(gNorm, mNorm) <= 1) return true;
+  }
+
+  return false;
+}
+
+/**
  * Merges Google Ads accounts and Meta Ads accounts into a unified list.
  * Dual-platform accounts are merged into a single row with platforms: ["google", "meta"].
  * Google-only accounts have platforms: ["google"].
@@ -97,8 +166,10 @@ export function unifyAccounts(
   const unifiedList: UnifiedAccountRow[] = [];
   const matchedMetaIds = new Set<number>();
 
-  // 1. Index Meta accounts by normalized name
+  // 1. Index Meta accounts by normalized name and stem name
   const metaByNameMap = new Map<string, BaseMetaAdAccount[]>();
+  const metaByStemMap = new Map<string, BaseMetaAdAccount[]>();
+
   for (const meta of metaAccounts) {
     const norm = normalizeAccountName(meta.name);
     if (norm) {
@@ -106,14 +177,35 @@ export function unifyAccounts(
       existing.push(meta);
       metaByNameMap.set(norm, existing);
     }
+    const stem = stemAccountName(meta.name);
+    if (stem) {
+      const existing = metaByStemMap.get(stem) || [];
+      existing.push(meta);
+      metaByStemMap.set(stem, existing);
+    }
   }
 
   // 2. Iterate Google accounts and look for matches
   for (const gAcc of googleAccounts) {
     const normName = normalizeAccountName(gAcc.name);
-    const metaMatches = normName ? metaByNameMap.get(normName) : undefined;
-    // Find first unused Meta match
-    const metaMatch = metaMatches?.find((m) => !matchedMetaIds.has(m.id));
+    const stemName = stemAccountName(gAcc.name);
+
+    // Pass 1: Exact normalized match
+    let metaMatch = normName
+      ? metaByNameMap.get(normName)?.find((m) => !matchedMetaIds.has(m.id))
+      : undefined;
+
+    // Pass 2: Stemmed match (e.g. "xtech" vs "xtechs", "renewable" vs "renewables")
+    if (!metaMatch && stemName) {
+      metaMatch = metaByStemMap.get(stemName)?.find((m) => !matchedMetaIds.has(m.id));
+    }
+
+    // Pass 3: Fuzzy / Levenshtein distance match against remaining Meta accounts
+    if (!metaMatch && normName && normName.length >= 6) {
+      metaMatch = metaAccounts.find(
+        (m) => !matchedMetaIds.has(m.id) && isAccountMatch(gAcc.name, m.name),
+      );
+    }
 
     if (metaMatch) {
       matchedMetaIds.add(metaMatch.id);
