@@ -515,48 +515,7 @@ export default function ClientsDirectoryClient() {
     const stage = client.ghlPipelineStage;
     const lowerStage = (stage || "").toLowerCase();
 
-    if (
-      lowerStage.includes("won") ||
-      lowerStage.includes("active client") ||
-      client.status === "completed" ||
-      client.status === "active"
-    ) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          <CheckCircle2 className="h-3 w-3 text-emerald-500" />{" "}
-          {stage || "Active Client"}
-        </span>
-      );
-    }
-
-    if (lowerStage.includes("meeting")) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-          <Calendar className="h-3 w-3 text-blue-500" /> {stage}
-        </span>
-      );
-    }
-
-    if (
-      lowerStage.includes("follow up") ||
-      lowerStage.includes("awaiting") ||
-      lowerStage.includes("post appt")
-    ) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
-          <Clock className="h-3 w-3 text-purple-500" /> {stage}
-        </span>
-      );
-    }
-
-    if (lowerStage.includes("new lead") || lowerStage.includes("inquiry")) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-          <Zap className="h-3 w-3 text-amber-500" /> {stage}
-        </span>
-      );
-    }
-
+    // 1. Disqualified / Spam / Not a fit / Lost (Red badge)
     if (
       lowerStage.includes("spam") ||
       lowerStage.includes("not a fit") ||
@@ -570,7 +529,53 @@ export default function ClientsDirectoryClient() {
       );
     }
 
-    if (stage) {
+    // 2. Scheduled Meeting / Call Booked (Blue badge)
+    if (lowerStage.includes("meeting") || lowerStage.includes("booked")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          <Calendar className="h-3 w-3 text-blue-500" /> {stage}
+        </span>
+      );
+    }
+
+    // 3. Follow Up / Awaiting Response (Purple badge)
+    if (
+      lowerStage.includes("follow up") ||
+      lowerStage.includes("awaiting") ||
+      lowerStage.includes("post appt")
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
+          <Clock className="h-3 w-3 text-purple-500" /> {stage}
+        </span>
+      );
+    }
+
+    // 4. New Lead / Inbound Inquiry (Amber badge)
+    if (lowerStage.includes("new lead") || lowerStage.includes("inquiry")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+          <Zap className="h-3 w-3 text-amber-500" /> {stage}
+        </span>
+      );
+    }
+
+    // 5. Closed Won / Active Client (Green badge)
+    if (
+      lowerStage.includes("won") ||
+      lowerStage.includes("active client") ||
+      (!stage && (client.status === "completed" || client.status === "active"))
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <CheckCircle2 className="h-3 w-3 text-emerald-500" />{" "}
+          {stage || "Active Client"}
+        </span>
+      );
+    }
+
+    // 6. Other recognized custom pipeline stages (Indigo badge)
+    if (stage && stage !== "GHL Contact") {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
           {stage}
@@ -578,6 +583,7 @@ export default function ClientsDirectoryClient() {
       );
     }
 
+    // 7. General GHL Contact fallback (Slate neutral badge)
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
         GHL Contact

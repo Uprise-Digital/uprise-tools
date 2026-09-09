@@ -4,7 +4,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { callRecords, member } from "@/db/schema";
+import { callRecords, clientOnboardings, member } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import {
   analyzeCallAudioWithGemini,
