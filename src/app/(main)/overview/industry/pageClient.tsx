@@ -78,6 +78,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  Tooltip as UiTooltip,
+} from "@/components/ui/tooltip";
+import {
   getAllIndustries,
   getIndustryMeta,
   INDUSTRY_KEYS,
@@ -310,7 +316,7 @@ export default function IndustryAnalyticsClient() {
   return (
     <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
       {/* ── 1. HEADER & CONTROLS ── */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-600 bg-indigo-50 border border-indigo-200/60 px-2 py-0.5 rounded-full">
@@ -327,80 +333,94 @@ export default function IndustryAnalyticsClient() {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="flex items-center gap-2 max-w-full overflow-x-auto pb-1 sm:pb-0 sm:overflow-visible shrink-0">
           {/* Platform Filter Toggle */}
-          <div className="flex items-center bg-slate-200/80 p-1 rounded-lg">
+          <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg shrink-0">
             <button
               type="button"
               onClick={() => setPlatformFilter("all")}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                 platformFilter === "all"
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              All Platforms
+              All
             </button>
             <button
               type="button"
               onClick={() => setPlatformFilter("google")}
-              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
                 platformFilter === "google"
                   ? "bg-white text-blue-700 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-              Google Ads
+              Google
             </button>
             <button
               type="button"
               onClick={() => setPlatformFilter("meta")}
-              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
                 platformFilter === "meta"
                   ? "bg-white text-sky-700 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-              Meta Ads
+              Meta
             </button>
           </div>
 
-          <Button
-            onClick={() => handleAutoClassify(false)}
-            disabled={isClassifying || loading}
-            variant="outline"
-            className="w-full sm:w-auto bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50 shadow-sm"
-          >
-            {isClassifying ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin text-indigo-600" />
-                Classifying...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4 mr-2 text-indigo-600" />{" "}
-                Auto-Classify with AI
-              </>
-            )}
-          </Button>
+          <TooltipProvider delayDuration={150}>
+            {/* Auto-Classify with AI (Icon Button) */}
+            <UiTooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={() => handleAutoClassify(false)}
+                  disabled={isClassifying || loading}
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50 shadow-sm shrink-0"
+                  aria-label="Auto-Classify with AI"
+                >
+                  {isClassifying ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 text-indigo-600" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Auto-Classify with AI</p>
+              </TooltipContent>
+            </UiTooltip>
 
-          <Button
-            onClick={fetchData}
-            disabled={loading}
-            variant="outline"
-            size="icon"
-            className="hidden sm:flex bg-white shrink-0 text-slate-600 hover:text-slate-900"
-            title="Refresh Data"
-          >
-            <RefreshCw
-              className={cn(
-                "h-4 w-4",
-                loading && "animate-spin text-indigo-600",
-              )}
-            />
-          </Button>
+            {/* Refresh Data (Icon Button) */}
+            <UiTooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={fetchData}
+                  disabled={loading}
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 bg-white shrink-0 text-slate-600 hover:text-slate-900 shadow-sm"
+                  aria-label="Refresh Data"
+                >
+                  <RefreshCw
+                    className={cn(
+                      "h-4 w-4",
+                      loading && "animate-spin text-indigo-600",
+                    )}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Refresh Data</p>
+              </TooltipContent>
+            </UiTooltip>
+          </TooltipProvider>
 
           <DateRangePicker
             startDate={startDate}
