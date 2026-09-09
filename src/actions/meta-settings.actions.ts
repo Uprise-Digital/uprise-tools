@@ -83,6 +83,7 @@ export async function getMetaAdAccountsAction() {
         timeZone: acc.timeZone,
         isActive: acc.isActive,
         accountStatus: acc.accountStatus,
+        clientOnboardingId: acc.clientOnboardingId || null,
         lastSyncedAt: acc.lastSyncedAt?.toISOString() || null,
         syncStatus: acc.syncStatus,
       })),

@@ -90,6 +90,7 @@ export interface ClientRecord {
   createdAt: Date;
   updatedAt: Date;
   adAccounts?: { id: number; name: string; googleAccountId: string }[];
+  metaAdAccounts?: { id: number; name: string; metaAccountId: string }[];
 }
 
 type TabType = "all" | "active" | "opportunities" | "onboarding" | "ghl";
@@ -1072,29 +1073,59 @@ export default function ClientsDirectoryClient() {
 
                     {/* Google / Meta Ads Access */}
                     <TableCell className="py-3">
-                      <div className="flex gap-1.5 flex-wrap">
-                        {client.googleAdsAccess && (
+                      <div className="flex flex-col gap-1">
+                        {client.adAccounts && client.adAccounts.length > 0 ? (
+                          client.adAccounts.map((acc) => (
+                            <span
+                              key={acc.id}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200"
+                              title={`Google: ${acc.name} (${acc.googleAccountId})`}
+                            >
+                              <span className="font-mono text-[9px] font-bold text-blue-800">G</span>
+                              <span className="truncate max-w-[120px]">{acc.name}</span>
+                            </span>
+                          ))
+                        ) : client.googleAdsAccess ? (
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
                               client.googleAdsStatus === "granted"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
                                 : "bg-slate-100 text-slate-500"
                             }`}
                           >
                             G-Ads: {client.googleAdsStatus}
                           </span>
-                        )}
-                        {client.metaAdsAccess && (
+                        ) : null}
+
+                        {client.metaAdAccounts && client.metaAdAccounts.length > 0 ? (
+                          client.metaAdAccounts.map((acc) => (
+                            <span
+                              key={acc.id}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200"
+                              title={`Meta: ${acc.name} (${acc.metaAccountId})`}
+                            >
+                              <span className="font-mono text-[9px] font-bold text-purple-800">M</span>
+                              <span className="truncate max-w-[120px]">{acc.name}</span>
+                            </span>
+                          ))
+                        ) : client.metaAdsAccess ? (
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
                               client.metaAdsStatus === "granted"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                ? "bg-purple-50 text-purple-700 border border-purple-200"
                                 : "bg-slate-100 text-slate-500"
                             }`}
                           >
                             Meta: {client.metaAdsStatus}
                           </span>
-                        )}
+                        ) : null}
+
+                        {!client.adAccounts?.length &&
+                          !client.metaAdAccounts?.length &&
+                          !client.googleAdsAccess &&
+                          !client.metaAdsAccess && (
+                            <span className="text-[10px] text-slate-400">None</span>
+                          )}
                       </div>
                     </TableCell>
 

@@ -196,6 +196,43 @@ describe("unifyAccounts", () => {
     expect(unified[0].platforms).toEqual(["google"]);
     expect(unified[1].platforms).toEqual(["meta"]);
   });
+
+  it("deterministically merges accounts with completely different names if linked to the same clientOnboardingId", () => {
+    const googleAccounts: BaseAdAccount[] = [
+      {
+        id: 186,
+        googleAccountId: "1862942268",
+        name: "Smooth Concrete",
+        currencyCode: "AUD",
+        isActive: true,
+        googleStatus: "ENABLED",
+        clientOnboardingId: 42,
+        industry: "CONSTRUCTION",
+      },
+    ];
+
+    const metaAccounts: BaseMetaAdAccount[] = [
+      {
+        id: 986,
+        metaAccountId: "act_9861781273932652",
+        name: "Smooth Ads",
+        currencyCode: "AUD",
+        timeZone: "Australia/Melbourne",
+        isActive: true,
+        accountStatus: 1,
+        clientOnboardingId: 42,
+      },
+    ];
+
+    const unified = unifyAccounts(googleAccounts, metaAccounts);
+
+    // They MUST merge because clientOnboardingId matches (42), despite names differing!
+    expect(unified).toHaveLength(1);
+    expect(unified[0].platforms).toEqual(["google", "meta"]);
+    expect(unified[0].googleAccountId).toBe("1862942268");
+    expect(unified[0].metaAccountId).toBe("act_9861781273932652");
+    expect(unified[0].clientOnboardingId).toBe(42);
+  });
 });
 
 

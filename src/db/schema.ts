@@ -212,6 +212,10 @@ export const metaAdAccounts = pgTable(
     }),
     industry: text("industry").default("OTHER"),
     subNiche: text("sub_niche"),
+    clientOnboardingId: integer("client_onboarding_id").references(
+      () => clientOnboardings.id,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   () => [
@@ -513,8 +517,16 @@ export const clientOnboardingRelations = relations(
       references: [organization.id],
     }),
     adAccounts: many(adAccounts),
+    metaAdAccounts: many(metaAdAccounts),
   }),
 );
+
+export const metaAdAccountRelations = relations(metaAdAccounts, ({ one }) => ({
+  clientOnboarding: one(clientOnboardings, {
+    fields: [metaAdAccounts.clientOnboardingId],
+    references: [clientOnboardings.id],
+  }),
+}));
 
 export const adAccountRelations = relations(adAccounts, ({ many, one }) => ({
   rules: many(alertRules),

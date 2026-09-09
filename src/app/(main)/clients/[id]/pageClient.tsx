@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { listAccountsAction } from "@/actions/agency.actions";
 import {
   associateAdAccountAction,
+  associateMetaAdAccountAction,
   deleteClientOnboardingAction,
   finalizeOnboardingAction,
   getClientEmailLogsAction,
@@ -48,6 +49,7 @@ import {
   sendOnboardingEmailAction,
   updateClientOnboardingAction,
 } from "@/actions/client-onboarding.actions";
+import { getMetaAdAccountsAction } from "@/actions/meta-settings.actions";
 import { getOnboardingSettingsAction } from "@/actions/onboarding-settings.actions";
 import ClientCallHistory from "@/components/clients/client-call-history";
 import { Button } from "@/components/ui/button";
@@ -90,6 +92,10 @@ export default function ClientDetailPageClient({
     { id: number; name: string; googleAccountId: string }[]
   >([]);
   const [selectedAdAccountId, setSelectedAdAccountId] = useState<string>("");
+  const [metaAdAccountsList, setMetaAdAccountsList] = useState<
+    { id: number; name: string; metaAccountId: string }[]
+  >([]);
+  const [selectedMetaAdAccountId, setSelectedMetaAdAccountId] = useState<string>("");
 
   // Edit Link States
   const [editDrive, setEditDrive] = useState("");
@@ -121,10 +127,11 @@ export default function ClientDetailPageClient({
   const loadClientDetails = useCallback(async () => {
     try {
       setLoading(true);
-      const [clientRes, settingsRes, adAccountsRes] = await Promise.all([
+      const [clientRes, settingsRes, adAccountsRes, metaAccountsRes] = await Promise.all([
         getClientOnboardingByIdAction(clientId),
         getOnboardingSettingsAction(),
         listAccountsAction(),
+        getMetaAdAccountsAction(),
       ]);
 
       if (clientRes.success && clientRes.client) {
@@ -138,8 +145,11 @@ export default function ClientDetailPageClient({
           setEmailLogs((clientRes as any).emailLogs);
         }
 
-        const linkedAcc = c.adAccounts?.[0];
-        setSelectedAdAccountId(linkedAcc ? String(linkedAcc.id) : "");
+        const linkedGoogle = c.adAccounts?.[0];
+        setSelectedAdAccountId(linkedGoogle ? String(linkedGoogle.id) : "");
+
+        const linkedMeta = (c as any).metaAdAccounts?.[0];
+        setSelectedMetaAdAccountId(linkedMeta ? String(linkedMeta.id) : "");
       } else {
         toast.error(clientRes.error || "Client record not found.");
       }
@@ -159,6 +169,16 @@ export default function ClientDetailPageClient({
             id: acc.id,
             name: acc.name,
             googleAccountId: acc.googleAccountId || acc.accountId || "",
+          })),
+        );
+      }
+
+      if (metaAccountsRes.success && metaAccountsRes.accounts) {
+        setMetaAdAccountsList(
+          metaAccountsRes.accounts.map((acc: any) => ({
+            id: acc.id,
+            name: acc.name,
+            metaAccountId: acc.metaAccountId || "",
           })),
         );
       }
@@ -386,13 +406,32 @@ export default function ClientDetailPageClient({
         accId ? parseInt(accId, 10) : null,
       );
       if (res.success) {
-        toast.success("Ad account linked successfully!");
+        toast.success("Google Ad account linked successfully!");
         await loadClientDetails();
       } else {
-        toast.error(res.error || "Failed to link ad account.");
+        toast.error(res.error || "Failed to link Google ad account.");
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to link ad account.");
+      toast.error(err.message || "Failed to link Google ad account.");
+    }
+  };
+
+  const handleAssociateMetaAccount = async (metaId: string) => {
+    if (!client) return;
+    setSelectedMetaAdAccountId(metaId);
+    try {
+      const res = await associateMetaAdAccountAction(
+        client.id,
+        metaId ? parseInt(metaId, 10) : null,
+      );
+      if (res.success) {
+        toast.success("Meta Ad account linked successfully!");
+        await loadClientDetails();
+      } else {
+        toast.error(res.error || "Failed to link Meta ad account.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to link Meta ad account.");
     }
   };
 
@@ -1286,32 +1325,91 @@ export default function ClientDetailPageClient({
               </p>
             </div>
 
-            <div className="max-w-md space-y-3">
-              <label className="block text-xs font-bold text-slate-700">
-                Linked Google Ads Account
-              </label>
-              <select
-                value={selectedAdAccountId}
-                onChange={(e) => handleAssociateAccount(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-500 cursor-pointer"
-              >
-                <option value="">-- No Account Linked --</option>
-                {adAccountsList.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} ({acc.googleAccountId})
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Google Ads Linking */}
+              <div className="space-y-3 bg-slate-50/60 p-4 rounded-xl border border-slate-200/70">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      Google
+                    </span>
+                    Linked Google Ads Account
+                  </label>
+                  {selectedAdAccountId && (
+                    <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Connected
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={selectedAdAccountId}
+                  onChange={(e) => handleAssociateAccount(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-500 cursor-pointer shadow-sm"
+                >
+                  <option value="">-- No Google Account Linked --</option>
+                  {adAccountsList.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} ({acc.googleAccountId})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500">
+                  Links this client to your Google Ads MCC account for search terms, negatives & briefing audits.
+                </p>
+              </div>
+
+              {/* Meta Ads Linking */}
+              <div className="space-y-3 bg-slate-50/60 p-4 rounded-xl border border-slate-200/70">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                      Meta
+                    </span>
+                    Linked Meta Ads Account
+                  </label>
+                  {selectedMetaAdAccountId && (
+                    <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Connected
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={selectedMetaAdAccountId}
+                  onChange={(e) => handleAssociateMetaAccount(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-500 cursor-pointer shadow-sm"
+                >
+                  <option value="">-- No Meta Account Linked --</option>
+                  {metaAdAccountsList.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} ({acc.metaAccountId})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500">
+                  Links this client to your Meta Business account for cross-platform blended reporting.
+                </p>
+              </div>
             </div>
 
-            {selectedAdAccountId && (
+            {(selectedAdAccountId || selectedMetaAdAccountId) && (
               <div className="pt-4 border-t border-slate-100 space-y-3">
-                <h4 className="text-xs font-bold text-slate-800">
-                  Quick Client Actions & Audits
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-800">
+                    Quick Client Actions & Cross-Platform Portfolios
+                  </h4>
+                  {selectedAdAccountId && selectedMetaAdAccountId && (
+                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[10px] font-bold flex items-center gap-1">
+                      <Sparkles className="h-3 w-3 text-indigo-500" /> Blended Dual-Platform Active
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <Link
-                    href={`/accounts/${selectedAdAccountId}`}
+                    href={
+                      selectedAdAccountId
+                        ? `/accounts/${selectedAdAccountId}`
+                        : `/overview/industry`
+                    }
                     className="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl text-xs font-semibold text-slate-700 hover:text-indigo-700 transition-all flex items-center justify-between"
                   >
                     <span>View Performance Dashboard</span>
@@ -1319,20 +1417,30 @@ export default function ClientDetailPageClient({
                   </Link>
 
                   <Link
-                    href={`/accounts/${selectedAdAccountId}/negatives`}
+                    href="/overview/industry"
                     className="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl text-xs font-semibold text-slate-700 hover:text-indigo-700 transition-all flex items-center justify-between"
                   >
-                    <span>Negative Keyword Harvester</span>
-                    <Zap className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Industry & Peer Benchmarks</span>
+                    <Layers className="h-3.5 w-3.5 text-indigo-500" />
                   </Link>
 
-                  <Link
-                    href={`/lp-analysis`}
-                    className="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl text-xs font-semibold text-slate-700 hover:text-indigo-700 transition-all flex items-center justify-between"
-                  >
-                    <span>Run Landing Page CRO Audit</span>
-                    <Flame className="h-3.5 w-3.5 text-rose-500" />
-                  </Link>
+                  {selectedAdAccountId ? (
+                    <Link
+                      href={`/accounts/${selectedAdAccountId}/negatives`}
+                      className="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl text-xs font-semibold text-slate-700 hover:text-indigo-700 transition-all flex items-center justify-between"
+                    >
+                      <span>Negative Keyword Harvester</span>
+                      <Zap className="h-3.5 w-3.5 text-amber-500" />
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`/lp-analysis`}
+                      className="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl text-xs font-semibold text-slate-700 hover:text-indigo-700 transition-all flex items-center justify-between"
+                    >
+                      <span>Run Landing Page CRO Audit</span>
+                      <Flame className="h-3.5 w-3.5 text-rose-500" />
+                    </Link>
+                  )}
                 </div>
               </div>
             )}

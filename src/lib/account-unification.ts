@@ -7,6 +7,7 @@ export interface BaseAdAccount {
   googleStatus: string;
   industry?: string | null;
   subNiche?: string | null;
+  clientOnboardingId?: number | null;
   reportSchedules?: any[];
   emailLogs?: any[];
   createdAt?: Date | string | null;
@@ -28,6 +29,7 @@ export interface BaseMetaAdAccount {
   monthlyBudgetCap?: string | null;
   industry?: string | null;
   subNiche?: string | null;
+  clientOnboardingId?: number | null;
   createdAt?: Date | string | null;
 }
 
@@ -40,6 +42,9 @@ export interface UnifiedAccountRow {
   // Primary platform reference (for detail routes / actions)
   primaryId: number;
   primaryPlatform: "google" | "meta";
+
+  // Client link reference
+  clientOnboardingId?: number | null;
 
   // Google Ads details (if available)
   googleId?: number;
@@ -189,11 +194,17 @@ export function unifyAccounts(
   const unifiedList: UnifiedAccountRow[] = [];
   const matchedMetaIds = new Set<number>();
 
-  // 1. Index Meta accounts by normalized name and stem name
+  // 1. Index Meta accounts by clientOnboardingId, normalized name, and stem name
+  const metaByClientIdMap = new Map<number, BaseMetaAdAccount[]>();
   const metaByNameMap = new Map<string, BaseMetaAdAccount[]>();
   const metaByStemMap = new Map<string, BaseMetaAdAccount[]>();
 
   for (const meta of metaAccounts) {
+    if (meta.clientOnboardingId) {
+      const existing = metaByClientIdMap.get(meta.clientOnboardingId) || [];
+      existing.push(meta);
+      metaByClientIdMap.set(meta.clientOnboardingId, existing);
+    }
     const norm = normalizeAccountName(meta.name);
     if (norm) {
       const existing = metaByNameMap.get(norm) || [];
@@ -213,10 +224,17 @@ export function unifyAccounts(
     const normName = normalizeAccountName(gAcc.name);
     const stemName = stemAccountName(gAcc.name);
 
-    // Pass 1: Exact normalized match
-    let metaMatch = normName
-      ? metaByNameMap.get(normName)?.find((m) => !matchedMetaIds.has(m.id))
+    // Pass 0: Explicit Client Association (Source of Truth!)
+    let metaMatch = gAcc.clientOnboardingId
+      ? metaByClientIdMap
+          .get(gAcc.clientOnboardingId)
+          ?.find((m) => !matchedMetaIds.has(m.id))
       : undefined;
+
+    // Pass 1: Exact normalized match
+    if (!metaMatch && normName) {
+      metaMatch = metaByNameMap.get(normName)?.find((m) => !matchedMetaIds.has(m.id));
+    }
 
     // Pass 2: Stemmed match (e.g. "xtech" vs "xtechs", "renewable" vs "renewables")
     if (!metaMatch && stemName) {
@@ -224,7 +242,7 @@ export function unifyAccounts(
     }
 
     // Pass 3: Fuzzy / Levenshtein distance match against remaining Meta accounts
-    if (!metaMatch && normName && normName.length >= 6) {
+    if (!metaMatch && normName && normName.length >= 8) {
       metaMatch = metaAccounts.find(
         (m) => !matchedMetaIds.has(m.id) && isAccountMatch(gAcc.name, m.name),
       );
@@ -238,6 +256,7 @@ export function unifyAccounts(
         platforms: ["google", "meta"],
         primaryId: gAcc.id,
         primaryPlatform: "google",
+        clientOnboardingId: gAcc.clientOnboardingId || metaMatch.clientOnboardingId || null,
         googleId: gAcc.id,
         googleAccountId: gAcc.googleAccountId,
         googleStatus: gAcc.googleStatus,
@@ -263,6 +282,7 @@ export function unifyAccounts(
         platforms: ["google"],
         primaryId: gAcc.id,
         primaryPlatform: "google",
+        clientOnboardingId: gAcc.clientOnboardingId || null,
         googleId: gAcc.id,
         googleAccountId: gAcc.googleAccountId,
         googleStatus: gAcc.googleStatus,
@@ -285,6 +305,7 @@ export function unifyAccounts(
         platforms: ["meta"],
         primaryId: meta.id,
         primaryPlatform: "meta",
+        clientOnboardingId: meta.clientOnboardingId || null,
         metaId: meta.id,
         metaAccountId: meta.metaAccountId,
         metaAccountStatus: meta.accountStatus,

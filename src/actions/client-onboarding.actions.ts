@@ -12,6 +12,7 @@ import {
   clientOnboardings,
   emailLogs,
   member,
+  metaAdAccounts,
   organization,
   organizationOnboardingSettings,
 } from "@/db/schema";
@@ -81,15 +82,16 @@ export async function getClientOnboardingsAction() {
     const { orgId } = await getSessionOrgId();
     if (!orgId) return { success: false, error: "No active organization" };
 
-    // Auto-migrate new GHL columns if missing in Postgres DB schema
+    // Auto-migrate new columns if missing in Postgres DB schema
     try {
       await db.execute(
         sql`ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_sub_account_id" text;
             ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_status" text DEFAULT 'pending';
-            ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_error" text;`,
+            ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_error" text;
+            ALTER TABLE "meta_ad_accounts" ADD COLUMN IF NOT EXISTS "client_onboarding_id" integer REFERENCES "client_onboardings"("id") ON DELETE SET NULL;`,
       );
     } catch (migErr) {
-      console.warn("GHL columns migration check warning:", migErr);
+      console.warn("DB columns migration check warning:", migErr);
     }
 
     let records: any[] = [];
@@ -99,6 +101,7 @@ export async function getClientOnboardingsAction() {
         orderBy: [desc(clientOnboardings.createdAt)],
         with: {
           adAccounts: true,
+          metaAdAccounts: true,
         },
       });
     } catch (queryErr) {
@@ -296,7 +299,7 @@ export async function deleteClientOnboardingAction(id: number) {
 }
 
 /**
- * Links or unlinks a connected Ad Account to a client record.
+ * Links or unlinks a connected Google Ad Account to a client record.
  */
 export async function associateAdAccountAction(
   clientId: number,
@@ -326,9 +329,51 @@ export async function associateAdAccountAction(
     );
 
     revalidatePath("/clients");
+    revalidatePath("/accounts");
+    revalidatePath("/overview/industry");
     return { success: true };
   } catch (error: any) {
     console.error("associateAdAccountAction error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Links or unlinks a connected Meta Ad Account to a client record.
+ */
+export async function associateMetaAdAccountAction(
+  clientId: number,
+  metaAdAccountId: number | null,
+) {
+  try {
+    const { userId } = await getSessionOrgId();
+
+    if (metaAdAccountId === null) {
+      await db
+        .update(metaAdAccounts)
+        .set({ clientOnboardingId: null })
+        .where(eq(metaAdAccounts.clientOnboardingId, clientId));
+    } else {
+      await db
+        .update(metaAdAccounts)
+        .set({ clientOnboardingId: clientId })
+        .where(eq(metaAdAccounts.id, metaAdAccountId));
+    }
+
+    await logAction(
+      userId,
+      "ASSOCIATE_META_AD_ACCOUNT",
+      "meta_ad_accounts",
+      metaAdAccountId || clientId,
+      { clientId, metaAdAccountId },
+    );
+
+    revalidatePath("/clients");
+    revalidatePath("/accounts");
+    revalidatePath("/overview/industry");
+    return { success: true };
+  } catch (error: any) {
+    console.error("associateMetaAdAccountAction error:", error);
     return { success: false, error: error.message };
   }
 }
@@ -1177,6 +1222,7 @@ export async function getClientOnboardingByIdAction(clientId: number) {
       ),
       with: {
         adAccounts: true,
+        metaAdAccounts: true,
       },
     });
 
