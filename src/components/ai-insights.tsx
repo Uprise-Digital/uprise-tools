@@ -3,7 +3,9 @@
 import {
   AlertTriangle,
   BarChart2,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock,
   Database,
   Loader2,
@@ -142,6 +144,7 @@ export function AiInsights({
 }) {
   const [insights, setInsights] = useState<Insights | null>(null);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Split loading states so we don't clear the UI when just refreshing
   const [isInitialLoading, setIsInitialLoading] = useState(false);
@@ -240,238 +243,282 @@ export function AiInsights({
   return (
     <div className="my-8 space-y-3 font-sans">
       {/* ── Meta Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-5 px-1">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-3 px-1">
+        <div
+          onClick={() => setIsCollapsed((prev) => !prev)}
+          className="cursor-pointer select-none group"
+        >
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 group-hover:text-blue-600 transition-colors">
             <Sparkles className="h-4 w-4 text-blue-600" /> Strategic
             Intelligence
+            <span className="text-slate-400 group-hover:text-blue-600 transition-colors">
+              {isCollapsed ? (
+                <ChevronDown className="h-4 w-4 ml-1" />
+              ) : (
+                <ChevronUp className="h-4 w-4 ml-1" />
+              )}
+            </span>
           </h2>
           {/* Data Provenance */}
           <div className="flex items-center gap-1.5 mt-1 text-xs font-medium text-slate-500">
             <Database className="h-3 w-3" />
             Google Ads • {formatShortDate(startDate)} to{" "}
             {formatShortDate(endDate)}
-          </div>
-        </div>
-
-        {generatedAt && (
-          <div className="flex items-center gap-2">
-            {/* Generation Time */}
-            <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-slate-500">
-              <Clock className="h-3 w-3" />
-              {formatTimeAgo(generatedAt)}
-            </div>
-            {/* Refresh IconButton */}
-            <button
-              onClick={() => fetchData(true)}
-              disabled={isRefreshing}
-              title="Regenerate Insights"
-              className="p-1.5 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${isRefreshing ? "animate-spin text-blue-600" : ""}`}
-              />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── Executive Summary ── */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm relative overflow-hidden">
-        {isRefreshing && (
-          <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10" />
-        )}
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 border border-blue-100">
-            <BarChart2 className="h-3.5 w-3.5 text-blue-600" />
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold tracking-widest uppercase text-slate-400 mb-1.5">
-              Executive Summary
-            </p>
-            <p className="text-sm leading-relaxed text-slate-700">
-              {executive_summary}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Row: Diagnostics + Campaigns ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 relative">
-        {isRefreshing && (
-          <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 rounded-xl" />
-        )}
-
-        {/* CPA Diagnostics */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-5">
-            <BarChart2 className="h-4 w-4 text-slate-400" />
-            <SectionLabel>Diagnostics</SectionLabel>
-          </div>
-
-          {/* Highlight Callout Box (Fixes the massive bold text issue) */}
-          <div className="mb-6 rounded-lg bg-indigo-50/50 border border-indigo-100 p-4">
-            <div className="mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-100/80 px-2 py-0.5 rounded">
-                CPA Variance Insight
+            {isCollapsed && (
+              <span className="text-[11px] text-slate-400 italic ml-2">
+                (Click to expand)
               </span>
-            </div>
-            <p className="text-sm font-medium leading-relaxed text-slate-800">
-              {cpa_dynamics?.variance_pct}
-            </p>
-          </div>
-
-          {/* Deep-Dive Analysis Section */}
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Primary Driver
-              </h4>
-              <p className="text-sm font-medium leading-relaxed text-slate-700">
-                {cpa_dynamics?.primary_driver}
-              </p>
-            </div>
-
-            <div className="h-px w-full bg-slate-100"></div>
-
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Causal Analysis
-              </h4>
-              <p className="text-sm leading-relaxed text-slate-500">
-                {cpa_dynamics?.causal_analysis}
-              </p>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Campaign Vectors */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <Target className="h-4 w-4 text-slate-400" />
-            <SectionLabel>Campaign Efficiency</SectionLabel>
+        <div className="flex items-center gap-2">
+          {generatedAt && (
+            <>
+              {/* Generation Time */}
+              <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-md text-[10px] font-semibold text-slate-500">
+                <Clock className="h-3 w-3" />
+                {formatTimeAgo(generatedAt)}
+              </div>
+              {/* Refresh IconButton */}
+              <button
+                onClick={() => fetchData(true)}
+                disabled={isRefreshing}
+                title="Regenerate Insights"
+                className="p-1.5 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${isRefreshing ? "animate-spin text-blue-600" : ""}`}
+                />
+              </button>
+            </>
+          )}
+
+          {/* Collapse/Expand Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setIsCollapsed((prev) => !prev)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
+            title={isCollapsed ? "Expand Insights" : "Collapse Insights"}
+          >
+            {isCollapsed ? (
+              <>
+                <ChevronDown className="h-3.5 w-3.5" />
+                <span>Show</span>
+              </>
+            ) : (
+              <>
+                <ChevronUp className="h-3.5 w-3.5" />
+                <span>Hide</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {!isCollapsed && (
+        <>
+          {/* ── Executive Summary ── */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm relative overflow-hidden">
+            {isRefreshing && (
+              <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10" />
+            )}
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 border border-blue-100">
+                <BarChart2 className="h-3.5 w-3.5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold tracking-widest uppercase text-slate-400 mb-1.5">
+                  Executive Summary
+                </p>
+                <p className="text-sm leading-relaxed text-slate-700">
+                  {executive_summary}
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-2.5">
-            {campaign_performance_vectors?.map((c, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between gap-3 py-2 border-b border-slate-100 last:border-0"
-              >
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-slate-800 truncate">
-                    {c.campaign_name}
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    {c.contribution_weight} of spend
+          {/* ── Row: Diagnostics + Campaigns ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 relative">
+            {isRefreshing && (
+              <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 rounded-xl" />
+            )}
+
+            {/* CPA Diagnostics */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-5">
+                <BarChart2 className="h-4 w-4 text-slate-400" />
+                <SectionLabel>Diagnostics</SectionLabel>
+              </div>
+
+              {/* Highlight Callout Box (Fixes the massive bold text issue) */}
+              <div className="mb-6 rounded-lg bg-indigo-50/50 border border-indigo-100 p-4">
+                <div className="mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-100/80 px-2 py-0.5 rounded">
+                    CPA Variance Insight
+                  </span>
+                </div>
+                <p className="text-sm font-medium leading-relaxed text-slate-800">
+                  {cpa_dynamics?.variance_pct}
+                </p>
+              </div>
+
+              {/* Deep-Dive Analysis Section */}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                    Primary Driver
+                  </h4>
+                  <p className="text-sm font-medium leading-relaxed text-slate-700">
+                    {cpa_dynamics?.primary_driver}
                   </p>
                 </div>
-                <EfficiencyBadge score={c.efficiency_score} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* ── Row: Forecasting + Action Plan ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 relative">
-        {isRefreshing && (
-          <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 rounded-xl" />
-        )}
+                <div className="h-px w-full bg-slate-100"></div>
 
-        {/* Forecasting */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-4 w-4 text-slate-400" />
-            <SectionLabel>Predictive Forecast</SectionLabel>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {[
-              { label: "Proj. Spend", value: pacing_metrics?.projected_spend },
-              {
-                label: "Proj. Conv.",
-                value: pacing_metrics?.projected_conversions,
-              },
-              { label: "Pacing Δ", value: pacing_metrics?.pacing_delta },
-            ].map((m, i) => (
-              <div
-                key={i}
-                className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-center overflow-hidden"
-              >
-                <p className="text-[10px] text-slate-400 mb-0.5 truncate">
-                  {m.label}
-                </p>
-                <p className="text-sm font-bold text-slate-900 leading-tight truncate">
-                  {m.value}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 mb-0.5">
-              Budget Health
-            </p>
-            <p className="text-xs text-amber-800">{budget_health}</p>
-          </div>
-        </div>
-
-        {/* Top Action */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col">
-          <div className="flex items-center gap-2 mb-4">
-            <Zap className="h-4 w-4 text-slate-400" />
-            <SectionLabel>Priority Action</SectionLabel>
-          </div>
-
-          <div className="rounded-lg bg-slate-900 text-white px-4 py-3 mb-4">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
-              Top Action Item
-            </p>
-            <p className="text-xs leading-relaxed font-medium">
-              {top_action_item}
-            </p>
-          </div>
-
-          <p className="text-[10px] text-slate-500 leading-relaxed">
-            {technical_reasoning}
-          </p>
-        </div>
-      </div>
-
-      {/* ── Strategic Moves ── */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm relative">
-        {isRefreshing && (
-          <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 rounded-xl" />
-        )}
-        <div className="flex items-center gap-2 mb-4">
-          <ChevronRight className="h-4 w-4 text-slate-400" />
-          <SectionLabel>Strategic Moves</SectionLabel>
-        </div>
-
-        <div className="space-y-2">
-          {strategic_moves?.map((move, i) => (
-            <div
-              key={i}
-              className="flex gap-3 items-start rounded-lg hover:bg-slate-50 px-3 py-2.5 transition-colors -mx-3"
-            >
-              <div className="mt-0.5 w-8 shrink-0 text-right">
-                <PriorityBadge priority={move.priority} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-slate-800 leading-snug">
-                  {move.action}
-                </p>
-                {move.expected_impact && (
-                  <p className="text-[10px] text-emerald-600 mt-0.5">
-                    ↗ {move.expected_impact}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                    Causal Analysis
+                  </h4>
+                  <p className="text-sm leading-relaxed text-slate-500">
+                    {cpa_dynamics?.causal_analysis}
                   </p>
-                )}
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+
+            {/* Campaign Vectors */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <Target className="h-4 w-4 text-slate-400" />
+                <SectionLabel>Campaign Efficiency</SectionLabel>
+              </div>
+
+              <div className="space-y-2.5">
+                {campaign_performance_vectors?.map((c, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-3 py-2 border-b border-slate-100 last:border-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-800 truncate">
+                        {c.campaign_name}
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        {c.contribution_weight} of spend
+                      </p>
+                    </div>
+                    <EfficiencyBadge score={c.efficiency_score} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Row: Forecasting + Action Plan ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 relative">
+            {isRefreshing && (
+              <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 rounded-xl" />
+            )}
+
+            {/* Forecasting */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="h-4 w-4 text-slate-400" />
+                <SectionLabel>Predictive Forecast</SectionLabel>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                {[
+                  {
+                    label: "Proj. Spend",
+                    value: pacing_metrics?.projected_spend,
+                  },
+                  {
+                    label: "Proj. Conv.",
+                    value: pacing_metrics?.projected_conversions,
+                  },
+                  { label: "Pacing Δ", value: pacing_metrics?.pacing_delta },
+                ].map((m, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-center overflow-hidden"
+                  >
+                    <p className="text-[10px] text-slate-400 mb-0.5 truncate">
+                      {m.label}
+                    </p>
+                    <p className="text-sm font-bold text-slate-900 leading-tight truncate">
+                      {m.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 mb-0.5">
+                  Budget Health
+                </p>
+                <p className="text-xs text-amber-800">{budget_health}</p>
+              </div>
+            </div>
+
+            {/* Top Action */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col">
+              <div className="flex items-center gap-2 mb-4">
+                <Zap className="h-4 w-4 text-slate-400" />
+                <SectionLabel>Priority Action</SectionLabel>
+              </div>
+
+              <div className="rounded-lg bg-slate-900 text-white px-4 py-3 mb-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+                  Top Action Item
+                </p>
+                <p className="text-xs leading-relaxed font-medium">
+                  {top_action_item}
+                </p>
+              </div>
+
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                {technical_reasoning}
+              </p>
+            </div>
+          </div>
+
+          {/* ── Strategic Moves ── */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm relative">
+            {isRefreshing && (
+              <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 rounded-xl" />
+            )}
+            <div className="flex items-center gap-2 mb-4">
+              <ChevronRight className="h-4 w-4 text-slate-400" />
+              <SectionLabel>Strategic Moves</SectionLabel>
+            </div>
+
+            <div className="space-y-2">
+              {strategic_moves?.map((move, i) => (
+                <div
+                  key={i}
+                  className="flex gap-3 items-start rounded-lg hover:bg-slate-50 px-3 py-2.5 transition-colors -mx-3"
+                >
+                  <div className="mt-0.5 w-8 shrink-0 text-right">
+                    <PriorityBadge priority={move.priority} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-slate-800 leading-snug">
+                      {move.action}
+                    </p>
+                    {move.expected_impact && (
+                      <p className="text-[10px] text-emerald-600 mt-0.5">
+                        ↗ {move.expected_impact}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
