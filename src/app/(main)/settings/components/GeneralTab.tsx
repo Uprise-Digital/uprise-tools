@@ -643,7 +643,7 @@ export function GeneralTab({
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start animate-in fade-in duration-200">
       <div className="lg:col-span-2 space-y-6">
         {/* GOOGLE ADS CONNECTION CARD */}
-        <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
+        <Card className="gap-0 py-0 border-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
             <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
               <Database className="w-4 h-4 text-indigo-500" />
@@ -654,7 +654,7 @@ export function GeneralTab({
               connection.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-5 sm:p-6">
             {connection ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 p-4 bg-emerald-55 border border-emerald-200 text-emerald-900 rounded-xl">
@@ -858,7 +858,7 @@ export function GeneralTab({
         </Card>
 
         {/* META BUSINESS API CONNECTION CARD */}
-        <Card className="py-0 border-slate-200 shadow-sm overflow-hidden">
+        <Card className="gap-0 py-0 border-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
             <div className="flex items-center justify-between">
               <div>
@@ -888,7 +888,7 @@ export function GeneralTab({
               )}
             </div>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-5 sm:p-6">
             {metaConnection ? (
               <div className="space-y-6">
                 <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl">
