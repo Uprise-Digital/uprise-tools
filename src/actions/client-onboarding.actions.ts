@@ -1639,20 +1639,6 @@ export async function getCrmDirectoryDataAction() {
     const { orgId } = await getSessionOrgId();
     if (!orgId) return { success: false as const, error: "No active organization" };
 
-    // Auto-migrate if clients table is empty but client_onboardings has records
-    const existingClientsCount = await db.query.clients.findFirst({
-      where: eq(clients.organizationId, orgId),
-    });
-    if (!existingClientsCount) {
-      const rawCount = await db.query.clientOnboardings.findFirst({
-        where: eq(clientOnboardings.organizationId, orgId),
-      });
-      if (rawCount) {
-        console.log("[getCrmDirectoryDataAction] No canonical clients found, running migration...");
-        await migrateGhlRecordsToClientsAndContactsAction();
-      }
-    }
-
     // 1. Fetch canonical clients
     let clientsList: any[] = [];
     try {

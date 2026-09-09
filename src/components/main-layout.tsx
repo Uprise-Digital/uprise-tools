@@ -74,7 +74,7 @@ const navItems: NavItem[] = [
     ],
   },
   { href: "/clients", label: "Clients", icon: Building2 },
-  { href: "/clients?view=contacts", label: "Contacts", icon: Users },
+  { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/accounts", label: "Ad Accounts", icon: BarChart3 },
   { href: "/lp-analysis", label: "LP Analysis", icon: Globe },
   { href: "/ad-audit", label: "Ad Copy", icon: Sparkles },
@@ -174,12 +174,7 @@ function NavLinksList({
           );
         }
 
-        let isActive = isParentActive;
-        if (item.href === "/clients?view=contacts") {
-          isActive = pathname === "/clients" && currentView === "contacts";
-        } else if (item.href === "/clients") {
-          isActive = pathname === "/clients" && currentView !== "contacts";
-        }
+        const isActive = isParentActive;
 
         return (
           <Link
@@ -354,6 +349,7 @@ export function MainLayout({
             {pathname === "/overview/industry" &&
               "Dashboard / Overview / Industry Benchmarks"}
             {pathname?.startsWith("/clients") && "Dashboard / Clients"}
+            {pathname?.startsWith("/contacts") && "Dashboard / Contacts"}
             {pathname?.startsWith("/accounts") && "Dashboard / Ad Accounts"}
             {pathname?.startsWith("/lp-analysis") && "Dashboard / LP Analysis"}
             {pathname?.startsWith("/ad-audit") &&
