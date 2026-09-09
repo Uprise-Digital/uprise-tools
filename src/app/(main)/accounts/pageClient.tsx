@@ -20,7 +20,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { syncAdAccountsAction } from "@/actions/ads.actions";
 import { getAgencyPortfolioMetricsAction } from "@/actions/agency.actions";
-import { syncMetaAdAccountsAction } from "@/actions/meta-settings.actions";
+import {
+  getMetaAccountsPerformanceAction,
+  syncMetaAdAccountsAction,
+} from "@/actions/meta-settings.actions";
 import { ReportAutomationTrigger } from "@/components/reportAutomationTrigger";
 import { SyncButton } from "@/components/sync-button";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +73,7 @@ export default function AccountsClientPage({
 
   // 2. Performance Metrics State
   const [portfolio, setPortfolio] = useState<any>(null);
+  const [metaMetricsMap, setMetaMetricsMap] = useState<Record<string, any>>({});
   const [loadingMetrics, setLoadingMetrics] = useState(false);
 
   // 3. Platform & Channel Drill-Down State
@@ -146,14 +150,28 @@ export default function AccountsClientPage({
     };
   };
 
-  // Load Performance Metrics Client-Side
+  // Load Performance Metrics Client-Side (both Google Ads & Meta Ads)
   useEffect(() => {
     let isMounted = true;
     setLoadingMetrics(true);
-    getAgencyPortfolioMetricsAction(startDate, endDate)
-      .then((res) => {
-        if (isMounted && res.success) {
-          setPortfolio(res.data);
+
+    Promise.all([
+      getAgencyPortfolioMetricsAction(startDate, endDate),
+      getMetaAccountsPerformanceAction(startDate, endDate),
+    ])
+      .then(([googleRes, metaRes]) => {
+        if (!isMounted) return;
+
+        if (googleRes.success) {
+          setPortfolio(googleRes.data);
+        }
+
+        if (metaRes.success && Array.isArray(metaRes.breakdown)) {
+          const map: Record<string, any> = {};
+          for (const m of metaRes.breakdown) {
+            map[m.metaAccountId] = m;
+          }
+          setMetaMetricsMap(map);
         }
       })
       .catch((e) => {
@@ -185,14 +203,18 @@ export default function AccountsClientPage({
     const gClicks = gMetrics ? Number(gMetrics.clicks || 0) : 0;
     const gImpressions = gMetrics ? Number(gMetrics.impressions || 0) : 0;
 
-    // Meta channel metrics placeholder (0 until Meta daily insights sync is added)
-    const mSpend = 0;
-    const mConversions = 0;
-    const mClicks = 0;
-    const mImpressions = 0;
-    const mCpa = 0;
-    const mCtr = 0;
-    const mCpc = 0;
+    // Look up live Meta metrics if present
+    const mMetrics = acc.metaAccountId
+      ? metaMetricsMap[acc.metaAccountId]
+      : null;
+
+    const mSpend = mMetrics ? Number(mMetrics.spend || 0) : 0;
+    const mConversions = mMetrics ? Number(mMetrics.conversions || 0) : 0;
+    const mClicks = mMetrics ? Number(mMetrics.clicks || 0) : 0;
+    const mImpressions = mMetrics ? Number(mMetrics.impressions || 0) : 0;
+    const mCpa = mConversions > 0 ? mSpend / mConversions : 0;
+    const mCtr = mImpressions > 0 ? (mClicks / mImpressions) * 100 : 0;
+    const mCpc = mClicks > 0 ? mSpend / mClicks : 0;
 
     // Blended calculations
     const totalSpend = gSpend + mSpend;
@@ -200,10 +222,20 @@ export default function AccountsClientPage({
     const totalClicks = gClicks + mClicks;
     const totalImpressions = gImpressions + mImpressions;
 
-    const cpa = totalConversions > 0 ? totalSpend / totalConversions : gCpa;
+    const cpa =
+      totalConversions > 0
+        ? totalSpend / totalConversions
+        : gSpend > 0
+          ? gCpa
+          : mCpa;
     const ctr =
-      totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : gCtr;
-    const cpc = totalClicks > 0 ? totalSpend / totalClicks : gCpc;
+      totalImpressions > 0
+        ? (totalClicks / totalImpressions) * 100
+        : gImpressions > 0
+          ? gCtr
+          : mCtr;
+    const cpc =
+      totalClicks > 0 ? totalSpend / totalClicks : gClicks > 0 ? gCpc : mCpc;
 
     const blendedCpa = portfolio?.agencyTotals?.cpa || 0;
     const risk = getChurnRisk(

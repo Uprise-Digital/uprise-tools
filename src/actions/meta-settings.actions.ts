@@ -424,3 +424,133 @@ export async function updateMetaAutoSyncSettingsAction(
     };
   }
 }
+
+/**
+ * Fetches aggregate performance metrics (spend, conversions, clicks, impressions)
+ * for all synced Meta accounts in the specified date range via Meta Graph API /insights.
+ */
+export async function getMetaAccountsPerformanceAction(
+  startDate: string,
+  endDate: string,
+) {
+  const ctx = await getAuthOrgContext();
+
+  if (!ctx) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const orgId = ctx.orgId;
+
+  try {
+    const connection = await db.query.metaAdsConnections.findFirst({
+      where: eq(metaAdsConnections.organizationId, orgId),
+    });
+
+    if (!connection) {
+      return { success: true, breakdown: [] };
+    }
+
+    const accounts = await db.query.metaAdAccounts.findMany({
+      where: eq(metaAdAccounts.organizationId, orgId),
+    });
+
+    if (accounts.length === 0) {
+      return { success: true, breakdown: [] };
+    }
+
+    const rawToken = decryptToken(connection.accessToken);
+
+    // Query Meta Graph API insights for each account concurrently in batches
+    const timeRangeParam = encodeURIComponent(
+      JSON.stringify({ since: startDate, until: endDate }),
+    );
+
+    const breakdown = await Promise.all(
+      accounts.map(async (acc) => {
+        try {
+          const actId = `act_${acc.metaAccountId}`;
+          const url = `https://graph.facebook.com/v19.0/${actId}/insights?fields=spend,clicks,impressions,cpc,ctr,actions&time_range=${timeRangeParam}&access_token=${encodeURIComponent(rawToken)}`;
+
+          const res = await fetch(url);
+          const data = await res.json();
+
+          if (Array.isArray(data?.data) && data.data.length > 0) {
+            const ins = data.data[0];
+            const spend = parseFloat(ins.spend || "0");
+            const clicks = parseInt(ins.clicks || "0", 10);
+            const impressions = parseInt(ins.impressions || "0", 10);
+
+            // Extract total conversions from actions array (purchases, leads, offsite conversions)
+            let conversions = 0;
+            if (Array.isArray(ins.actions)) {
+              for (const action of ins.actions) {
+                const actionType = action.action_type || "";
+                if (
+                  actionType.includes("purchase") ||
+                  actionType.includes("lead") ||
+                  actionType.includes("conversion") ||
+                  actionType.includes("complete_registration") ||
+                  actionType === "onsite_conversion.lead_grouped"
+                ) {
+                  conversions += parseInt(action.value || "0", 10);
+                }
+              }
+            }
+
+            const cpa = conversions > 0 ? spend / conversions : 0;
+            const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+            const cpc = clicks > 0 ? spend / clicks : 0;
+
+            return {
+              metaAccountId: acc.metaAccountId,
+              spend,
+              conversions,
+              clicks,
+              impressions,
+              cpa,
+              ctr,
+              cpc,
+            };
+          }
+
+          return {
+            metaAccountId: acc.metaAccountId,
+            spend: 0,
+            conversions: 0,
+            clicks: 0,
+            impressions: 0,
+            cpa: 0,
+            ctr: 0,
+            cpc: 0,
+          };
+        } catch (err) {
+          console.warn(
+            `Error fetching insights for act_${acc.metaAccountId}:`,
+            err,
+          );
+          return {
+            metaAccountId: acc.metaAccountId,
+            spend: 0,
+            conversions: 0,
+            clicks: 0,
+            impressions: 0,
+            cpa: 0,
+            ctr: 0,
+            cpc: 0,
+          };
+        }
+      }),
+    );
+
+    return {
+      success: true,
+      breakdown,
+    };
+  } catch (err: any) {
+    console.error("Error fetching Meta accounts performance:", err);
+    return {
+      success: false,
+      error: err.message || "Failed to fetch Meta performance",
+    };
+  }
+}
