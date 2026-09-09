@@ -1442,13 +1442,17 @@ export default function ClientDetailPageClient({
               Edit Client Details
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Update the business name and primary contact details for this client.
+              Update the business name and primary contact details for this
+              client.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSaveClientDetails} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label htmlFor="editClientName" className="text-xs font-semibold text-slate-700">
+              <Label
+                htmlFor="editClientName"
+                className="text-xs font-semibold text-slate-700"
+              >
                 Company / Business Name *
               </Label>
               <Input
@@ -1460,12 +1464,16 @@ export default function ClientDetailPageClient({
                 required
               />
               <p className="text-[11px] text-slate-400">
-                Displayed across headers, reports, and onboarding communications.
+                Displayed across headers, reports, and onboarding
+                communications.
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="editPrimaryContactName" className="text-xs font-semibold text-slate-700">
+              <Label
+                htmlFor="editPrimaryContactName"
+                className="text-xs font-semibold text-slate-700"
+              >
                 Primary Contact Name *
               </Label>
               <Input
@@ -1479,7 +1487,10 @@ export default function ClientDetailPageClient({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="editContactEmail" className="text-xs font-semibold text-slate-700">
+              <Label
+                htmlFor="editContactEmail"
+                className="text-xs font-semibold text-slate-700"
+              >
                 Contact Email *
               </Label>
               <Input
@@ -1494,7 +1505,10 @@ export default function ClientDetailPageClient({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="editContactPhone" className="text-xs font-semibold text-slate-700">
+              <Label
+                htmlFor="editContactPhone"
+                className="text-xs font-semibold text-slate-700"
+              >
                 Phone Number (Optional)
               </Label>
               <Input

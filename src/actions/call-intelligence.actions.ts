@@ -89,12 +89,7 @@ export async function getClientCallRecordsAction(clientId: number) {
     const records = await db
       .select()
       .from(callRecords)
-      .where(
-        and(
-          eq(callRecords.organizationId, orgId),
-          or(...conditions),
-        ),
-      )
+      .where(and(eq(callRecords.organizationId, orgId), or(...conditions)))
       .orderBy(desc(callRecords.callStartedAt), desc(callRecords.id));
 
     // Proactively backfill / link any unlinked calls directly to this clientOnboardingId

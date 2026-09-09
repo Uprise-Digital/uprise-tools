@@ -1,22 +1,19 @@
 "use server";
 
 import { eq, sql } from "drizzle-orm";
-import { headers } from "next/headers";
 import { db } from "@/db";
 import { metaAdAccounts, metaAdsConnections } from "@/db/schema";
-import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 import { decryptToken, encryptToken } from "@/lib/crypto";
 
 export async function getMetaConnectionAction() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const ctx = await getAuthOrgContext();
 
-  if (!session?.session.activeOrganizationId) {
+  if (!ctx) {
     return { success: false, error: "Unauthorized" };
   }
 
-  const orgId = session.session.activeOrganizationId;
+  const orgId = ctx.orgId;
 
   try {
     const connection = await db.query.metaAdsConnections.findFirst({
@@ -62,15 +59,13 @@ export async function getMetaConnectionAction() {
 }
 
 export async function getMetaAdAccountsAction() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const ctx = await getAuthOrgContext();
 
-  if (!session?.session.activeOrganizationId) {
+  if (!ctx) {
     return { success: false, error: "Unauthorized" };
   }
 
-  const orgId = session.session.activeOrganizationId;
+  const orgId = ctx.orgId;
 
   try {
     const accounts = await db.query.metaAdAccounts.findMany({
@@ -206,15 +201,13 @@ export async function connectMetaPermanentTokenAction(input: {
   accessToken: string;
   businessId?: string;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const ctx = await getAuthOrgContext();
 
-  if (!session?.session.activeOrganizationId) {
+  if (!ctx) {
     return { success: false, error: "Unauthorized" };
   }
 
-  const orgId = session.session.activeOrganizationId;
+  const orgId = ctx.orgId;
   const rawToken = input.accessToken?.trim();
   const businessId = input.businessId?.trim() || "2448649278688629";
 
@@ -336,15 +329,13 @@ export async function connectMetaPermanentTokenAction(input: {
 }
 
 export async function syncMetaAdAccountsAction() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const ctx = await getAuthOrgContext();
 
-  if (!session?.session.activeOrganizationId) {
+  if (!ctx) {
     return { success: false, error: "Unauthorized" };
   }
 
-  const orgId = session.session.activeOrganizationId;
+  const orgId = ctx.orgId;
 
   try {
     const connection = await db.query.metaAdsConnections.findFirst({
@@ -377,15 +368,13 @@ export async function syncMetaAdAccountsAction() {
 }
 
 export async function disconnectMetaAdsAction() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const ctx = await getAuthOrgContext();
 
-  if (!session?.session.activeOrganizationId) {
+  if (!ctx) {
     return { success: false, error: "Unauthorized" };
   }
 
-  const orgId = session.session.activeOrganizationId;
+  const orgId = ctx.orgId;
 
   try {
     await db
@@ -409,15 +398,13 @@ export async function disconnectMetaAdsAction() {
 export async function updateMetaAutoSyncSettingsAction(
   autoAddAccounts: boolean,
 ) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const ctx = await getAuthOrgContext();
 
-  if (!session?.session.activeOrganizationId) {
+  if (!ctx) {
     return { success: false, error: "Unauthorized" };
   }
 
-  const orgId = session.session.activeOrganizationId;
+  const orgId = ctx.orgId;
 
   try {
     await db

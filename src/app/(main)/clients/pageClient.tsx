@@ -134,7 +134,10 @@ export function isClientActive(client: ClientRecord): boolean {
   // 3. For contacts without an opportunity stage or general GHL Contact,
   // require explicit active or completed onboarding status AND not a generic GHL non-client
   if (client.status === "active") return true;
-  if (client.status === "completed" && (!client.ghlPipelineStage || client.ghlPipelineStage === "Active Client")) {
+  if (
+    client.status === "completed" &&
+    (!client.ghlPipelineStage || client.ghlPipelineStage === "Active Client")
+  ) {
     return true;
   }
   return false;
