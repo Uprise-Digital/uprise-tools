@@ -6,9 +6,12 @@ import {
   ArrowUp,
   ArrowUpDown,
   Calendar,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
+  ExternalLink,
+  Layers,
   Loader2,
   Search,
 } from "lucide-react";
@@ -17,6 +20,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { syncAdAccountsAction } from "@/actions/ads.actions";
 import { getAgencyPortfolioMetricsAction } from "@/actions/agency.actions";
+import { syncMetaAdAccountsAction } from "@/actions/meta-settings.actions";
 import { ReportAutomationTrigger } from "@/components/reportAutomationTrigger";
 import { SyncButton } from "@/components/sync-button";
 import { Badge } from "@/components/ui/badge";
@@ -44,29 +48,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-import {
-  getAllIndustries,
-  getIndustryMeta,
-  type IndustryKey,
-} from "@/lib/industry-config";
-
-// Define the type based on your Drizzle schema return type
-type AccountWithSchedules = {
-  id: number;
-  googleAccountId: string;
-  name: string;
-  currencyCode: string | null;
-  isActive: boolean;
-  googleStatus: string;
-  industry?: string | null;
-  subNiche?: string | null;
-  reportSchedules: any[];
-  emailLogs?: any[];
-};
+import type { UnifiedAccountRow } from "@/lib/account-unification";
+import { getAllIndustries, getIndustryMeta } from "@/lib/industry-config";
 
 interface AccountsClientPageProps {
-  accounts: AccountWithSchedules[];
+  accounts: UnifiedAccountRow[];
 }
 
 export default function AccountsClientPage({
@@ -86,18 +72,24 @@ export default function AccountsClientPage({
   const [portfolio, setPortfolio] = useState<any>(null);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
 
-  // 3. Search and Filters State
+  // 3. Platform & Channel Drill-Down State
+  const [platformFilter, setPlatformFilter] = useState<
+    "all" | "google" | "meta"
+  >("all");
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+
+  // 4. Search and Filters State
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [riskFilter, setRiskFilter] = useState<string>("all");
   const [googleStatusFilter, setGoogleStatusFilter] = useState<string>("all");
   const [industryFilter, setIndustryFilter] = useState<string>("all");
 
-  // 4. Sort State
+  // 5. Sort State
   const [sortColumn, setSortColumn] = useState<string>("spend"); // default sort by highest spend
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
-  // 5. Pagination State
+  // 6. Pagination State
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
@@ -123,7 +115,7 @@ export default function AccountsClientPage({
     return new Intl.NumberFormat("en-AU").format(num);
   };
 
-  // Calculate Dynamic Churn Risk (reused from overview ledger page)
+  // Calculate Dynamic Churn Risk
   const getChurnRisk = (acc: any, blendedCpa: number) => {
     if (acc.spend === 0)
       return {
@@ -176,32 +168,81 @@ export default function AccountsClientPage({
     };
   }, [startDate, endDate]);
 
-  // Combine DB accounts with local API performance metrics
-  const combinedAccounts = accounts.map((dbAcc) => {
-    const metrics = portfolio?.accountBreakdown?.find(
-      (m: any) => m.googleAccountId === dbAcc.googleAccountId,
-    );
+  // Combine unified accounts with performance metrics
+  const combinedAccounts = accounts.map((acc) => {
+    // Look up Google metrics if present
+    const gMetrics = acc.googleAccountId
+      ? portfolio?.accountBreakdown?.find(
+          (m: any) => m.googleAccountId === acc.googleAccountId,
+        )
+      : null;
 
-    const spend = metrics ? Number(metrics.spend || 0) : 0;
-    const conversions = metrics ? Number(metrics.conversions || 0) : 0;
-    const cpa = metrics ? Number(metrics.cpa || 0) : 0;
-    const ctr = metrics ? Number(metrics.ctr || 0) : 0;
-    const cpc = metrics ? Number(metrics.cpc || 0) : 0;
+    const gSpend = gMetrics ? Number(gMetrics.spend || 0) : 0;
+    const gConversions = gMetrics ? Number(gMetrics.conversions || 0) : 0;
+    const gCpa = gMetrics ? Number(gMetrics.cpa || 0) : 0;
+    const gCtr = gMetrics ? Number(gMetrics.ctr || 0) : 0;
+    const gCpc = gMetrics ? Number(gMetrics.cpc || 0) : 0;
+    const gClicks = gMetrics ? Number(gMetrics.clicks || 0) : 0;
+    const gImpressions = gMetrics ? Number(gMetrics.impressions || 0) : 0;
+
+    // Meta channel metrics placeholder (0 until Meta daily insights sync is added)
+    const mSpend = 0;
+    const mConversions = 0;
+    const mClicks = 0;
+    const mImpressions = 0;
+    const mCpa = 0;
+    const mCtr = 0;
+    const mCpc = 0;
+
+    // Blended calculations
+    const totalSpend = gSpend + mSpend;
+    const totalConversions = gConversions + mConversions;
+    const totalClicks = gClicks + mClicks;
+    const totalImpressions = gImpressions + mImpressions;
+
+    const cpa = totalConversions > 0 ? totalSpend / totalConversions : gCpa;
+    const ctr =
+      totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : gCtr;
+    const cpc = totalClicks > 0 ? totalSpend / totalClicks : gCpc;
 
     const blendedCpa = portfolio?.agencyTotals?.cpa || 0;
     const risk = getChurnRisk(
-      { spend, conversions, cpa, ctr, cpc },
+      { spend: totalSpend, conversions: totalConversions, cpa, ctr, cpc },
       blendedCpa,
     );
 
     return {
-      ...dbAcc,
-      spend,
-      conversions,
+      ...acc,
+      spend: totalSpend,
+      conversions: totalConversions,
       cpa,
       ctr,
       cpc,
       churnRisk: risk,
+      channelBreakdown: {
+        google: acc.googleAccountId
+          ? {
+              spend: gSpend,
+              conversions: gConversions,
+              cpa: gCpa,
+              ctr: gCtr,
+              cpc: gCpc,
+              clicks: gClicks,
+              impressions: gImpressions,
+            }
+          : null,
+        meta: acc.metaAccountId
+          ? {
+              spend: mSpend,
+              conversions: mConversions,
+              cpa: mCpa,
+              ctr: mCtr,
+              cpc: mCpc,
+              clicks: mClicks,
+              impressions: mImpressions,
+            }
+          : null,
+      },
     };
   });
 
@@ -225,10 +266,6 @@ export default function AccountsClientPage({
       case "name":
         aVal = a.name.toLowerCase();
         bVal = b.name.toLowerCase();
-        break;
-      case "googleAccountId":
-        aVal = a.googleAccountId;
-        bVal = b.googleAccountId;
         break;
       case "churnRisk":
         aVal = a.churnRisk.label.toLowerCase();
@@ -259,8 +296,8 @@ export default function AccountsClientPage({
         bVal = b.isActive ? 1 : 0;
         break;
       default:
-        aVal = a.id;
-        bVal = b.id;
+        aVal = a.key;
+        bVal = b.key;
     }
 
     if (aVal === bVal) return 0;
@@ -272,23 +309,38 @@ export default function AccountsClientPage({
 
   // Perform Client-Side Filtering
   const filteredAccounts = sortedAccounts.filter((acc) => {
+    // 1. Platform Filter
+    if (platformFilter === "google" && !acc.platforms.includes("google")) {
+      return false;
+    }
+    if (platformFilter === "meta" && !acc.platforms.includes("meta")) {
+      return false;
+    }
+
+    // 2. Search
     const matchesSearch =
       acc.name.toLowerCase().includes(search.toLowerCase()) ||
-      acc.googleAccountId.includes(search);
+      acc.googleAccountId?.includes(search) ||
+      acc.metaAccountId?.includes(search);
 
+    // 3. Status
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "active" && acc.isActive) ||
       (statusFilter === "inactive" && !acc.isActive);
 
+    // 4. Churn Risk
     const matchesRisk =
       riskFilter === "all" ||
       acc.churnRisk.label.toLowerCase() === riskFilter.toLowerCase();
 
+    // 5. Google Ads Status
     const matchesGoogleStatus =
       googleStatusFilter === "all" ||
-      acc.googleStatus.toLowerCase() === googleStatusFilter.toLowerCase();
+      (acc.googleStatus &&
+        acc.googleStatus.toLowerCase() === googleStatusFilter.toLowerCase());
 
+    // 6. Industry
     const matchesIndustry =
       industryFilter === "all" || (acc.industry || "OTHER") === industryFilter;
 
@@ -311,10 +363,24 @@ export default function AccountsClientPage({
     setPage(1);
   }, []);
 
+  const toggleRowExpanded = (key: string) => {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   const exportClientsToCsv = () => {
     const headers = [
       "Account Name",
+      "Platforms",
       "Google ID",
+      "Meta ID",
       "Churn Risk",
       "Spend",
       "Conversions",
@@ -322,11 +388,13 @@ export default function AccountsClientPage({
       "CTR",
       "CPC",
       "Status",
-      "Google Ads Status",
+      "Google Status",
     ];
     const rows = filteredAccounts.map((acc) => [
       acc.name,
-      acc.googleAccountId,
+      acc.platforms.join(" + "),
+      acc.googleAccountId || "",
+      acc.metaAccountId ? `act_${acc.metaAccountId}` : "",
       acc.churnRisk.label,
       fCur(acc.spend),
       fNum(acc.conversions),
@@ -334,7 +402,7 @@ export default function AccountsClientPage({
       fPct(acc.ctr),
       fCur(acc.cpc),
       acc.isActive ? "Active" : "Inactive",
-      acc.googleStatus,
+      acc.googleStatus || "N/A",
     ]);
 
     const csvContent =
@@ -366,8 +434,16 @@ export default function AccountsClientPage({
     toast.success("Clients ledger exported successfully.");
   };
 
-  const handleRowClick = (accountId: number) => {
-    router.push(`/accounts/${accountId}`);
+  const handleRowClick = (acc: any) => {
+    if (acc.googleId) {
+      router.push(`/accounts/${acc.googleId}`);
+    } else if (acc.metaAccountId) {
+      window.open(
+        `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${acc.metaAccountId}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    }
   };
 
   // Sort indicator helper for column headers
@@ -384,36 +460,114 @@ export default function AccountsClientPage({
 
   return (
     <div className="space-y-6 mt-0 pt-0">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Ad Accounts</h1>
-          <p className="text-muted-foreground">
-            Manage synced client accounts from Uprise MCC.
+          <p className="text-muted-foreground text-sm">
+            Unified cross-platform ledger across Google Ads and Meta Ads.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={exportClientsToCsv}
             variant="outline"
             size="sm"
-            className="text-xs flex items-center gap-1.5 border-slate-200"
+            className="text-xs flex items-center gap-1.5 border-slate-200 h-9"
           >
             <Download className="w-3.5 h-3.5" />
             Export CSV
           </Button>
-          <SyncButton action={syncAdAccountsAction} />
+
+          {/* Sync Dropdown / Buttons */}
+          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <SyncButton action={syncAdAccountsAction} />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                const res = await syncMetaAdAccountsAction();
+                if (res.success) {
+                  toast.success(
+                    `Synced ${res.syncedAccountsCount ?? 0} Meta accounts`,
+                  );
+                } else {
+                  toast.error("Meta sync failed");
+                }
+              }}
+              className="text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-white h-8 px-2.5"
+            >
+              Sync Meta
+            </Button>
+          </div>
         </div>
       </div>
 
       <Card className="border-slate-200 shadow-sm overflow-hidden">
         <CardHeader className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center border-b border-slate-100 bg-slate-50/50 py-4 gap-3">
-          <div>
-            <CardTitle className="text-base font-bold text-slate-800">
-              Connected Clients
-            </CardTitle>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base font-bold text-slate-800">
+                Connected Clients
+              </CardTitle>
+              <Badge
+                variant="outline"
+                className="text-[11px] font-semibold bg-white text-slate-600"
+              >
+                {filteredAccounts.length} Total
+              </Badge>
+            </div>
             <CardDescription className="text-xs">
-              Accounts currently being monitored for alerts and reports.
+              Blended cross-platform performance and individual channel health
+              monitoring.
             </CardDescription>
+          </div>
+
+          {/* TOP PLATFORM TOGGLE TABS */}
+          <div className="flex items-center bg-slate-200/80 p-1 rounded-lg self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setPlatformFilter("all");
+                setPage(1);
+              }}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                platformFilter === "all"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              All Platforms
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPlatformFilter("google");
+                setPage(1);
+              }}
+              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
+                platformFilter === "google"
+                  ? "bg-white text-blue-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              Google Ads
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPlatformFilter("meta");
+                setPage(1);
+              }}
+              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
+                platformFilter === "meta"
+                  ? "bg-white text-sky-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+              Meta Ads
+            </button>
           </div>
         </CardHeader>
 
@@ -422,7 +576,7 @@ export default function AccountsClientPage({
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
             <Input
-              placeholder="Search clients or Google ID..."
+              placeholder="Search clients, Google ID or act_... ID"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -432,7 +586,7 @@ export default function AccountsClientPage({
             />
           </div>
 
-          {/* Date Picker (just like overview page) */}
+          {/* Date Picker */}
           <div className="flex items-center bg-white rounded-lg border border-slate-200 shadow-none px-3 py-1.5 gap-2 h-9 text-xs">
             <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             <Input
@@ -457,7 +611,7 @@ export default function AccountsClientPage({
           </div>
 
           {/* Status Filter Select */}
-          <div className="w-[140px]">
+          <div className="w-[130px]">
             <Select
               value={statusFilter}
               onValueChange={(val) => {
@@ -477,7 +631,7 @@ export default function AccountsClientPage({
           </div>
 
           {/* Churn Risk Filter Select */}
-          <div className="w-[150px]">
+          <div className="w-[140px]">
             <Select
               value={riskFilter}
               onValueChange={(val) => {
@@ -545,6 +699,7 @@ export default function AccountsClientPage({
 
           {/* Clear Filters Button */}
           {(search ||
+            platformFilter !== "all" ||
             statusFilter !== "all" ||
             riskFilter !== "all" ||
             googleStatusFilter !== "all" ||
@@ -554,6 +709,7 @@ export default function AccountsClientPage({
               size="sm"
               onClick={() => {
                 setSearch("");
+                setPlatformFilter("all");
                 setStatusFilter("all");
                 setRiskFilter("all");
                 setGoogleStatusFilter("all");
@@ -571,7 +727,8 @@ export default function AccountsClientPage({
           <Table>
             <TableHeader className="bg-slate-50/50">
               <TableRow>
-                <TableHead className="font-bold pl-6">
+                <TableHead className="w-8 pl-4 pr-0" />
+                <TableHead className="font-bold pl-2">
                   <button
                     type="button"
                     onClick={() => handleSort("name")}
@@ -663,147 +820,346 @@ export default function AccountsClientPage({
                   >
                     <div className="flex flex-col items-center justify-center gap-2 py-4">
                       <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-                      <span>Loading account performance ledger...</span>
+                      <span>Loading unified cross-platform ledger...</span>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedAccounts.map((acc) => (
-                  <TableRow
-                    key={acc.id}
-                    className="hover:bg-slate-50/50 transition-colors cursor-pointer"
-                    onClick={() => handleRowClick(acc.id)}
-                  >
-                    {/* CLIENT ACCOUNT */}
-                    <TableCell className="font-semibold text-slate-900 pl-6 py-4">
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                          <span
-                            title={
-                              acc.googleStatus === "ENABLED"
-                                ? "Google Ads: Active"
-                                : acc.googleStatus === "CANCELED"
-                                  ? "Google Ads: Cancelled"
-                                  : acc.googleStatus === "SUSPENDED"
-                                    ? "Google Ads: Suspended"
-                                    : acc.googleStatus === "DELINKED"
-                                      ? "Google Ads: Delinked / Archived"
-                                      : `Google Ads: ${acc.googleStatus}`
-                            }
-                            className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
-                              acc.googleStatus === "ENABLED"
-                                ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
-                                : acc.googleStatus === "CANCELED" ||
-                                    acc.googleStatus === "DELINKED"
-                                  ? "bg-slate-400"
-                                  : acc.googleStatus === "SUSPENDED"
-                                    ? "bg-rose-500 shadow-sm shadow-rose-500/30"
-                                    : "bg-amber-500"
-                            }`}
-                          />
-                          <span className="text-sm font-semibold text-slate-900">
-                            {acc.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 pl-4 mt-0.5">
-                          <span className="font-mono text-[10px] text-slate-400">
-                            {acc.googleAccountId}
-                          </span>
-                          {acc.industry && acc.industry !== "OTHER" && (
-                            <span
-                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
-                                getIndustryMeta(acc.industry).bgBadge
-                              } ${getIndustryMeta(acc.industry).textBadge} ${
-                                getIndustryMeta(acc.industry).borderBadge
-                              }`}
+                paginatedAccounts.map((acc) => {
+                  const isBlended = acc.platforms.length > 1;
+                  const isExpanded = expandedKeys.has(acc.key);
+
+                  return (
+                    <>
+                      <TableRow
+                        key={acc.key}
+                        className="hover:bg-slate-50/50 transition-colors cursor-pointer group"
+                        onClick={() => handleRowClick(acc)}
+                      >
+                        {/* EXPAND TOGGLE (For Blended Multi-channel rows) */}
+                        <TableCell className="w-8 pl-4 pr-0 py-4">
+                          {isBlended ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleRowExpanded(acc.key);
+                              }}
+                              className="p-1 rounded hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 transition-colors"
+                              title="Toggle Channel Breakdown"
                             >
-                              {getIndustryMeta(acc.industry).shortLabel}
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 transition-transform ${
+                                  isExpanded ? "transform rotate-180" : ""
+                                }`}
+                              />
+                            </button>
+                          ) : null}
+                        </TableCell>
+
+                        {/* CLIENT ACCOUNT */}
+                        <TableCell className="font-semibold text-slate-900 pl-2 py-4">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              {/* Status dot */}
+                              <span
+                                title={
+                                  acc.googleStatus === "ENABLED"
+                                    ? "Google Ads: Active"
+                                    : acc.googleStatus === "CANCELED"
+                                      ? "Google Ads: Cancelled"
+                                      : acc.googleStatus === "SUSPENDED"
+                                        ? "Google Ads: Suspended"
+                                        : acc.googleStatus === "DELINKED"
+                                          ? "Google Ads: Delinked / Archived"
+                                          : acc.isActive
+                                            ? "Active Account"
+                                            : "Inactive Account"
+                                }
+                                className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
+                                  acc.googleStatus === "ENABLED" ||
+                                  (!acc.googleStatus && acc.isActive)
+                                    ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
+                                    : acc.googleStatus === "CANCELED" ||
+                                        acc.googleStatus === "DELINKED"
+                                      ? "bg-slate-400"
+                                      : acc.googleStatus === "SUSPENDED"
+                                        ? "bg-rose-500 shadow-sm shadow-rose-500/30"
+                                        : "bg-amber-500"
+                                }`}
+                              />
+                              <span className="text-sm font-semibold text-slate-900">
+                                {acc.name}
+                              </span>
+
+                              {/* Multi-channel Blended badge */}
+                              {isBlended && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200">
+                                  <Layers className="w-2.5 h-2.5" />
+                                  Blended
+                                </span>
+                              )}
+                            </div>
+
+                            {/* IDs and Platform badges */}
+                            <div className="flex flex-wrap items-center gap-2 pl-4.5 mt-1">
+                              {/* Google Badge */}
+                              {acc.googleAccountId && (
+                                <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded">
+                                  <span className="font-semibold text-[9px]">
+                                    G
+                                  </span>
+                                  {acc.googleAccountId}
+                                </span>
+                              )}
+
+                              {/* Meta Badge */}
+                              {acc.metaAccountId && (
+                                <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.2 rounded">
+                                  <span className="font-semibold text-[9px]">
+                                    Meta
+                                  </span>
+                                  act_{acc.metaAccountId}
+                                </span>
+                              )}
+
+                              {/* Industry Badge */}
+                              {acc.industry && acc.industry !== "OTHER" && (
+                                <span
+                                  className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                                    getIndustryMeta(acc.industry).bgBadge
+                                  } ${getIndustryMeta(acc.industry).textBadge} ${
+                                    getIndustryMeta(acc.industry).borderBadge
+                                  }`}
+                                >
+                                  {getIndustryMeta(acc.industry).shortLabel}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        {/* CHURN RISK */}
+                        <TableCell className="py-4">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${acc.churnRisk.classes}`}
+                          >
+                            {acc.churnRisk.label}
+                          </span>
+                        </TableCell>
+
+                        {/* SPEND */}
+                        <TableCell className="text-right font-mono text-sm text-slate-900 py-4">
+                          {fCur(acc.spend)}
+                        </TableCell>
+
+                        {/* CONV */}
+                        <TableCell className="text-right font-semibold text-slate-900 py-4">
+                          <span
+                            className={
+                              acc.conversions > 0
+                                ? "text-emerald-600 font-bold"
+                                : "text-slate-400 font-light"
+                            }
+                          >
+                            {fNum(acc.conversions)}
+                          </span>
+                        </TableCell>
+
+                        {/* CPA */}
+                        <TableCell className="text-right py-4">
+                          {acc.spend > 0 && acc.conversions === 0 ? (
+                            <span className="text-rose-600 font-bold bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded text-[11px]">
+                              No Conv.
+                            </span>
+                          ) : (
+                            <span className="font-mono text-sm text-slate-900">
+                              {fCur(acc.cpa)}
                             </span>
                           )}
-                        </div>
-                      </div>
-                    </TableCell>
+                        </TableCell>
 
-                    {/* CHURN RISK */}
-                    <TableCell className="py-4">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${acc.churnRisk.classes}`}
-                      >
-                        {acc.churnRisk.label}
-                      </span>
-                    </TableCell>
+                        {/* CTR */}
+                        <TableCell className="text-right font-mono text-sm text-slate-600 py-4">
+                          {fPct(acc.ctr)}
+                        </TableCell>
 
-                    {/* SPEND */}
-                    <TableCell className="text-right font-mono text-sm text-slate-900 py-4">
-                      {fCur(acc.spend)}
-                    </TableCell>
+                        {/* CPC */}
+                        <TableCell className="text-right font-mono text-sm text-slate-600 py-4">
+                          {fCur(acc.cpc)}
+                        </TableCell>
 
-                    {/* CONV */}
-                    <TableCell className="text-right font-semibold text-slate-900 py-4">
-                      <span
-                        className={
-                          acc.conversions > 0
-                            ? "text-emerald-600 font-bold"
-                            : "text-slate-400 font-light"
-                        }
-                      >
-                        {fNum(acc.conversions)}
-                      </span>
-                    </TableCell>
+                        {/* STATUS */}
+                        <TableCell className="py-4">
+                          <Badge
+                            variant={acc.isActive ? "default" : "secondary"}
+                            className="rounded-md text-[10px] px-2 py-0.5 font-bold"
+                          >
+                            {acc.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
 
-                    {/* CPA */}
-                    <TableCell className="text-right py-4">
-                      {acc.spend > 0 && acc.conversions === 0 ? (
-                        <span className="text-rose-600 font-bold bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded text-[11px]">
-                          No Conv.
-                        </span>
-                      ) : (
-                        <span className="font-mono text-sm text-slate-900">
-                          {fCur(acc.cpa)}
-                        </span>
+                        {/* ACTIONS */}
+                        <TableCell className="text-right pr-6 py-4">
+                          <div
+                            className="flex justify-end items-center gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {acc.googleId ? (
+                              <ReportAutomationTrigger
+                                adAccount={{
+                                  id: acc.googleId,
+                                  googleAccountId: acc.googleAccountId || "",
+                                  name: acc.name,
+                                }}
+                                initialRules={acc.reportSchedules || []}
+                                initialEmailLogs={acc.emailLogs || []}
+                              />
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  if (acc.metaAccountId) {
+                                    window.open(
+                                      `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${acc.metaAccountId}`,
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    );
+                                  }
+                                }}
+                                className="h-8 text-xs text-slate-500 hover:text-slate-900 flex items-center gap-1 px-2"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                Meta Ads
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+
+                      {/* DRILL-DOWN SUB-ROWS (When Blended Account is Expanded) */}
+                      {isBlended && isExpanded && (
+                        <>
+                          {/* Google Channel Sub-Row */}
+                          <TableRow className="bg-slate-50/60 border-l-2 border-blue-500 hover:bg-slate-100/60 text-xs">
+                            <TableCell className="pl-4 pr-0 py-2.5" />
+                            <TableCell className="pl-6 py-2.5 font-medium text-slate-700">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                <span className="font-semibold text-blue-900">
+                                  Google Ads
+                                </span>
+                                <span className="font-mono text-[10px] text-slate-400">
+                                  {acc.googleAccountId}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2.5 text-slate-400 text-[11px]">
+                              Channel
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                              {fCur(acc.channelBreakdown.google?.spend || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-slate-800 py-2.5">
+                              {fNum(
+                                acc.channelBreakdown.google?.conversions || 0,
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                              {fCur(acc.channelBreakdown.google?.cpa || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                              {fPct(acc.channelBreakdown.google?.ctr || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                              {fCur(acc.channelBreakdown.google?.cpc || 0)}
+                            </TableCell>
+                            <TableCell className="py-2.5">
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                {acc.googleStatus || "ENABLED"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right pr-6 py-2.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  router.push(`/accounts/${acc.googleId}`)
+                                }
+                                className="h-6 text-[11px] text-blue-600 hover:text-blue-800 px-2"
+                              >
+                                View Google
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+
+                          {/* Meta Channel Sub-Row */}
+                          <TableRow className="bg-slate-50/60 border-l-2 border-sky-500 hover:bg-slate-100/60 text-xs">
+                            <TableCell className="pl-4 pr-0 py-2.5" />
+                            <TableCell className="pl-6 py-2.5 font-medium text-slate-700">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-sky-500" />
+                                <span className="font-semibold text-sky-900">
+                                  Meta Ads
+                                </span>
+                                <span className="font-mono text-[10px] text-slate-400">
+                                  act_{acc.metaAccountId}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2.5 text-slate-400 text-[11px]">
+                              Channel
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                              {fCur(acc.channelBreakdown.meta?.spend || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-slate-800 py-2.5">
+                              {fNum(
+                                acc.channelBreakdown.meta?.conversions || 0,
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                              {fCur(acc.channelBreakdown.meta?.cpa || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                              {fPct(acc.channelBreakdown.meta?.ctr || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                              {fCur(acc.channelBreakdown.meta?.cpc || 0)}
+                            </TableCell>
+                            <TableCell className="py-2.5">
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                {acc.metaAccountStatus === 1
+                                  ? "ACTIVE"
+                                  : "INACTIVE"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right pr-6 py-2.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  if (acc.metaAccountId) {
+                                    window.open(
+                                      `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${acc.metaAccountId}`,
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    );
+                                  }
+                                }}
+                                className="h-6 text-[11px] text-sky-600 hover:text-sky-800 px-2 flex items-center gap-1 ml-auto"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                Meta Ads
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        </>
                       )}
-                    </TableCell>
-
-                    {/* CTR */}
-                    <TableCell className="text-right font-mono text-sm text-slate-600 py-4">
-                      {fPct(acc.ctr)}
-                    </TableCell>
-
-                    {/* CPC */}
-                    <TableCell className="text-right font-mono text-sm text-slate-600 py-4">
-                      {fCur(acc.cpc)}
-                    </TableCell>
-
-                    {/* STATUS */}
-                    <TableCell className="py-4">
-                      <Badge
-                        variant={acc.isActive ? "default" : "secondary"}
-                        className="rounded-md text-[10px] px-2 py-0.5 font-bold"
-                      >
-                        {acc.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-
-                    {/* ACTIONS */}
-                    <TableCell className="text-right pr-6 py-4">
-                      {/* stopPropagation prevents row click from navigating to dashboard */}
-                      <div
-                        className="flex justify-end gap-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <ReportAutomationTrigger
-                          adAccount={{
-                            id: acc.id,
-                            googleAccountId: acc.googleAccountId,
-                            name: acc.name,
-                          }}
-                          initialRules={acc.reportSchedules || []}
-                          initialEmailLogs={acc.emailLogs || []}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                    </>
+                  );
+                })
               )}
 
               {!loadingMetrics && paginatedAccounts.length === 0 && (
