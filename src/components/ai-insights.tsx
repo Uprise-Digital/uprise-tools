@@ -144,7 +144,7 @@ export function AiInsights({
 }) {
   const [insights, setInsights] = useState<Insights | null>(null);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   // Split loading states so we don't clear the UI when just refreshing
   const [isInitialLoading, setIsInitialLoading] = useState(false);
