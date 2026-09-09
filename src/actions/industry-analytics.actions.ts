@@ -2,8 +2,10 @@
 
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { getMetaAccountsPerformanceAction } from "@/actions/meta-settings.actions";
 import { db } from "@/db";
-import { adAccounts, adPerformanceDaily, briefingSettings } from "@/db/schema";
+import { adAccounts, adPerformanceDaily, metaAdAccounts } from "@/db/schema";
+import { unifyAccounts } from "@/lib/account-unification";
 import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 import { logAction } from "@/lib/audit";
@@ -16,10 +18,11 @@ import {
 } from "@/lib/industry-config";
 
 export interface AccountIndustryMetric {
+  key: string;
   accountId: number;
   name: string;
-  googleAccountId: string;
-  googleStatus: string;
+  googleAccountId?: string;
+  googleStatus?: string;
   websiteUrl: string | null;
   industry: IndustryKey;
   subNiche: string | null;
@@ -35,6 +38,13 @@ export interface AccountIndustryMetric {
   cpaDeltaVsSector: number; // percentage difference vs industry benchmark (negative is better)
   peerRank: number;
   efficiencyStatus: "APEX" | "HEALTHY" | "LAGGING" | "INACTIVE";
+  // Cross-platform additions
+  platforms: ("google" | "meta")[];
+  primaryPlatform: "google" | "meta";
+  primaryId: number;
+  googleId?: number;
+  metaId?: number;
+  metaAccountId?: string;
 }
 
 export interface IndustryGroupMetric {
@@ -87,6 +97,7 @@ export interface IndustryPortfolioData {
 export async function getIndustryPortfolioMetricsAction(
   startDate: string,
   endDate: string,
+  platformFilter: "all" | "google" | "meta" = "all",
 ): Promise<{ success: boolean; data?: IndustryPortfolioData; error?: string }> {
   try {
     const ctx = await getAuthOrgContext();
@@ -99,15 +110,42 @@ export async function getIndustryPortfolioMetricsAction(
       };
     }
 
-    // 1. Fetch all active accounts for the current organization
-    let accounts = await db.query.adAccounts.findMany({
+    // 1. Fetch all active Google accounts for the current organization
+    let googleAccounts = await db.query.adAccounts.findMany({
       where: and(
         eq(adAccounts.isActive, true),
         eq(adAccounts.organizationId, orgId),
       ),
     });
 
-    if (accounts.length === 0) {
+    // Auto-classify check: If Google accounts are unclassified ('OTHER' or null), run auto-classification
+    const unclassifiedAccounts = googleAccounts.filter(
+      (a) => !a.industry || a.industry === "OTHER",
+    );
+    if (unclassifiedAccounts.length > 0) {
+      try {
+        await classifyAccountsBatchInternal(orgId, false);
+        // Refresh accounts list after classification
+        googleAccounts = await db.query.adAccounts.findMany({
+          where: and(
+            eq(adAccounts.isActive, true),
+            eq(adAccounts.organizationId, orgId),
+          ),
+        });
+      } catch (err) {
+        console.warn("Auto-classification on load encountered an issue:", err);
+      }
+    }
+
+    // 2. Fetch all active Meta accounts for the current organization
+    const metaAccounts = await db.query.metaAdAccounts.findMany({
+      where: and(
+        eq(metaAdAccounts.isActive, true),
+        eq(metaAdAccounts.organizationId, orgId),
+      ),
+    });
+
+    if (googleAccounts.length === 0 && metaAccounts.length === 0) {
       return {
         success: true,
         data: {
@@ -130,97 +168,184 @@ export async function getIndustryPortfolioMetricsAction(
       };
     }
 
-    // Auto-classify check: If accounts are unclassified ('OTHER' or null), run auto-classification
-    const unclassifiedAccounts = accounts.filter(
-      (a) => !a.industry || a.industry === "OTHER",
-    );
-    if (unclassifiedAccounts.length > 0) {
-      try {
-        await classifyAccountsBatchInternal(orgId, false);
-        // Refresh accounts list after classification
-        accounts = await db.query.adAccounts.findMany({
-          where: and(
-            eq(adAccounts.isActive, true),
-            eq(adAccounts.organizationId, orgId),
-          ),
-        });
-      } catch (err) {
-        console.warn("Auto-classification on load encountered an issue:", err);
-      }
+    // 3. Unify Google and Meta accounts
+    const unifiedAccounts = unifyAccounts(googleAccounts, metaAccounts);
+    const googleAccountsMap = new Map(googleAccounts.map((g) => [g.id, g]));
+    const metaAccountsMap = new Map(metaAccounts.map((m) => [m.id, m]));
+
+    // Filter unified accounts by active platform filter
+    const filteredUnified = unifiedAccounts.filter((acc) => {
+      if (platformFilter === "google") return acc.platforms.includes("google");
+      if (platformFilter === "meta") return acc.platforms.includes("meta");
+      return true;
+    });
+
+    if (filteredUnified.length === 0) {
+      return {
+        success: true,
+        data: {
+          agencyTotals: {
+            totalAccounts: 0,
+            activeAccounts: 0,
+            totalSpend: 0,
+            totalConversions: 0,
+            totalClicks: 0,
+            totalImpressions: 0,
+            blendedCpa: 0,
+            blendedCpc: 0,
+            blendedCtr: 0,
+            blendedConvRate: 0,
+            activeIndustriesCount: 0,
+          },
+          industryGroups: [],
+          allAccounts: [],
+        },
+      };
     }
 
-    const accountIds = accounts.map((a) => a.id);
+    // 4. Fetch daily Google performance rows within range if needed
+    const googleAccountIds = googleAccounts.map((a) => a.id);
+    let performanceRows: (typeof adPerformanceDaily.$inferSelect)[] = [];
+    if (googleAccountIds.length > 0 && platformFilter !== "meta") {
+      performanceRows = await db.query.adPerformanceDaily.findMany({
+        where: and(
+          inArray(adPerformanceDaily.adAccountId, googleAccountIds),
+          gte(adPerformanceDaily.date, startDate),
+          lte(adPerformanceDaily.date, endDate),
+        ),
+      });
+    }
 
-    // 2. Fetch daily performance rows within range
-    const performanceRows = await db.query.adPerformanceDaily.findMany({
-      where: and(
-        inArray(adPerformanceDaily.adAccountId, accountIds),
-        gte(adPerformanceDaily.date, startDate),
-        lte(adPerformanceDaily.date, endDate),
-      ),
-    });
-
-    // 3. Check briefing settings for onlyActive filter
-    const bSettings = await db.query.briefingSettings.findFirst({
-      where: eq(briefingSettings.organizationId, orgId),
-    });
-    const onlyActiveAccounts = bSettings?.onlyActiveAccounts ?? true;
-
-    // 4. Aggregate by Account
-    const accountMetricMap: Record<
+    // Pre-aggregate Google metrics by adAccountId
+    const googleMetricByAccId = new Map<
       number,
       {
-        accountId: number;
-        name: string;
-        googleAccountId: string;
-        googleStatus: string;
-        websiteUrl: string | null;
-        industry: IndustryKey;
-        subNiche: string | null;
-        targetCpa: number;
         spend: number;
         clicks: number;
         impressions: number;
         conversions: number;
       }
-    > = {};
-
-    accounts.forEach((acc) => {
-      const rawInd = acc.industry as IndustryKey;
-      const validIndustry: IndustryKey = INDUSTRY_KEYS.includes(rawInd)
-        ? rawInd
-        : "OTHER";
-
-      accountMetricMap[acc.id] = {
-        accountId: acc.id,
-        name: acc.name,
-        googleAccountId: acc.googleAccountId,
-        googleStatus: acc.googleStatus,
-        websiteUrl: acc.websiteUrl,
-        industry: validIndustry,
-        subNiche: acc.subNiche,
-        targetCpa: acc.targetCpa ? parseFloat(acc.targetCpa) : 0,
+    >();
+    performanceRows.forEach((row) => {
+      const cur = googleMetricByAccId.get(row.adAccountId) || {
         spend: 0,
         clicks: 0,
         impressions: 0,
         conversions: 0,
       };
+      cur.spend += Number(row.spend || 0);
+      cur.clicks += Number(row.clicks || 0);
+      cur.impressions += Number(row.impressions || 0);
+      cur.conversions += Number(row.conversions || 0);
+      googleMetricByAccId.set(row.adAccountId, cur);
     });
 
-    performanceRows.forEach((row) => {
-      const isAccountTracked = Boolean(accountMetricMap[row.adAccountId]);
-      if (onlyActiveAccounts && !isAccountTracked) return;
-
-      const accData = accountMetricMap[row.adAccountId];
-      if (accData) {
-        accData.spend += Number(row.spend || 0);
-        accData.clicks += Number(row.clicks || 0);
-        accData.impressions += Number(row.impressions || 0);
-        accData.conversions += Number(row.conversions || 0);
+    // 5. Fetch Meta live performance metrics if needed
+    const metaPerformanceMap = new Map<
+      string,
+      {
+        spend: number;
+        clicks: number;
+        impressions: number;
+        conversions: number;
       }
+    >();
+    if (metaAccounts.length > 0 && platformFilter !== "google") {
+      try {
+        const metaRes = await getMetaAccountsPerformanceAction(
+          startDate,
+          endDate,
+        );
+        if (metaRes.success && metaRes.breakdown) {
+          for (const item of metaRes.breakdown) {
+            metaPerformanceMap.set(String(item.metaAccountId), {
+              spend: Number(item.spend || 0),
+              clicks: Number(item.clicks || 0),
+              impressions: Number(item.impressions || 0),
+              conversions: Number(item.conversions || 0),
+            });
+          }
+        }
+      } catch (err) {
+        console.warn(
+          "Failed to fetch Meta performance in industry analytics:",
+          err,
+        );
+      }
+    }
+
+    // 6. Build raw metrics per unified account
+    const rawAccountList = filteredUnified.map((uAcc) => {
+      const gMetrics =
+        uAcc.googleId && platformFilter !== "meta"
+          ? googleMetricByAccId.get(uAcc.googleId) || {
+              spend: 0,
+              clicks: 0,
+              impressions: 0,
+              conversions: 0,
+            }
+          : { spend: 0, clicks: 0, impressions: 0, conversions: 0 };
+
+      const mMetrics =
+        uAcc.metaAccountId && platformFilter !== "google"
+          ? metaPerformanceMap.get(String(uAcc.metaAccountId)) || {
+              spend: 0,
+              clicks: 0,
+              impressions: 0,
+              conversions: 0,
+            }
+          : { spend: 0, clicks: 0, impressions: 0, conversions: 0 };
+
+      const spend = gMetrics.spend + mMetrics.spend;
+      const clicks = gMetrics.clicks + mMetrics.clicks;
+      const impressions = gMetrics.impressions + mMetrics.impressions;
+      const conversions = gMetrics.conversions + mMetrics.conversions;
+
+      const rawInd = uAcc.industry as IndustryKey;
+      const validIndustry: IndustryKey = INDUSTRY_KEYS.includes(rawInd)
+        ? rawInd
+        : "OTHER";
+
+      const gAcc = uAcc.googleId
+        ? googleAccountsMap.get(uAcc.googleId)
+        : undefined;
+      const mAcc = uAcc.metaId ? metaAccountsMap.get(uAcc.metaId) : undefined;
+
+      const gTargetCpa = gAcc?.targetCpa ? parseFloat(gAcc.targetCpa) : 0;
+      const mTargetCpa = mAcc?.targetCpa ? parseFloat(mAcc.targetCpa) : 0;
+      const targetCpa =
+        platformFilter === "meta"
+          ? mTargetCpa
+          : platformFilter === "google"
+            ? gTargetCpa
+            : gTargetCpa > 0
+              ? gTargetCpa
+              : mTargetCpa;
+
+      return {
+        key: uAcc.key,
+        accountId: uAcc.googleId || uAcc.primaryId,
+        name: uAcc.name,
+        googleAccountId: uAcc.googleAccountId,
+        googleStatus: uAcc.googleStatus,
+        websiteUrl: gAcc?.websiteUrl || null,
+        industry: validIndustry,
+        subNiche: uAcc.subNiche || null,
+        targetCpa,
+        spend,
+        clicks,
+        impressions,
+        conversions,
+        platforms: uAcc.platforms,
+        primaryPlatform: uAcc.primaryPlatform,
+        primaryId: uAcc.primaryId,
+        googleId: uAcc.googleId,
+        metaId: uAcc.metaId,
+        metaAccountId: uAcc.metaAccountId,
+      };
     });
 
-    // 5. Aggregate by Industry Group
+    // 7. Aggregate by Industry Group
     const industryMap: Record<
       IndustryKey,
       {
@@ -228,7 +353,7 @@ export async function getIndustryPortfolioMetricsAction(
         clicks: number;
         impressions: number;
         conversions: number;
-        accountList: any[];
+        accountList: typeof rawAccountList;
       }
     > = {} as any;
 
@@ -247,7 +372,7 @@ export async function getIndustryPortfolioMetricsAction(
     let agencyClicks = 0;
     let agencyImpressions = 0;
 
-    Object.values(accountMetricMap).forEach((acc) => {
+    rawAccountList.forEach((acc) => {
       agencySpend += acc.spend;
       agencyConversions += acc.conversions;
       agencyClicks += acc.clicks;
@@ -261,7 +386,7 @@ export async function getIndustryPortfolioMetricsAction(
       group.accountList.push(acc);
     });
 
-    // 6. Build Rich Industry Group Output with Peer Rankings
+    // 8. Build Rich Industry Group Output with Peer Rankings
     const allEnrichedAccounts: AccountIndustryMetric[] = [];
 
     const industryGroups: IndustryGroupMetric[] = INDUSTRY_KEYS.map((key) => {
@@ -379,7 +504,7 @@ export async function getIndustryPortfolioMetricsAction(
     );
 
     const agencyTotals = {
-      totalAccounts: accounts.length,
+      totalAccounts: filteredUnified.length,
       activeAccounts: allEnrichedAccounts.filter((a) => a.spend > 0).length,
       totalSpend: agencySpend,
       totalConversions: agencyConversions,
