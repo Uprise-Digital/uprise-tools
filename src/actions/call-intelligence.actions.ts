@@ -40,16 +40,75 @@ export async function getClientCallRecordsAction(clientId: number) {
   try {
     const { orgId } = await getSessionOrgId();
 
+    const [client] = await db
+      .select({
+        id: clientOnboardings.id,
+        ghlContactId: clientOnboardings.ghlContactId,
+        contactEmail: clientOnboardings.contactEmail,
+        contactPhone: clientOnboardings.contactPhone,
+      })
+      .from(clientOnboardings)
+      .where(
+        and(
+          eq(clientOnboardings.id, clientId),
+          eq(clientOnboardings.organizationId, orgId),
+        ),
+      )
+      .limit(1);
+
+    if (!client) {
+      return {
+        success: false as const,
+        error: "Client not found",
+        calls: [],
+      };
+    }
+
+    // Build conditions to capture all calls belonging to this client:
+    // 1. Direct foreign key link (clientOnboardingId == clientId)
+    // 2. Matching GHL Contact ID
+    // 3. Matching clean phone number
+    // 4. Matching contact email
+    const conditions = [eq(callRecords.clientOnboardingId, clientId)];
+
+    if (client.ghlContactId) {
+      conditions.push(eq(callRecords.ghlContactId, client.ghlContactId));
+    }
+
+    if (client.contactEmail && client.contactEmail.trim()) {
+      conditions.push(
+        eq(callRecords.contactEmail, client.contactEmail.trim().toLowerCase()),
+      );
+    }
+
+    if (client.contactPhone && client.contactPhone.trim()) {
+      conditions.push(eq(callRecords.contactPhone, client.contactPhone.trim()));
+    }
+
+    const { or } = await import("drizzle-orm");
     const records = await db
       .select()
       .from(callRecords)
       .where(
         and(
           eq(callRecords.organizationId, orgId),
-          eq(callRecords.clientOnboardingId, clientId),
+          or(...conditions),
         ),
       )
       .orderBy(desc(callRecords.callStartedAt), desc(callRecords.id));
+
+    // Proactively backfill / link any unlinked calls directly to this clientOnboardingId
+    const unlinkedIds = records
+      .filter((r) => !r.clientOnboardingId)
+      .map((r) => r.id);
+
+    if (unlinkedIds.length > 0) {
+      const { inArray } = await import("drizzle-orm");
+      await db
+        .update(callRecords)
+        .set({ clientOnboardingId: clientId, updatedAt: new Date() })
+        .where(inArray(callRecords.id, unlinkedIds));
+    }
 
     return { success: true as const, calls: records };
   } catch (error: any) {

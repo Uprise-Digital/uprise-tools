@@ -787,5 +787,58 @@ export async function syncClientCallHistory(
     }
   }
 
+  // Also link any existing call records in the database that match this client
+  // (e.g. synced via global calls sync or webhook where clientOnboardingId was null)
+  const clientPhoneClean = (client.contactPhone || "").replace(/\D/g, "");
+  const clientEmailClean = (client.contactEmail || "").toLowerCase().trim();
+
+  const existingOrgCalls = await db
+    .select({
+      id: callRecords.id,
+      clientOnboardingId: callRecords.clientOnboardingId,
+      ghlContactId: callRecords.ghlContactId,
+      contactPhone: callRecords.contactPhone,
+      contactEmail: callRecords.contactEmail,
+    })
+    .from(callRecords)
+    .where(eq(callRecords.organizationId, organizationId));
+
+  const callsToLink = existingOrgCalls.filter((call) => {
+    if (call.clientOnboardingId === client.id) return false; // Already linked
+    if (client.ghlContactId && call.ghlContactId === client.ghlContactId)
+      return true;
+    if (
+      clientEmailClean &&
+      call.contactEmail?.toLowerCase().trim() === clientEmailClean
+    )
+      return true;
+    if (clientPhoneClean && clientPhoneClean.length >= 6) {
+      const callPhoneClean = (call.contactPhone || "").replace(/\D/g, "");
+      if (
+        callPhoneClean &&
+        (callPhoneClean.includes(clientPhoneClean) ||
+          clientPhoneClean.includes(callPhoneClean))
+      ) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+  if (callsToLink.length > 0) {
+    const { inArray } = await import("drizzle-orm");
+    const linkIds = callsToLink.map((c) => c.id);
+    await db
+      .update(callRecords)
+      .set({
+        clientOnboardingId: client.id,
+        updatedAt: new Date(),
+      })
+      .where(inArray(callRecords.id, linkIds));
+
+    totalImported += callsToLink.length;
+    totalFound = Math.max(totalFound, callsToLink.length);
+  }
+
   return { totalFound, totalImported };
 }
