@@ -107,12 +107,19 @@ function levenshteinDistance(a: string, b: string): number {
 }
 
 /**
+ * Helper to extract all numeric sequences from a string.
+ * Used to ensure accounts with different numbers (e.g. "Store 1" vs "Store 2") never match.
+ */
+export function extractNumbers(str: string): string[] {
+  return str.match(/\d+/g) || [];
+}
+
+/**
  * Strips common plurals and token endings for stem-level matching.
  * e.g., "xtechs" -> "xtech", "renewables" -> "renewable"
  */
 export function stemAccountName(name: string): string {
   if (!name) return "";
-  // First normalize
   const norm = normalizeAccountName(name);
   if (!norm) return "";
 
@@ -124,11 +131,12 @@ export function stemAccountName(name: string): string {
 }
 
 /**
- * Determines if two normalized or raw account names are a fuzzy match:
+ * Determines if two normalized or raw account names are a safe fuzzy match:
  * 1. Exact normalized match
  * 2. Stemmed match (e.g. xtech vs xtechs)
- * 3. One contains the other if length is significant (>= 6 chars)
- * 4. Levenshtein edit distance <= 1 for names >= 6 chars
+ * 3. Safeguard: Numbers in both names MUST be identical (prevents Store 1 vs Store 2 / franchise false matches)
+ * 4. Safeguard: Minimum length >= 8 chars and minimum 2 common words/tokens
+ * 5. Levenshtein edit distance <= 1 only if numbers match and length >= 8
  */
 export function isAccountMatch(googleName: string, metaName: string): boolean {
   const gNorm = normalizeAccountName(googleName);
@@ -136,18 +144,33 @@ export function isAccountMatch(googleName: string, metaName: string): boolean {
   if (!gNorm || !mNorm) return false;
   if (gNorm === mNorm) return true;
 
+  // SAFEGUARD: Number check. If either has numbers, all numbers must match exactly.
+  const gNums = extractNumbers(googleName);
+  const mNums = extractNumbers(metaName);
+  if (gNums.length > 0 || mNums.length > 0) {
+    if (gNums.join("-") !== mNums.join("-")) {
+      return false;
+    }
+  }
+
+  // Stem check: handles singular/plural brand variations (e.g., "xtechs" vs "xtech")
   const gStem = stemAccountName(googleName);
   const mStem = stemAccountName(metaName);
   if (gStem && mStem && gStem === mStem) return true;
 
-  // If one contains the other and length difference is at most 2 characters
-  if (gNorm.length >= 6 && mNorm.length >= 6) {
-    if (gNorm.includes(mNorm) || mNorm.includes(gNorm)) {
-      if (Math.abs(gNorm.length - mNorm.length) <= 2) return true;
-    }
-
-    // Levenshtein distance 1 (handles single typo, missing 's', hyphenation difference)
+  // For fuzzy Levenshtein distance, require higher length threshold (>= 8 chars)
+  // to avoid matching short different words like "Sprint" vs "Spring".
+  if (gNorm.length >= 8 && mNorm.length >= 8) {
+    // Check edit distance 1 (handles single typo, missing 's', hyphenation difference)
     if (levenshteinDistance(gNorm, mNorm) <= 1) return true;
+
+    // Substring containment only if the difference is purely a 1-character suffix/prefix
+    if (
+      (gNorm.startsWith(mNorm) || mNorm.startsWith(gNorm)) &&
+      Math.abs(gNorm.length - mNorm.length) <= 1
+    ) {
+      return true;
+    }
   }
 
   return false;

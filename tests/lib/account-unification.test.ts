@@ -132,5 +132,70 @@ describe("unifyAccounts", () => {
     expect(unified[0].metaAccountId).toBe("act_988231820415384");
     expect(unified[0].industry).toBe("ENERGY");
   });
+
+  it("safeguards against false positives for numbered franchises or stores", () => {
+    const googleAccounts: BaseAdAccount[] = [
+      {
+        id: 1,
+        googleAccountId: "111",
+        name: "Subway Store 101",
+        currencyCode: "AUD",
+        isActive: true,
+        googleStatus: "ENABLED",
+      },
+    ];
+
+    const metaAccounts: BaseMetaAdAccount[] = [
+      {
+        id: 2,
+        metaAccountId: "222",
+        name: "Subway Store 102",
+        currencyCode: "AUD",
+        timeZone: "Australia/Sydney",
+        isActive: true,
+        accountStatus: 1,
+      },
+    ];
+
+    const unified = unifyAccounts(googleAccounts, metaAccounts);
+
+    // They must NOT merge because store numbers 101 vs 102 differ!
+    expect(unified).toHaveLength(2);
+    expect(unified.find((u) => u.name === "Subway Store 101")?.platforms).toEqual(["google"]);
+    expect(unified.find((u) => u.name === "Subway Store 102")?.platforms).toEqual(["meta"]);
+  });
+
+  it("safeguards against false positives for short distinct brand names", () => {
+    const googleAccounts: BaseAdAccount[] = [
+      {
+        id: 1,
+        googleAccountId: "111",
+        name: "Sprint",
+        currencyCode: "USD",
+        isActive: true,
+        googleStatus: "ENABLED",
+      },
+    ];
+
+    const metaAccounts: BaseMetaAdAccount[] = [
+      {
+        id: 2,
+        metaAccountId: "222",
+        name: "Spring",
+        currencyCode: "USD",
+        timeZone: "America/New_York",
+        isActive: true,
+        accountStatus: 1,
+      },
+    ];
+
+    const unified = unifyAccounts(googleAccounts, metaAccounts);
+
+    // Must NOT merge
+    expect(unified).toHaveLength(2);
+    expect(unified[0].platforms).toEqual(["google"]);
+    expect(unified[1].platforms).toEqual(["meta"]);
+  });
 });
+
 
