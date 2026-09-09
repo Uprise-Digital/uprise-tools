@@ -118,32 +118,41 @@ export async function getIndustryPortfolioMetricsAction(
       ),
     });
 
-    // Auto-classify check: If Google accounts are unclassified ('OTHER' or null), run auto-classification
-    const unclassifiedAccounts = googleAccounts.filter(
+    // 2. Fetch all active Meta accounts for the current organization
+    let metaAccounts = await db.query.metaAdAccounts.findMany({
+      where: and(
+        eq(metaAdAccounts.isActive, true),
+        eq(metaAdAccounts.organizationId, orgId),
+      ),
+    });
+
+    // Auto-classify check: If Google or Meta accounts are unclassified ('OTHER' or null), run auto-classification
+    const unclassifiedGoogle = googleAccounts.filter(
       (a) => !a.industry || a.industry === "OTHER",
     );
-    if (unclassifiedAccounts.length > 0) {
+    const unclassifiedMeta = metaAccounts.filter(
+      (a) => !a.industry || a.industry === "OTHER",
+    );
+    if (unclassifiedGoogle.length > 0 || unclassifiedMeta.length > 0) {
       try {
         await classifyAccountsBatchInternal(orgId, false);
-        // Refresh accounts list after classification
+        // Refresh accounts lists after classification
         googleAccounts = await db.query.adAccounts.findMany({
           where: and(
             eq(adAccounts.isActive, true),
             eq(adAccounts.organizationId, orgId),
           ),
         });
+        metaAccounts = await db.query.metaAdAccounts.findMany({
+          where: and(
+            eq(metaAdAccounts.isActive, true),
+            eq(metaAdAccounts.organizationId, orgId),
+          ),
+        });
       } catch (err) {
         console.warn("Auto-classification on load encountered an issue:", err);
       }
     }
-
-    // 2. Fetch all active Meta accounts for the current organization
-    const metaAccounts = await db.query.metaAdAccounts.findMany({
-      where: and(
-        eq(metaAdAccounts.isActive, true),
-        eq(metaAdAccounts.organizationId, orgId),
-      ),
-    });
 
     if (googleAccounts.length === 0 && metaAccounts.length === 0) {
       return {
@@ -534,53 +543,95 @@ export async function getIndustryPortfolioMetricsAction(
 }
 
 /**
- * Update an account's assigned industry and optional sub-niche
+ * Update an account's assigned industry and optional sub-niche (supports Google, Meta, and blended)
  */
 export async function updateAccountIndustryAction(
   accountId: number,
   industry: IndustryKey,
   subNiche?: string | null,
+  metaId?: number | null,
 ) {
   try {
     const ctx = await getAuthOrgContext();
     if (!ctx) throw new Error("Unauthorized");
     const { session, orgId } = ctx;
 
-    const account = await db.query.adAccounts.findFirst({
-      where: and(
-        eq(adAccounts.id, accountId),
-        eq(adAccounts.organizationId, orgId),
-      ),
-    });
-
-    if (!account) {
-      throw new Error(`Account ID ${accountId} not found.`);
-    }
-
     const validIndustry: IndustryKey = INDUSTRY_KEYS.includes(industry)
       ? industry
       : "OTHER";
+    const cleanSubNiche = subNiche ? subNiche.trim() : null;
 
-    await db
-      .update(adAccounts)
-      .set({
-        industry: validIndustry,
-        subNiche: subNiche ? subNiche.trim() : null,
-      })
-      .where(eq(adAccounts.id, accountId));
+    let updatedAny = false;
 
-    await logAction(
-      session.user.id,
-      "UPDATE_ACCOUNT_INDUSTRY",
-      "ad_accounts",
-      accountId,
-      { industry: validIndustry, subNiche },
-    );
+    // 1. Try to update Google account
+    if (accountId) {
+      const googleAccount = await db.query.adAccounts.findFirst({
+        where: and(
+          eq(adAccounts.id, accountId),
+          eq(adAccounts.organizationId, orgId),
+        ),
+      });
+
+      if (googleAccount) {
+        await db
+          .update(adAccounts)
+          .set({
+            industry: validIndustry,
+            subNiche: cleanSubNiche,
+          })
+          .where(eq(adAccounts.id, accountId));
+        updatedAny = true;
+
+        await logAction(
+          session.user.id,
+          "UPDATE_ACCOUNT_INDUSTRY",
+          "ad_accounts",
+          accountId,
+          { industry: validIndustry, subNiche: cleanSubNiche },
+        );
+      }
+    }
+
+    // 2. Try to update Meta account (either by explicit metaId or fallback accountId)
+    const targetMetaId = metaId || (!updatedAny ? accountId : null);
+    if (targetMetaId) {
+      const metaAccount = await db.query.metaAdAccounts.findFirst({
+        where: and(
+          eq(metaAdAccounts.id, targetMetaId),
+          eq(metaAdAccounts.organizationId, orgId),
+        ),
+      });
+
+      if (metaAccount) {
+        await db
+          .update(metaAdAccounts)
+          .set({
+            industry: validIndustry,
+            subNiche: cleanSubNiche,
+          })
+          .where(eq(metaAdAccounts.id, targetMetaId));
+        updatedAny = true;
+
+        await logAction(
+          session.user.id,
+          "UPDATE_META_ACCOUNT_INDUSTRY",
+          "meta_ad_accounts",
+          targetMetaId,
+          { industry: validIndustry, subNiche: cleanSubNiche },
+        );
+      }
+    }
+
+    if (!updatedAny) {
+      throw new Error(`Account ID ${accountId} not found in Google or Meta.`);
+    }
 
     revalidatePath("/overview/industry");
     revalidatePath("/overview");
     revalidatePath("/accounts");
-    revalidatePath(`/accounts/${accountId}`);
+    if (accountId) {
+      revalidatePath(`/accounts/${accountId}`);
+    }
 
     return { success: true as const };
   } catch (error: any) {
@@ -590,35 +641,49 @@ export async function updateAccountIndustryAction(
 }
 
 /**
- * Internal hybrid classifier combining rules and Gemini AI
+ * Internal hybrid classifier combining rules and Gemini AI for both Google and Meta accounts
  */
 export async function classifyAccountsBatchInternal(
   orgId: string,
   forceAll: boolean = false,
 ): Promise<{ updatedCount: number; results: any[] }> {
-  const accounts = await db.query.adAccounts.findMany({
+  const googleAccounts = await db.query.adAccounts.findMany({
     where: and(
       eq(adAccounts.isActive, true),
       eq(adAccounts.organizationId, orgId),
     ),
   });
 
-  const accountsToClassify = forceAll
-    ? accounts
-    : accounts.filter((a) => !a.industry || a.industry === "OTHER");
+  const metaAccounts = await db.query.metaAdAccounts.findMany({
+    where: and(
+      eq(metaAdAccounts.isActive, true),
+      eq(metaAdAccounts.organizationId, orgId),
+    ),
+  });
 
-  if (accountsToClassify.length === 0) {
+  const googleToClassify = forceAll
+    ? googleAccounts
+    : googleAccounts.filter((a) => !a.industry || a.industry === "OTHER");
+
+  const metaToClassify = forceAll
+    ? metaAccounts
+    : metaAccounts.filter((a) => !a.industry || a.industry === "OTHER");
+
+  if (googleToClassify.length === 0 && metaToClassify.length === 0) {
     return { updatedCount: 0, results: [] };
   }
 
-  // Fetch recent campaigns for context
-  const recentCampaigns = await db.query.adPerformanceDaily.findMany({
-    where: inArray(
-      adPerformanceDaily.adAccountId,
-      accountsToClassify.map((a) => a.id),
-    ),
-    limit: 150,
-  });
+  // Fetch recent campaigns for Google context
+  const recentCampaigns =
+    googleToClassify.length > 0
+      ? await db.query.adPerformanceDaily.findMany({
+          where: inArray(
+            adPerformanceDaily.adAccountId,
+            googleToClassify.map((a) => a.id),
+          ),
+          limit: 150,
+        })
+      : [];
 
   const campaignsByAccount: Record<number, string[]> = {};
   recentCampaigns.forEach((c) => {
@@ -630,19 +695,31 @@ export async function classifyAccountsBatchInternal(
     }
   });
 
-  const classifiedMap: Record<
+  const googleClassifiedMap: Record<
     number,
     { industry: IndustryKey; subNiche: string | null }
   > = {};
-  const unmatchedAccounts: Array<{
+  const metaClassifiedMap: Record<
+    number,
+    { industry: IndustryKey; subNiche: string | null }
+  > = {};
+
+  const unmatchedGoogle: Array<{
     accountId: number;
     name: string;
     websiteUrl: string;
     campaigns: string[];
   }> = [];
 
-  // Phase 1: High-precision Rule Engine
-  for (const acc of accountsToClassify) {
+  const unmatchedMeta: Array<{
+    accountId: number;
+    name: string;
+    websiteUrl: string;
+    campaigns: string[];
+  }> = [];
+
+  // Phase 1a: High-precision Rule Engine for Google
+  for (const acc of googleToClassify) {
     const campaigns = campaignsByAccount[acc.id] || [];
     const ruleMatch = classifyAccountByRules(
       acc.name,
@@ -651,9 +728,9 @@ export async function classifyAccountsBatchInternal(
     );
 
     if (ruleMatch) {
-      classifiedMap[acc.id] = ruleMatch;
+      googleClassifiedMap[acc.id] = ruleMatch;
     } else {
-      unmatchedAccounts.push({
+      unmatchedGoogle.push({
         accountId: acc.id,
         name: acc.name,
         websiteUrl: acc.websiteUrl || "Not provided",
@@ -662,31 +739,51 @@ export async function classifyAccountsBatchInternal(
     }
   }
 
-  // Phase 2: Gemini AI Classification for nuanced/unmatched accounts
-  if (unmatchedAccounts.length > 0) {
+  // Phase 1b: Rule Engine for Meta
+  for (const acc of metaToClassify) {
+    const ruleMatch = classifyAccountByRules(acc.name, null, []);
+
+    if (ruleMatch) {
+      metaClassifiedMap[acc.id] = ruleMatch;
+    } else {
+      unmatchedMeta.push({
+        accountId: acc.id,
+        name: acc.name,
+        websiteUrl: "Not provided",
+        campaigns: [],
+      });
+    }
+  }
+
+  // Phase 2: Gemini AI Classification for unmatched Google and Meta accounts
+  const allUnmatched = [
+    ...unmatchedGoogle.map((a) => ({ ...a, type: "google" as const })),
+    ...unmatchedMeta.map((a) => ({ ...a, type: "meta" as const })),
+  ];
+
+  if (allUnmatched.length > 0) {
     try {
       const allowedIndustriesList = INDUSTRY_KEYS.map((k) => {
         const meta = getIndustryMeta(k);
         return `- ${k}: ${meta.label} (${meta.subNiches.join(", ")})`;
       }).join("\n");
 
-      const prompt = `
-You are an expert digital marketing analyst for an agency. Classify each of the following Google Ads accounts into ONE canonical industry key.
-
-### ALLOWED CANONICAL INDUSTRY KEYS:
+      const prompt = `You are an expert marketing operations AI classifying advertising accounts into canonical industry verticals.
+Allowed Industry Keys:
 ${allowedIndustriesList}
 
-### ACCOUNTS TO CLASSIFY:
-${JSON.stringify(unmatchedAccounts, null, 2)}
+Below are the accounts requiring classification:
+${JSON.stringify(allUnmatched, null, 2)}
 
-### INSTRUCTIONS:
-1. Examine the account name, website URL, and campaign names.
-2. Choose the BEST matching canonical industry key from the allowed list.
+Instructions:
+1. Examine each account's name, website, and campaigns.
+2. Choose the single best-fitting industry key from the allowed list. If completely ambiguous, choose "OTHER".
 3. Provide a concise subNiche string (e.g. "Emergency Plumbing", "Family Law", "Dental & Ortho", "Solar Installation", "DTC Fashion", "Managed IT Services").
 4. Return a strictly valid JSON array of objects with schema:
 [
   {
     "accountId": 123,
+    "type": "google",
     "industry": "HOME_SERVICES_TRADES",
     "subNiche": "Plumbing & Gas"
   }
@@ -706,6 +803,7 @@ ${JSON.stringify(unmatchedAccounts, null, 2)}
 
       const parsedResults: Array<{
         accountId: number;
+        type?: string;
         industry: string;
         subNiche: string;
       }> = JSON.parse(result.response.text || "[]");
@@ -717,10 +815,20 @@ ${JSON.stringify(unmatchedAccounts, null, 2)}
           ? (item.industry as IndustryKey)
           : "OTHER";
 
-        classifiedMap[item.accountId] = {
-          industry: validIndustry,
-          subNiche: item.subNiche || null,
-        };
+        if (
+          item.type === "meta" ||
+          unmatchedMeta.some((m) => m.accountId === item.accountId)
+        ) {
+          metaClassifiedMap[item.accountId] = {
+            industry: validIndustry,
+            subNiche: item.subNiche || null,
+          };
+        } else {
+          googleClassifiedMap[item.accountId] = {
+            industry: validIndustry,
+            subNiche: item.subNiche || null,
+          };
+        }
       }
     } catch (err) {
       console.warn("AI classification error, relying on rule matches:", err);
@@ -729,7 +837,9 @@ ${JSON.stringify(unmatchedAccounts, null, 2)}
 
   // Phase 3: Batch persist updates to DB
   let updatedCount = 0;
-  for (const [accountIdStr, val] of Object.entries(classifiedMap)) {
+
+  // Persist Google updates
+  for (const [accountIdStr, val] of Object.entries(googleClassifiedMap)) {
     const accountId = parseInt(accountIdStr, 10);
     await db
       .update(adAccounts)
@@ -743,12 +853,38 @@ ${JSON.stringify(unmatchedAccounts, null, 2)}
     updatedCount += 1;
   }
 
+  // Persist Meta updates
+  for (const [accountIdStr, val] of Object.entries(metaClassifiedMap)) {
+    const accountId = parseInt(accountIdStr, 10);
+    await db
+      .update(metaAdAccounts)
+      .set({
+        industry: val.industry,
+        subNiche: val.subNiche,
+      })
+      .where(
+        and(
+          eq(metaAdAccounts.id, accountId),
+          eq(metaAdAccounts.organizationId, orgId),
+        ),
+      );
+    updatedCount += 1;
+  }
+
   return {
     updatedCount,
-    results: Object.entries(classifiedMap).map(([id, val]) => ({
-      accountId: Number(id),
-      ...val,
-    })),
+    results: [
+      ...Object.entries(googleClassifiedMap).map(([id, val]) => ({
+        accountId: Number(id),
+        type: "google",
+        ...val,
+      })),
+      ...Object.entries(metaClassifiedMap).map(([id, val]) => ({
+        accountId: Number(id),
+        type: "meta",
+        ...val,
+      })),
+    ],
   };
 }
 

@@ -233,6 +233,7 @@ export default function IndustryAnalyticsClient() {
         editingAccount.accountId,
         editIndustry,
         editSubNiche,
+        editingAccount.metaId,
       );
       if (res.success) {
         toast.success(`Updated ${editingAccount.name} industry.`);
@@ -1130,21 +1131,19 @@ export default function IndustryAnalyticsClient() {
                           {/* Actions */}
                           <TableCell className="text-center py-3 pr-5">
                             <div className="flex items-center justify-center gap-1.5">
-                              {acc.googleId && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setEditingAccount(acc);
-                                    setEditIndustry(acc.industry);
-                                    setEditSubNiche(acc.subNiche || "");
-                                  }}
-                                  className="h-7 px-2 text-xs text-slate-600 hover:text-indigo-600 hover:bg-indigo-50"
-                                  title="Edit Industry Tag"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </Button>
-                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingAccount(acc);
+                                  setEditIndustry(acc.industry);
+                                  setEditSubNiche(acc.subNiche || "");
+                                }}
+                                className="h-7 px-2 text-xs text-slate-600 hover:text-indigo-600 hover:bg-indigo-50"
+                                title="Edit Industry Tag"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </Button>
 
                               {acc.googleId && platformFilter !== "meta" ? (
                                 <Button

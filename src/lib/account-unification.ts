@@ -26,6 +26,8 @@ export interface BaseMetaAdAccount {
   targetCpa?: string | null;
   targetRoas?: string | null;
   monthlyBudgetCap?: string | null;
+  industry?: string | null;
+  subNiche?: string | null;
   createdAt?: Date | string | null;
 }
 
@@ -124,8 +126,11 @@ export function unifyAccounts(
         googleId: gAcc.id,
         googleAccountId: gAcc.googleAccountId,
         googleStatus: gAcc.googleStatus,
-        industry: gAcc.industry,
-        subNiche: gAcc.subNiche,
+        industry:
+          gAcc.industry && gAcc.industry !== "OTHER"
+            ? gAcc.industry
+            : metaMatch.industry || gAcc.industry || "OTHER",
+        subNiche: gAcc.subNiche || metaMatch.subNiche || null,
         reportSchedules: gAcc.reportSchedules || [],
         emailLogs: gAcc.emailLogs || [],
         metaId: metaMatch.id,
@@ -146,7 +151,7 @@ export function unifyAccounts(
         googleId: gAcc.id,
         googleAccountId: gAcc.googleAccountId,
         googleStatus: gAcc.googleStatus,
-        industry: gAcc.industry,
+        industry: gAcc.industry || "OTHER",
         subNiche: gAcc.subNiche,
         reportSchedules: gAcc.reportSchedules || [],
         emailLogs: gAcc.emailLogs || [],
@@ -169,6 +174,8 @@ export function unifyAccounts(
         metaAccountId: meta.metaAccountId,
         metaAccountStatus: meta.accountStatus,
         metaTimeZone: meta.timeZone,
+        industry: meta.industry || "OTHER",
+        subNiche: meta.subNiche || null,
         currencyCode: meta.currencyCode || "USD",
         isActive: meta.isActive,
       });

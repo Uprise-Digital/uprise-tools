@@ -210,6 +210,8 @@ export const metaAdAccounts = pgTable(
       precision: 10,
       scale: 2,
     }),
+    industry: text("industry").default("OTHER"),
+    subNiche: text("sub_niche"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   () => [
