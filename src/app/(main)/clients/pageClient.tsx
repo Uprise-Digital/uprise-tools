@@ -104,6 +104,42 @@ type SortOption =
   | "created_asc"
   | "stage";
 
+export function isClientDisqualified(client: ClientRecord): boolean {
+  const stage = (client.ghlPipelineStage || "").toLowerCase();
+  return (
+    client.status === "disqualified" ||
+    stage.includes("spam") ||
+    stage.includes("not a fit") ||
+    stage.includes("disqualified") ||
+    stage.includes("lost")
+  );
+}
+
+export function isClientActive(client: ClientRecord): boolean {
+  if (isClientDisqualified(client)) return false;
+  const stage = (client.ghlPipelineStage || "").toLowerCase();
+  // 1. Explicitly in won or active stage
+  if (stage.includes("won") || stage.includes("active client")) return true;
+  // 2. Not in lead / opportunity stage and marked as completed/active
+  const isOpportunityStage =
+    stage.includes("meeting") ||
+    stage.includes("booked") ||
+    stage.includes("follow up") ||
+    stage.includes("awaiting") ||
+    stage.includes("new lead") ||
+    stage.includes("inquiry") ||
+    stage.includes("lead");
+  if (isOpportunityStage) return false;
+
+  // 3. For contacts without an opportunity stage or general GHL Contact,
+  // require explicit active or completed onboarding status AND not a generic GHL non-client
+  if (client.status === "active") return true;
+  if (client.status === "completed" && (!client.ghlPipelineStage || client.ghlPipelineStage === "Active Client")) {
+    return true;
+  }
+  return false;
+}
+
 export default function ClientsDirectoryClient() {
   const router = useRouter();
 
@@ -384,20 +420,20 @@ export default function ClientsDirectoryClient() {
 
       // 2. Tab Filter
       if (activeTab === "active") {
-        const lowerStage = (c.ghlPipelineStage || "").toLowerCase();
-        const isActive =
-          c.status === "completed" ||
-          c.status === "active" ||
-          lowerStage.includes("won") ||
-          lowerStage.includes("active client");
-        if (!isActive) return false;
+        if (!isClientActive(c)) return false;
       } else if (activeTab === "opportunities") {
         const lowerStage = (c.ghlPipelineStage || "").toLowerCase();
         const isOpportunity =
-          c.status === "opportunity" ||
-          lowerStage.includes("meeting") ||
-          lowerStage.includes("follow up") ||
-          lowerStage.includes("awaiting");
+          !isClientDisqualified(c) &&
+          !isClientActive(c) &&
+          (c.status === "opportunity" ||
+            c.status === "lead" ||
+            lowerStage.includes("meeting") ||
+            lowerStage.includes("booked") ||
+            lowerStage.includes("follow up") ||
+            lowerStage.includes("awaiting") ||
+            lowerStage.includes("lead") ||
+            lowerStage.includes("inquiry"));
         if (!isOpportunity) return false;
       } else if (activeTab === "onboarding") {
         const inOnboard =
@@ -477,15 +513,7 @@ export default function ClientsDirectoryClient() {
 
   // Counts for Metric Cards
   const totalClientsCount = clients.length;
-  const activeClientsCount = clients.filter((c) => {
-    const s = (c.ghlPipelineStage || "").toLowerCase();
-    return (
-      c.status === "completed" ||
-      c.status === "active" ||
-      s.includes("won") ||
-      s.includes("active client")
-    );
-  }).length;
+  const activeClientsCount = clients.filter((c) => isClientActive(c)).length;
 
   const totalCallsLogged = clients.reduce(
     (acc, c) => acc + (c.callCount || 0),
