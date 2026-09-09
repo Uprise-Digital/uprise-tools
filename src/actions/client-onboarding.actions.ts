@@ -253,6 +253,36 @@ export async function createClientOnboardingAction(data: {
       .returning({ id: clientOnboardings.id });
 
     if (inserted) {
+      // Also ensure canonical client and contact are created
+      try {
+        const nameParts = (data.primaryContactName || "").trim().split(/\s+/);
+        const [newClient] = await db
+          .insert(clients)
+          .values({
+            organizationId: orgId,
+            name: data.clientName.trim(),
+            status: "onboarding",
+          })
+          .returning();
+
+        if (newClient) {
+          await db.insert(contacts).values({
+            organizationId: orgId,
+            clientId: newClient.id,
+            ghlContactId: data.ghlContactId || null,
+            ghlOpportunityId: data.ghlOpportunityId || null,
+            firstName: nameParts[0] || "",
+            lastName: nameParts.slice(1).join(" ") || "",
+            name: data.primaryContactName || data.clientName,
+            email: data.contactEmail,
+            isPrimary: true,
+            status: "active",
+          });
+        }
+      } catch (cErr) {
+        console.warn("Could not insert into canonical clients/contacts:", cErr);
+      }
+
       await logAction(
         userId,
         "CREATE_CLIENT_ONBOARDING",
@@ -1255,19 +1285,63 @@ export async function getClientOnboardingByIdAction(clientId: number) {
     if (!orgId)
       return { success: false as const, error: "No active organization" };
 
-    const client = await db.query.clientOnboardings.findFirst({
+    // 1. Try finding in canonical clients table first
+    let clientRecord = await db.query.clients.findFirst({
       where: and(
-        eq(clientOnboardings.id, clientId),
-        eq(clientOnboardings.organizationId, orgId),
+        eq(clients.id, clientId),
+        eq(clients.organizationId, orgId),
       ),
       with: {
+        contacts: true,
         adAccounts: true,
         metaAdAccounts: true,
       },
     });
 
-    if (!client) {
-      return { success: false as const, error: "Client not found" };
+    let client: any = null;
+    let contactEmail = "";
+
+    if (clientRecord) {
+      const primaryContact = clientRecord.contacts?.find((ct: any) => ct.isPrimary) || clientRecord.contacts?.[0];
+      client = {
+        id: clientRecord.id,
+        clientName: clientRecord.name,
+        primaryContactName: primaryContact ? primaryContact.name : clientRecord.name,
+        contactEmail: primaryContact ? primaryContact.email : "",
+        contactPhone: primaryContact ? primaryContact.phone : null,
+        ghlPipelineStage: primaryContact ? primaryContact.pipelineStage : null,
+        googleAdsAccess: true,
+        metaAdsAccess: true,
+        status: clientRecord.status,
+        driveFolderLink: clientRecord.driveFolderLink,
+        notionDashboardLink: clientRecord.notionDashboardLink,
+        signalGroupLink: clientRecord.signalGroupLink,
+        ghlSubAccountId: clientRecord.ghlSubAccountId,
+        createdAt: clientRecord.createdAt,
+        updatedAt: clientRecord.updatedAt,
+        adAccounts: clientRecord.adAccounts || [],
+        metaAdAccounts: clientRecord.metaAdAccounts || [],
+        contacts: clientRecord.contacts || [],
+      };
+      contactEmail = client.contactEmail || "";
+    } else {
+      // 2. Fallback to clientOnboardings table
+      const legacyClient = await db.query.clientOnboardings.findFirst({
+        where: and(
+          eq(clientOnboardings.id, clientId),
+          eq(clientOnboardings.organizationId, orgId),
+        ),
+        with: {
+          adAccounts: true,
+          metaAdAccounts: true,
+        },
+      });
+
+      if (!legacyClient) {
+        return { success: false as const, error: "Client not found" };
+      }
+      client = legacyClient;
+      contactEmail = legacyClient.contactEmail;
     }
 
     const logs = await db.query.emailLogs.findMany({
@@ -1563,4 +1637,233 @@ export async function migrateGhlRecordsToClientsAndContactsAction() {
     return { success: false as const, error: error.message };
   }
 }
+
+/**
+ * Retrieves split CRM directory data:
+ * 1. Canonical Clients (business entities) with connected ad accounts, contacts count, call stats.
+ * 2. Canonical Contacts & Leads (individual GHL persons) with pipeline stages, parent client, call stats.
+ */
+export async function getCrmDirectoryDataAction() {
+  try {
+    const { orgId } = await getSessionOrgId();
+    if (!orgId) return { success: false as const, error: "No active organization" };
+
+    // Auto-migrate if clients table is empty but client_onboardings has records
+    const existingClientsCount = await db.query.clients.findFirst({
+      where: eq(clients.organizationId, orgId),
+    });
+    if (!existingClientsCount) {
+      const rawCount = await db.query.clientOnboardings.findFirst({
+        where: eq(clientOnboardings.organizationId, orgId),
+      });
+      if (rawCount) {
+        console.log("[getCrmDirectoryDataAction] No canonical clients found, running migration...");
+        await migrateGhlRecordsToClientsAndContactsAction();
+      }
+    }
+
+    // 1. Fetch canonical clients
+    let clientsList: any[] = [];
+    try {
+      clientsList = await db.query.clients.findMany({
+        where: eq(clients.organizationId, orgId),
+        orderBy: [desc(clients.createdAt)],
+        with: {
+          contacts: true,
+          adAccounts: true,
+          metaAdAccounts: true,
+        },
+      });
+    } catch (err) {
+      console.warn("Could not query clients with relations, fallback to basic query:", err);
+      clientsList = await db.query.clients.findMany({
+        where: eq(clients.organizationId, orgId),
+        orderBy: [desc(clients.createdAt)],
+      });
+    }
+
+    // 2. Fetch canonical contacts
+    let contactsList: any[] = [];
+    try {
+      contactsList = await db.query.contacts.findMany({
+        where: eq(contacts.organizationId, orgId),
+        orderBy: [desc(contacts.createdAt)],
+        with: {
+          client: true,
+        },
+      });
+    } catch (err) {
+      console.warn("Could not query contacts with client relation, fallback to basic query:", err);
+      contactsList = await db.query.contacts.findMany({
+        where: eq(contacts.organizationId, orgId),
+        orderBy: [desc(contacts.createdAt)],
+      });
+    }
+
+    // 3. Fetch call records for the organization to compute latest calls & metrics
+    let allCalls: any[] = [];
+    try {
+      allCalls = await db
+        .select({
+          id: callRecords.id,
+          clientId: callRecords.clientId,
+          contactId: callRecords.contactId,
+          clientOnboardingId: callRecords.clientOnboardingId,
+          ghlContactId: callRecords.ghlContactId,
+          contactPhone: callRecords.contactPhone,
+          contactEmail: callRecords.contactEmail,
+          callStartedAt: callRecords.callStartedAt,
+          leadScore: callRecords.leadScore,
+          sentiment: callRecords.sentiment,
+          createdAt: callRecords.createdAt,
+        })
+        .from(callRecords)
+        .where(eq(callRecords.organizationId, orgId))
+        .orderBy(desc(callRecords.callStartedAt), desc(callRecords.createdAt));
+    } catch (callErr) {
+      console.warn("Could not fetch callRecords for CRM directory:", callErr);
+    }
+
+    // Enrich Clients with aggregate call stats
+    const enrichedClients = clientsList.map((c) => {
+      const clientCalls = allCalls.filter((call) => {
+        if (call.clientId === c.id) return true;
+        return false;
+      });
+      const latestCall = clientCalls[0];
+      return {
+        ...c,
+        contactsCount: c.contacts ? c.contacts.length : 0,
+        callCount: clientCalls.length,
+        lastCallAt: latestCall ? latestCall.callStartedAt || latestCall.createdAt : null,
+        latestLeadScore: latestCall ? latestCall.leadScore : null,
+        latestSentiment: latestCall ? latestCall.sentiment : null,
+      };
+    });
+
+    // Enrich Contacts with individual call stats & parent client name
+    const enrichedContacts = contactsList.map((ct) => {
+      const contactPhoneClean = (ct.phone || "").replace(/\D/g, "");
+      const contactEmailClean = (ct.email || "").toLowerCase().trim();
+
+      const matchingCalls = allCalls.filter((call) => {
+        if (call.contactId === ct.id) return true;
+        if (ct.ghlContactId && call.ghlContactId === ct.ghlContactId) return true;
+        if (contactEmailClean && call.contactEmail?.toLowerCase().trim() === contactEmailClean) return true;
+        if (contactPhoneClean && contactPhoneClean.length >= 6) {
+          const callPhoneClean = (call.contactPhone || "").replace(/\D/g, "");
+          if (callPhoneClean && (callPhoneClean.includes(contactPhoneClean) || contactPhoneClean.includes(callPhoneClean))) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      const latestCall = matchingCalls[0];
+
+      return {
+        ...ct,
+        clientName: ct.client?.name || null,
+        callCount: matchingCalls.length,
+        lastCallAt: latestCall ? latestCall.callStartedAt || latestCall.createdAt : null,
+        latestLeadScore: latestCall ? latestCall.leadScore : null,
+        latestSentiment: latestCall ? latestCall.sentiment : null,
+      };
+    });
+
+    return {
+      success: true as const,
+      clients: enrichedClients,
+      contacts: enrichedContacts,
+    };
+  } catch (error: any) {
+    console.error("getCrmDirectoryDataAction error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
+ * Assigns or unassigns a Contact to a canonical Client business.
+ */
+export async function assignContactToClientAction(contactId: number, clientId: number | null) {
+  try {
+    const { orgId, userId } = await getSessionOrgId();
+    if (!orgId) return { success: false as const, error: "No active organization" };
+
+    await db
+      .update(contacts)
+      .set({
+        clientId: clientId,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(contacts.id, contactId), eq(contacts.organizationId, orgId)));
+
+    // Also link any existing call records for this contact to the client
+    if (clientId) {
+      await db
+        .update(callRecords)
+        .set({ clientId: clientId })
+        .where(and(eq(callRecords.contactId, contactId), eq(callRecords.organizationId, orgId)));
+    }
+
+    await logAction(userId, "ASSIGN_CONTACT_TO_CLIENT", "contacts", contactId, { clientId });
+    revalidatePath("/clients");
+    return { success: true as const };
+  } catch (error: any) {
+    console.error("assignContactToClientAction error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
+ * Promotes an individual Contact into a new canonical Client business.
+ */
+export async function promoteContactToClientAction(contactId: number, clientName: string) {
+  try {
+    const { orgId, userId } = await getSessionOrgId();
+    if (!orgId) return { success: false as const, error: "No active organization" };
+
+    const contactRecord = await db.query.contacts.findFirst({
+      where: and(eq(contacts.id, contactId), eq(contacts.organizationId, orgId)),
+    });
+
+    if (!contactRecord) return { success: false as const, error: "Contact not found" };
+
+    const [newClient] = await db
+      .insert(clients)
+      .values({
+        organizationId: orgId,
+        name: clientName.trim(),
+        status: "active",
+      })
+      .returning();
+
+    await db
+      .update(contacts)
+      .set({
+        clientId: newClient.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(contacts.id, contactId));
+
+    await db
+      .update(callRecords)
+      .set({
+        clientId: newClient.id,
+      })
+      .where(and(eq(callRecords.contactId, contactId), eq(callRecords.organizationId, orgId)));
+
+    await logAction(userId, "PROMOTE_CONTACT_TO_CLIENT", "clients", newClient.id, {
+      contactId,
+      clientName: newClient.name,
+    });
+
+    revalidatePath("/clients");
+    return { success: true as const, clientId: newClient.id };
+  } catch (error: any) {
+    console.error("promoteContactToClientAction error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
 

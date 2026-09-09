@@ -73,7 +73,6 @@ const navItems: NavItem[] = [
     ],
   },
   { href: "/clients", label: "Clients", icon: UserPlus },
-  { href: "/pipeline", label: "Sales Pipeline", icon: TrendingUp },
   { href: "/accounts", label: "Ad Accounts", icon: BarChart3 },
   { href: "/lp-analysis", label: "LP Analysis", icon: Globe },
   { href: "/ad-audit", label: "Ad Copy", icon: Sparkles },
