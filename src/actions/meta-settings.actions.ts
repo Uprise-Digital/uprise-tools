@@ -554,3 +554,152 @@ export async function getMetaAccountsPerformanceAction(
     };
   }
 }
+
+/**
+ * Fetches comprehensive daily time series and campaign breakdowns
+ * for a specific Meta Ad Account directly from Graph API.
+ */
+export async function getMetaAccountDetailedInsightsAction(
+  metaAccountId: string,
+  startDate: string,
+  endDate: string,
+) {
+  const ctx = await getAuthOrgContext();
+
+  if (!ctx) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const orgId = ctx.orgId;
+  const cleanId = metaAccountId.replace(/^act_/, "");
+
+  try {
+    const connection = await db.query.metaAdsConnections.findFirst({
+      where: eq(metaAdsConnections.organizationId, orgId),
+    });
+
+    if (!connection) {
+      return { success: false, error: "Meta Ads connection not found." };
+    }
+
+    const rawToken = decryptToken(connection.accessToken);
+    const actId = `act_${cleanId}`;
+    const timeRangeParam = encodeURIComponent(
+      JSON.stringify({ since: startDate, until: endDate }),
+    );
+
+    // 1. Fetch Account Daily Time Series
+    const dailyUrl = `https://graph.facebook.com/v19.0/${actId}/insights?fields=spend,clicks,impressions,cpc,ctr,actions&time_increment=1&time_range=${timeRangeParam}&access_token=${encodeURIComponent(rawToken)}&limit=100`;
+    // 2. Fetch Campaign Breakdown
+    const campaignsUrl = `https://graph.facebook.com/v19.0/${actId}/insights?fields=campaign_id,campaign_name,spend,clicks,impressions,cpc,ctr,actions&level=campaign&time_range=${timeRangeParam}&access_token=${encodeURIComponent(rawToken)}&limit=100`;
+
+    const [dailyRes, campaignsRes] = await Promise.all([
+      fetch(dailyUrl).then((r) => r.json()),
+      fetch(campaignsUrl).then((r) => r.json()),
+    ]);
+
+    const parseActionsConv = (actions?: any[]) => {
+      let count = 0;
+      if (Array.isArray(actions)) {
+        for (const a of actions) {
+          const type = a.action_type || "";
+          if (
+            type.includes("purchase") ||
+            type.includes("lead") ||
+            type.includes("conversion") ||
+            type.includes("complete_registration") ||
+            type === "onsite_conversion.lead_grouped"
+          ) {
+            count += parseInt(a.value || "0", 10);
+          }
+        }
+      }
+      return count;
+    };
+
+    // Parse Daily Time Series
+    const timeSeries = Array.isArray(dailyRes?.data)
+      ? dailyRes.data.map((day: any) => {
+          const spend = parseFloat(day.spend || "0");
+          const clicks = parseInt(day.clicks || "0", 10);
+          const impressions = parseInt(day.impressions || "0", 10);
+          const conversions = parseActionsConv(day.actions);
+
+          return {
+            date: day.date_start,
+            spend,
+            clicks,
+            impressions,
+            conversions,
+            cpc: clicks > 0 ? spend / clicks : 0,
+            ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
+            cpa: conversions > 0 ? spend / conversions : 0,
+          };
+        })
+      : [];
+
+    // Parse Campaigns
+    const campaigns = Array.isArray(campaignsRes?.data)
+      ? campaignsRes.data.map((c: any) => {
+          const spend = parseFloat(c.spend || "0");
+          const clicks = parseInt(c.clicks || "0", 10);
+          const impressions = parseInt(c.impressions || "0", 10);
+          const conversions = parseActionsConv(c.actions);
+
+          return {
+            campaignId: c.campaign_id,
+            campaignName: c.campaign_name || "Untitled Campaign",
+            spend,
+            clicks,
+            impressions,
+            conversions,
+            ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
+            cpc: clicks > 0 ? spend / clicks : 0,
+            cpa: conversions > 0 ? spend / conversions : 0,
+            convRate: clicks > 0 ? (conversions / clicks) * 100 : 0,
+            platform: "meta" as const,
+          };
+        })
+      : [];
+
+    // Compute Totals
+    let totalSpend = 0;
+    let totalClicks = 0;
+    let totalImpressions = 0;
+    let totalConversions = 0;
+
+    for (const d of timeSeries) {
+      totalSpend += d.spend;
+      totalClicks += d.clicks;
+      totalImpressions += d.impressions;
+      totalConversions += d.conversions;
+    }
+
+    const totals = {
+      spend: totalSpend,
+      clicks: totalClicks,
+      impressions: totalImpressions,
+      conversions: totalConversions,
+      ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
+      cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+      cpa: totalConversions > 0 ? totalSpend / totalConversions : 0,
+      convRate: totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0,
+    };
+
+    return {
+      success: true,
+      data: {
+        totals,
+        timeSeries,
+        campaigns,
+      },
+    };
+  } catch (err: any) {
+    console.error(`Error fetching detailed insights for act_${cleanId}:`, err);
+    return {
+      success: false,
+      error: err.message || "Failed to fetch detailed Meta insights",
+    };
+  }
+}
+

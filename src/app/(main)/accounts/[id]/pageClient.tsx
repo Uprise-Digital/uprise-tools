@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Ban,
-  Calendar,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -29,7 +28,7 @@ import {
   Target,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -45,11 +44,13 @@ import {
   getImpressionShareReportAction,
 } from "@/actions/agency.actions";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
+import { getMetaAccountDetailedInsightsAction } from "@/actions/meta-settings.actions";
 import { saveAccountPersonaAction } from "@/actions/negative-keywords.actions";
 import { saveAccountTriageSettingsAction } from "@/actions/triage-settings.actions";
 import { AiInsights } from "@/components/ai-insights";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -82,6 +83,15 @@ interface ClientDashboardProps {
     syncStatus: string | null;
     syncError: string | null;
     targetNotes: string | null;
+    linkedMetaAccount?: {
+      id: number;
+      metaAccountId: string;
+      name: string;
+      currencyCode: string | null;
+      timeZone: string | null;
+      isActive: boolean;
+      accountStatus: number;
+    } | null;
   };
   orgDefaults: {
     criticalSpendThreshold: number;
@@ -121,6 +131,12 @@ export default function ClientDashboard({
   initialSettings,
 }: ClientDashboardProps) {
   const router = useRouter();
+  const hasLinkedMeta = Boolean(account.linkedMetaAccount);
+
+  const [selectedChannel, setSelectedChannel] = useState<
+    "blended" | "google" | "meta"
+  >(hasLinkedMeta ? "blended" : "google");
+
   const today = new Date();
   const [startDate, setStartDate] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1)
@@ -134,6 +150,14 @@ export default function ClientDashboard({
   );
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+
+  // Meta state
+  const [isMetaLoading, setIsMetaLoading] = useState(false);
+  const [metaData, setMetaData] = useState<{
+    totals: any;
+    timeSeries: any[];
+    campaigns: any[];
+  } | null>(null);
 
   // Configuration Sheet State
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -170,6 +194,9 @@ export default function ClientDashboard({
   });
 
   const [campaignSearch, setCampaignSearch] = useState("");
+  const [campaignPlatformFilter, setCampaignPlatformFilter] = useState<
+    "all" | "google" | "meta"
+  >("all");
   const [campaignPage, setCampaignPage] = useState(1);
   const [campaignLimit, setCampaignLimit] = useState(10);
 
@@ -215,6 +242,43 @@ export default function ClientDashboard({
     actions: any[];
   } | null>(null);
   const [convError, setConvError] = useState<string | null>(null);
+
+  // Fetch Meta detailed insights concurrently
+  useEffect(() => {
+    if (!account.linkedMetaAccount?.metaAccountId) {
+      setMetaData(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsMetaLoading(true);
+
+    getMetaAccountDetailedInsightsAction(
+      account.linkedMetaAccount.metaAccountId,
+      startDate,
+      endDate,
+    )
+      .then((res) => {
+        if (isMounted) {
+          if (res.success && res.data) {
+            setMetaData(res.data);
+          } else {
+            setMetaData(null);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load Meta insights:", err);
+        if (isMounted) setMetaData(null);
+      })
+      .finally(() => {
+        if (isMounted) setIsMetaLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [account.linkedMetaAccount?.metaAccountId, startDate, endDate]);
 
   // Fetch Impression Share on tab change or date change
   useEffect(() => {
@@ -282,10 +346,51 @@ export default function ClientDashboard({
     };
   }, [activeTab, account.id, account.isActive]);
 
-  // Filtered Campaigns
-  const filteredCampaigns = (data?.campaigns || []).filter((c: any) => {
-    return c.campaignName.toLowerCase().includes(campaignSearch.toLowerCase());
-  });
+  // Raw Google campaigns tagged with platform
+  const googleCampaigns = useMemo(() => {
+    return (data?.campaigns || []).map((c: any) => ({
+      ...c,
+      campaignId: c.campaignId || c.campaignName,
+      platform: "google" as const,
+    }));
+  }, [data?.campaigns]);
+
+  // Raw Meta campaigns tagged with platform
+  const metaCampaigns = useMemo(() => {
+    return (metaData?.campaigns || []).map((c: any) => ({
+      ...c,
+      platform: "meta" as const,
+    }));
+  }, [metaData?.campaigns]);
+
+  // All combined campaigns based on selected channel and platform filter
+  const allCampaigns = useMemo(() => {
+    let list: any[] = [];
+    if (selectedChannel === "google") {
+      list = googleCampaigns;
+    } else if (selectedChannel === "meta") {
+      list = metaCampaigns;
+    } else {
+      list = [...googleCampaigns, ...metaCampaigns].sort(
+        (a, b) => (b.spend || 0) - (a.spend || 0),
+      );
+    }
+
+    if (campaignPlatformFilter !== "all") {
+      list = list.filter((c) => c.platform === campaignPlatformFilter);
+    }
+
+    return list;
+  }, [selectedChannel, googleCampaigns, metaCampaigns, campaignPlatformFilter]);
+
+  // Filtered Campaigns for Table
+  const filteredCampaigns = useMemo(() => {
+    return allCampaigns.filter((c: any) => {
+      return c.campaignName
+        .toLowerCase()
+        .includes(campaignSearch.toLowerCase());
+    });
+  }, [allCampaigns, campaignSearch]);
 
   const totalCampaignPages = Math.ceil(
     filteredCampaigns.length / campaignLimit,
@@ -297,10 +402,113 @@ export default function ClientDashboard({
 
   useEffect(() => {
     setCampaignPage(1);
-  }, []);
+  }, [campaignSearch, campaignPlatformFilter, selectedChannel]);
+
+  // Active Totals calculation
+  const activeTotals = useMemo(() => {
+    const gTotals = data?.totals || {
+      spend: 0,
+      clicks: 0,
+      impressions: 0,
+      conversions: 0,
+      ctr: 0,
+      cpc: 0,
+      cpa: 0,
+      convRate: 0,
+    };
+    const mTotals = metaData?.totals || {
+      spend: 0,
+      clicks: 0,
+      impressions: 0,
+      conversions: 0,
+      ctr: 0,
+      cpc: 0,
+      cpa: 0,
+      convRate: 0,
+    };
+
+    if (selectedChannel === "google") return gTotals;
+    if (selectedChannel === "meta") return mTotals;
+
+    // Blended calculation
+    const totalSpend = (gTotals.spend || 0) + (mTotals.spend || 0);
+    const totalClicks = (gTotals.clicks || 0) + (mTotals.clicks || 0);
+    const totalImpressions =
+      (gTotals.impressions || 0) + (mTotals.impressions || 0);
+    const totalConversions =
+      (gTotals.conversions || 0) + (mTotals.conversions || 0);
+
+    return {
+      spend: totalSpend,
+      clicks: totalClicks,
+      impressions: totalImpressions,
+      conversions: totalConversions,
+      ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
+      cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+      cpa: totalConversions > 0 ? totalSpend / totalConversions : 0,
+      convRate: totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0,
+      googleSpend: gTotals.spend || 0,
+      metaSpend: mTotals.spend || 0,
+      googleConversions: gTotals.conversions || 0,
+      metaConversions: mTotals.conversions || 0,
+      googleClicks: gTotals.clicks || 0,
+      metaClicks: mTotals.clicks || 0,
+      googleImpressions: gTotals.impressions || 0,
+      metaImpressions: mTotals.impressions || 0,
+    };
+  }, [selectedChannel, data?.totals, metaData?.totals]);
+
+  // Active Time Series calculation
+  const activeTimeSeries = useMemo(() => {
+    if (selectedChannel === "google") return data?.timeSeries || [];
+    if (selectedChannel === "meta") return metaData?.timeSeries || [];
+
+    // Merge time series by date
+    const dateMap = new Map<string, any>();
+
+    for (const d of data?.timeSeries || []) {
+      dateMap.set(d.date, {
+        date: d.date,
+        spend: d.spend || 0,
+        clicks: d.clicks || 0,
+        impressions: d.impressions || 0,
+        conversions: d.conversions || 0,
+      });
+    }
+
+    for (const d of metaData?.timeSeries || []) {
+      const existing = dateMap.get(d.date);
+      if (existing) {
+        existing.spend += d.spend || 0;
+        existing.clicks += d.clicks || 0;
+        existing.impressions += d.impressions || 0;
+        existing.conversions += d.conversions || 0;
+      } else {
+        dateMap.set(d.date, {
+          date: d.date,
+          spend: d.spend || 0,
+          clicks: d.clicks || 0,
+          impressions: d.impressions || 0,
+          conversions: d.conversions || 0,
+        });
+      }
+    }
+
+    const merged = Array.from(dateMap.values()).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+
+    return merged.map((d) => ({
+      ...d,
+      cpc: d.clicks > 0 ? d.spend / d.clicks : 0,
+      ctr: d.impressions > 0 ? (d.clicks / d.impressions) * 100 : 0,
+      cpa: d.conversions > 0 ? d.spend / d.conversions : 0,
+    }));
+  }, [selectedChannel, data?.timeSeries, metaData?.timeSeries]);
 
   const exportCampaignsToCsv = () => {
     const headers = [
+      "Platform",
       "Campaign Name",
       "Cost",
       "Clicks",
@@ -312,6 +520,7 @@ export default function ClientDashboard({
       "Conv. Rate",
     ];
     const rows = filteredCampaigns.map((c: any) => [
+      c.platform === "meta" ? "Meta Ads" : "Google Ads",
       c.campaignName,
       c.spend,
       c.clicks,
@@ -900,60 +1109,115 @@ export default function ClientDashboard({
                 </SheetContent>
               </Sheet>
             </div>
-            <p className="text-xs font-mono text-slate-500">
-              ID: {account.googleAccountId}
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                Google: {account.googleAccountId}
+              </span>
+              {account.linkedMetaAccount && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                  Meta: {account.linkedMetaAccount.metaAccountId}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* REFACTORED DATE CONTAINER */}
-        <div className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-1.5 gap-2 w-full md:w-auto">
-          <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
+        {/* CONTROLS: CHANNEL SWITCHER + DATE RANGE PICKER */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Channel Scope Selector */}
+          {hasLinkedMeta && (
+            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setSelectedChannel("blended")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  selectedChannel === "blended"
+                    ? "bg-white text-indigo-600 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Blended
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedChannel("google")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedChannel === "google"
+                    ? "bg-white text-blue-600 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                Google Ads
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedChannel("meta")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedChannel === "meta"
+                    ? "bg-white text-indigo-600 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                Meta Ads
+              </button>
+            </div>
+          )}
 
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="border-none h-8 w-[110px] p-0 text-sm focus-visible:ring-0 shadow-none [color-scheme:light]"
-          />
-
-          <span className="text-slate-300 font-light">—</span>
-
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="border-none h-8 w-[110px] p-0 text-sm focus-visible:ring-0 shadow-none [color-scheme:light]"
+          {/* PRESET-ENABLED DATE RANGE PICKER */}
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onChange={({ startDate: s, endDate: e }) => {
+              setStartDate(s);
+              setEndDate(e);
+            }}
           />
         </div>
       </div>
 
       {/* TABS SELECTOR */}
-      <div className="flex border-b border-slate-200 gap-6 text-sm font-semibold mb-4 shrink-0">
+      <div className="flex border-b border-slate-200 gap-6 text-sm font-semibold mb-4 shrink-0 overflow-x-auto">
         {[
-          { id: "performance", label: "Performance Dashboard" },
-          { id: "impression_share", label: "Impression Share Audit" },
-          { id: "conversion_health", label: "Conversion Tracking Health" },
+          { id: "performance", label: "Performance Dashboard", badge: null },
+          {
+            id: "impression_share",
+            label: "Impression Share Audit",
+            badge: "Google Ads",
+          },
+          {
+            id: "conversion_health",
+            label: "Conversion Tracking Health",
+            badge: "Google Ads",
+          },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => {
               setActiveTab(tab.id as any);
             }}
-            className={`pb-3 relative transition-all duration-200 font-sans cursor-pointer ${
+            className={`pb-3 relative transition-all duration-200 font-sans cursor-pointer flex items-center gap-2 shrink-0 ${
               activeTab === tab.id
                 ? "text-indigo-600 font-bold border-b-2 border-indigo-600"
                 : "text-slate-500 hover:text-slate-800 font-medium"
             }`}
           >
-            {tab.label}
+            <span>{tab.label}</span>
+            {tab.badge && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       {activeTab === "performance" && (
         <>
-          {/* NEW: Insert the AI Insight Engine here */}
+          {/* AI Insight Engine */}
           <AiInsights
             adAccountId={account.id}
             googleAccountId={account.googleAccountId}
@@ -966,86 +1230,118 @@ export default function ClientDashboard({
             {[
               {
                 label: "Cost",
-                val: data?.totals.spend,
+                val: activeTotals.spend,
+                googleVal: activeTotals.googleSpend,
+                metaVal: activeTotals.metaSpend,
                 icon: DollarSign,
                 color: "text-blue-600",
                 bg: "bg-blue-50",
                 f: fCur,
+                showSplit: selectedChannel === "blended" && hasLinkedMeta,
               },
               {
                 label: "Clicks",
-                val: data?.totals.clicks,
+                val: activeTotals.clicks,
+                googleVal: activeTotals.googleClicks,
+                metaVal: activeTotals.metaClicks,
                 icon: MousePointerClick,
                 color: "text-purple-600",
                 bg: "bg-purple-50",
                 f: fNum,
+                showSplit: selectedChannel === "blended" && hasLinkedMeta,
               },
               {
                 label: "Impressions",
-                val: data?.totals.impressions,
+                val: activeTotals.impressions,
+                googleVal: activeTotals.googleImpressions,
+                metaVal: activeTotals.metaImpressions,
                 icon: Eye,
                 color: "text-amber-600",
                 bg: "bg-amber-50",
                 f: fNum,
+                showSplit: selectedChannel === "blended" && hasLinkedMeta,
               },
               {
                 label: "CTR",
-                val: data?.totals.ctr,
+                val: activeTotals.ctr,
                 icon: Percent,
                 color: "text-indigo-600",
                 bg: "bg-indigo-50",
                 f: fPct,
+                showSplit: false,
               },
               {
                 label: "Conversions",
-                val: data?.totals.conversions,
+                val: activeTotals.conversions,
+                googleVal: activeTotals.googleConversions,
+                metaVal: activeTotals.metaConversions,
                 icon: Target,
                 color: "text-emerald-600",
                 bg: "bg-emerald-50",
                 f: fNum,
+                showSplit: selectedChannel === "blended" && hasLinkedMeta,
               },
               {
                 label: "Cost / Conv.",
-                val: data?.totals.cpa,
+                val: activeTotals.cpa,
                 icon: Activity,
                 color: "text-rose-600",
                 bg: "bg-rose-50",
                 f: fCur,
+                showSplit: false,
               },
               {
                 label: "Conv. Rate",
-                val: data?.totals.convRate,
+                val: activeTotals.convRate,
                 icon: LineChart,
                 color: "text-teal-600",
                 bg: "bg-teal-50",
                 f: fPct,
+                showSplit: false,
               },
               {
                 label: "Avg. CPC",
-                val: data?.totals.cpc,
+                val: activeTotals.cpc,
                 icon: DollarSign,
                 color: "text-slate-600",
                 bg: "bg-slate-100",
                 f: fCur,
+                showSplit: false,
               },
             ].map((kpi, i) => (
               <Card key={i} className="mt-0 pt-0 shadow-sm">
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] font-bold uppercase text-slate-500">
-                      {kpi.label}
-                    </p>
-                    <p className="text-xl font-bold">
-                      {isLoading ? (
-                        <Skeleton className="h-6 w-16" />
-                      ) : (
-                        kpi.f(kpi.val)
-                      )}
-                    </p>
+                <CardContent className="p-4 flex flex-col justify-between h-full">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-bold uppercase text-slate-500">
+                        {kpi.label}
+                      </p>
+                      <p className="text-xl font-bold">
+                        {isLoading || isMetaLoading ? (
+                          <Skeleton className="h-6 w-16" />
+                        ) : (
+                          kpi.f(kpi.val)
+                        )}
+                      </p>
+                    </div>
+                    <div className={`p-2 rounded-lg ${kpi.bg}`}>
+                      <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
+                    </div>
                   </div>
-                  <div className={`p-2 rounded-lg ${kpi.bg}`}>
-                    <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
-                  </div>
+
+                  {/* Channel Breakdown Pill when in Blended view */}
+                  {kpi.showSplit && !isLoading && !isMetaLoading && (
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                        G: {kpi.f(kpi.googleVal ?? 0)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                        M: {kpi.f(kpi.metaVal ?? 0)}
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -1070,13 +1366,13 @@ export default function ClientDashboard({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="h-50">
-                  {isLoading ? (
+                  {isLoading || isMetaLoading ? (
                     <Skeleton className="h-full w-full" />
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart
                         margin={{ top: 10, right: 10, left: -40, bottom: 0 }}
-                        data={data?.timeSeries}
+                        data={activeTimeSeries}
                       >
                         <CartesianGrid
                           strokeDasharray="3 3"
@@ -1090,8 +1386,8 @@ export default function ClientDashboard({
                           tickLine={false}
                           padding={{ left: 0, right: 0 }}
                           axisLine={false}
-                          dy={10} // Adds space between the axis and the text
-                          minTickGap={20} // Prevents labels from overlapping
+                          dy={10}
+                          minTickGap={20}
                           tickFormatter={(value) => {
                             const date = new Date(value);
                             return date.toLocaleDateString("en-US", {
@@ -1104,8 +1400,8 @@ export default function ClientDashboard({
                           fontSize={10}
                           tickLine={false}
                           axisLine={false}
-                          dy={10} // Adds space between the axis and the text
-                          minTickGap={20} // Prevents labels from overlapping
+                          dy={10}
+                          minTickGap={20}
                           domain={["auto", "auto"]}
                         />
                         <RechartsTooltip
@@ -1132,12 +1428,54 @@ export default function ClientDashboard({
           {/* FULL CAMPAIGN TABLE */}
           <Card className="shadow-sm overflow-hidden mt-0 pt-0">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-stretch sm:items-center py-4 gap-3">
-              <div>
+              <div className="flex items-center gap-3">
                 <CardTitle className="text-base font-bold text-slate-800">
                   Campaign Breakdown
                 </CardTitle>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-700">
+                  {filteredCampaigns.length}
+                </span>
               </div>
               <div className="flex flex-wrap items-center gap-3">
+                {/* Platform filter tabs inside campaign table if account has linked Meta and in blended view */}
+                {hasLinkedMeta && selectedChannel === "blended" && (
+                  <div className="flex items-center p-0.5 bg-slate-200/60 rounded-lg text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setCampaignPlatformFilter("all")}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                        campaignPlatformFilter === "all"
+                          ? "bg-white text-slate-900 shadow-xs font-bold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCampaignPlatformFilter("google")}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                        campaignPlatformFilter === "google"
+                          ? "bg-white text-blue-600 shadow-xs font-bold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Google
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCampaignPlatformFilter("meta")}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                        campaignPlatformFilter === "meta"
+                          ? "bg-white text-indigo-600 shadow-xs font-bold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Meta
+                    </button>
+                  </div>
+                )}
+
                 <div className="relative w-64">
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                   <Input
@@ -1145,7 +1483,7 @@ export default function ClientDashboard({
                     value={campaignSearch}
                     onChange={(e) => setCampaignSearch(e.target.value)}
                     className="pl-8 text-xs h-8 bg-white"
-                    disabled={isLoading}
+                    disabled={isLoading || isMetaLoading}
                   />
                 </div>
                 <Button
@@ -1153,7 +1491,9 @@ export default function ClientDashboard({
                   variant="outline"
                   size="sm"
                   className="text-xs h-8 flex items-center gap-1.5 border-slate-200"
-                  disabled={isLoading || filteredCampaigns.length === 0}
+                  disabled={
+                    isLoading || isMetaLoading || filteredCampaigns.length === 0
+                  }
                 >
                   <Download className="w-3.5 h-3.5" />
                   Export
@@ -1164,6 +1504,9 @@ export default function ClientDashboard({
               <TableHeader className="bg-slate-50/50">
                 <TableRow>
                   <TableHead>Campaign</TableHead>
+                  {hasLinkedMeta && (
+                    <TableHead className="w-[90px]">Platform</TableHead>
+                  )}
                   <TableHead className="text-right">Cost</TableHead>
                   <TableHead className="text-right">Clicks</TableHead>
                   <TableHead className="text-right">Impr.</TableHead>
@@ -1175,10 +1518,10 @@ export default function ClientDashboard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
+                {isLoading || isMetaLoading ? (
                   <TableRow>
                     <TableCell
-                      colSpan={9}
+                      colSpan={hasLinkedMeta ? 10 : 9}
                       className="h-24 text-center text-xs text-slate-500 font-sans"
                     >
                       Loading campaigns...
@@ -1187,7 +1530,7 @@ export default function ClientDashboard({
                 ) : paginatedCampaigns.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={9}
+                      colSpan={hasLinkedMeta ? 10 : 9}
                       className="h-24 text-center text-xs text-slate-500 font-sans"
                     >
                       No matching campaigns found.
@@ -1196,9 +1539,22 @@ export default function ClientDashboard({
                 ) : (
                   paginatedCampaigns.map((c: any, i: number) => (
                     <TableRow key={i} className="text-xs">
-                      <TableCell className="font-medium max-w-[200px] truncate">
+                      <TableCell className="font-medium max-w-[240px] truncate">
                         {c.campaignName}
                       </TableCell>
+                      {hasLinkedMeta && (
+                        <TableCell>
+                          {c.platform === "meta" ? (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              Meta
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                              Google
+                            </span>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right font-mono">
                         {fCur(c.spend)}
                       </TableCell>

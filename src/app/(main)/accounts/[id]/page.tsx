@@ -7,7 +7,9 @@ import {
   getOrgTriageDefaultsAction,
 } from "@/actions/triage-settings.actions";
 import { db } from "@/db";
-import { adAccounts } from "@/db/schema";
+import { adAccounts, metaAdAccounts } from "@/db/schema";
+import { normalizeAccountName } from "@/lib/account-unification";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 import ClientDashboard from "./pageClient";
 
 interface PageProps {
@@ -21,12 +23,49 @@ export default async function AccountDetailPage({ params }: PageProps) {
     return notFound();
   }
 
+  const ctx = await getAuthOrgContext();
+  const orgId = ctx?.orgId || null;
+
   const account = await db.query.adAccounts.findFirst({
     where: eq(adAccounts.id, accountId),
   });
 
   if (!account) {
     return notFound();
+  }
+
+  // Look up if there is a linked Meta Ad Account in the same organization matching this client's name
+  let linkedMetaAccount: {
+    id: number;
+    metaAccountId: string;
+    name: string;
+    currencyCode: string | null;
+    timeZone: string | null;
+    isActive: boolean;
+    accountStatus: number;
+  } | null = null;
+
+  if (orgId) {
+    const orgMetaAccounts = await db.query.metaAdAccounts.findMany({
+      where: eq(metaAdAccounts.organizationId, orgId),
+    });
+
+    const normAccountName = normalizeAccountName(account.name);
+    const matchedMeta = orgMetaAccounts.find(
+      (m) => normalizeAccountName(m.name) === normAccountName,
+    );
+
+    if (matchedMeta) {
+      linkedMetaAccount = {
+        id: matchedMeta.id,
+        metaAccountId: matchedMeta.metaAccountId,
+        name: matchedMeta.name,
+        currencyCode: matchedMeta.currencyCode,
+        timeZone: matchedMeta.timeZone,
+        isActive: matchedMeta.isActive,
+        accountStatus: matchedMeta.accountStatus,
+      };
+    }
   }
 
   const [orgDefaultsRes, accountSettingsRes] = await Promise.all([
@@ -52,6 +91,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
     syncStatus: account.syncStatus,
     syncError: account.syncError,
     targetNotes: account.targetNotes,
+    linkedMetaAccount,
   };
 
   return (
@@ -62,3 +102,4 @@ export default async function AccountDetailPage({ params }: PageProps) {
     />
   );
 }
+
