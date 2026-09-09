@@ -13,6 +13,7 @@ import {
   Flame,
   Globe,
   HelpCircle,
+  History,
   Info,
   Layers,
   Link as LinkIcon,
@@ -23,6 +24,7 @@ import {
   PhoneCall,
   Play,
   RefreshCw,
+  RotateCw,
   Send,
   SlidersHorizontal,
   Sparkles,
@@ -40,6 +42,7 @@ import {
   associateAdAccountAction,
   deleteClientOnboardingAction,
   finalizeOnboardingAction,
+  getClientEmailLogsAction,
   getClientOnboardingByIdAction,
   runOnboardingPipelineAction,
   sendOnboardingEmailAction,
@@ -49,6 +52,13 @@ import { getOnboardingSettingsAction } from "@/actions/onboarding-settings.actio
 import ClientCallHistory from "@/components/clients/client-call-history";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { compileOnboardingEmail } from "@/lib/onboarding-email";
 import { cn } from "@/lib/utils";
@@ -91,6 +101,8 @@ export default function ClientDetailPageClient({
   const [isEditingEmailTemplate, setIsEditingEmailTemplate] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [emailLogs, setEmailLogs] = useState<any[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Execution states
   const [isRunningPipeline, setIsRunningPipeline] = useState(false);
@@ -111,6 +123,10 @@ export default function ClientDetailPageClient({
         setEditDrive(c.driveFolderLink || "");
         setEditNotion(c.notionDashboardLink || "");
         setEditSignal(c.signalGroupLink || "");
+
+        if ((clientRes as any).emailLogs) {
+          setEmailLogs((clientRes as any).emailLogs);
+        }
 
         const linkedAcc = c.adAccounts?.[0];
         setSelectedAdAccountId(linkedAcc ? String(linkedAcc.id) : "");
@@ -267,13 +283,7 @@ export default function ClientDetailPageClient({
 
       if (res.success) {
         toast.success("Onboarding email dispatched successfully!");
-        setClient({
-          ...client,
-          driveFolderLink: editDrive.trim(),
-          notionDashboardLink: editNotion.trim(),
-          signalGroupLink: editSignal.trim(),
-          status: "email_sent",
-        });
+        await loadClientDetails();
       } else {
         toast.error(res.error || "Failed to dispatch email.");
       }
@@ -349,6 +359,26 @@ export default function ClientDetailPageClient({
     toast.success(`${label} copied to clipboard!`);
     setTimeout(() => setCopiedField(null), 2000);
   };
+
+  const formatDateTime = (dateStr?: string | Date | null) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    return d.toLocaleString("en-AU", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const latestEmailLog = emailLogs[0] || null;
+  const isEmailSent =
+    client?.status === "email_sent" ||
+    client?.status === "completed" ||
+    Boolean(client?.emailSentAt) ||
+    latestEmailLog?.status === "success";
+  const emailSentDate = client?.emailSentAt || latestEmailLog?.sentAt;
 
   if (loading) {
     return (
@@ -465,6 +495,39 @@ export default function ClientDetailPageClient({
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
                   <Clock className="h-3.5 w-3.5 text-amber-500" /> In Onboarding
                 </span>
+              )}
+
+              {/* Email Delivery Status Badge */}
+              {isEmailSent ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("workspace");
+                    setIsHistoryOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
+                  title={
+                    emailSentDate
+                      ? `Welcome email sent on ${formatDateTime(emailSentDate)}`
+                      : "Welcome email delivered"
+                  }
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  Email Sent
+                  {emailSentDate
+                    ? ` (${new Date(emailSentDate).toLocaleDateString("en-AU", { month: "short", day: "numeric" })})`
+                    : ""}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("workspace")}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer"
+                  title="Welcome email not dispatched yet"
+                >
+                  <Mail className="h-3.5 w-3.5 text-slate-400" />
+                  Email Not Sent
+                </button>
               )}
 
               {client.ghlPipelineStage && (
@@ -794,7 +857,7 @@ export default function ClientDetailPageClient({
 
           {/* Email Outbox & Live HTML Preview */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <Mail className="h-4 w-4 text-indigo-600" /> Onboarding Email
@@ -806,18 +869,155 @@ export default function ClientDetailPageClient({
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  setIsEditingEmailTemplate(!isEditingEmailTemplate)
-                }
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                {isEditingEmailTemplate
-                  ? "Hide Editor"
-                  : "Customize Subject & Body"}
-              </button>
+              <div className="flex items-center gap-2">
+                {emailLogs.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsHistoryOpen(true)}
+                    className="text-xs h-7 px-2.5 font-bold text-slate-700 hover:text-slate-900 border-slate-200 cursor-pointer"
+                  >
+                    <History className="h-3.5 w-3.5 text-indigo-600 mr-1" />
+                    Delivery History ({emailLogs.length})
+                  </Button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setIsEditingEmailTemplate(!isEditingEmailTemplate)
+                  }
+                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  {isEditingEmailTemplate
+                    ? "Hide Editor"
+                    : "Customize Subject & Body"}
+                </button>
+              </div>
+            </div>
+
+            {/* Live Email Delivery Status Banner */}
+            <div
+              className={cn(
+                "rounded-xl border p-4 transition-all",
+                isEmailSent
+                  ? "bg-emerald-50/70 border-emerald-200"
+                  : latestEmailLog?.status === "failed"
+                    ? "bg-rose-50/70 border-rose-200"
+                    : "bg-slate-50 border-slate-200",
+              )}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div
+                    className={cn(
+                      "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
+                      isEmailSent
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : latestEmailLog?.status === "failed"
+                          ? "bg-rose-600 text-white shadow-sm"
+                          : "bg-slate-200 text-slate-600",
+                    )}
+                  >
+                    {isEmailSent ? (
+                      <CheckCircle2 className="h-5 w-5" />
+                    ) : latestEmailLog?.status === "failed" ? (
+                      <AlertCircle className="h-5 w-5" />
+                    ) : (
+                      <Mail className="h-5 w-5" />
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4
+                        className={cn(
+                          "text-xs font-bold",
+                          isEmailSent
+                            ? "text-emerald-950"
+                            : latestEmailLog?.status === "failed"
+                              ? "text-rose-950"
+                              : "text-slate-800",
+                        )}
+                      >
+                        {isEmailSent
+                          ? "Welcome Email Sent & Delivered"
+                          : latestEmailLog?.status === "failed"
+                            ? "Last Delivery Attempt Failed"
+                            : "Welcome Email Not Sent Yet"}
+                      </h4>
+                      {isEmailSent && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                          <Check className="h-3 w-3" /> Delivered (Resend)
+                        </span>
+                      )}
+                      {latestEmailLog?.status === "failed" && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                          Failed
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-[11px] text-slate-600 flex items-center gap-2 flex-wrap pt-0.5">
+                      {isEmailSent && emailSentDate ? (
+                        <span>
+                          <strong>Sent At:</strong> {formatDateTime(emailSentDate)}
+                        </span>
+                      ) : (
+                        <span>
+                          <strong>Status:</strong> Ready to dispatch to {client.contactEmail}
+                        </span>
+                      )}
+                      <span>•</span>
+                      <span>
+                        <strong>Recipient:</strong> {client.contactEmail}
+                      </span>
+                      {latestEmailLog?.resendId && (
+                        <>
+                          <span>•</span>
+                          <span className="inline-flex items-center gap-1 font-mono text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                            Resend ID: {latestEmailLog.resendId}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                copyToClipboard(
+                                  latestEmailLog.resendId,
+                                  "Resend ID",
+                                )
+                              }
+                              className="hover:text-slate-800 cursor-pointer ml-0.5"
+                              title="Copy Resend ID"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </span>
+                        </>
+                      )}
+                      {latestEmailLog?.error && (
+                        <span className="text-rose-600 font-medium">
+                          Error: {latestEmailLog.error}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  {emailLogs.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsHistoryOpen(true)}
+                      className="text-xs h-8 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 flex items-center gap-1.5 font-bold shadow-xs cursor-pointer"
+                    >
+                      <History className="h-3.5 w-3.5 text-indigo-600" />
+                      View Full History ({emailLogs.length})
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Template Editor Drawer */}
@@ -905,27 +1105,77 @@ export default function ClientDetailPageClient({
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-[11px] text-slate-400">
-                {!editDrive || !editNotion || !editSignal
-                  ? "⚠️ Workspace links not complete yet"
-                  : "Ready for dispatch"}
-              </p>
-              <Button
-                onClick={handleSendEmail}
-                disabled={isSendingEmail}
-                className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-300 text-white font-bold text-xs h-9 px-5 rounded-lg flex items-center gap-1.5 shadow-sm cursor-pointer"
-              >
-                {isSendingEmail ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Dispatching...
-                  </>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                {isEmailSent ? (
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-medium bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span>
+                      Welcome email sent on{" "}
+                      <strong>{formatDateTime(emailSentDate)}</strong>
+                    </span>
+                  </div>
                 ) : (
-                  <>
-                    <Send className="h-4 w-4" /> Send Welcome Email
-                  </>
+                  <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                    {!editDrive || !editNotion || !editSignal ? (
+                      <>
+                        <span className="text-amber-500">⚠️</span>
+                        <span>
+                          Workspace links incomplete (Signal, Drive, or Notion missing)
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" />
+                        <span>
+                          Ready for dispatch to{" "}
+                          <strong>{client.contactEmail}</strong>
+                        </span>
+                      </>
+                    )}
+                  </p>
                 )}
-              </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {emailLogs.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsHistoryOpen(true)}
+                    className="text-xs h-9 text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+                  >
+                    <History className="h-3.5 w-3.5 mr-1 text-slate-500" />
+                    History ({emailLogs.length})
+                  </Button>
+                )}
+
+                <Button
+                  onClick={handleSendEmail}
+                  disabled={isSendingEmail}
+                  className={cn(
+                    "font-bold text-xs h-9 px-5 rounded-lg flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors",
+                    isEmailSent
+                      ? "bg-slate-800 hover:bg-slate-700 text-white"
+                      : "bg-indigo-600 hover:bg-indigo-500 text-white",
+                  )}
+                >
+                  {isSendingEmail ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Dispatching...
+                    </>
+                  ) : isEmailSent ? (
+                    <>
+                      <RotateCw className="h-4 w-4" /> Resend Welcome Email
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" /> Send Welcome Email
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -1000,6 +1250,95 @@ export default function ClientDetailPageClient({
           </div>
         </div>
       )}
+
+      {/* Email Dispatch History Modal */}
+      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+        <DialogContent className="max-w-xl bg-white rounded-2xl shadow-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-slate-900">
+              <Mail className="h-4 w-4 text-indigo-600" />
+              Email Dispatch History
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Audit logs of system emails dispatched to{" "}
+              <strong>{client.contactEmail}</strong> for{" "}
+              <strong>{client.clientName}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 pr-1 mt-2">
+            {emailLogs.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">
+                No email dispatch logs found for this client yet.
+              </div>
+            ) : (
+              emailLogs.map((log: any) => {
+                const isSuccess = log.status === "success";
+                return (
+                  <div key={log.id} className="py-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                            isSuccess
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-rose-50 text-rose-700 border-rose-200",
+                          )}
+                        >
+                          {isSuccess ? (
+                            <>
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Delivered
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="h-3 w-3 text-rose-600" /> Failed
+                            </>
+                          )}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-800">
+                          {log.subject}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-400 shrink-0">
+                        {formatDateTime(log.sentAt)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pl-1">
+                      <span>
+                        Recipient:{" "}
+                        <strong className="text-slate-700">{log.recipient}</strong>
+                      </span>
+                      {log.resendId && (
+                        <div className="flex items-center gap-1 font-mono text-[10px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                          <span>ID: {log.resendId}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyToClipboard(log.resendId, "Resend Message ID")
+                            }
+                            className="hover:text-slate-800 p-0.5 cursor-pointer"
+                            title="Copy Message ID"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {log.error && (
+                      <div className="bg-rose-50 border border-rose-200 rounded-lg p-2 text-[11px] text-rose-700 mt-1">
+                        <strong>Error:</strong> {log.error}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   backgroundTasks,
   callRecords,
   clientOnboardings,
+  emailLogs,
   member,
   organization,
   organizationOnboardingSettings,
@@ -1183,13 +1184,57 @@ export async function getClientOnboardingByIdAction(clientId: number) {
       return { success: false as const, error: "Client not found" };
     }
 
-    return { success: true as const, client };
+    const logs = await db.query.emailLogs.findMany({
+      where: and(
+        eq(emailLogs.organizationId, orgId),
+        eq(emailLogs.recipient, client.contactEmail),
+      ),
+      orderBy: [desc(emailLogs.sentAt)],
+      limit: 20,
+    });
+
+    return { success: true as const, client, emailLogs: logs };
   } catch (error: any) {
     console.error("Error fetching client onboarding by ID:", error);
     return {
       success: false as const,
       error: error.message || "Failed to fetch client details",
     };
+  }
+}
+
+/**
+ * Retrieves delivery logs for emails dispatched to a client.
+ */
+export async function getClientEmailLogsAction(clientId: number) {
+  try {
+    const { orgId } = await getSessionOrgId();
+    if (!orgId)
+      return { success: false as const, error: "No active organization" };
+
+    const client = await db.query.clientOnboardings.findFirst({
+      where: and(
+        eq(clientOnboardings.id, clientId),
+        eq(clientOnboardings.organizationId, orgId),
+      ),
+    });
+
+    if (!client) {
+      return { success: false as const, error: "Client not found" };
+    }
+
+    const logs = await db.query.emailLogs.findMany({
+      where: and(
+        eq(emailLogs.organizationId, orgId),
+        eq(emailLogs.recipient, client.contactEmail),
+      ),
+      orderBy: [desc(emailLogs.sentAt)],
+      limit: 20,
+    });
+
+    return { success: true as const, logs };
+  } catch (error: any) {
+    return { success: false as const, error: error.message };
   }
 }
 
