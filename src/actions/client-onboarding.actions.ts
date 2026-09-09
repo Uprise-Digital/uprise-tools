@@ -20,6 +20,7 @@ import {
 } from "@/db/schema";
 import { logAction, logEmail } from "@/lib/audit";
 import { auth } from "@/lib/auth";
+import { getAuthOrgContext } from "@/lib/auth-helpers";
 import { decryptToken } from "@/lib/crypto";
 import { compileOnboardingEmail } from "@/lib/onboarding-email";
 import {
@@ -61,19 +62,9 @@ function getActiveWorkflowChain(edges: any[]): string[] {
  * Retrieves the active organization context for the current session.
  */
 async function getSessionOrgId() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  if (!session) throw new Error("Unauthorized");
-
-  let orgId = session.session?.activeOrganizationId;
-  if (!orgId) {
-    const userMember = await db.query.member.findFirst({
-      where: eq(member.userId, session.user.id),
-    });
-    orgId = userMember?.organizationId;
-  }
-  return { orgId, userId: session.user.id };
+  const ctx = await getAuthOrgContext();
+  if (!ctx || !ctx.orgId) throw new Error("Unauthorized: No active organization");
+  return { orgId: ctx.orgId, userId: ctx.userId };
 }
 
 /**

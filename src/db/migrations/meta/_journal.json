@@ -92,6 +92,13 @@
       "when": 1788160000000,
       "tag": "0012_industry_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788946776938,
+      "tag": "0013_clients_and_contacts",
+      "breakpoints": true
     }
   ]
 }

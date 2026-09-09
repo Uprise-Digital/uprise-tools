@@ -16,14 +16,15 @@ import {
   Settings,
   Sparkles,
   TrendingUp,
+  UserCheck,
   UserPlus,
   Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type React from "react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { setActiveOrgCookieAction } from "@/actions/onboarding.actions";
 import { BackgroundTasksIndicator } from "@/components/background-tasks-indicator";
 import { NotificationBell } from "@/components/notification-bell";
@@ -72,13 +73,14 @@ const navItems: NavItem[] = [
       },
     ],
   },
-  { href: "/clients", label: "Clients", icon: UserPlus },
+  { href: "/clients", label: "Clients", icon: Building2 },
+  { href: "/clients?view=contacts", label: "Contacts", icon: Users },
   { href: "/accounts", label: "Ad Accounts", icon: BarChart3 },
   { href: "/lp-analysis", label: "LP Analysis", icon: Globe },
   { href: "/ad-audit", label: "Ad Copy", icon: Sparkles },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/mcp", label: "MCP Settings", icon: BellRing },
-  { href: "/team", label: "Team Management", icon: Users },
+  { href: "/team", label: "Team Management", icon: UserCheck },
   { href: "/logs", label: "Logs", icon: ScrollText },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -89,39 +91,22 @@ interface OrgItem {
   slug: string | null;
 }
 
-export function MainLayout({
-  children,
-  userInitials,
-  userName,
-  organizations = [],
-  activeOrganization,
+function NavLinksList({
+  isMobile = false,
+  setMobileOpen,
+  overviewExpanded,
+  setOverviewExpanded,
 }: {
-  children: React.ReactNode;
-  userInitials: string;
-  userName: string;
-  organizations?: OrgItem[];
-  activeOrganization?: OrgItem;
+  isMobile?: boolean;
+  setMobileOpen: (open: boolean) => void;
+  overviewExpanded: boolean;
+  setOverviewExpanded: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [overviewExpanded, setOverviewExpanded] = useState(true);
+  const searchParams = useSearchParams();
+  const currentView = searchParams?.get("view");
 
-  const handleSwitchOrg = async (orgId: string) => {
-    if (activeOrganization?.id === orgId) return;
-    try {
-      document.cookie = `active_org_id=${orgId}; path=/; max-age=31536000`;
-      await setActiveOrgCookieAction(orgId);
-      await authClient.organization.setActive({
-        organizationId: orgId,
-      });
-      window.location.reload();
-    } catch (err) {
-      console.error("Failed to switch organization:", err);
-      window.location.reload();
-    }
-  };
-
-  const renderNavItems = (isMobile = false) => (
+  return (
     <div className="flex flex-col gap-1 py-4">
       {navItems.map((item) => {
         const Icon = item.icon;
@@ -189,7 +174,12 @@ export function MainLayout({
           );
         }
 
-        const isActive = isParentActive;
+        let isActive = isParentActive;
+        if (item.href === "/clients?view=contacts") {
+          isActive = pathname === "/clients" && currentView === "contacts";
+        } else if (item.href === "/clients") {
+          isActive = pathname === "/clients" && currentView !== "contacts";
+        }
 
         return (
           <Link
@@ -210,6 +200,51 @@ export function MainLayout({
       })}
     </div>
   );
+}
+
+export function MainLayout({
+  children,
+  userInitials,
+  userName,
+  organizations = [],
+  activeOrganization,
+}: {
+  children: React.ReactNode;
+  userInitials: string;
+  userName: string;
+  organizations?: OrgItem[];
+  activeOrganization?: OrgItem;
+}) {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [overviewExpanded, setOverviewExpanded] = useState(true);
+
+  const handleSwitchOrg = async (orgId: string) => {
+    if (activeOrganization?.id === orgId) return;
+    try {
+      document.cookie = `active_org_id=${orgId}; path=/; max-age=31536000`;
+      await setActiveOrgCookieAction(orgId);
+      await authClient.organization.setActive({
+        organizationId: orgId,
+      });
+      window.location.reload();
+    } catch (err) {
+      console.error("Failed to switch organization:", err);
+      window.location.reload();
+    }
+  };
+
+  const renderNavItems = (isMobile = false) => (
+    <Suspense fallback={<div className="py-4 text-xs text-slate-500" />}>
+      <NavLinksList
+        isMobile={isMobile}
+        setMobileOpen={setMobileOpen}
+        overviewExpanded={overviewExpanded}
+        setOverviewExpanded={setOverviewExpanded}
+      />
+    </Suspense>
+  );
+
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 antialiased">
