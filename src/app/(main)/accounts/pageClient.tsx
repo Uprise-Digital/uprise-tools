@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/table";
 import type { UnifiedAccountRow } from "@/lib/account-unification";
 import { getAllIndustries, getIndustryMeta } from "@/lib/industry-config";
+import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 
 interface AccountsClientPageProps {
   accounts: UnifiedAccountRow[];
@@ -998,10 +999,8 @@ export default function AccountsClientPage({
                               {/* Google Badge (hidden if filtered to Meta) */}
                               {platformFilter !== "meta" &&
                                 acc.googleAccountId && (
-                                  <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded">
-                                    <span className="font-semibold text-[9px]">
-                                      G
-                                    </span>
+                                  <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-1.5 py-0.5 rounded font-mono shadow-2xs">
+                                    <GoogleLogo className="w-3 h-3 shrink-0" />
                                     {acc.googleAccountId}
                                   </span>
                                 )}
@@ -1009,10 +1008,8 @@ export default function AccountsClientPage({
                               {/* Meta Badge (hidden if filtered to Google) */}
                               {platformFilter !== "google" &&
                                 acc.metaAccountId && (
-                                  <span className="inline-flex items-center gap-1 font-mono text-[10px] bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.2 rounded">
-                                    <span className="font-semibold text-[9px]">
-                                      Meta
-                                    </span>
+                                  <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-blue-800 bg-blue-50 border border-blue-200/70 px-1.5 py-0.5 rounded font-mono shadow-2xs">
+                                    <MetaLogo className="w-3 h-3 shrink-0" />
                                     act_{acc.metaAccountId}
                                   </span>
                                 )}

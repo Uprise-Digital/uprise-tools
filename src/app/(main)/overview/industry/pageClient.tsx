@@ -44,6 +44,7 @@ import {
 } from "@/actions/industry-analytics.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 import {
   Card,
   CardContent,
@@ -1004,20 +1005,20 @@ export default function IndustryAnalyticsClient() {
                                   {acc.name}
                                 </span>
                               )}
-                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 {acc.platforms?.includes("google") &&
                                   platformFilter !== "meta" &&
                                   acc.googleAccountId && (
-                                    <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-mono">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-0.5" />
+                                    <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-1.5 py-0.5 rounded font-mono shadow-2xs">
+                                      <GoogleLogo className="w-3 h-3 shrink-0" />
                                       {acc.googleAccountId}
                                     </span>
                                   )}
                                 {acc.platforms?.includes("meta") &&
                                   platformFilter !== "google" &&
                                   acc.metaAccountId && (
-                                    <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-sky-700 bg-sky-50 border border-sky-200/50 px-1.5 py-0.5 rounded font-mono">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-sky-500 mr-0.5" />
+                                    <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-blue-800 bg-blue-50 border border-blue-200/70 px-1.5 py-0.5 rounded font-mono shadow-2xs">
+                                      <MetaLogo className="w-3 h-3 shrink-0" />
                                       act_{acc.metaAccountId}
                                     </span>
                                   )}
