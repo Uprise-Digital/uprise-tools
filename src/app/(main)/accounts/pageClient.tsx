@@ -1165,15 +1165,15 @@ export default function AccountsClientPage({
                       {isBlended && isExpanded && (
                         <>
                           {/* Google Channel Sub-Row */}
-                          <TableRow className="bg-slate-50/60 border-l-2 border-blue-500 hover:bg-slate-100/60 text-xs">
+                          <TableRow className="bg-slate-50/60 border-l-2 border-emerald-500 hover:bg-slate-100/60 text-xs">
                             <TableCell className="pl-4 pr-0 py-2.5" />
                             <TableCell className="pl-6 py-2.5 font-medium text-slate-700">
                               <div className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-blue-500" />
-                                <span className="font-semibold text-blue-900">
+                                <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
+                                <span className="font-semibold text-slate-900">
                                   Google Ads
                                 </span>
-                                <span className="font-mono text-[10px] text-slate-400">
+                                <span className="font-mono text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-1.5 py-0.5 rounded">
                                   {acc.googleAccountId}
                                 </span>
                               </div>
@@ -1210,7 +1210,7 @@ export default function AccountsClientPage({
                                 onClick={() =>
                                   router.push(`/accounts/${acc.googleId}`)
                                 }
-                                className="h-6 text-[11px] text-blue-600 hover:text-blue-800 px-2"
+                                className="h-6 text-[11px] text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 px-2"
                               >
                                 View Google
                               </Button>
@@ -1218,15 +1218,15 @@ export default function AccountsClientPage({
                           </TableRow>
 
                           {/* Meta Channel Sub-Row */}
-                          <TableRow className="bg-slate-50/60 border-l-2 border-sky-500 hover:bg-slate-100/60 text-xs">
+                          <TableRow className="bg-slate-50/60 border-l-2 border-blue-500 hover:bg-slate-100/60 text-xs">
                             <TableCell className="pl-4 pr-0 py-2.5" />
                             <TableCell className="pl-6 py-2.5 font-medium text-slate-700">
                               <div className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-sky-500" />
-                                <span className="font-semibold text-sky-900">
+                                <MetaLogo className="w-3.5 h-3.5 shrink-0" />
+                                <span className="font-semibold text-slate-900">
                                   Meta Ads
                                 </span>
-                                <span className="font-mono text-[10px] text-slate-400">
+                                <span className="font-mono text-[10px] text-blue-800 bg-blue-50 border border-blue-200/70 px-1.5 py-0.5 rounded">
                                   act_{acc.metaAccountId}
                                 </span>
                               </div>
@@ -1271,7 +1271,7 @@ export default function AccountsClientPage({
                                     );
                                   }
                                 }}
-                                className="h-6 text-[11px] text-sky-600 hover:text-sky-800 px-2 flex items-center gap-1 ml-auto"
+                                className="h-6 text-[11px] text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 flex items-center gap-1 ml-auto"
                               >
                                 <ExternalLink className="w-3 h-3" />
                                 Meta Ads
