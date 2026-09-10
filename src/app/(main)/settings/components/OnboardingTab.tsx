@@ -65,6 +65,13 @@ interface OnboardingTabProps {
     welcomeEmailSubject: string;
     welcomeEmailTemplate: string;
     welcomeEmailReplyTo: string;
+    ghlEnabled?: boolean;
+    ghlApiKey?: string;
+    ghlAgencyApiKey?: string;
+    ghlLocationId?: string;
+    ghlCompanyId?: string;
+    ghlStatus?: string;
+    ghlError?: string;
     workflowConfig: any;
   } | null;
   orgName: string;
@@ -598,21 +605,32 @@ function OnboardingTabContent({
   const [showMondayKey, setShowMondayKey] = useState(false);
 
   const [ghlEnabled, setGhlEnabled] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlEnabled ??
+    onboardingSettings?.ghlEnabled ??
+      (onboardingSettings as any)?.workflowConfig?.integrations?.ghlEnabled ??
       false,
   );
   const [ghlApiKey, setGhlApiKey] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlApiKey ?? "",
+    onboardingSettings?.ghlApiKey ??
+      (onboardingSettings as any)?.workflowConfig?.integrations?.ghlApiKey ??
+      "",
+  );
+  const [ghlAgencyApiKey, setGhlAgencyApiKey] = useState(
+    onboardingSettings?.ghlAgencyApiKey ??
+      (onboardingSettings as any)?.workflowConfig?.integrations?.ghlAgencyApiKey ??
+      "",
   );
   const [ghlLocationId, setGhlLocationId] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlLocationId ??
+    onboardingSettings?.ghlLocationId ??
+      (onboardingSettings as any)?.workflowConfig?.integrations?.ghlLocationId ??
       "",
   );
   const [ghlCompanyId, setGhlCompanyId] = useState(
-    (onboardingSettings as any)?.workflowConfig?.integrations?.ghlCompanyId ??
+    onboardingSettings?.ghlCompanyId ??
+      (onboardingSettings as any)?.workflowConfig?.integrations?.ghlCompanyId ??
       "",
   );
   const [showGhlKey, setShowGhlKey] = useState(false);
+  const [showGhlAgencyKey, setShowGhlAgencyKey] = useState(false);
 
   const [ghlSnapshots, setGhlSnapshots] = useState<
     { id: string; name: string }[]
@@ -622,7 +640,7 @@ function OnboardingTabContent({
   useEffect(() => {
     if (ghlSnapshots.length === 0 && !loadingSnapshots) {
       setLoadingSnapshots(true);
-      getGhlSnapshotsAction(ghlApiKey, ghlLocationId, ghlCompanyId).then(
+      getGhlSnapshotsAction(ghlAgencyApiKey || ghlApiKey, ghlLocationId, ghlCompanyId).then(
         (res) => {
           if (res.success && res.snapshots) {
             setGhlSnapshots(res.snapshots);
@@ -633,6 +651,7 @@ function OnboardingTabContent({
     }
   }, [
     ghlApiKey,
+    ghlAgencyApiKey,
     ghlLocationId,
     ghlCompanyId,
     ghlSnapshots.length,
@@ -1198,6 +1217,7 @@ Founder | ${orgName}`;
         notionApiKey,
         ghlEnabled,
         ghlApiKey,
+        ghlAgencyApiKey,
         ghlLocationId,
         ghlCompanyId,
         welcomeEmailSubject,
@@ -1212,6 +1232,7 @@ Founder | ${orgName}`;
             mondayBoardId,
             ghlEnabled,
             ghlApiKey,
+            ghlAgencyApiKey,
             ghlLocationId,
             ghlCompanyId,
           },
@@ -2123,7 +2144,7 @@ Founder | ${orgName}`;
                                   onClick={() => {
                                     setLoadingSnapshots(true);
                                     getGhlSnapshotsAction(
-                                      ghlApiKey,
+                                      ghlAgencyApiKey || ghlApiKey,
                                       ghlLocationId,
                                       ghlCompanyId,
                                     ).then((res) => {
@@ -2715,7 +2736,7 @@ Founder | ${orgName}`;
               <CardTitle className="text-sm font-bold flex flex-wrap items-center gap-2 text-slate-800">
                 <img src="/images/logos/ghl.svg" alt="" className="w-4 h-4" />
                 GoHighLevel Onboarding Integration
-                {ghlEnabled && (ghlLocationId || ghlApiKey) ? (
+                {ghlEnabled && (ghlLocationId || ghlApiKey || ghlAgencyApiKey) ? (
                   <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -2731,8 +2752,7 @@ Founder | ${orgName}`;
                 )}
               </CardTitle>
               <CardDescription className="text-xs">
-                Syncs client onboarding records, updates opportunity pipeline
-                stages, and appends CRM notes in GoHighLevel.
+                Syncs client onboarding records, searches contacts, updates opportunity pipeline stages, and auto-provisions sub-accounts from snapshots.
               </CardDescription>
             </div>
             <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -2751,13 +2771,13 @@ Founder | ${orgName}`;
               !ghlEnabled && "opacity-60",
             )}
           >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label
                   htmlFor="ghlLocationId"
                   className="text-xs font-bold text-slate-700"
                 >
-                  Location ID
+                  Location ID (Sub-Account)
                 </Label>
                 <Input
                   id="ghlLocationId"
@@ -2767,6 +2787,9 @@ Founder | ${orgName}`;
                   className="text-xs bg-white font-mono"
                   placeholder="e.g. 4DzNF3tH5ln9gwq7GtjW"
                 />
+                <p className="text-[10px] text-slate-500">
+                  Your primary CRM sub-account where client contacts and opportunities reside.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label
@@ -2783,14 +2806,25 @@ Founder | ${orgName}`;
                   className="text-xs bg-white font-mono"
                   placeholder="e.g. BwvkM3wHfHWTcRf9EO3t"
                 />
+                <p className="text-[10px] text-slate-500">
+                  Found in your Agency Settings URL or Agency Developers dashboard.
+                </p>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
               <div className="space-y-1.5">
-                <Label
-                  htmlFor="ghlApiKey"
-                  className="text-xs font-bold text-slate-700"
-                >
-                  API Key / Bearer Token
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="ghlApiKey"
+                    className="text-xs font-bold text-slate-700 flex items-center gap-1.5"
+                  >
+                    Location API Key (Sub-Account Token)
+                  </Label>
+                  <span className="text-[10px] font-semibold text-emerald-650 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    Contacts & Opportunities
+                  </span>
+                </div>
                 <div className="relative flex items-center">
                   <Input
                     id="ghlApiKey"
@@ -2799,7 +2833,7 @@ Founder | ${orgName}`;
                     onChange={(e) => setGhlApiKey(e.target.value)}
                     disabled={!ghlEnabled}
                     className="text-xs bg-white font-mono pr-10"
-                    placeholder="pit_..."
+                    placeholder="pit_... (created in Sub-Account Settings)"
                   />
                   <button
                     type="button"
@@ -2814,6 +2848,49 @@ Founder | ${orgName}`;
                     )}
                   </button>
                 </div>
+                <p className="text-[10px] text-slate-500">
+                  Generate inside <strong>Uprise Digital Sub-Account</strong> → Settings → Developers → Private Integration Tokens with <code>contacts.readonly</code> & <code>opportunities.write</code> scopes.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="ghlAgencyApiKey"
+                    className="text-xs font-bold text-slate-700 flex items-center gap-1.5"
+                  >
+                    Agency API Key (Company Token)
+                  </Label>
+                  <span className="text-[10px] font-semibold text-indigo-650 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                    Sub-Accounts & Snapshots
+                  </span>
+                </div>
+                <div className="relative flex items-center">
+                  <Input
+                    id="ghlAgencyApiKey"
+                    type={showGhlAgencyKey ? "text" : "password"}
+                    value={ghlAgencyApiKey}
+                    onChange={(e) => setGhlAgencyApiKey(e.target.value)}
+                    disabled={!ghlEnabled}
+                    className="text-xs bg-white font-mono pr-10"
+                    placeholder="pit_... (created in Agency View Settings)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowGhlAgencyKey(!showGhlAgencyKey)}
+                    disabled={!ghlEnabled}
+                    className="absolute right-3 text-slate-400 hover:text-slate-650 cursor-pointer"
+                  >
+                    {showGhlAgencyKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  Generate in <strong>Agency View</strong> → Settings → Developers → Private Integration Tokens with <code>locations.write</code> & <code>snapshots.readonly</code> scopes.
+                </p>
               </div>
             </div>
           </CardContent>

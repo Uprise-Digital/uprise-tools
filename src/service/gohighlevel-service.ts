@@ -40,6 +40,7 @@ export async function getGhlCredentials(
   organizationId?: string,
   customApiKey?: string,
   customLocationId?: string,
+  preferAgency = false,
 ) {
   if (customApiKey) {
     return { apiKey: customApiKey, locationId: customLocationId };
@@ -55,13 +56,17 @@ export async function getGhlCredentials(
       where: eq(organizationOnboardingSettings.organizationId, organizationId),
     });
 
-    if (settings?.ghlApiKey) {
+    const candidateKey = preferAgency
+      ? (settings?.ghlAgencyApiKey || settings?.ghlApiKey)
+      : (settings?.ghlApiKey || settings?.ghlAgencyApiKey);
+
+    if (candidateKey) {
       try {
-        const apiKey = decryptToken(settings.ghlApiKey);
+        const apiKey = decryptToken(candidateKey);
         return {
           apiKey,
-          locationId: settings.ghlLocationId || customLocationId || undefined,
-          companyId: settings.ghlCompanyId || undefined,
+          locationId: settings?.ghlLocationId || customLocationId || undefined,
+          companyId: settings?.ghlCompanyId || undefined,
         };
       } catch (err) {
         console.error("Failed to decrypt GHL API key:", err);
@@ -86,14 +91,42 @@ export async function verifyGhlConnection(
     throw new Error("API Key is required to verify GoHighLevel connection.");
   }
   const headers = getGhlHeaders(apiKey);
+  // Try contacts endpoint if locationId is given
   const testUrl = locationId
     ? `${GHL_API_BASE}/contacts/?locationId=${encodeURIComponent(locationId)}&limit=1`
-    : `${GHL_API_BASE}/users/?limit=1`;
+    : `${GHL_API_BASE}/locations/search?limit=1`;
   const res = await fetch(testUrl, { headers });
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
     throw new Error(
       `GoHighLevel verification failed (Status ${res.status}): ${res.statusText || errText}`,
+    );
+  }
+  return true;
+}
+
+/**
+ * Verifies GoHighLevel Agency API credentials against the LeadConnector API.
+ */
+export async function verifyGhlAgencyConnection(
+  agencyApiKey: string,
+  companyId?: string,
+  locationId?: string,
+): Promise<boolean> {
+  if (!agencyApiKey) {
+    throw new Error("Agency API Key is required.");
+  }
+  const headers = getGhlHeaders(agencyApiKey);
+  const testUrl = locationId
+    ? `${GHL_API_BASE}/locations/${encodeURIComponent(locationId)}`
+    : companyId
+      ? `${GHL_API_BASE}/locations/search?companyId=${encodeURIComponent(companyId)}&limit=1`
+      : `${GHL_API_BASE}/locations/search?limit=1`;
+  const res = await fetch(testUrl, { headers });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(
+      `GoHighLevel Agency Token verification failed (Status ${res.status}): ${res.statusText || errText}`,
     );
   }
   return true;

@@ -129,6 +129,13 @@ interface SettingsClientProps {
     welcomeEmailSubject: string;
     welcomeEmailTemplate: string;
     welcomeEmailReplyTo: string;
+    ghlEnabled?: boolean;
+    ghlApiKey?: string;
+    ghlAgencyApiKey?: string;
+    ghlLocationId?: string;
+    ghlCompanyId?: string;
+    ghlStatus?: string;
+    ghlError?: string;
     workflowConfig: any;
   } | null;
   initialAiUsageStats: any;

@@ -17,7 +17,31 @@ export async function getGhlSnapshotsAction(
   companyId?: string,
 ) {
   try {
-    const snapshots = await getGhlSnapshots(apiKey, locationId, companyId);
+    let effectiveKey = apiKey;
+    let effectiveLocId = locationId;
+    let effectiveCompId = companyId;
+
+    // If key not passed or is masked, load from database
+    if (!effectiveKey || effectiveKey === "••••••••••••••••") {
+      try {
+        const { orgId } = await getSessionOrgId();
+        if (orgId) {
+          const settings = await db.query.organizationOnboardingSettings.findFirst({
+            where: eq(organizationOnboardingSettings.organizationId, orgId),
+          });
+          const rawKey = settings?.ghlAgencyApiKey || settings?.ghlApiKey;
+          if (rawKey) {
+            effectiveKey = decryptToken(rawKey);
+          }
+          if (!effectiveLocId) effectiveLocId = settings?.ghlLocationId || undefined;
+          if (!effectiveCompId) effectiveCompId = settings?.ghlCompanyId || undefined;
+        }
+      } catch (err) {
+        console.warn("Could not fetch agency key from session org:", err);
+      }
+    }
+
+    const snapshots = await getGhlSnapshots(effectiveKey, effectiveLocId, effectiveCompId);
     return { success: true, snapshots };
   } catch (err: any) {
     console.error("getGhlSnapshotsAction error:", err);
@@ -148,6 +172,15 @@ export async function getOnboardingSettingsAction() {
       }
     }
 
+    let decryptedGhlAgencyKey = "";
+    if (record.ghlAgencyApiKey) {
+      try {
+        decryptedGhlAgencyKey = decryptToken(record.ghlAgencyApiKey);
+      } catch (err) {
+        console.error("Failed to decrypt GHL Agency API key:", err);
+      }
+    }
+
     return {
       success: true,
       data: {
@@ -167,6 +200,7 @@ export async function getOnboardingSettingsAction() {
         notionError: record.notionError || "",
         ghlEnabled: record.ghlEnabled || false,
         ghlApiKey: decryptedGhlKey ? "••••••••••••••••" : "",
+        ghlAgencyApiKey: decryptedGhlAgencyKey ? "••••••••••••••••" : "",
         ghlLocationId: record.ghlLocationId || "",
         ghlCompanyId: record.ghlCompanyId || "",
         ghlStatus: record.ghlStatus || "unconfigured",
@@ -220,6 +254,7 @@ export async function saveOnboardingSettingsAction(data: {
   notionTemplatePageId?: string;
   ghlEnabled?: boolean;
   ghlApiKey?: string;
+  ghlAgencyApiKey?: string;
   ghlLocationId?: string;
   ghlCompanyId?: string;
   welcomeEmailSubject: string;
@@ -263,24 +298,47 @@ export async function saveOnboardingSettingsAction(data: {
       }
     }
 
+    let encryptedGhlAgencyKey = existing?.ghlAgencyApiKey || null;
+    let actualGhlAgencyKey = "";
+
+    if (data.ghlAgencyApiKey && data.ghlAgencyApiKey !== "••••••••••••••••") {
+      encryptedGhlAgencyKey = encryptToken(data.ghlAgencyApiKey);
+      actualGhlAgencyKey = data.ghlAgencyApiKey;
+    } else if (existing?.ghlAgencyApiKey) {
+      try {
+        actualGhlAgencyKey = decryptToken(existing.ghlAgencyApiKey);
+      } catch (err) {
+        console.error("Failed to decrypt existing GHL Agency key:", err);
+      }
+    }
+
     const ghlEnabled = Boolean(data.ghlEnabled);
     let ghlStatus = "unconfigured";
     let ghlError = null;
 
     if (ghlEnabled) {
-      if (!actualGhlKey) {
+      if (!actualGhlKey && !actualGhlAgencyKey) {
         ghlStatus = "invalid";
-        ghlError = "Missing GoHighLevel API Key.";
+        ghlError = "Please provide a GoHighLevel Location API Key or Agency API Key.";
       } else {
         try {
-          const { verifyGhlConnection } = await import(
+          const { verifyGhlConnection, verifyGhlAgencyConnection } = await import(
             "@/service/gohighlevel-service"
           );
-          await verifyGhlConnection(
-            actualGhlKey,
-            data.ghlLocationId,
-            data.ghlCompanyId,
-          );
+          if (actualGhlAgencyKey) {
+            await verifyGhlAgencyConnection(
+              actualGhlAgencyKey,
+              data.ghlCompanyId,
+              data.ghlLocationId,
+            );
+          }
+          if (actualGhlKey) {
+            await verifyGhlConnection(
+              actualGhlKey,
+              data.ghlLocationId,
+              data.ghlCompanyId,
+            );
+          }
           ghlStatus = "valid";
         } catch (err: any) {
           ghlStatus = "invalid";
@@ -372,6 +430,7 @@ export async function saveOnboardingSettingsAction(data: {
           notionError,
           ghlEnabled,
           ghlApiKey: encryptedGhlKey,
+          ghlAgencyApiKey: encryptedGhlAgencyKey,
           ghlLocationId: data.ghlLocationId || null,
           ghlCompanyId: data.ghlCompanyId || null,
           ghlStatus,
@@ -399,6 +458,7 @@ export async function saveOnboardingSettingsAction(data: {
         notionError,
         ghlEnabled,
         ghlApiKey: encryptedGhlKey,
+        ghlAgencyApiKey: encryptedGhlAgencyKey,
         ghlLocationId: data.ghlLocationId || null,
         ghlCompanyId: data.ghlCompanyId || null,
         ghlStatus,

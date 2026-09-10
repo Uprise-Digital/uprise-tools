@@ -1220,6 +1220,7 @@ export const organizationOnboardingSettings = pgTable(
     notionError: text("notion_error"),
     ghlEnabled: boolean("ghl_enabled").default(false).notNull(),
     ghlApiKey: text("ghl_api_key"),
+    ghlAgencyApiKey: text("ghl_agency_api_key"),
     ghlLocationId: text("ghl_location_id"),
     ghlCompanyId: text("ghl_company_id"),
     ghlStatus: text("ghl_status").default("unconfigured").notNull(),
