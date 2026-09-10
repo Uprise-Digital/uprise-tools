@@ -361,16 +361,16 @@ export default function IndustryAnalyticsClient() {
                 if (platformFilter !== "google") setPlatformFilter("google");
               }}
               disabled={loading}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
                 platformFilter === "google"
-                  ? "bg-white text-blue-700 shadow-sm"
+                  ? "bg-white text-emerald-800 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               {loading && platformFilter === "google" ? (
-                <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
               ) : (
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
               )}
               Google
             </button>
@@ -380,16 +380,16 @@ export default function IndustryAnalyticsClient() {
                 if (platformFilter !== "meta") setPlatformFilter("meta");
               }}
               disabled={loading}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
                 platformFilter === "meta"
-                  ? "bg-white text-sky-700 shadow-sm"
+                  ? "bg-white text-blue-800 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               {loading && platformFilter === "meta" ? (
-                <Loader2 className="w-3 h-3 animate-spin text-sky-600" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
               ) : (
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                <MetaLogo className="w-3.5 h-3.5 shrink-0" />
               )}
               Meta
             </button>
