@@ -21,6 +21,7 @@ import {
 } from "@/actions/ad-audit.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -271,7 +272,8 @@ export default function AdAuditClientPage({
   };
 
   return (
-    <main className="flex-1 overflow-y-auto p-6 bg-slate-50">
+    <div className="p-4 md:p-8 space-y-6 relative">
+      <TopProgressBar loading={loadingAds} color="indigo" />
       <div className="max-w-[1400px] mx-auto space-y-6">
         {/* HEADER BAR */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -860,6 +862,6 @@ export default function AdAuditClientPage({
           </DialogContent>
         </Dialog>
       </div>
-    </main>
+    </div>
   );
 }

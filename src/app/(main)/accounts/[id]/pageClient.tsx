@@ -51,6 +51,7 @@ import { AiInsights } from "@/components/ai-insights";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { TableLoader, TopProgressBar } from "@/components/ui/loading";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -726,7 +727,8 @@ export default function ClientDashboard({
   });
 
   return (
-    <div className="space-y-6 p-4 mt-0 pt-0 max-w-400 mx-auto">
+    <div className="space-y-6 p-4 mt-0 pt-0 max-w-400 mx-auto relative">
+      <TopProgressBar loading={isLoading || isMetaLoading} color="indigo" />
       {!account.isActive && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-3 shadow-sm">
           <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
@@ -1519,14 +1521,11 @@ export default function ClientDashboard({
               </TableHeader>
               <TableBody>
                 {isLoading || isMetaLoading ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={hasLinkedMeta ? 10 : 9}
-                      className="h-24 text-center text-xs text-slate-500 font-sans"
-                    >
-                      Loading campaigns...
-                    </TableCell>
-                  </TableRow>
+                  <TableLoader
+                    colSpan={hasLinkedMeta ? 10 : 9}
+                    label="Loading campaigns and ad performance..."
+                    spinnerVariant="brand"
+                  />
                 ) : paginatedCampaigns.length === 0 ? (
                   <TableRow>
                     <TableCell

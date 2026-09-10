@@ -56,6 +56,12 @@ import { sendMorningBriefingAction } from "@/actions/briefing.actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  FullDashboardSkeleton,
+  Spinner,
+  TableLoader,
+  TopProgressBar,
+} from "@/components/ui/loading";
+import {
   type ChartConfig,
   ChartContainer,
   ChartTooltip,
@@ -378,84 +384,12 @@ export default function AgencyReportsClient() {
 
   if (loadingData && !portfolio) {
     return (
-      <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto animate-pulse">
-        {/* Header Skeleton */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-slate-200" />
-              <div className="h-8 w-56 rounded-lg bg-slate-200" />
-            </div>
-            <div className="h-4 w-96 rounded bg-slate-100" />
-            <div className="flex items-center gap-2 pt-2">
-              <div className="h-8 w-44 rounded-lg bg-slate-200" />
-              <div className="h-8 w-28 rounded-lg bg-slate-100" />
-              <div className="h-8 w-28 rounded-lg bg-slate-100" />
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-32 rounded-lg bg-slate-100" />
-            <div className="h-9 w-32 rounded-lg bg-slate-100" />
-            <div className="h-9 w-48 rounded-lg bg-slate-200" />
-          </div>
-        </div>
-
-        {/* Loading Indicator Banner */}
-        <div className="flex items-center justify-center gap-3 p-4 bg-blue-50/70 border border-blue-100 rounded-xl text-blue-700 text-sm font-medium">
-          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-          <span>Aggregating cross-platform performance data & synchronizing client accounts...</span>
-        </div>
-
-        {/* KPI Cards Skeleton */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="py-0 m-0 shadow-sm border-slate-200">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="space-y-2 w-full">
-                  <div className="h-3 w-16 bg-slate-200 rounded" />
-                  <div className="h-6 w-24 bg-slate-300 rounded" />
-                  <div className="h-2.5 w-14 bg-slate-100 rounded" />
-                </div>
-                <div className="w-7 h-7 rounded-lg bg-slate-100 shrink-0 self-start" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Charts Skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-slate-200 shadow-sm bg-white h-80 flex flex-col p-5 space-y-4">
-            <div className="h-5 w-48 bg-slate-200 rounded" />
-            <div className="flex-1 bg-slate-100/70 rounded-lg flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
-            </div>
-          </Card>
-          <Card className="border-slate-200 shadow-sm bg-white h-80 flex flex-col p-5 space-y-4">
-            <div className="h-5 w-48 bg-slate-200 rounded" />
-            <div className="flex-1 bg-slate-100/70 rounded-lg flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
-            </div>
-          </Card>
-        </div>
-
-        {/* Ledger Skeleton */}
-        <Card className="shadow-sm border-slate-200 p-6 space-y-4">
-          <div className="flex justify-between items-center">
-            <div className="h-5 w-36 bg-slate-200 rounded" />
-            <div className="h-8 w-64 bg-slate-100 rounded" />
-          </div>
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-12 bg-slate-50 border border-slate-100 rounded-lg flex items-center px-4 justify-between">
-                <div className="h-4 w-40 bg-slate-200 rounded" />
-                <div className="h-4 w-20 bg-slate-200 rounded" />
-                <div className="h-4 w-20 bg-slate-200 rounded" />
-                <div className="h-4 w-20 bg-slate-200 rounded" />
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+      <FullDashboardSkeleton
+        kpiCount={6}
+        chartsCount={2}
+        tableRows={6}
+        loadingMessage="Aggregating cross-platform performance data & synchronizing client accounts..."
+      />
     );
   }
 
@@ -988,11 +922,7 @@ export default function AgencyReportsClient() {
   return (
     <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto relative">
       {/* Re-fetching subtle top loading bar */}
-      {loadingData && (
-        <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-blue-100 overflow-hidden">
-          <div className="h-full bg-blue-600 animate-[indeterminate_1.5s_infinite_linear]" />
-        </div>
-      )}
+      <TopProgressBar loading={loadingData} color="blue" />
 
       {/* ── HEADER ── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -1001,7 +931,7 @@ export default function AgencyReportsClient() {
             <Users className="h-7 w-7 text-blue-600" /> Agency God View
             {loadingData && (
               <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full ml-2">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Spinner size="sm" variant="blue" />
                 Updating Data...
               </span>
             )}
@@ -2195,19 +2125,11 @@ export default function AgencyReportsClient() {
               }
             >
               {loadingData && searchedAccounts.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="h-36 text-center text-xs text-slate-500 font-sans"
-                  >
-                    <div className="flex flex-col items-center justify-center gap-2 py-6">
-                      <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-                      <span className="font-medium text-slate-600">
-                        Synchronizing {platformFilter === "all" ? "cross-platform" : platformFilter} ledger metrics...
-                      </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <TableLoader
+                  colSpan={9}
+                  spinnerVariant="blue"
+                  label={`Synchronizing ${platformFilter === "all" ? "cross-platform" : platformFilter} ledger metrics...`}
+                />
               ) : paginatedAccounts.length === 0 ? (
                 <TableRow>
                   <TableCell

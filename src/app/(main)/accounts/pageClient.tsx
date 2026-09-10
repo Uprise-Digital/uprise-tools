@@ -28,6 +28,7 @@ import { ReportAutomationTrigger } from "@/components/reportAutomationTrigger";
 import { SyncButton } from "@/components/sync-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { TableLoader, TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -535,7 +536,8 @@ export default function AccountsClientPage({
   };
 
   return (
-    <div className="space-y-6 mt-0 pt-0">
+    <div className="space-y-6 mt-0 pt-0 relative">
+      <TopProgressBar loading={loadingMetrics} color="blue" />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Ad Accounts</h1>
@@ -623,13 +625,13 @@ export default function AccountsClientPage({
                 setPlatformFilter("google");
                 setPage(1);
               }}
-              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
                 platformFilter === "google"
-                  ? "bg-white text-blue-700 shadow-sm"
+                  ? "bg-white text-emerald-800 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
               Google Ads
             </button>
             <button
@@ -638,13 +640,13 @@ export default function AccountsClientPage({
                 setPlatformFilter("meta");
                 setPage(1);
               }}
-              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
                 platformFilter === "meta"
-                  ? "bg-white text-sky-700 shadow-sm"
+                  ? "bg-white text-blue-800 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+              <MetaLogo className="w-3.5 h-3.5 shrink-0" />
               Meta Ads
             </button>
           </div>
@@ -897,17 +899,11 @@ export default function AccountsClientPage({
               }
             >
               {loadingMetrics && !portfolio ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={10}
-                    className="h-32 text-center text-xs text-slate-500 font-sans"
-                  >
-                    <div className="flex flex-col items-center justify-center gap-2 py-4">
-                      <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-                      <span>Loading unified cross-platform ledger...</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <TableLoader
+                  colSpan={10}
+                  spinnerVariant="blue"
+                  label="Loading unified cross-platform ledger..."
+                />
               ) : (
                 paginatedAccounts.map((acc) => {
                   const isBlended =

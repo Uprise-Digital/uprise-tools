@@ -46,6 +46,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 import {
+  ContentLoadingOverlay,
+  TopProgressBar,
+} from "@/components/ui/loading";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -316,7 +320,9 @@ export default function IndustryAnalyticsClient() {
   }
 
   return (
-    <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
+    <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto relative">
+      <TopProgressBar loading={loading} color="indigo" />
+
       {/* ── 1. HEADER & CONTROLS ── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
