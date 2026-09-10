@@ -635,6 +635,46 @@ export async function deleteClientAction(clientId: number) {
 }
 
 /**
+ * Updates the status of one or more clients ('active', 'pending', 'churned').
+ */
+export async function bulkUpdateClientStatusAction(
+  clientIds: number[],
+  status: "active" | "pending" | "churned",
+) {
+  try {
+    const { orgId, userId } = await getSessionOrgId();
+    if (!orgId) return { success: false as const, error: "No active organization" };
+    if (!clientIds || clientIds.length === 0) {
+      return { success: false as const, error: "No clients selected" };
+    }
+
+    // 1. Update canonical clients
+    await db
+      .update(clients)
+      .set({ status, updatedAt: new Date() })
+      .where(and(eq(clients.organizationId, orgId), inArray(clients.id, clientIds)));
+
+    // 2. Also keep clientOnboardings in sync
+    const mappedOnbStatus = status === "active" ? "completed" : status === "churned" ? "cancelled" : "pending";
+    await db
+      .update(clientOnboardings)
+      .set({ status: mappedOnbStatus, updatedAt: new Date() })
+      .where(and(eq(clientOnboardings.organizationId, orgId), inArray(clientOnboardings.id, clientIds)));
+
+    await logAction(userId, "BULK_UPDATE_CLIENT_STATUS", "clients", clientIds[0], {
+      clientIds,
+      status,
+    });
+
+    revalidatePath("/clients");
+    return { success: true as const, updatedCount: clientIds.length };
+  } catch (error: any) {
+    console.error("bulkUpdateClientStatusAction error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
  * Merges multiple client entities into a single target primary client.
  * Consolidates ad accounts, meta ad accounts, contacts, and call records.
  * Deletes the source client records.

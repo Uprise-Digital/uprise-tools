@@ -43,6 +43,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  bulkUpdateClientStatusAction,
   checkExistingClientAction,
   createClientOnboardingAction,
   deleteClientAction,
@@ -89,7 +90,7 @@ export interface ClientEntity {
   metaAdAccounts?: { id: number; name: string; metaAccountId: string }[];
 }
 
-type ClientTabType = "all" | "active" | "with_ads" | "onboarding";
+type ClientTabType = "all" | "active" | "pending" | "churned" | "with_ads";
 type CallFilterType = "all" | "has_calls" | "no_calls" | "hot_leads";
 type SortOption =
   | "last_contacted"
@@ -407,6 +408,40 @@ export default function ClientsDirectoryClient() {
     }
   };
 
+  const handleBulkUpdateStatus = async (status: "active" | "pending" | "churned") => {
+    if (selectedClientIds.length === 0) return;
+    const toastId = toast.loading(`Setting ${selectedClientIds.length} client(s) to ${status}...`);
+    try {
+      const res = await bulkUpdateClientStatusAction(selectedClientIds, status);
+      if (res.success) {
+        toast.success(`Updated ${res.updatedCount || selectedClientIds.length} client(s) to ${status}!`, { id: toastId });
+        setSelectedClientIds([]);
+        await loadData();
+      } else {
+        toast.error(res.error || "Failed to update status", { id: toastId });
+      }
+    } catch (err: any) {
+      console.error("Failed to bulk update client status:", err);
+      toast.error(err.message || "Error updating client status", { id: toastId });
+    }
+  };
+
+  const handleUpdateSingleStatus = async (clientId: number, clientName: string, status: "active" | "pending" | "churned") => {
+    const toastId = toast.loading(`Setting ${clientName} to ${status}...`);
+    try {
+      const res = await bulkUpdateClientStatusAction([clientId], status);
+      if (res.success) {
+        toast.success(`Set ${clientName} to ${status}!`, { id: toastId });
+        await loadData();
+      } else {
+        toast.error(res.error || "Failed to update status", { id: toastId });
+      }
+    } catch (err: any) {
+      console.error("Failed to update status:", err);
+      toast.error(err.message || "Error updating status", { id: toastId });
+    }
+  };
+
   const handleOpenMergeModal = () => {
     if (selectedClientIds.length < 2) {
       toast.error("Please select at least 2 clients to merge.");
@@ -475,12 +510,14 @@ export default function ClientsDirectoryClient() {
       // Tab
       if (clientTab === "active") {
         if (c.status !== "active" && c.status !== "completed") return false;
+      } else if (clientTab === "pending") {
+        if (c.status !== "pending" && c.status !== "draft" && c.status !== "in_progress") return false;
+      } else if (clientTab === "churned") {
+        if (c.status !== "churned" && c.status !== "cancelled") return false;
       } else if (clientTab === "with_ads") {
         const hasGoogle = (c.adAccounts && c.adAccounts.length > 0);
         const hasMeta = (c.metaAdAccounts && c.metaAdAccounts.length > 0);
         if (!hasGoogle && !hasMeta) return false;
-      } else if (clientTab === "onboarding") {
-        if (c.status !== "draft" && c.status !== "in_progress" && c.status !== "pending") return false;
       }
 
       // Calls Filter
@@ -516,14 +553,13 @@ export default function ClientsDirectoryClient() {
     return result;
   }, [clients, searchTerm, clientTab, callFilter, sortBy]);
 
-  // Counts for Metric Cards
+  // Counts for Metric Cards & Tabs
   const totalClientsCount = clients.length;
   const activeClientsCount = clients.filter((c) => c.status === "active" || c.status === "completed").length;
+  const pendingClientsCount = clients.filter((c) => c.status === "pending" || c.status === "draft" || c.status === "in_progress").length;
+  const churnedClientsCount = clients.filter((c) => c.status === "churned" || c.status === "cancelled").length;
   const clientsWithAdsCount = clients.filter(
     (c) => (c.adAccounts && c.adAccounts.length > 0) || (c.metaAdAccounts && c.metaAdAccounts.length > 0)
-  ).length;
-  const onboardingClientsCount = clients.filter(
-    (c) => c.status === "draft" || c.status === "in_progress" || c.status === "pending"
   ).length;
   const totalCallsLogged = clients.reduce((acc, c) => acc + (c.callCount || 0), 0);
 
@@ -690,6 +726,26 @@ export default function ClientsDirectoryClient() {
             </button>
             <button
               type="button"
+              onClick={() => setClientTab("pending")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                clientTab === "pending" ? "bg-white text-amber-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              Pending ({pendingClientsCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setClientTab("churned")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                clientTab === "churned" ? "bg-white text-rose-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              Churned ({churnedClientsCount})
+            </button>
+            <button
+              type="button"
               onClick={() => setClientTab("with_ads")}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
@@ -697,16 +753,6 @@ export default function ClientsDirectoryClient() {
               )}
             >
               With Ad Accounts ({clientsWithAdsCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setClientTab("onboarding")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                clientTab === "onboarding" ? "bg-white text-amber-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
-              )}
-            >
-              Onboarding ({onboardingClientsCount})
             </button>
           </div>
 
@@ -876,19 +922,53 @@ export default function ClientsDirectoryClient() {
                         />
                       </TableCell>
 
-                      {/* Client / Business */}
+                      {/* Client / Business & Status */}
                       <TableCell className="font-bold text-slate-900 py-3 text-sm">
-                      <div className="space-y-0.5">
-                        <span className="hover:text-indigo-600 transition-colors font-bold text-slate-900">
-                          {client.name}
-                        </span>
-                        {client.legalBusinessName && client.legalBusinessName !== client.name && (
-                          <span className="block text-[11px] font-normal text-slate-400">
-                            {client.legalBusinessName}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="hover:text-indigo-600 transition-colors font-bold text-slate-900">
+                              {client.name}
+                            </span>
+                            <div className="relative inline-flex items-center" onClick={(e) => e.stopPropagation()}>
+                              <select
+                                value={
+                                  client.status === "pending" || client.status === "draft" || client.status === "in_progress"
+                                    ? "pending"
+                                    : client.status === "churned" || client.status === "cancelled"
+                                    ? "churned"
+                                    : "active"
+                                }
+                                onChange={(e) =>
+                                  handleUpdateSingleStatus(
+                                    client.id,
+                                    client.name,
+                                    e.target.value as "active" | "pending" | "churned"
+                                  )
+                                }
+                                className={cn(
+                                  "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border cursor-pointer appearance-none pr-5 transition-all outline-none",
+                                  client.status === "churned" || client.status === "cancelled"
+                                    ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
+                                    : client.status === "pending" || client.status === "draft" || client.status === "in_progress"
+                                    ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                                    : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                )}
+                                title="Change client status"
+                              >
+                                <option value="active">Active</option>
+                                <option value="pending">Pending</option>
+                                <option value="churned">Churned</option>
+                              </select>
+                              <ChevronDown className="h-3 w-3 absolute right-1.5 pointer-events-none text-slate-400" />
+                            </div>
+                          </div>
+                          {client.legalBusinessName && client.legalBusinessName !== client.name && (
+                            <span className="block text-[11px] font-normal text-slate-400">
+                              {client.legalBusinessName}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
 
                     {/* Industry & Details */}
                     <TableCell className="py-3 text-sm">
@@ -1044,20 +1124,56 @@ export default function ClientsDirectoryClient() {
 
       {/* Floating Action Bar for Selected Clients */}
       {selectedClientIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200">
-          <span className="text-xs font-bold text-slate-200">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
             {selectedClientIds.length} client{selectedClientIds.length > 1 ? "s" : ""} selected
           </span>
           <div className="h-4 w-px bg-slate-700" />
+          
+          {/* Quick Status Changers */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-400 font-medium">Set:</span>
+            <button
+              type="button"
+              onClick={() => handleBulkUpdateStatus("active")}
+              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/40 transition-colors flex items-center gap-1 cursor-pointer"
+              title="Set selected clients to Active"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              Active
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkUpdateStatus("pending")}
+              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 transition-colors flex items-center gap-1 cursor-pointer"
+              title="Set selected clients to Pending"
+            >
+              <Clock className="h-3 w-3" />
+              Pending
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkUpdateStatus("churned")}
+              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/40 transition-colors flex items-center gap-1 cursor-pointer"
+              title="Set selected clients to Churned"
+            >
+              <AlertCircle className="h-3 w-3" />
+              Churned
+            </button>
+          </div>
+
+          <div className="h-4 w-px bg-slate-700" />
+
           <Button
             size="sm"
             onClick={handleOpenMergeModal}
             disabled={selectedClientIds.length < 2}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs h-8 px-3.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs h-8 px-3 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
           >
             <Layers className="h-3.5 w-3.5" />
-            Merge Selected ({selectedClientIds.length})
+            Merge ({selectedClientIds.length})
           </Button>
+
           <Button
             size="sm"
             variant="ghost"
