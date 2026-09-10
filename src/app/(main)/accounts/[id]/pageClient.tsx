@@ -43,6 +43,7 @@ import {
   auditConversionTrackingAction,
   getImpressionShareReportAction,
 } from "@/actions/agency.actions";
+import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import { getMetaAccountDetailedInsightsAction } from "@/actions/meta-settings.actions";
 import { saveAccountPersonaAction } from "@/actions/negative-keywords.actions";
@@ -1112,14 +1113,14 @@ export default function ClientDashboard({
               </Sheet>
             </div>
             <div className="flex flex-wrap items-center gap-2 mt-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
                 Google: {account.googleAccountId}
               </span>
               {account.linkedMetaAccount && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                  Meta: {account.linkedMetaAccount.metaAccountId}
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-mono font-medium bg-blue-50 text-blue-800 border border-blue-200/80">
+                  <MetaLogo className="w-3.5 h-3.5 shrink-0" />
+                  Meta: act_{account.linkedMetaAccount.metaAccountId}
                 </span>
               )}
             </div>
@@ -1147,11 +1148,11 @@ export default function ClientDashboard({
                 onClick={() => setSelectedChannel("google")}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
                   selectedChannel === "google"
-                    ? "bg-white text-blue-600 shadow-xs font-bold"
+                    ? "bg-white text-emerald-800 shadow-xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
                 Google Ads
               </button>
               <button
@@ -1159,11 +1160,11 @@ export default function ClientDashboard({
                 onClick={() => setSelectedChannel("meta")}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
                   selectedChannel === "meta"
-                    ? "bg-white text-indigo-600 shadow-xs font-bold"
+                    ? "bg-white text-blue-800 shadow-xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                <MetaLogo className="w-3.5 h-3.5 shrink-0" />
                 Meta Ads
               </button>
             </div>
@@ -1456,23 +1457,25 @@ export default function ClientDashboard({
                     <button
                       type="button"
                       onClick={() => setCampaignPlatformFilter("google")}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                         campaignPlatformFilter === "google"
                           ? "bg-white text-blue-600 shadow-xs font-bold"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
+                      <GoogleLogo className="w-3 h-3 shrink-0" />
                       Google
                     </button>
                     <button
                       type="button"
                       onClick={() => setCampaignPlatformFilter("meta")}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                         campaignPlatformFilter === "meta"
                           ? "bg-white text-indigo-600 shadow-xs font-bold"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
+                      <MetaLogo className="w-3 h-3 shrink-0" />
                       Meta
                     </button>
                   </div>
