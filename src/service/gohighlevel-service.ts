@@ -37,15 +37,24 @@ function getGhlHeaders(customApiKey?: string) {
  * Resolves GoHighLevel credentials for a tenant organization or explicit parameter.
  */
 export async function getGhlCredentials(
-  organizationId?: string,
+  organizationIdOrApiKey?: string,
   customApiKey?: string,
   customLocationId?: string,
   preferAgency = false,
 ) {
-  if (customApiKey) {
-    return { apiKey: customApiKey, locationId: customLocationId };
+  // If an explicit API key was passed (starts with 'pit-', 'eyJ', etc.)
+  const isDirectKey =
+    organizationIdOrApiKey?.startsWith("pit-") ||
+    organizationIdOrApiKey?.startsWith("eyJ");
+
+  if (isDirectKey || customApiKey) {
+    return {
+      apiKey: (isDirectKey ? organizationIdOrApiKey : customApiKey)!,
+      locationId: customLocationId,
+    };
   }
 
+  const organizationId = organizationIdOrApiKey;
   if (organizationId) {
     const { db } = await import("@/db");
     const { eq } = await import("drizzle-orm");
@@ -142,11 +151,9 @@ export async function searchGhlContacts(
 ): Promise<GhlContact[]> {
   const { apiKey, locationId } = await getGhlCredentials(
     organizationIdOrApiKey,
-    organizationIdOrApiKey?.includes("-") ||
-      organizationIdOrApiKey?.length === 36
-      ? undefined
-      : organizationIdOrApiKey,
+    undefined,
     locationIdOverride,
+    false,
   );
 
   try {
