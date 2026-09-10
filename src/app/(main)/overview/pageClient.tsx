@@ -4,15 +4,18 @@ import {
   Activity,
   AlertTriangle,
   Calendar,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
   CloudDownload,
   DollarSign,
   Download,
+  ExternalLink,
   Eye,
   EyeOff,
   Flame,
+  Layers,
   Loader2,
   RefreshCw,
   Scale,
@@ -23,6 +26,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -75,6 +79,8 @@ export default function AgencyReportsClient() {
 
   const [startDate, setStartDate] = useState(localMonthStartStr);
   const [endDate, setEndDate] = useState(localTodayStr);
+  const [platformFilter, setPlatformFilter] = useState<"all" | "google" | "meta">("all");
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
   const [loadingData, setLoadingData] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -99,16 +105,27 @@ export default function AgencyReportsClient() {
     0: true,
   });
 
+  const toggleRowExpanded = (key: string) => {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
   useEffect(() => {
     setLedgerPage(1);
-  }, []);
+  }, [platformFilter]);
 
   // 1. Fetch Base Data
   const fetchPortfolioData = useCallback(
-    async (isMounted = true) => {
+    async (isMounted = true, filter = platformFilter) => {
       setLoadingData(true);
       try {
-        const res = await getAgencyPortfolioMetricsAction(startDate, endDate);
+        const res = await getAgencyPortfolioMetricsAction(
+          startDate,
+          endDate,
+          filter,
+        );
         if (isMounted && res.success) {
           setPortfolio(res.data);
           return res.data;
@@ -118,12 +135,17 @@ export default function AgencyReportsClient() {
       }
       return null;
     },
-    [startDate, endDate],
+    [startDate, endDate, platformFilter],
   );
 
   // 2. Fetch or Generate AI Insights
   const fetchGodModeAi = useCallback(
-    async (forceRefresh: boolean, portfolioToUse: any, isMounted = true) => {
+    async (
+      forceRefresh: boolean,
+      portfolioToUse: any,
+      isMounted = true,
+      filter = platformFilter,
+    ) => {
       if (forceRefresh) setIsAiRefreshing(true);
       else setIsAiLoading(true);
 
@@ -133,6 +155,7 @@ export default function AgencyReportsClient() {
           endDate,
           portfolioToUse,
           forceRefresh,
+          filter,
         );
         if (isMounted && res.success) {
           setInsights(res.data);
@@ -147,25 +170,25 @@ export default function AgencyReportsClient() {
         }
       }
     },
-    [startDate, endDate],
+    [startDate, endDate, platformFilter],
   );
 
-  // Run this when dates change
+  // Run this when dates or platformFilter change
   useEffect(() => {
     let isMounted = true;
     setInsights(null); // Clear UI while fetching
     setGeneratedAt(null);
 
-    fetchPortfolioData(isMounted).then((freshPortfolio) => {
+    fetchPortfolioData(isMounted, platformFilter).then((freshPortfolio) => {
       if (isMounted) {
-        fetchGodModeAi(false, freshPortfolio, isMounted);
+        fetchGodModeAi(false, freshPortfolio, isMounted, platformFilter);
       }
     });
 
     return () => {
       isMounted = false;
     };
-  }, [fetchGodModeAi, fetchPortfolioData]);
+  }, [fetchGodModeAi, fetchPortfolioData, platformFilter]);
 
   // Sync Portfolio Action
   const handleSyncPortfolio = async () => {
@@ -365,9 +388,11 @@ export default function AgencyReportsClient() {
   const searchedAccounts = (portfolio?.accountBreakdown || []).filter(
     (acc: any) => {
       if (ledgerSearch.trim()) {
+        const query = ledgerSearch.toLowerCase();
         return (
-          acc.name.toLowerCase().includes(ledgerSearch.toLowerCase()) ||
-          acc.googleAccountId.includes(ledgerSearch)
+          acc.name.toLowerCase().includes(query) ||
+          (acc.googleAccountId && acc.googleAccountId.toLowerCase().includes(query)) ||
+          (acc.metaAccountId && acc.metaAccountId.toLowerCase().includes(query))
         );
       }
       return hideInactive ? acc.spend > 0 : true;
@@ -385,7 +410,9 @@ export default function AgencyReportsClient() {
   const exportLedgerToCsv = () => {
     const headers = [
       "Account Name",
+      "Platforms",
       "Google ID",
+      "Meta ID",
       "Churn Risk",
       "Spend",
       "Prior Spend",
@@ -403,7 +430,9 @@ export default function AgencyReportsClient() {
       const risk = getChurnRisk(acc, portfolio?.agencyTotals?.cpa || 0);
       return [
         acc.name,
-        acc.googleAccountId,
+        (acc.platforms || []).join(" + "),
+        acc.googleAccountId || "",
+        acc.metaAccountId ? `act_${acc.metaAccountId}` : "",
         risk.label,
         acc.spend,
         acc.previous?.spend ?? "",
@@ -890,9 +919,48 @@ export default function AgencyReportsClient() {
             <Users className="h-7 w-7 text-blue-600" /> Agency God View
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Macro portfolio performance, period-over-period deltas, and critical
-            alerts.
+            Macro portfolio performance, period-over-period deltas, and cross-channel intelligence.
           </p>
+
+          {/* Platform Filter Tabs */}
+          <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg border border-slate-200/80 w-fit mt-3">
+            <button
+              type="button"
+              onClick={() => setPlatformFilter("all")}
+              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
+                platformFilter === "all"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-violet-500" />
+              All Platforms (Blended)
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlatformFilter("google")}
+              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
+                platformFilter === "google"
+                  ? "bg-white text-emerald-800 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <GoogleLogo className="w-3.5 h-3.5" />
+              Google Ads
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlatformFilter("meta")}
+              className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
+                platformFilter === "meta"
+                  ? "bg-white text-blue-800 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <MetaLogo className="w-3.5 h-3.5" />
+              Meta Ads
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -993,12 +1061,16 @@ export default function AgencyReportsClient() {
           </CardContent>
         </Card>
 
-        {/* Card 2: Blended Spend */}
+        {/* Card 2: Spend */}
         <Card className="py-0 m-0 shadow-sm border-slate-200">
           <CardContent className="p-4 flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                Blended Spend
+                {platformFilter === "google"
+                  ? "Google Spend"
+                  : platformFilter === "meta"
+                    ? "Meta Spend"
+                    : "Blended Spend"}
               </p>
               <p className="text-lg font-black text-slate-900">
                 {fCur(totalSpend)}
@@ -1011,6 +1083,19 @@ export default function AgencyReportsClient() {
                   suffix=" vs prior"
                 />
               </div>
+              {platformFilter === "all" && portfolio?.channelSummary && (
+                <div className="flex items-center gap-2 pt-1 text-[10px] text-slate-500 font-mono">
+                  <span className="flex items-center gap-1 text-emerald-700">
+                    <GoogleLogo className="w-2.5 h-2.5" />
+                    {fCur(portfolio.channelSummary.google?.spend || 0)}
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-blue-700">
+                    <MetaLogo className="w-2.5 h-2.5" />
+                    {fCur(portfolio.channelSummary.meta?.spend || 0)}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="p-2 rounded-lg bg-blue-50 shrink-0 self-start">
               <DollarSign className="h-3.5 w-3.5 text-blue-600" />
@@ -1023,7 +1108,11 @@ export default function AgencyReportsClient() {
           <CardContent className="p-4 flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                Total Conv.
+                {platformFilter === "google"
+                  ? "Google Conv."
+                  : platformFilter === "meta"
+                    ? "Meta Conv."
+                    : "Total Conv."}
               </p>
               <p className="text-lg font-black text-slate-900">
                 {fNum(totalConv)}
@@ -1036,6 +1125,19 @@ export default function AgencyReportsClient() {
                   formatAs="number"
                 />
               </div>
+              {platformFilter === "all" && portfolio?.channelSummary && (
+                <div className="flex items-center gap-2 pt-1 text-[10px] text-slate-500 font-mono">
+                  <span className="flex items-center gap-1 text-emerald-700">
+                    <GoogleLogo className="w-2.5 h-2.5" />
+                    {fNum(portfolio.channelSummary.google?.conversions || 0)}
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-blue-700">
+                    <MetaLogo className="w-2.5 h-2.5" />
+                    {fNum(portfolio.channelSummary.meta?.conversions || 0)}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="p-2 rounded-lg bg-emerald-50 shrink-0 self-start">
               <Target className="h-3.5 w-3.5 text-emerald-600" />
@@ -1043,12 +1145,16 @@ export default function AgencyReportsClient() {
           </CardContent>
         </Card>
 
-        {/* Card 4: Blended CPA */}
+        {/* Card 4: CPA */}
         <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-2 border-l-indigo-500">
           <CardContent className="p-4 flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                Blended CPA
+                {platformFilter === "google"
+                  ? "Google CPA"
+                  : platformFilter === "meta"
+                    ? "Meta CPA"
+                    : "Blended CPA"}
               </p>
               <p className="text-lg font-black text-slate-900">
                 {fCur(portfolio?.agencyTotals?.cpa || 0)}
@@ -1061,6 +1167,19 @@ export default function AgencyReportsClient() {
                   formatAs="currency"
                 />
               </div>
+              {platformFilter === "all" && portfolio?.channelSummary && (
+                <div className="flex items-center gap-2 pt-1 text-[10px] text-slate-500 font-mono">
+                  <span className="flex items-center gap-1 text-emerald-700">
+                    <GoogleLogo className="w-2.5 h-2.5" />
+                    {fCur(portfolio.channelSummary.google?.cpa || 0)}
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-blue-700">
+                    <MetaLogo className="w-2.5 h-2.5" />
+                    {fCur(portfolio.channelSummary.meta?.cpa || 0)}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="p-2 rounded-lg bg-slate-100 shrink-0 self-start">
               <Activity className="h-3.5 w-3.5 text-slate-600" />
@@ -1661,10 +1780,10 @@ export default function AgencyReportsClient() {
               </div>
             )}
             <Button
-              onClick={() => fetchGodModeAi(true, portfolio)}
+              onClick={() => fetchGodModeAi(true, portfolio, true, platformFilter)}
               disabled={isAiLoading || isAiRefreshing || !portfolio}
               size="sm"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs cursor-pointer"
             >
               {isAiRefreshing ? (
                 <>
@@ -1766,6 +1885,26 @@ export default function AgencyReportsClient() {
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
+                                {fire?.channel && (
+                                  <span
+                                    className={`text-[9px] tracking-wider uppercase font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                                      fire.channel === "google"
+                                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                        : fire.channel === "meta"
+                                          ? "bg-blue-50 text-blue-800 border border-blue-200"
+                                          : "bg-violet-50 text-violet-800 border border-violet-200"
+                                    }`}
+                                  >
+                                    {fire.channel === "google" ? (
+                                      <GoogleLogo className="w-2.5 h-2.5" />
+                                    ) : fire.channel === "meta" ? (
+                                      <MetaLogo className="w-2.5 h-2.5" />
+                                    ) : (
+                                      <Layers className="w-2.5 h-2.5" />
+                                    )}
+                                    {fire.channel}
+                                  </span>
+                                )}
                                 <span
                                   className={`text-[9px] tracking-wider uppercase font-extrabold px-2.5 py-0.5 rounded-full ${
                                     fire?.severity === "Critical"
@@ -1836,9 +1975,31 @@ export default function AgencyReportsClient() {
                             key={i}
                             className="bg-white border border-slate-200 shadow-sm rounded-lg p-4"
                           >
-                            <h5 className="font-bold text-sm text-emerald-600 mb-1">
-                              {growth?.account_name}
-                            </h5>
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <h5 className="font-bold text-sm text-emerald-600">
+                                {growth?.account_name}
+                              </h5>
+                              {growth?.channel && (
+                                <span
+                                  className={`text-[9px] tracking-wider uppercase font-extrabold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                                    growth.channel === "google"
+                                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                      : growth.channel === "meta"
+                                        ? "bg-blue-50 text-blue-800 border border-blue-200"
+                                        : "bg-violet-50 text-violet-800 border border-violet-200"
+                                  }`}
+                                >
+                                  {growth.channel === "google" ? (
+                                    <GoogleLogo className="w-2.5 h-2.5" />
+                                  ) : growth.channel === "meta" ? (
+                                    <MetaLogo className="w-2.5 h-2.5" />
+                                  ) : (
+                                    <Layers className="w-2.5 h-2.5" />
+                                  )}
+                                  {growth.channel}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-slate-600 leading-relaxed">
                               {growth?.reasoning}
                             </p>
@@ -1912,6 +2073,7 @@ export default function AgencyReportsClient() {
           <Table>
             <TableHeader>
               <TableRow className="text-xs uppercase hover:bg-transparent">
+                <TableHead className="w-8 pl-4 pr-0" />
                 <TableHead className="font-bold">Client Account</TableHead>
                 <TableHead className="text-center font-bold w-[120px]">
                   Churn Risk
@@ -1919,10 +2081,15 @@ export default function AgencyReportsClient() {
                 <TableHead className="text-right font-bold">Spend</TableHead>
                 <TableHead className="text-right font-bold">Conv.</TableHead>
                 <TableHead className="text-right font-bold">
-                  Blended CPA
+                  {platformFilter === "google"
+                    ? "Google CPA"
+                    : platformFilter === "meta"
+                      ? "Meta CPA"
+                      : "Blended CPA"}
                 </TableHead>
                 <TableHead className="text-right font-bold">CTR</TableHead>
                 <TableHead className="text-right font-bold">CPC</TableHead>
+                <TableHead className="text-right font-bold pr-6">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1931,136 +2098,340 @@ export default function AgencyReportsClient() {
                   acc,
                   portfolio?.agencyTotals?.cpa || 0,
                 );
+                const isBlended =
+                  platformFilter === "all" &&
+                  Array.isArray(acc.platforms) &&
+                  acc.platforms.length > 1;
+                const isExpanded = isBlended && !!expandedRows[acc.key || acc.accountId];
 
                 return (
-                  <TableRow
-                    onClick={() => handleRowClick(acc.accountId)}
-                    key={acc.accountId}
-                    className="text-sm hover:bg-slate-50 cursor-pointer transition-colors"
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span
-                          title={
-                            acc.googleStatus === "ENABLED"
-                              ? "Status: Active"
-                              : acc.googleStatus === "CANCELED"
-                                ? "Status: Cancelled"
-                                : acc.googleStatus === "SUSPENDED"
-                                  ? "Status: Suspended"
-                                  : `Status: ${acc.googleStatus}`
-                          }
-                          className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
-                            acc.googleStatus === "ENABLED"
-                              ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
-                              : acc.googleStatus === "CANCELED"
-                                ? "bg-slate-400"
-                                : acc.googleStatus === "SUSPENDED"
-                                  ? "bg-rose-500 shadow-sm shadow-rose-500/30"
-                                  : "bg-amber-500"
-                          }`}
-                        />
-                        <span className="font-semibold text-slate-900">
-                          {acc.name}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-mono mt-0.5 pl-4.5">
-                        {acc.googleAccountId}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span
-                        className={`px-2 py-1 text-[10px] rounded-full border uppercase tracking-wider ${risk.classes}`}
-                      >
-                        {risk.label}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      <div className="font-semibold text-slate-900">
-                        {fCur(acc.spend)}
-                      </div>
-                      {acc.deltas?.spendDeltaPct !== null &&
-                      acc.deltas?.spendDeltaPct !== undefined ? (
-                        <div className="text-[10px] text-slate-400">
-                          {acc.deltas.spendDeltaPct > 0 ? "+" : ""}
-                          {acc.deltas.spendDeltaPct.toFixed(1)}% vs prior
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-slate-300">—</div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      <div className="font-bold text-emerald-600">
-                        {fNum(acc.conversions)}
-                      </div>
-                      {acc.deltas?.convDeltaPct !== null &&
-                      acc.deltas?.convDeltaPct !== undefined ? (
-                        <div
-                          className={`text-[10px] font-medium ${
-                            acc.deltas.convDeltaPct >= 0
-                              ? "text-emerald-600"
-                              : "text-rose-600"
-                          }`}
-                        >
-                          {acc.deltas.convDeltaPct > 0 ? "+" : ""}
-                          {acc.deltas.convDeltaPct.toFixed(1)}% (
-                          {acc.deltas.convDeltaAbs > 0 ? "+" : ""}
-                          {acc.deltas.convDeltaAbs})
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-slate-300">—</div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      <div className="flex flex-col items-end gap-0.5">
-                        <span
-                          className={
-                            acc.cpa > (portfolio?.agencyTotals?.cpa || 0) * 1.5
-                              ? "text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded"
-                              : "font-semibold text-slate-800"
-                          }
-                        >
-                          {fCur(acc.cpa)}
-                        </span>
-                        {acc.deltas?.cpaDeltaPct !== null &&
-                        acc.deltas?.cpaDeltaPct !== undefined ? (
+                  <>
+                    <TableRow
+                      key={acc.key || acc.accountId}
+                      className="text-sm hover:bg-slate-50 cursor-pointer transition-colors"
+                      onClick={() => handleRowClick(acc.accountId)}
+                    >
+                      {/* Chevron expand/collapse toggle */}
+                      <TableCell className="w-8 pl-4 pr-0 py-3.5">
+                        {isBlended ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleRowExpanded(acc.key || acc.accountId);
+                            }}
+                            className="p-1 rounded hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                            title="Toggle Channel Breakdown"
+                          >
+                            <ChevronDown
+                              className={`w-3.5 h-3.5 transition-transform ${
+                                isExpanded ? "transform rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+                        ) : null}
+                      </TableCell>
+
+                      <TableCell className="py-3.5">
+                        <div className="flex items-center gap-2">
                           <span
-                            className={`text-[10px] font-medium px-1 rounded ${
-                              acc.deltas.cpaDeltaPct < 0
-                                ? "text-emerald-700 bg-emerald-50"
-                                : acc.deltas.cpaDeltaPct > 0
-                                  ? "text-rose-700 bg-rose-50"
-                                  : "text-slate-500"
+                            title={
+                              platformFilter === "meta"
+                                ? acc.metaAccountStatus === 1
+                                  ? "Meta Ads: Active"
+                                  : "Meta Ads: Inactive"
+                                : acc.googleStatus === "ENABLED"
+                                  ? "Google Ads: Active"
+                                  : acc.googleStatus === "CANCELED"
+                                    ? "Google Ads: Cancelled"
+                                    : acc.googleStatus === "SUSPENDED"
+                                      ? "Google Ads: Suspended"
+                                      : `Status: ${acc.googleStatus}`
+                            }
+                            className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
+                              platformFilter === "meta"
+                                ? acc.metaAccountStatus === 1
+                                  ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
+                                  : "bg-slate-400"
+                                : acc.googleStatus === "ENABLED"
+                                  ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
+                                  : acc.googleStatus === "CANCELED"
+                                    ? "bg-slate-400"
+                                    : acc.googleStatus === "SUSPENDED"
+                                      ? "bg-rose-500 shadow-sm shadow-rose-500/30"
+                                      : "bg-amber-500"
+                            }`}
+                          />
+                          <span className="font-semibold text-slate-900">
+                            {acc.name}
+                          </span>
+
+                          {isBlended && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200">
+                              <Layers className="w-2.5 h-2.5" />
+                              Blended
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Platform ID Badges */}
+                        <div className="flex flex-wrap items-center gap-1.5 pl-4.5 mt-1">
+                          {platformFilter !== "meta" && acc.googleAccountId && (
+                            <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-1.5 py-0.2 rounded font-mono shadow-2xs">
+                              <GoogleLogo className="w-2.5 h-2.5 shrink-0" />
+                              {acc.googleAccountId}
+                            </span>
+                          )}
+                          {platformFilter !== "google" && acc.metaAccountId && (
+                            <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-blue-800 bg-blue-50 border border-blue-200/70 px-1.5 py-0.2 rounded font-mono shadow-2xs">
+                              <MetaLogo className="w-2.5 h-2.5 shrink-0" />
+                              act_{acc.metaAccountId}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-center py-3.5">
+                        <span
+                          className={`px-2 py-1 text-[10px] rounded-full border uppercase tracking-wider ${risk.classes}`}
+                        >
+                          {risk.label}
+                        </span>
+                      </TableCell>
+
+                      <TableCell className="text-right font-mono py-3.5">
+                        <div className="font-semibold text-slate-900">
+                          {fCur(acc.spend)}
+                        </div>
+                        {acc.deltas?.spendDeltaPct !== null &&
+                        acc.deltas?.spendDeltaPct !== undefined ? (
+                          <div className="text-[10px] text-slate-400">
+                            {acc.deltas.spendDeltaPct > 0 ? "+" : ""}
+                            {acc.deltas.spendDeltaPct.toFixed(1)}% vs prior
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-300">—</div>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="text-right font-mono py-3.5">
+                        <div className="font-bold text-emerald-600">
+                          {fNum(acc.conversions)}
+                        </div>
+                        {acc.deltas?.convDeltaPct !== null &&
+                        acc.deltas?.convDeltaPct !== undefined ? (
+                          <div
+                            className={`text-[10px] font-medium ${
+                              acc.deltas.convDeltaPct >= 0
+                                ? "text-emerald-600"
+                                : "text-rose-600"
                             }`}
                           >
-                            {acc.deltas.cpaDeltaPct < 0
-                              ? "▼"
-                              : acc.deltas.cpaDeltaPct > 0
-                                ? "▲"
-                                : ""}{" "}
-                            {acc.deltas.cpaDeltaPct > 0 ? "+" : ""}
-                            {acc.deltas.cpaDeltaPct.toFixed(1)}%
-                          </span>
+                            {acc.deltas.convDeltaPct > 0 ? "+" : ""}
+                            {acc.deltas.convDeltaPct.toFixed(1)}% (
+                            {acc.deltas.convDeltaAbs > 0 ? "+" : ""}
+                            {acc.deltas.convDeltaAbs})
+                          </div>
                         ) : (
-                          <span className="text-[10px] text-slate-300">—</span>
+                          <div className="text-[10px] text-slate-300">—</div>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      <span
-                        className={
-                          acc.ctr > 0 && acc.ctr < 3
-                            ? "text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded"
-                            : "text-slate-500"
-                        }
-                      >
-                        {fPct(acc.ctr)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-slate-500">
-                      {fCur(acc.cpc)}
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+
+                      <TableCell className="text-right font-mono py-3.5">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span
+                            className={
+                              acc.cpa > (portfolio?.agencyTotals?.cpa || 0) * 1.5
+                                ? "text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded"
+                                : "font-semibold text-slate-800"
+                            }
+                          >
+                            {acc.spend > 0 && acc.conversions === 0 ? "No Conv." : fCur(acc.cpa)}
+                          </span>
+                          {acc.deltas?.cpaDeltaPct !== null &&
+                          acc.deltas?.cpaDeltaPct !== undefined ? (
+                            <span
+                              className={`text-[10px] font-medium px-1 rounded ${
+                                acc.deltas.cpaDeltaPct < 0
+                                  ? "text-emerald-700 bg-emerald-50"
+                                  : acc.deltas.cpaDeltaPct > 0
+                                    ? "text-rose-700 bg-rose-50"
+                                    : "text-slate-500"
+                              }`}
+                            >
+                              {acc.deltas.cpaDeltaPct < 0
+                                ? "▼"
+                                : acc.deltas.cpaDeltaPct > 0
+                                  ? "▲"
+                                  : ""}{" "}
+                              {acc.deltas.cpaDeltaPct > 0 ? "+" : ""}
+                              {acc.deltas.cpaDeltaPct.toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-300">—</span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-right font-mono py-3.5">
+                        <span
+                          className={
+                            acc.ctr > 0 && acc.ctr < 3
+                              ? "text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded"
+                              : "text-slate-500"
+                          }
+                        >
+                          {fPct(acc.ctr)}
+                        </span>
+                      </TableCell>
+
+                      <TableCell className="text-right font-mono text-slate-500 py-3.5">
+                        {fCur(acc.cpc)}
+                      </TableCell>
+
+                      <TableCell className="text-right pr-6 py-3.5">
+                        {platformFilter === "meta" ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (acc.metaAccountId) {
+                                window.open(
+                                  `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${acc.metaAccountId}`,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                );
+                              }
+                            }}
+                            className="h-7 text-xs text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-2 cursor-pointer"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                            Meta Ads
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/accounts/${acc.accountId}`);
+                            }}
+                            className="h-7 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-2 cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                            Details
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Drill-down Sub-Rows for Blended Multi-Platform Accounts */}
+                    {isBlended && isExpanded && (
+                      <>
+                        {/* Google Sub-Row */}
+                        <TableRow className="bg-slate-50/70 border-l-2 border-emerald-500 text-xs hover:bg-slate-100/70">
+                          <TableCell className="pl-4 pr-0 py-2.5" />
+                          <TableCell className="pl-6 py-2.5 font-medium text-slate-700">
+                            <div className="flex items-center gap-2">
+                              <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
+                              <span className="font-semibold text-slate-900">
+                                Google Ads
+                              </span>
+                              <span className="font-mono text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-1.5 py-0.5 rounded">
+                                {acc.googleAccountId}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2.5 text-center text-slate-400 text-[10px]">
+                            Channel
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                            {fCur(acc.channelBreakdown?.google?.spend || 0)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-slate-800 py-2.5">
+                            {fNum(acc.channelBreakdown?.google?.conversions || 0)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                            {fCur(acc.channelBreakdown?.google?.cpa || 0)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                            {fPct(acc.channelBreakdown?.google?.ctr || 0)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                            {fCur(acc.channelBreakdown?.google?.cpc || 0)}
+                          </TableCell>
+                          <TableCell className="text-right pr-6 py-2.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/accounts/${acc.googleId || acc.accountId}`);
+                              }}
+                              className="h-6 text-[11px] text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 px-2 cursor-pointer"
+                            >
+                              View Google
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Meta Sub-Row */}
+                        <TableRow className="bg-slate-50/70 border-l-2 border-blue-500 text-xs hover:bg-slate-100/70">
+                          <TableCell className="pl-4 pr-0 py-2.5" />
+                          <TableCell className="pl-6 py-2.5 font-medium text-slate-700">
+                            <div className="flex items-center gap-2">
+                              <MetaLogo className="w-3.5 h-3.5 shrink-0" />
+                              <span className="font-semibold text-slate-900">
+                                Meta Ads
+                              </span>
+                              <span className="font-mono text-[10px] text-blue-800 bg-blue-50 border border-blue-200/70 px-1.5 py-0.5 rounded">
+                                act_{acc.metaAccountId}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2.5 text-center text-slate-400 text-[10px]">
+                            Channel
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                            {fCur(acc.channelBreakdown?.meta?.spend || 0)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-slate-800 py-2.5">
+                            {fNum(acc.channelBreakdown?.meta?.conversions || 0)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                            {fCur(acc.channelBreakdown?.meta?.cpa || 0)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                            {fPct(acc.channelBreakdown?.meta?.ctr || 0)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                            {fCur(acc.channelBreakdown?.meta?.cpc || 0)}
+                          </TableCell>
+                          <TableCell className="text-right pr-6 py-2.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (acc.metaAccountId) {
+                                  window.open(
+                                    `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${acc.metaAccountId}`,
+                                    "_blank",
+                                    "noopener,noreferrer",
+                                  );
+                                }
+                              }}
+                              className="h-6 text-[11px] text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-2 cursor-pointer"
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              Meta Ads
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      </>
+                    )}
+                  </>
                 );
               })}
             </TableBody>

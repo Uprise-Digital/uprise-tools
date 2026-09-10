@@ -426,6 +426,25 @@ export async function updateMetaAutoSyncSettingsAction(
   }
 }
 
+function parseMetaActionsConv(actions?: any[]): number {
+  let count = 0;
+  if (Array.isArray(actions)) {
+    for (const action of actions) {
+      const actionType = action.action_type || "";
+      if (
+        actionType.includes("purchase") ||
+        actionType.includes("lead") ||
+        actionType.includes("conversion") ||
+        actionType.includes("complete_registration") ||
+        actionType === "onsite_conversion.lead_grouped"
+      ) {
+        count += parseInt(action.value || "0", 10);
+      }
+    }
+  }
+  return count;
+}
+
 /**
  * Fetches aggregate performance metrics (spend, conversions, clicks, impressions)
  * for all synced Meta accounts in the specified date range via Meta Graph API /insights.
@@ -470,10 +489,17 @@ export async function getMetaAccountsPerformanceAction(
       accounts.map(async (acc) => {
         try {
           const actId = `act_${acc.metaAccountId}`;
-          const url = `https://graph.facebook.com/v19.0/${actId}/insights?fields=spend,clicks,impressions,cpc,ctr,actions&time_range=${timeRangeParam}&access_token=${encodeURIComponent(rawToken)}`;
+          // Request aggregate insights and daily breakdown
+          const aggregateUrl = `https://graph.facebook.com/v19.0/${actId}/insights?fields=spend,clicks,impressions,cpc,ctr,actions&time_range=${timeRangeParam}&access_token=${encodeURIComponent(rawToken)}`;
+          const dailyUrl = `https://graph.facebook.com/v19.0/${actId}/insights?fields=spend,clicks,impressions,actions&time_increment=1&time_range=${timeRangeParam}&access_token=${encodeURIComponent(rawToken)}&limit=100`;
 
-          const res = await fetch(url);
-          const data = await res.json();
+          const [aggRes, dailyRes] = await Promise.all([
+            fetch(aggregateUrl).then((r) => r.json()).catch(() => null),
+            fetch(dailyUrl).then((r) => r.json()).catch(() => null),
+          ]);
+
+          const data = aggRes;
+          const dailyData = dailyRes;
 
           if (Array.isArray(data?.data) && data.data.length > 0) {
             const ins = data.data[0];
@@ -502,7 +528,19 @@ export async function getMetaAccountsPerformanceAction(
             const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
             const cpc = clicks > 0 ? spend / clicks : 0;
 
+            const dailySeries = Array.isArray(dailyData?.data)
+              ? dailyData.data.map((d: any) => ({
+                  date: d.date_start,
+                  spend: parseFloat(d.spend || "0"),
+                  clicks: parseInt(d.clicks || "0", 10),
+                  impressions: parseInt(d.impressions || "0", 10),
+                  conversions: parseMetaActionsConv(d.actions),
+                }))
+              : [];
+
             return {
+              id: acc.id,
+              name: acc.name,
               metaAccountId: acc.metaAccountId,
               spend,
               conversions,
@@ -511,10 +549,13 @@ export async function getMetaAccountsPerformanceAction(
               cpa,
               ctr,
               cpc,
+              dailySeries,
             };
           }
 
           return {
+            id: acc.id,
+            name: acc.name,
             metaAccountId: acc.metaAccountId,
             spend: 0,
             conversions: 0,
@@ -523,6 +564,7 @@ export async function getMetaAccountsPerformanceAction(
             cpa: 0,
             ctr: 0,
             cpc: 0,
+            dailySeries: [],
           };
         } catch (err) {
           console.warn(
@@ -530,6 +572,8 @@ export async function getMetaAccountsPerformanceAction(
             err,
           );
           return {
+            id: acc.id,
+            name: acc.name,
             metaAccountId: acc.metaAccountId,
             spend: 0,
             conversions: 0,
@@ -538,6 +582,7 @@ export async function getMetaAccountsPerformanceAction(
             cpa: 0,
             ctr: 0,
             cpc: 0,
+            dailySeries: [],
           };
         }
       }),
