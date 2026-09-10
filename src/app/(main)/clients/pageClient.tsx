@@ -46,6 +46,7 @@ import {
   createClientOnboardingAction,
   deleteClientAction,
   getCrmDirectoryDataAction,
+  mergeClientsAction,
   migrateGhlRecordsToClientsAndContactsAction,
   syncAllGhlClientsAction,
   syncGhlCallNotesAction,
@@ -132,6 +133,13 @@ export default function ClientsDirectoryClient() {
   const [ghlSearchError, setGhlSearchError] = useState<string | null>(null);
   const [hasSearchedGhl, setHasSearchedGhl] = useState(false);
   const [selectedGhlContact, setSelectedGhlContact] = useState<any | null>(null);
+
+  // Multi-Select & Merge States
+  const [selectedClientIds, setSelectedClientIds] = useState<number[]>([]);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [primaryTargetId, setPrimaryTargetId] = useState<number | null>(null);
+  const [customFinalName, setCustomFinalName] = useState<string>("");
+  const [isMerging, setIsMerging] = useState(false);
 
   // Load CRM Directory Data (Canonical Clients)
   const loadData = useCallback(async () => {
@@ -322,6 +330,75 @@ export default function ClientsDirectoryClient() {
       }
     } catch (err: any) {
       toast.error("Error deleting client.");
+    }
+  };
+
+  const toggleSelectClient = (id: number) => {
+    setSelectedClientIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = (visibleIds: number[]) => {
+    if (visibleIds.length === 0) return;
+    const allSelected = visibleIds.every((id) => selectedClientIds.includes(id));
+    if (allSelected) {
+      setSelectedClientIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    } else {
+      setSelectedClientIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  const handleOpenMergeModal = () => {
+    if (selectedClientIds.length < 2) {
+      toast.error("Please select at least 2 clients to merge.");
+      return;
+    }
+    const firstId = selectedClientIds[0];
+    setPrimaryTargetId(firstId);
+    const primaryClient = clients.find((c) => c.id === firstId);
+    setCustomFinalName(primaryClient?.name || "");
+    setIsMergeModalOpen(true);
+  };
+
+  const handleConfirmMerge = async () => {
+    if (!primaryTargetId || selectedClientIds.length < 2) {
+      toast.error("Please select a target client to merge into.");
+      return;
+    }
+
+    const secondaryIds = selectedClientIds.filter((id) => id !== primaryTargetId);
+    if (secondaryIds.length === 0) {
+      toast.error("Please select at least one secondary client to merge.");
+      return;
+    }
+
+    setIsMerging(true);
+    const toastId = toast.loading("Merging clients and consolidating ad accounts...");
+    try {
+      const res = await mergeClientsAction({
+        targetClientId: primaryTargetId,
+        sourceClientIds: secondaryIds,
+        finalName: customFinalName.trim() || undefined,
+      });
+
+      if (res.success) {
+        toast.success(
+          `Successfully merged ${selectedClientIds.length} clients into "${customFinalName || "Primary Client"}"!`,
+          { id: toastId }
+        );
+        setIsMergeModalOpen(false);
+        setSelectedClientIds([]);
+        setPrimaryTargetId(null);
+        await loadData();
+      } else {
+        toast.error(res.error || "Failed to merge clients.", { id: toastId });
+      }
+    } catch (err: any) {
+      console.error("Merge clients error:", err);
+      toast.error(err.message || "Error merging clients.", { id: toastId });
+    } finally {
+      setIsMerging(false);
     }
   };
 
@@ -668,6 +745,18 @@ export default function ClientsDirectoryClient() {
           <Table>
             <TableHeader className="bg-slate-50/50">
               <TableRow className="border-slate-100">
+                <TableHead className="w-10 py-3 pl-4">
+                  <input
+                    type="checkbox"
+                    checked={
+                      filteredAndSortedClients.length > 0 &&
+                      filteredAndSortedClients.every((c) => selectedClientIds.includes(c.id))
+                    }
+                    onChange={() => toggleSelectAll(filteredAndSortedClients.map((c) => c.id))}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer h-4 w-4"
+                    title="Select all visible clients"
+                  />
+                </TableHead>
                 <TableHead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider py-3">
                   Client / Business
                 </TableHead>
@@ -691,14 +780,14 @@ export default function ClientsDirectoryClient() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-slate-400 text-sm">
+                  <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-sm">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-indigo-500 mb-2" />
                     Loading canonical client accounts...
                   </TableCell>
                 </TableRow>
               ) : filteredAndSortedClients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-slate-400 text-sm space-y-2">
+                  <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-sm space-y-2">
                     <p className="font-semibold text-slate-700">No clients found matching the selected filters.</p>
                     {hasActiveFilters && (
                       <Button variant="outline" size="sm" onClick={resetFilters} className="text-xs text-indigo-600 hover:bg-indigo-50 border-indigo-200">
@@ -708,14 +797,29 @@ export default function ClientsDirectoryClient() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAndSortedClients.map((client) => (
-                  <TableRow
-                    key={client.id}
-                    className="border-slate-100 hover:bg-slate-50/80 transition-colors cursor-pointer"
-                    onClick={() => router.push(`/clients/${client.id}`)}
-                  >
-                    {/* Client / Business */}
-                    <TableCell className="font-bold text-slate-900 py-3 text-sm">
+                filteredAndSortedClients.map((client) => {
+                  const isSelected = selectedClientIds.includes(client.id);
+                  return (
+                    <TableRow
+                      key={client.id}
+                      className={cn(
+                        "border-slate-100 transition-colors cursor-pointer",
+                        isSelected ? "bg-indigo-50/70 hover:bg-indigo-50" : "hover:bg-slate-50/80"
+                      )}
+                      onClick={() => router.push(`/clients/${client.id}`)}
+                    >
+                      {/* Checkbox Column */}
+                      <TableCell className="py-3 pl-4" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectClient(client.id)}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer h-4 w-4"
+                        />
+                      </TableCell>
+
+                      {/* Client / Business */}
+                      <TableCell className="font-bold text-slate-900 py-3 text-sm">
                       <div className="space-y-0.5">
                         <span className="hover:text-indigo-600 transition-colors font-bold text-slate-900">
                           {client.name}
@@ -872,12 +976,189 @@ export default function ClientsDirectoryClient() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
       </div>
+    </div>
+
+      {/* Floating Action Bar for Selected Clients */}
+      {selectedClientIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <span className="text-xs font-bold text-slate-200">
+            {selectedClientIds.length} client{selectedClientIds.length > 1 ? "s" : ""} selected
+          </span>
+          <div className="h-4 w-px bg-slate-700" />
+          <Button
+            size="sm"
+            onClick={handleOpenMergeModal}
+            disabled={selectedClientIds.length < 2}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs h-8 px-3.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            Merge Selected ({selectedClientIds.length})
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelectedClientIds([])}
+            className="text-slate-400 hover:text-white text-xs h-8 px-2 cursor-pointer"
+          >
+            Clear
+          </Button>
+        </div>
+      )}
+
+      {/* Merge Clients Modal */}
+      {isMergeModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl p-6 space-y-6 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
+                    <Layers className="h-4 w-4" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-900">Merge Clients</h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Consolidate {selectedClientIds.length} client records into one. All connected Google &amp; Meta ad accounts, contacts, and call history will be transferred into the primary client.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMergeModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Select Target Client */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Select Primary Client (to keep)
+                </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {clients
+                    .filter((c) => selectedClientIds.includes(c.id))
+                    .map((client) => {
+                      const isTarget = primaryTargetId === client.id;
+                      return (
+                        <div
+                          key={client.id}
+                          onClick={() => {
+                            setPrimaryTargetId(client.id);
+                            setCustomFinalName(client.name);
+                          }}
+                          className={cn(
+                            "p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between",
+                            isTarget
+                              ? "border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500/20"
+                              : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="radio"
+                              name="primaryClient"
+                              checked={isTarget}
+                              onChange={() => {
+                                setPrimaryTargetId(client.id);
+                                setCustomFinalName(client.name);
+                              }}
+                              className="text-indigo-600 focus:ring-indigo-500 cursor-pointer h-4 w-4"
+                            />
+                            <div>
+                              <div className="text-xs font-bold text-slate-900">
+                                {client.name}
+                                {isTarget && (
+                                  <span className="ml-2 inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold bg-indigo-100 text-indigo-700 rounded-md">
+                                    Primary Target
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                                <span>{client.industry || "General"}</span>
+                                <span>•</span>
+                                <span>{(client.adAccounts?.length || 0) + (client.metaAdAccounts?.length || 0)} ad accounts</span>
+                                <span>•</span>
+                                <span>{client.contactsCount || 0} contacts</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Custom Final Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Final Client Name
+                </label>
+                <Input
+                  value={customFinalName}
+                  onChange={(e) => setCustomFinalName(e.target.value)}
+                  placeholder="Consolidated Client Name..."
+                  className="text-xs h-9"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  The primary client will be renamed to this name.
+                </p>
+              </div>
+
+              {/* Consolidation Warning / Summary */}
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                  What happens next?
+                </div>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  The other {selectedClientIds.length - 1} client record(s) will be merged into the primary client. All Google Ads accounts, Meta Ads accounts, contacts, and call history logs will be retained and safely re-linked. This action cannot be automatically undone.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex justify-end items-center gap-2 pt-2 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsMergeModalOpen(false)}
+                disabled={isMerging}
+                className="text-xs h-9 cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleConfirmMerge}
+                disabled={isMerging || !primaryTargetId || !customFinalName.trim()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold h-9 px-4 rounded-xl cursor-pointer flex items-center gap-1.5"
+              >
+                {isMerging ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Merging Clients...
+                  </>
+                ) : (
+                  <>
+                    <Layers className="h-3.5 w-3.5" />
+                    Confirm &amp; Merge {selectedClientIds.length} Clients
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 5. Onboard New Client Modal */}
       {isNewClientOpen && (

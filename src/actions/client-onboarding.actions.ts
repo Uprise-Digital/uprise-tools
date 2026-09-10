@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
@@ -388,6 +388,93 @@ export async function deleteClientAction(clientId: number) {
     return { success: true as const };
   } catch (error: any) {
     console.error("deleteClientAction error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
+ * Merges multiple client entities into a single target primary client.
+ * Consolidates ad accounts, meta ad accounts, contacts, and call records.
+ * Deletes the source client records.
+ */
+export async function mergeClientsAction({
+  targetClientId,
+  sourceClientIds,
+  finalName,
+}: {
+  targetClientId: number;
+  sourceClientIds: number[];
+  finalName?: string;
+}) {
+  try {
+    const { orgId, userId } = await getSessionOrgId();
+    if (!orgId) return { success: false as const, error: "No active organization" };
+
+    // Filter out targetClientId from sourceClientIds if accidentally included
+    const filteredSourceIds = sourceClientIds.filter((id) => id !== targetClientId);
+    if (filteredSourceIds.length === 0) {
+      return { success: false as const, error: "No secondary clients selected to merge." };
+    }
+
+    // Verify target client belongs to org
+    const targetClient = await db.query.clients.findFirst({
+      where: and(eq(clients.id, targetClientId), eq(clients.organizationId, orgId)),
+    });
+    if (!targetClient) {
+      return { success: false as const, error: "Target client not found." };
+    }
+
+    // 1. Re-assign Google Ad Accounts
+    await db
+      .update(adAccounts)
+      .set({ clientId: targetClientId })
+      .where(inArray(adAccounts.clientId, filteredSourceIds));
+
+    // 2. Re-assign Meta Ad Accounts
+    await db
+      .update(metaAdAccounts)
+      .set({ clientId: targetClientId })
+      .where(inArray(metaAdAccounts.clientId, filteredSourceIds));
+
+    // 3. Re-assign Contacts
+    await db
+      .update(contacts)
+      .set({ clientId: targetClientId, updatedAt: new Date() })
+      .where(inArray(contacts.clientId, filteredSourceIds));
+
+    // 4. Re-assign Call Records
+    await db
+      .update(callRecords)
+      .set({ clientId: targetClientId })
+      .where(inArray(callRecords.clientId, filteredSourceIds));
+
+    // 5. Update Target Client name if specified
+    if (finalName && finalName.trim() && finalName.trim() !== targetClient.name) {
+      await db
+        .update(clients)
+        .set({ name: finalName.trim(), updatedAt: new Date() })
+        .where(eq(clients.id, targetClientId));
+    }
+
+    // 6. Delete source clients
+    await db
+      .delete(clients)
+      .where(and(inArray(clients.id, filteredSourceIds), eq(clients.organizationId, orgId)));
+
+    await logAction(userId, "MERGE_CLIENTS", "clients", targetClientId, {
+      targetClientId,
+      sourceClientIds: filteredSourceIds,
+      finalName,
+    });
+
+    revalidatePath("/clients");
+    revalidatePath("/contacts");
+    revalidatePath("/accounts");
+    revalidatePath("/overview/industry");
+
+    return { success: true as const };
+  } catch (error: any) {
+    console.error("mergeClientsAction error:", error);
     return { success: false as const, error: error.message };
   }
 }
