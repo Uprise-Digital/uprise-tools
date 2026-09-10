@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, gte, or } from "drizzle-orm";
+import { and, desc, eq, gte, lte, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { backgroundTasks, member } from "@/db/schema";
@@ -32,8 +32,24 @@ export async function getActiveBackgroundTasksAction() {
 
   // Fetch tasks that are currently running, OR completed/failed within the last 10 seconds
   const tenSecondsAgo = new Date(Date.now() - 10 * 1000);
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
 
   try {
+    // Auto-expire stale running tasks older than 15 minutes
+    await db
+      .update(backgroundTasks)
+      .set({
+        status: "failed",
+        error: "Task timed out or was interrupted.",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(backgroundTasks.organizationId, orgId),
+          eq(backgroundTasks.status, "running"),
+          lte(backgroundTasks.createdAt, fifteenMinutesAgo),
+        ),
+      );
     const tasks = await db.query.backgroundTasks.findMany({
       where: and(
         eq(backgroundTasks.organizationId, orgId),
