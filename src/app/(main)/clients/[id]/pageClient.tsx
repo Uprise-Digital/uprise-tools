@@ -477,9 +477,11 @@ export default function ClientDetailPageClient({
   };
 
   const latestEmailLog = emailLogs[0] || null;
+  const isCompleted =
+    client?.status === "completed" || client?.status === "active";
   const isEmailSent =
     client?.status === "email_sent" ||
-    client?.status === "completed" ||
+    isCompleted ||
     Boolean(client?.emailSentAt) ||
     latestEmailLog?.status === "success";
   const emailSentDate = client?.emailSentAt || latestEmailLog?.sentAt;
@@ -561,7 +563,7 @@ export default function ClientDetailPageClient({
             Edit Details
           </Button>
 
-          {client.status !== "completed" && (
+          {!isCompleted && (
             <Button
               onClick={handleFinalize}
               disabled={isFinalizing}
@@ -605,7 +607,7 @@ export default function ClientDetailPageClient({
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
               </div>
-              {client.status === "completed" ? (
+              {isCompleted ? (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />{" "}
                   Active Client

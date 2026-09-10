@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
@@ -65,6 +65,57 @@ async function getSessionOrgId() {
   const ctx = await getAuthOrgContext();
   if (!ctx || !ctx.orgId) throw new Error("Unauthorized: No active organization");
   return { orgId: ctx.orgId, userId: ctx.userId };
+}
+
+/**
+ * Resolves canonical client and/or onboarding record by either ID.
+ * Ensures seamless interoperability between canonical clients and onboarding pipelines.
+ */
+async function resolveClientRecords(id: number, orgId: string) {
+  // 1. Try finding in canonical clients table first
+  let clientRecord = await db.query.clients.findFirst({
+    where: and(eq(clients.id, id), eq(clients.organizationId, orgId)),
+    with: { contacts: true, adAccounts: true, metaAdAccounts: true },
+  });
+
+  let onboardingRecord: any = null;
+
+  if (clientRecord) {
+    const primaryContactEmail =
+      clientRecord.contacts?.find((ct: any) => ct.isPrimary)?.email ||
+      clientRecord.contacts?.[0]?.email;
+
+    onboardingRecord = await db.query.clientOnboardings.findFirst({
+      where: and(
+        eq(clientOnboardings.organizationId, orgId),
+        or(
+          ilike(clientOnboardings.clientName, clientRecord.name.trim()),
+          primaryContactEmail
+            ? eq(clientOnboardings.contactEmail, primaryContactEmail.trim().toLowerCase())
+            : undefined,
+        ),
+      ),
+      with: { adAccounts: true, metaAdAccounts: true },
+    });
+  } else {
+    // 2. Try finding in clientOnboardings table
+    onboardingRecord = await db.query.clientOnboardings.findFirst({
+      where: and(eq(clientOnboardings.id, id), eq(clientOnboardings.organizationId, orgId)),
+      with: { adAccounts: true, metaAdAccounts: true },
+    });
+
+    if (onboardingRecord) {
+      clientRecord = await db.query.clients.findFirst({
+        where: and(
+          eq(clients.organizationId, orgId),
+          ilike(clients.name, onboardingRecord.clientName.trim()),
+        ),
+        with: { contacts: true, adAccounts: true, metaAdAccounts: true },
+      });
+    }
+  }
+
+  return { clientRecord, onboardingRecord };
 }
 
 /**
@@ -310,15 +361,55 @@ export async function updateClientOnboardingAction(
   data: Partial<typeof clientOnboardings.$inferInsert>,
 ) {
   try {
-    const { userId } = await getSessionOrgId();
+    const { orgId, userId } = await getSessionOrgId();
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(id, orgId);
 
-    await db
-      .update(clientOnboardings)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
-      .where(eq(clientOnboardings.id, id));
+    if (!clientRecord && !onboardingRecord) {
+      return { success: false, error: "Client not found" };
+    }
+
+    if (onboardingRecord) {
+      await db
+        .update(clientOnboardings)
+        .set({
+          ...data,
+          updatedAt: new Date(),
+        })
+        .where(eq(clientOnboardings.id, onboardingRecord.id));
+    }
+
+    if (clientRecord) {
+      await db
+        .update(clients)
+        .set({
+          name: data.clientName ? data.clientName.trim() : clientRecord.name,
+          driveFolderLink: data.driveFolderLink !== undefined ? data.driveFolderLink : clientRecord.driveFolderLink,
+          notionDashboardLink: data.notionDashboardLink !== undefined ? data.notionDashboardLink : clientRecord.notionDashboardLink,
+          signalGroupLink: data.signalGroupLink !== undefined ? data.signalGroupLink : clientRecord.signalGroupLink,
+          updatedAt: new Date(),
+        })
+        .where(eq(clients.id, clientRecord.id));
+
+      if (data.primaryContactName || data.contactEmail || data.contactPhone) {
+        const existingContact = await db.query.contacts.findFirst({
+          where: eq(contacts.clientId, clientRecord.id),
+        });
+        if (existingContact) {
+          const nameParts = (data.primaryContactName || existingContact.name).trim().split(/\s+/);
+          await db
+            .update(contacts)
+            .set({
+              name: data.primaryContactName ? data.primaryContactName.trim() : existingContact.name,
+              firstName: nameParts[0] || existingContact.firstName,
+              lastName: nameParts.slice(1).join(" ") || existingContact.lastName,
+              email: data.contactEmail ? data.contactEmail.trim().toLowerCase() : existingContact.email,
+              phone: data.contactPhone !== undefined ? (data.contactPhone ? data.contactPhone.trim() : null) : existingContact.phone,
+              updatedAt: new Date(),
+            })
+            .where(eq(contacts.id, existingContact.id));
+        }
+      }
+    }
 
     await logAction(
       userId,
@@ -341,9 +432,16 @@ export async function updateClientOnboardingAction(
  */
 export async function deleteClientOnboardingAction(id: number) {
   try {
-    const { userId } = await getSessionOrgId();
+    const { orgId, userId } = await getSessionOrgId();
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(id, orgId);
 
-    await db.delete(clientOnboardings).where(eq(clientOnboardings.id, id));
+    if (clientRecord) {
+      await deleteClientAction(clientRecord.id);
+    }
+    if (onboardingRecord) {
+      await db.delete(clientOnboardings).where(eq(clientOnboardings.id, onboardingRecord.id));
+    }
+
     await logAction(
       userId,
       "DELETE_CLIENT_ONBOARDING",
@@ -487,17 +585,30 @@ export async function associateAdAccountAction(
   adAccountId: number | null,
 ) {
   try {
-    const { userId } = await getSessionOrgId();
+    const { orgId, userId } = await getSessionOrgId();
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(clientId, orgId);
+
+    const cId = clientRecord?.id || null;
+    const onbId = onboardingRecord?.id || null;
 
     if (adAccountId === null) {
       await db
         .update(adAccounts)
-        .set({ clientOnboardingId: null })
-        .where(eq(adAccounts.clientOnboardingId, clientId));
+        .set({ clientOnboardingId: null, clientId: null })
+        .where(
+          or(
+            cId ? eq(adAccounts.clientId, cId) : undefined,
+            onbId ? eq(adAccounts.clientOnboardingId, onbId) : undefined,
+            eq(adAccounts.clientOnboardingId, clientId),
+          ),
+        );
     } else {
       await db
         .update(adAccounts)
-        .set({ clientOnboardingId: clientId })
+        .set({
+          clientId: cId,
+          clientOnboardingId: onbId || (cId ? null : clientId),
+        })
         .where(eq(adAccounts.id, adAccountId));
     }
 
@@ -527,17 +638,30 @@ export async function associateMetaAdAccountAction(
   metaAdAccountId: number | null,
 ) {
   try {
-    const { userId } = await getSessionOrgId();
+    const { orgId, userId } = await getSessionOrgId();
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(clientId, orgId);
+
+    const cId = clientRecord?.id || null;
+    const onbId = onboardingRecord?.id || null;
 
     if (metaAdAccountId === null) {
       await db
         .update(metaAdAccounts)
-        .set({ clientOnboardingId: null })
-        .where(eq(metaAdAccounts.clientOnboardingId, clientId));
+        .set({ clientOnboardingId: null, clientId: null })
+        .where(
+          or(
+            cId ? eq(metaAdAccounts.clientId, cId) : undefined,
+            onbId ? eq(metaAdAccounts.clientOnboardingId, onbId) : undefined,
+            eq(metaAdAccounts.clientOnboardingId, clientId),
+          ),
+        );
     } else {
       await db
         .update(metaAdAccounts)
-        .set({ clientOnboardingId: clientId })
+        .set({
+          clientId: cId,
+          clientOnboardingId: onbId || (cId ? null : clientId),
+        })
         .where(eq(metaAdAccounts.id, metaAdAccountId));
     }
 
@@ -983,25 +1107,55 @@ export async function runOnboardingPipelineAction(onboardingId: number) {
     const { orgId } = await getSessionOrgId();
     if (!orgId) return { success: false, error: "No active organization" };
 
-    const record = await db.query.clientOnboardings.findFirst({
-      where: eq(clientOnboardings.id, onboardingId),
-    });
-    if (!record)
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(onboardingId, orgId);
+    let targetOnboardingId = onboardingRecord?.id;
+
+    if (!targetOnboardingId && clientRecord) {
+      const primaryContact = clientRecord.contacts?.find((ct: any) => ct.isPrimary) || clientRecord.contacts?.[0];
+      const [newOnboarding] = await db
+        .insert(clientOnboardings)
+        .values({
+          organizationId: orgId,
+          clientName: clientRecord.name,
+          primaryContactName: primaryContact?.name || clientRecord.name,
+          contactEmail: primaryContact?.email || "info@example.com",
+          contactPhone: primaryContact?.phone || null,
+          googleAdsAccess: true,
+          metaAdsAccess: true,
+          status: "draft",
+        })
+        .returning();
+      targetOnboardingId = newOnboarding.id;
+    }
+
+    if (!targetOnboardingId)
       return { success: false, error: "Onboarding record not found." };
 
     // Update status to "generating"
     await db
       .update(clientOnboardings)
       .set({ status: "generating", updatedAt: new Date() })
-      .where(eq(clientOnboardings.id, onboardingId));
+      .where(eq(clientOnboardings.id, targetOnboardingId));
 
     // Execute synchronously
-    await executeOnboardingPipeline(onboardingId);
+    await executeOnboardingPipeline(targetOnboardingId);
 
     // Fetch the updated record
     const updated = await db.query.clientOnboardings.findFirst({
-      where: eq(clientOnboardings.id, onboardingId),
+      where: eq(clientOnboardings.id, targetOnboardingId),
     });
+
+    if (clientRecord && updated) {
+      await db
+        .update(clients)
+        .set({
+          driveFolderLink: updated.driveFolderLink || clientRecord.driveFolderLink,
+          notionDashboardLink: updated.notionDashboardLink || clientRecord.notionDashboardLink,
+          signalGroupLink: updated.signalGroupLink || clientRecord.signalGroupLink,
+          updatedAt: new Date(),
+        })
+        .where(eq(clients.id, clientRecord.id));
+    }
 
     return {
       success: true,
@@ -1026,11 +1180,29 @@ export async function sendOnboardingEmailAction(
   customText?: string,
 ) {
   try {
-    const { userId } = await getSessionOrgId();
+    const { orgId, userId } = await getSessionOrgId();
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(onboardingId, orgId);
 
-    const record = await db.query.clientOnboardings.findFirst({
-      where: eq(clientOnboardings.id, onboardingId),
-    });
+    let record = onboardingRecord;
+    if (!record && clientRecord) {
+      const primaryContact = clientRecord.contacts?.find((ct: any) => ct.isPrimary) || clientRecord.contacts?.[0];
+      const [newOnboarding] = await db
+        .insert(clientOnboardings)
+        .values({
+          organizationId: orgId,
+          clientName: clientRecord.name,
+          primaryContactName: primaryContact?.name || clientRecord.name,
+          contactEmail: primaryContact?.email || "info@example.com",
+          contactPhone: primaryContact?.phone || null,
+          driveFolderLink: clientRecord.driveFolderLink,
+          notionDashboardLink: clientRecord.notionDashboardLink,
+          signalGroupLink: clientRecord.signalGroupLink,
+          status: "draft",
+        })
+        .returning();
+      record = newOnboarding;
+    }
+
     if (!record) return { success: false, error: "Client not found" };
 
     if (!record.signalGroupLink || !record.signalGroupLink.trim()) {
@@ -1138,11 +1310,11 @@ export async function sendOnboardingEmailAction(
         emailSentAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(clientOnboardings.id, onboardingId));
+      .where(eq(clientOnboardings.id, record.id));
 
     // Ensure canonical clients record exists and has asset links
     try {
-      const existingClient = await db.query.clients.findFirst({
+      const existingClient = clientRecord || await db.query.clients.findFirst({
         where: and(
           eq(clients.organizationId, record.organizationId),
           eq(clients.name, record.clientName.trim()),
@@ -1193,7 +1365,7 @@ export async function sendOnboardingEmailAction(
       userId,
       "SEND_ONBOARDING_EMAIL",
       "client_onboardings",
-      onboardingId,
+      record.id,
       {
         recipient: record.contactEmail,
         resendId: emailResult.resendId,
@@ -1213,61 +1385,73 @@ export async function sendOnboardingEmailAction(
  */
 export async function finalizeOnboardingAction(onboardingId: number) {
   try {
-    const { userId } = await getSessionOrgId();
+    const { orgId, userId } = await getSessionOrgId();
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(onboardingId, orgId);
 
-    const record = await db.query.clientOnboardings.findFirst({
-      where: eq(clientOnboardings.id, onboardingId),
-    });
-    if (!record) return { success: false, error: "Client not found" };
+    if (!clientRecord && !onboardingRecord) {
+      return { success: false, error: "Client not found" };
+    }
 
-    // Update database status to completed
-    await db
-      .update(clientOnboardings)
-      .set({
-        status: "completed",
-        googleAdsStatus: record.googleAdsAccess ? "pending" : "skipped",
-        metaAdsStatus: record.metaAdsAccess ? "pending" : "skipped",
-        updatedAt: new Date(),
-      })
-      .where(eq(clientOnboardings.id, onboardingId));
+    // 1. Update database status to completed for onboarding record if present
+    if (onboardingRecord) {
+      await db
+        .update(clientOnboardings)
+        .set({
+          status: "completed",
+          googleAdsStatus: onboardingRecord.googleAdsAccess ? "pending" : "skipped",
+          metaAdsStatus: onboardingRecord.metaAdsAccess ? "pending" : "skipped",
+          updatedAt: new Date(),
+        })
+        .where(eq(clientOnboardings.id, onboardingRecord.id));
 
-    // Ensure canonical clients record is marked active and has asset links
+      if (onboardingRecord.ghlOpportunityId) {
+        try {
+          const activeStageId =
+            process.env.GHL_ACTIVE_STAGE_ID || "active_client_stage";
+          await updateGhlOpportunityStage(onboardingRecord.ghlOpportunityId, activeStageId);
+        } catch (ghlErr) {
+          console.warn("Could not sync GHL opportunity stage on finalize:", ghlErr);
+        }
+      }
+    }
+
+    // 2. Ensure canonical clients record is marked active and has asset links
     try {
-      const existingClient = await db.query.clients.findFirst({
+      const existingClient = clientRecord || (onboardingRecord ? await db.query.clients.findFirst({
         where: and(
-          eq(clients.organizationId, record.organizationId),
-          eq(clients.name, record.clientName.trim()),
+          eq(clients.organizationId, onboardingRecord.organizationId),
+          eq(clients.name, onboardingRecord.clientName.trim()),
         ),
-      });
+      }) : null);
 
       if (existingClient) {
         await db
           .update(clients)
           .set({
             status: "active",
-            driveFolderLink: record.driveFolderLink || existingClient.driveFolderLink,
-            notionDashboardLink: record.notionDashboardLink || existingClient.notionDashboardLink,
-            signalGroupLink: record.signalGroupLink || existingClient.signalGroupLink,
+            driveFolderLink: onboardingRecord?.driveFolderLink || existingClient.driveFolderLink,
+            notionDashboardLink: onboardingRecord?.notionDashboardLink || existingClient.notionDashboardLink,
+            signalGroupLink: onboardingRecord?.signalGroupLink || existingClient.signalGroupLink,
             updatedAt: new Date(),
           })
           .where(eq(clients.id, existingClient.id));
-      } else {
+      } else if (onboardingRecord) {
         const [newClient] = await db
           .insert(clients)
           .values({
-            organizationId: record.organizationId,
-            name: record.clientName.trim(),
-            legalBusinessName: record.clientName.trim(),
+            organizationId: onboardingRecord.organizationId,
+            name: onboardingRecord.clientName.trim(),
+            legalBusinessName: onboardingRecord.clientName.trim(),
             status: "active",
-            driveFolderLink: record.driveFolderLink,
-            notionDashboardLink: record.notionDashboardLink,
-            signalGroupLink: record.signalGroupLink,
+            driveFolderLink: onboardingRecord.driveFolderLink,
+            notionDashboardLink: onboardingRecord.notionDashboardLink,
+            signalGroupLink: onboardingRecord.signalGroupLink,
           })
           .returning();
 
-        if (newClient && record.contactEmail) {
+        if (newClient && onboardingRecord.contactEmail) {
           const contact = await db.query.contacts.findFirst({
-            where: eq(contacts.email, record.contactEmail.trim().toLowerCase()),
+            where: eq(contacts.email, onboardingRecord.contactEmail.trim().toLowerCase()),
           });
           if (contact) {
             await db
@@ -1281,22 +1465,15 @@ export async function finalizeOnboardingAction(onboardingId: number) {
       console.warn("Could not sync canonical client on finalize:", clientSyncErr);
     }
 
-    // Update GHL Pipeline Stage if opportunity ID exists
-    if (record.ghlOpportunityId) {
-      // In production we would pass the "Active Client" stage ID (e.g. from environment variable or DB triage settings)
-      const activeStageId =
-        process.env.GHL_ACTIVE_STAGE_ID || "active_client_stage";
-      await updateGhlOpportunityStage(record.ghlOpportunityId, activeStageId);
-    }
-
     await logAction(
       userId,
       "FINALIZE_ONBOARDING",
       "client_onboardings",
-      onboardingId,
+      onboardingRecord ? onboardingRecord.id : (clientRecord?.id || onboardingId),
     );
 
     revalidatePath("/clients");
+    revalidatePath("/accounts");
     return { success: true };
   } catch (error: any) {
     console.error("finalizeOnboardingAction error:", error);
@@ -1495,18 +1672,11 @@ export async function getClientOnboardingByIdAction(clientId: number) {
     if (!orgId)
       return { success: false as const, error: "No active organization" };
 
-    // 1. Try finding in canonical clients table first
-    let clientRecord = await db.query.clients.findFirst({
-      where: and(
-        eq(clients.id, clientId),
-        eq(clients.organizationId, orgId),
-      ),
-      with: {
-        contacts: true,
-        adAccounts: true,
-        metaAdAccounts: true,
-      },
-    });
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(clientId, orgId);
+
+    if (!clientRecord && !onboardingRecord) {
+      return { success: false as const, error: "Client not found" };
+    }
 
     let client: any = null;
     let contactEmail = "";
@@ -1515,53 +1685,44 @@ export async function getClientOnboardingByIdAction(clientId: number) {
       const primaryContact = clientRecord.contacts?.find((ct: any) => ct.isPrimary) || clientRecord.contacts?.[0];
       client = {
         id: clientRecord.id,
+        onboardingId: onboardingRecord?.id,
         clientName: clientRecord.name,
         primaryContactName: primaryContact ? primaryContact.name : clientRecord.name,
-        contactEmail: primaryContact ? primaryContact.email : "",
-        contactPhone: primaryContact ? primaryContact.phone : null,
-        ghlPipelineStage: primaryContact ? primaryContact.pipelineStage : null,
-        googleAdsAccess: true,
-        metaAdsAccess: true,
-        status: clientRecord.status,
-        driveFolderLink: clientRecord.driveFolderLink,
-        notionDashboardLink: clientRecord.notionDashboardLink,
-        signalGroupLink: clientRecord.signalGroupLink,
-        ghlSubAccountId: clientRecord.ghlSubAccountId,
+        contactEmail: primaryContact ? primaryContact.email : (onboardingRecord?.contactEmail || ""),
+        contactPhone: primaryContact ? primaryContact.phone : (onboardingRecord?.contactPhone || null),
+        ghlPipelineStage: primaryContact ? primaryContact.pipelineStage : (onboardingRecord?.ghlPipelineStage || null),
+        googleAdsAccess: onboardingRecord ? onboardingRecord.googleAdsAccess : true,
+        metaAdsAccess: onboardingRecord ? onboardingRecord.metaAdsAccess : true,
+        status: clientRecord.status || onboardingRecord?.status || "active",
+        driveFolderLink: clientRecord.driveFolderLink || onboardingRecord?.driveFolderLink,
+        notionDashboardLink: clientRecord.notionDashboardLink || onboardingRecord?.notionDashboardLink,
+        signalGroupLink: clientRecord.signalGroupLink || onboardingRecord?.signalGroupLink,
+        ghlSubAccountId: clientRecord.ghlSubAccountId || onboardingRecord?.ghlSubAccountId,
+        ghlOpportunityId: onboardingRecord?.ghlOpportunityId,
+        emailSentAt: onboardingRecord?.emailSentAt,
         createdAt: clientRecord.createdAt,
         updatedAt: clientRecord.updatedAt,
-        adAccounts: clientRecord.adAccounts || [],
-        metaAdAccounts: clientRecord.metaAdAccounts || [],
+        adAccounts: clientRecord.adAccounts?.length ? clientRecord.adAccounts : (onboardingRecord?.adAccounts || []),
+        metaAdAccounts: clientRecord.metaAdAccounts?.length ? clientRecord.metaAdAccounts : (onboardingRecord?.metaAdAccounts || []),
         contacts: clientRecord.contacts || [],
       };
       contactEmail = client.contactEmail || "";
-    } else {
-      // 2. Fallback to clientOnboardings table
-      const legacyClient = await db.query.clientOnboardings.findFirst({
-        where: and(
-          eq(clientOnboardings.id, clientId),
-          eq(clientOnboardings.organizationId, orgId),
-        ),
-        with: {
-          adAccounts: true,
-          metaAdAccounts: true,
-        },
-      });
-
-      if (!legacyClient) {
-        return { success: false as const, error: "Client not found" };
-      }
-      client = legacyClient;
-      contactEmail = legacyClient.contactEmail;
+    } else if (onboardingRecord) {
+      client = {
+        id: onboardingRecord.id,
+        onboardingId: onboardingRecord.id,
+        ...onboardingRecord,
+      };
+      contactEmail = onboardingRecord.contactEmail;
     }
 
-    const logs = await db.query.emailLogs.findMany({
-      where: and(
-        eq(emailLogs.organizationId, orgId),
-        eq(emailLogs.recipient, client.contactEmail),
-      ),
-      orderBy: [desc(emailLogs.sentAt)],
-      limit: 20,
-    });
+    const logs = contactEmail
+      ? await db.query.emailLogs.findMany({
+          where: eq(emailLogs.recipient, contactEmail.trim().toLowerCase()),
+          orderBy: [desc(emailLogs.sentAt)],
+          limit: 20,
+        })
+      : [];
 
     return { success: true as const, client, emailLogs: logs };
   } catch (error: any) {
