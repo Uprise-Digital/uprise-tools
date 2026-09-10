@@ -378,8 +378,83 @@ export default function AgencyReportsClient() {
 
   if (loadingData && !portfolio) {
     return (
-      <div className="p-8 flex justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto animate-pulse">
+        {/* Header Skeleton */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-slate-200" />
+              <div className="h-8 w-56 rounded-lg bg-slate-200" />
+            </div>
+            <div className="h-4 w-96 rounded bg-slate-100" />
+            <div className="flex items-center gap-2 pt-2">
+              <div className="h-8 w-44 rounded-lg bg-slate-200" />
+              <div className="h-8 w-28 rounded-lg bg-slate-100" />
+              <div className="h-8 w-28 rounded-lg bg-slate-100" />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-32 rounded-lg bg-slate-100" />
+            <div className="h-9 w-32 rounded-lg bg-slate-100" />
+            <div className="h-9 w-48 rounded-lg bg-slate-200" />
+          </div>
+        </div>
+
+        {/* Loading Indicator Banner */}
+        <div className="flex items-center justify-center gap-3 p-4 bg-blue-50/70 border border-blue-100 rounded-xl text-blue-700 text-sm font-medium">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+          <span>Aggregating cross-platform performance data & synchronizing client accounts...</span>
+        </div>
+
+        {/* KPI Cards Skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="py-0 m-0 shadow-sm border-slate-200">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="space-y-2 w-full">
+                  <div className="h-3 w-16 bg-slate-200 rounded" />
+                  <div className="h-6 w-24 bg-slate-300 rounded" />
+                  <div className="h-2.5 w-14 bg-slate-100 rounded" />
+                </div>
+                <div className="w-7 h-7 rounded-lg bg-slate-100 shrink-0 self-start" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Charts Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="border-slate-200 shadow-sm bg-white h-80 flex flex-col p-5 space-y-4">
+            <div className="h-5 w-48 bg-slate-200 rounded" />
+            <div className="flex-1 bg-slate-100/70 rounded-lg flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+            </div>
+          </Card>
+          <Card className="border-slate-200 shadow-sm bg-white h-80 flex flex-col p-5 space-y-4">
+            <div className="h-5 w-48 bg-slate-200 rounded" />
+            <div className="flex-1 bg-slate-100/70 rounded-lg flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+            </div>
+          </Card>
+        </div>
+
+        {/* Ledger Skeleton */}
+        <Card className="shadow-sm border-slate-200 p-6 space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="h-5 w-36 bg-slate-200 rounded" />
+            <div className="h-8 w-64 bg-slate-100 rounded" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-12 bg-slate-50 border border-slate-100 rounded-lg flex items-center px-4 justify-between">
+                <div className="h-4 w-40 bg-slate-200 rounded" />
+                <div className="h-4 w-20 bg-slate-200 rounded" />
+                <div className="h-4 w-20 bg-slate-200 rounded" />
+                <div className="h-4 w-20 bg-slate-200 rounded" />
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
     );
   }
@@ -911,12 +986,25 @@ export default function AgencyReportsClient() {
   };
 
   return (
-    <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
+    <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto relative">
+      {/* Re-fetching subtle top loading bar */}
+      {loadingData && (
+        <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-blue-100 overflow-hidden">
+          <div className="h-full bg-blue-600 animate-[indeterminate_1.5s_infinite_linear]" />
+        </div>
+      )}
+
       {/* ── HEADER ── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <Users className="h-7 w-7 text-blue-600" /> Agency God View
+            {loadingData && (
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full ml-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Updating Data...
+              </span>
+            )}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Macro portfolio performance, period-over-period deltas, and cross-channel intelligence.
@@ -926,36 +1014,39 @@ export default function AgencyReportsClient() {
           <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg border border-slate-200/80 w-fit mt-3">
             <button
               type="button"
+              disabled={loadingData}
               onClick={() => setPlatformFilter("all")}
               className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
                 platformFilter === "all"
                   ? "bg-white text-slate-900 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+              } ${loadingData ? "opacity-60 cursor-not-allowed" : ""}`}
             >
               <Layers className="w-3.5 h-3.5 text-violet-500" />
               All Platforms (Blended)
             </button>
             <button
               type="button"
+              disabled={loadingData}
               onClick={() => setPlatformFilter("google")}
               className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
                 platformFilter === "google"
                   ? "bg-white text-emerald-800 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+              } ${loadingData ? "opacity-60 cursor-not-allowed" : ""}`}
             >
               <GoogleLogo className="w-3.5 h-3.5" />
               Google Ads
             </button>
             <button
               type="button"
+              disabled={loadingData}
               onClick={() => setPlatformFilter("meta")}
               className={`px-3 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
                 platformFilter === "meta"
                   ? "bg-white text-blue-800 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+              } ${loadingData ? "opacity-60 cursor-not-allowed" : ""}`}
             >
               <MetaLogo className="w-3.5 h-3.5" />
               Meta Ads
@@ -1040,7 +1131,11 @@ export default function AgencyReportsClient() {
       )}
 
       {/* ── CONDENSED 6-GRID KPIS WITH DELTAS ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div
+        className={`grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 transition-opacity duration-200 ${
+          loadingData ? "opacity-60" : "opacity-100"
+        }`}
+      >
         {/* Card 1: All Accounts */}
         <Card className="py-0 m-0 shadow-sm border-slate-200">
           <CardContent className="p-4 flex items-center justify-between">
@@ -2092,25 +2187,55 @@ export default function AgencyReportsClient() {
                 <TableHead className="text-right font-bold pr-6">Action</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {paginatedAccounts.map((acc: any) => {
-                const risk = getChurnRisk(
-                  acc,
-                  portfolio?.agencyTotals?.cpa || 0,
-                );
-                const isBlended =
-                  platformFilter === "all" &&
-                  Array.isArray(acc.platforms) &&
-                  acc.platforms.length > 1;
-                const isExpanded = isBlended && !!expandedRows[acc.key || acc.accountId];
+            <TableBody
+              className={
+                loadingData
+                  ? "opacity-60 transition-opacity"
+                  : "transition-opacity"
+              }
+            >
+              {loadingData && searchedAccounts.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="h-36 text-center text-xs text-slate-500 font-sans"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-2 py-6">
+                      <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                      <span className="font-medium text-slate-600">
+                        Synchronizing {platformFilter === "all" ? "cross-platform" : platformFilter} ledger metrics...
+                      </span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : paginatedAccounts.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="h-32 text-center text-xs text-slate-400 font-sans"
+                  >
+                    No accounts found matching criteria.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedAccounts.map((acc: any) => {
+                  const risk = getChurnRisk(
+                    acc,
+                    portfolio?.agencyTotals?.cpa || 0,
+                  );
+                  const isBlended =
+                    platformFilter === "all" &&
+                    Array.isArray(acc.platforms) &&
+                    acc.platforms.length > 1;
+                  const isExpanded = isBlended && !!expandedRows[acc.key || acc.accountId];
 
-                return (
-                  <>
-                    <TableRow
-                      key={acc.key || acc.accountId}
-                      className="text-sm hover:bg-slate-50 cursor-pointer transition-colors"
-                      onClick={() => handleRowClick(acc.accountId)}
-                    >
+                  return (
+                    <>
+                      <TableRow
+                        key={acc.key || acc.accountId}
+                        className="text-sm hover:bg-slate-50 cursor-pointer transition-colors"
+                        onClick={() => handleRowClick(acc.accountId)}
+                      >
                       {/* Chevron expand/collapse toggle */}
                       <TableCell className="w-8 pl-4 pr-0 py-3.5">
                         {isBlended ? (
@@ -2433,7 +2558,8 @@ export default function AgencyReportsClient() {
                     )}
                   </>
                 );
-              })}
+              })
+            )}
             </TableBody>
           </Table>
         </div>
