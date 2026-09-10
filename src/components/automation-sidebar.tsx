@@ -357,13 +357,9 @@ export function AutomationSidebar({
                       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                     onQuickDownload(formatYMD(firstDay), formatYMD(lastDay));
                   }}
-                  disabled={isDownloading}
+                  loading={isDownloading}
                 >
-                  {isDownloading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileDown className="mr-2 h-4 w-4" />
-                  )}
+                  <FileDown className="mr-2 h-4 w-4" />
                   Download{" "}
                   {new Date(
                     new Date().getFullYear(),
@@ -378,13 +374,9 @@ export function AutomationSidebar({
                   className="w-full h-10 font-medium"
                   variant="outline"
                   onClick={() => onQuickDownload(startDate, endDate)}
-                  disabled={isDownloading}
+                  loading={isDownloading}
                 >
-                  {isDownloading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileDown className="mr-2 h-4 w-4 text-slate-500" />
-                  )}
+                  <FileDown className="mr-2 h-4 w-4 text-slate-500" />
                   Download{" "}
                   {startDate && endDate
                     ? "Custom Range"

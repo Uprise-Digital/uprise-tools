@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 
 export default function CompetitorClient({ account }: { account: any }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -87,7 +88,8 @@ export default function CompetitorClient({ account }: { account: any }) {
   };
 
   return (
-    <div className="space-y-8 p-4 md:p-8 max-w-[1200px] mx-auto">
+    <div className="space-y-8 p-4 md:p-8 max-w-[1200px] mx-auto relative">
+      <TopProgressBar loading={isLoading} color="indigo" />
       {/* ── HEADER & CONTROLS ── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
@@ -105,7 +107,7 @@ export default function CompetitorClient({ account }: { account: any }) {
         <div className="flex flex-col items-start gap-1 w-full md:w-auto">
           {isDetectingTarget && (
             <span className="text-[10px] uppercase font-bold tracking-wider text-blue-500 flex items-center gap-1 ml-2">
-              <Loader2 className="h-3 w-3 animate-spin" /> AI locating target
+              <Spinner size="xs" variant="blue" /> AI locating target
               keyword...
             </span>
           )}

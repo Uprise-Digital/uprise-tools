@@ -32,6 +32,7 @@ import {
 } from "@/actions/pipeline.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -419,6 +420,7 @@ export default function PipelineClient({
 
   return (
     <div className="w-full h-full p-8 font-sans bg-slate-50/50 relative">
+      <TopProgressBar loading={isSwitchingPipeline} color="indigo" />
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div>

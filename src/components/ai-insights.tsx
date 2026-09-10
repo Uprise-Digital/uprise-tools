@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { getOrGenerateAiInsightsAction } from "@/actions/ai.actions";
+import { Spinner } from "@/components/ui/loading";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CampaignVector {
@@ -195,7 +196,7 @@ export function AiInsights({
   if (isInitialLoading) {
     return (
       <div className="my-6 flex items-center justify-center gap-3 text-sm text-slate-500 py-12 rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
-        <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+        <Spinner size="sm" variant="brand" />
         Retrieving strategic analysis…
       </div>
     );

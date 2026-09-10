@@ -47,6 +47,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Table,
   TableBody,
@@ -245,7 +246,8 @@ export default function ContactsDirectoryClient() {
   }, [clients, clientSearchQuery]);
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto relative">
+      <TopProgressBar loading={loading || refreshing || syncingGhl} color="indigo" />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
@@ -396,7 +398,7 @@ export default function ContactsDirectoryClient() {
         <CardContent className="p-0">
           {loading ? (
             <div className="p-16 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="h-7 w-7 text-indigo-600 animate-spin" />
+              <Spinner size="xl" variant="brand" />
               <p className="text-xs font-semibold text-slate-500">Loading contacts directory...</p>
             </div>
           ) : filteredContacts.length === 0 ? (

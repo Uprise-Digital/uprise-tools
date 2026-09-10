@@ -31,6 +31,7 @@ import {
 } from "@/actions/negative-keywords.actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -679,7 +680,8 @@ export default function NegativesClientWorkspace({
   };
 
   return (
-    <div className="space-y-6 p-4 max-w-7xl mx-auto min-h-screen">
+    <div className="space-y-6 p-4 max-w-7xl mx-auto min-h-screen relative">
+      <TopProgressBar loading={isLoadingDB || isLoadingLiveNegs || isGenerating || isUpdatingTurbo || isSavingPersona} color="indigo" />
       {!account.isActive && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-3 shadow-sm">
           <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />

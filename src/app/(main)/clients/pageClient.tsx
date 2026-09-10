@@ -58,6 +58,7 @@ import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Spinner, TableLoader, TopProgressBar } from "@/components/ui/loading";
 import {
   Table,
   TableBody,
@@ -577,7 +578,8 @@ export default function ClientsDirectoryClient() {
     sortBy !== "last_contacted";
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 relative">
+      <TopProgressBar loading={loading || isSyncingGhl || isMigrating || isSyncingNotes} color="indigo" />
       {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -883,12 +885,11 @@ export default function ClientsDirectoryClient() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-sm">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-indigo-500 mb-2" />
-                    Loading canonical client accounts...
-                  </TableCell>
-                </TableRow>
+                <TableLoader
+                  colSpan={7}
+                  label="Loading canonical client accounts..."
+                  spinnerVariant="brand"
+                />
               ) : filteredAndSortedClients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-sm space-y-2">
@@ -1564,16 +1565,11 @@ export default function ClientsDirectoryClient() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  loading={isSubmitting}
+                  loadingText="Adding..."
                   className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 cursor-pointer"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Adding...
-                    </>
-                  ) : (
-                    "Create Client & Launch Dashboard"
-                  )}
+                  Create Client & Launch Dashboard
                 </Button>
               </div>
             </form>

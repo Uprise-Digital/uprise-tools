@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Loader2 } from "lucide-react";
+import { FileText } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { generateClientReportAction } from "@/actions/pdf.actions";
@@ -40,13 +40,9 @@ export function GenerateReportButton({
       variant="outline"
       size="sm"
       onClick={handleGenerate}
-      disabled={loading}
+      loading={loading}
     >
-      {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <FileText className="h-4 w-4" />
-      )}
+      <FileText className="h-4 w-4" />
     </Button>
   );
 }

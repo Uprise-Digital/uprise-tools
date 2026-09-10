@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { sendMorningBriefingAction } from "@/actions/briefing.actions";
 import { saveBriefingSettingsAction } from "@/actions/briefing-settings.actions";
 import { Button } from "@/components/ui/button";
+import { TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -194,7 +195,8 @@ export default function ReportsClient({
   };
 
   return (
-    <div className="space-y-8 md:p-8 max-w-6xl mx-auto">
+    <div className="space-y-8 md:p-8 max-w-6xl mx-auto relative">
+      <TopProgressBar loading={isSending || isSaving} color="indigo" />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -210,21 +212,14 @@ export default function ReportsClient({
 
         <Button
           onClick={handleSendNow}
-          disabled={isSending || isSaving}
+          disabled={isSaving}
+          loading={isSending}
+          loadingText="Dispatching..."
           variant="outline"
           className="w-full md:w-auto bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200 text-indigo-700 hover:from-indigo-100 hover:to-blue-100 shadow-sm"
         >
-          {isSending ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin text-indigo-600" />{" "}
-              Dispatching...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4 mr-2 text-indigo-600" /> Send
-              Briefing Now
-            </>
-          )}
+          <Sparkles className="h-4 w-4 mr-2 text-indigo-600" /> Send
+          Briefing Now
         </Button>
       </div>
 
@@ -613,19 +608,12 @@ export default function ReportsClient({
               {/* Submit Save Button */}
               <Button
                 type="submit"
-                disabled={isSaving || isSending}
+                disabled={isSending}
+                loading={isSaving}
+                loadingText="Saving Settings..."
                 className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold hover:from-indigo-700 hover:to-indigo-800 shadow-md h-11"
               >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving
-                    Settings...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" /> Save Automation Rule
-                  </>
-                )}
+                <Save className="h-4 w-4 mr-2" /> Save Automation Rule
               </Button>
             </CardContent>
           </Card>

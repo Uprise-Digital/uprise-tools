@@ -1,9 +1,10 @@
 "use client";
 
-import { KeyRound, Loader2, User as UserIcon } from "lucide-react";
+import { KeyRound, User as UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -71,7 +72,7 @@ export default function ProfilePage() {
   if (isPending) {
     return (
       <div className="max-w-xl mx-auto py-8 flex flex-col items-center justify-center min-h-[300px] text-slate-400">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
+        <Spinner size="xl" variant="brand" className="mb-2" />
         <span className="text-xs font-bold tracking-wide">
           Loading profile...
         </span>

@@ -427,14 +427,12 @@ export function TriageTab({ initialDefaults, accounts }: TriageTabProps) {
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={!hasChanges || isSaving}
+                  disabled={!hasChanges}
+                  loading={isSaving}
+                  loadingText="Saving..."
                   className="text-xs flex items-center gap-1.5"
                 >
-                  {isSaving ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Save className="w-3.5 h-3.5" />
-                  )}
+                  <Save className="w-3.5 h-3.5" />
                   Save Defaults
                 </Button>
               </div>

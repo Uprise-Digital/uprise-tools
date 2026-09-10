@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -1056,7 +1057,7 @@ export function TeamClient({
 
                 {loadingActivity ? (
                   <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                    <Loader2 className="w-7 h-7 animate-spin text-indigo-500 mb-2" />
+                    <Spinner size="lg" variant="brand" className="mb-2" />
                     <span className="text-[10px] font-bold tracking-wide">
                       Loading activity logs...
                     </span>

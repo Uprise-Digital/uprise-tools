@@ -32,6 +32,7 @@ import {
 } from "@/actions/lp-analysis.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -325,7 +326,8 @@ export default function LpAnalysisClientPage({
   };
 
   return (
-    <div className="space-y-6 p-2 max-w-[1400px] mx-auto">
+    <div className="space-y-6 p-2 max-w-[1400px] mx-auto relative">
+      <TopProgressBar loading={syncingLps || loadingCampaigns || isAuditing} color="indigo" />
       {/* ── HEADER SECTION ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -443,7 +445,7 @@ export default function LpAnalysisClientPage({
           <CardContent className="p-0">
             {loadingCampaigns ? (
               <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                <Spinner size="xl" variant="brand" />
                 <span className="text-xs font-semibold">
                   Retrieving campaign metadata...
                 </span>

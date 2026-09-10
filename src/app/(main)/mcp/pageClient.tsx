@@ -29,6 +29,7 @@ import {
   rollMcpApiKeyAction,
 } from "@/actions/mcp.actions";
 import { Button } from "@/components/ui/button";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -478,7 +479,8 @@ export default function McpSettingsClient() {
   );
 
   return (
-    <div className="space-y-8 md:p-8 max-w-6xl mx-auto">
+    <div className="space-y-8 md:p-8 max-w-6xl mx-auto relative">
+      <TopProgressBar loading={loading} color="indigo" />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -595,7 +597,7 @@ export default function McpSettingsClient() {
 
       {loading && (
         <div className="flex items-center justify-center py-16 text-slate-500 gap-3">
-          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+          <Spinner size="lg" variant="brand" />
           <span>Loading MCP Server Configuration...</span>
         </div>
       )}

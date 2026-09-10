@@ -54,6 +54,7 @@ import { getOnboardingSettingsAction } from "@/actions/onboarding-settings.actio
 import ClientCallHistory from "@/components/clients/client-call-history";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Dialog,
   DialogContent,
@@ -498,7 +499,7 @@ export default function ClientDetailPageClient({
           </Link>
         </div>
         <div className="h-64 flex flex-col items-center justify-center text-slate-400">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mb-3" />
+          <Spinner size="xl" variant="brand" className="mb-3" />
           <p className="text-sm font-medium">
             Loading client intelligence & workspace...
           </p>
@@ -536,7 +537,8 @@ export default function ClientDetailPageClient({
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 relative">
+      <TopProgressBar loading={isRunningPipeline || isFinalizing || isSendingEmail || isSavingClientDetails} color="indigo" />
       {/* 1. Breadcrumbs & Top Navigation */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2 text-xs text-slate-500">
