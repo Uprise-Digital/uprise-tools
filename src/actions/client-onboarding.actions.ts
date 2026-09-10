@@ -1140,6 +1140,55 @@ export async function sendOnboardingEmailAction(
       })
       .where(eq(clientOnboardings.id, onboardingId));
 
+    // Ensure canonical clients record exists and has asset links
+    try {
+      const existingClient = await db.query.clients.findFirst({
+        where: and(
+          eq(clients.organizationId, record.organizationId),
+          eq(clients.name, record.clientName.trim()),
+        ),
+      });
+
+      if (existingClient) {
+        await db
+          .update(clients)
+          .set({
+            driveFolderLink: record.driveFolderLink || existingClient.driveFolderLink,
+            notionDashboardLink: record.notionDashboardLink || existingClient.notionDashboardLink,
+            signalGroupLink: record.signalGroupLink || existingClient.signalGroupLink,
+            updatedAt: new Date(),
+          })
+          .where(eq(clients.id, existingClient.id));
+      } else {
+        const [newClient] = await db
+          .insert(clients)
+          .values({
+            organizationId: record.organizationId,
+            name: record.clientName.trim(),
+            legalBusinessName: record.clientName.trim(),
+            status: "onboarding",
+            driveFolderLink: record.driveFolderLink,
+            notionDashboardLink: record.notionDashboardLink,
+            signalGroupLink: record.signalGroupLink,
+          })
+          .returning();
+
+        if (newClient && record.contactEmail) {
+          const contact = await db.query.contacts.findFirst({
+            where: eq(contacts.email, record.contactEmail.trim().toLowerCase()),
+          });
+          if (contact) {
+            await db
+              .update(contacts)
+              .set({ clientId: newClient.id, updatedAt: new Date() })
+              .where(eq(contacts.id, contact.id));
+          }
+        }
+      }
+    } catch (clientSyncErr) {
+      console.warn("Could not sync canonical client on email send:", clientSyncErr);
+    }
+
     await logAction(
       userId,
       "SEND_ONBOARDING_EMAIL",
@@ -1181,6 +1230,56 @@ export async function finalizeOnboardingAction(onboardingId: number) {
         updatedAt: new Date(),
       })
       .where(eq(clientOnboardings.id, onboardingId));
+
+    // Ensure canonical clients record is marked active and has asset links
+    try {
+      const existingClient = await db.query.clients.findFirst({
+        where: and(
+          eq(clients.organizationId, record.organizationId),
+          eq(clients.name, record.clientName.trim()),
+        ),
+      });
+
+      if (existingClient) {
+        await db
+          .update(clients)
+          .set({
+            status: "active",
+            driveFolderLink: record.driveFolderLink || existingClient.driveFolderLink,
+            notionDashboardLink: record.notionDashboardLink || existingClient.notionDashboardLink,
+            signalGroupLink: record.signalGroupLink || existingClient.signalGroupLink,
+            updatedAt: new Date(),
+          })
+          .where(eq(clients.id, existingClient.id));
+      } else {
+        const [newClient] = await db
+          .insert(clients)
+          .values({
+            organizationId: record.organizationId,
+            name: record.clientName.trim(),
+            legalBusinessName: record.clientName.trim(),
+            status: "active",
+            driveFolderLink: record.driveFolderLink,
+            notionDashboardLink: record.notionDashboardLink,
+            signalGroupLink: record.signalGroupLink,
+          })
+          .returning();
+
+        if (newClient && record.contactEmail) {
+          const contact = await db.query.contacts.findFirst({
+            where: eq(contacts.email, record.contactEmail.trim().toLowerCase()),
+          });
+          if (contact) {
+            await db
+              .update(contacts)
+              .set({ clientId: newClient.id, updatedAt: new Date() })
+              .where(eq(contacts.id, contact.id));
+          }
+        }
+      }
+    } catch (clientSyncErr) {
+      console.warn("Could not sync canonical client on finalize:", clientSyncErr);
+    }
 
     // Update GHL Pipeline Stage if opportunity ID exists
     if (record.ghlOpportunityId) {
