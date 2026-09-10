@@ -125,8 +125,19 @@ export async function searchGhlContacts(
     });
     if (!res.ok) {
       const errorText = await res.text().catch(() => "");
+      let errorMessage = errorText;
+      try {
+        const parsed = JSON.parse(errorText);
+        if (parsed.message) errorMessage = parsed.message;
+      } catch {}
+
+      if (res.status === 401 && errorMessage.toLowerCase().includes("scope")) {
+        throw new Error(
+          "GHL API Token is missing the 'contacts.readonly' scope. Please add Contacts permissions to your Private Integration Token in GoHighLevel.",
+        );
+      }
       throw new Error(
-        `GHL Contacts Search failed with status ${res.status}: ${res.statusText || errorText}`,
+        `GHL Contacts Search failed (${res.status}): ${errorMessage || res.statusText}`,
       );
     }
     const data = await res.json();
