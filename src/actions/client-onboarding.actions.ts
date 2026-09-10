@@ -263,6 +263,150 @@ export async function getClientOnboardingsAction() {
   }
 }
 
+export interface ExistingClientMatch {
+  id: number;
+  name: string;
+  matchType: "client_name" | "contact_email" | "contact_name" | "ghl_contact";
+  matchedValue: string;
+  status: string;
+  isCompleted?: boolean;
+}
+
+/**
+ * Checks if a client or contact already exists matching business name, contact name, email, or GHL contact ID.
+ */
+export async function checkExistingClientAction(params: {
+  clientName?: string;
+  contactName?: string;
+  contactEmail?: string;
+  ghlContactId?: string;
+}) {
+  try {
+    const { orgId } = await getSessionOrgId();
+    if (!orgId) return { success: false, error: "No active organization", matches: [] };
+
+    const matches: ExistingClientMatch[] = [];
+    const seenIds = new Set<number>();
+
+    const cleanClientName = params.clientName?.trim().toLowerCase();
+    const cleanContactName = params.contactName?.trim().toLowerCase();
+    const cleanEmail = params.contactEmail?.trim().toLowerCase();
+    const cleanGhlContactId = params.ghlContactId?.trim();
+
+    // 1. Check Canonical Clients by name
+    if (cleanClientName && cleanClientName.length >= 2) {
+      const existingClients = await db.query.clients.findMany({
+        where: and(
+          eq(clients.organizationId, orgId),
+          ilike(clients.name, `%${cleanClientName}%`),
+        ),
+      });
+
+      for (const c of existingClients) {
+        if (!seenIds.has(c.id)) {
+          seenIds.add(c.id);
+          matches.push({
+            id: c.id,
+            name: c.name,
+            matchType: "client_name",
+            matchedValue: c.name,
+            status: c.status,
+          });
+        }
+      }
+    }
+
+    // 2. Check Canonical Contacts by Email or Name
+    if ((cleanEmail && cleanEmail.includes("@")) || (cleanContactName && cleanContactName.length >= 2)) {
+      const contactConditions = [];
+      if (cleanEmail) {
+        contactConditions.push(ilike(contacts.email, cleanEmail));
+      }
+      if (cleanContactName) {
+        contactConditions.push(ilike(contacts.name, `%${cleanContactName}%`));
+      }
+
+      const existingContacts = await db.query.contacts.findMany({
+        where: and(
+          eq(contacts.organizationId, orgId),
+          or(...contactConditions),
+        ),
+        with: { client: true },
+      });
+
+      for (const ct of existingContacts) {
+        if (ct.client && !seenIds.has(ct.client.id)) {
+          seenIds.add(ct.client.id);
+          const isEmailMatch = cleanEmail && ct.email?.toLowerCase().trim() === cleanEmail;
+          matches.push({
+            id: ct.client.id,
+            name: ct.client.name,
+            matchType: isEmailMatch ? "contact_email" : "contact_name",
+            matchedValue: isEmailMatch ? ct.email! : ct.name,
+            status: ct.client.status,
+          });
+        }
+      }
+    }
+
+    // 3. Check client_onboardings by clientName, contactEmail, primaryContactName, or ghlContactId
+    const onbConditions = [];
+    if (cleanClientName && cleanClientName.length >= 2) {
+      onbConditions.push(ilike(clientOnboardings.clientName, `%${cleanClientName}%`));
+    }
+    if (cleanEmail && cleanEmail.includes("@")) {
+      onbConditions.push(ilike(clientOnboardings.contactEmail, cleanEmail));
+    }
+    if (cleanContactName && cleanContactName.length >= 2) {
+      onbConditions.push(ilike(clientOnboardings.primaryContactName, `%${cleanContactName}%`));
+    }
+    if (cleanGhlContactId) {
+      onbConditions.push(eq(clientOnboardings.ghlContactId, cleanGhlContactId));
+    }
+
+    if (onbConditions.length > 0) {
+      const existingOnboardings = await db.query.clientOnboardings.findMany({
+        where: and(
+          eq(clientOnboardings.organizationId, orgId),
+          or(...onbConditions),
+        ),
+      });
+
+      for (const onb of existingOnboardings) {
+        // If not already matched by canonical client id
+        if (!matches.some((m) => m.name.toLowerCase() === onb.clientName.toLowerCase())) {
+          let matchType: ExistingClientMatch["matchType"] = "client_name";
+          let matchedVal = onb.clientName;
+
+          if (cleanGhlContactId && onb.ghlContactId === cleanGhlContactId) {
+            matchType = "ghl_contact";
+            matchedVal = "Linked GHL Contact";
+          } else if (cleanEmail && onb.contactEmail.toLowerCase().trim() === cleanEmail) {
+            matchType = "contact_email";
+            matchedVal = onb.contactEmail;
+          } else if (cleanContactName && onb.primaryContactName.toLowerCase().includes(cleanContactName)) {
+            matchType = "contact_name";
+            matchedVal = onb.primaryContactName;
+          }
+
+          matches.push({
+            id: onb.id,
+            name: onb.clientName,
+            matchType,
+            matchedValue: matchedVal,
+            status: onb.status,
+          });
+        }
+      }
+    }
+
+    return { success: true, matches };
+  } catch (error: any) {
+    console.error("checkExistingClientAction error:", error);
+    return { success: false, error: error.message, matches: [] };
+  }
+}
+
 /**
  * Creates a new client onboarding entry manually.
  */

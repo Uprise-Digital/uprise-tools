@@ -43,8 +43,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  checkExistingClientAction,
   createClientOnboardingAction,
   deleteClientAction,
+  type ExistingClientMatch,
   getCrmDirectoryDataAction,
   mergeClientsAction,
   migrateGhlRecordsToClientsAndContactsAction,
@@ -199,6 +201,52 @@ export default function ClientsDirectoryClient() {
     return () => clearTimeout(delayDebounce);
   }, [ghlSearchQuery]);
 
+  // Duplicate Detection States
+  const [duplicateMatches, setDuplicateMatches] = useState<ExistingClientMatch[]>([]);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+
+  // Debounced duplicate checker
+  useEffect(() => {
+    if (!isNewClientOpen) {
+      setDuplicateMatches([]);
+      return;
+    }
+
+    const hasInput =
+      formClientName.trim().length >= 2 ||
+      formContactName.trim().length >= 2 ||
+      formEmail.trim().includes("@") ||
+      Boolean(selectedGhlContact?.id);
+
+    if (!hasInput) {
+      setDuplicateMatches([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsCheckingDuplicates(true);
+      try {
+        const res = await checkExistingClientAction({
+          clientName: formClientName,
+          contactName: formContactName,
+          contactEmail: formEmail,
+          ghlContactId: selectedGhlContact?.id,
+        });
+        if (res.success && res.matches) {
+          setDuplicateMatches(res.matches);
+        } else {
+          setDuplicateMatches([]);
+        }
+      } catch (err) {
+        console.error("Duplicate check error:", err);
+      } finally {
+        setIsCheckingDuplicates(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [formClientName, formContactName, formEmail, selectedGhlContact, isNewClientOpen]);
+
   const handleSyncGhlClients = async () => {
     setIsSyncingGhl(true);
     const toastId = toast.loading("Syncing all clients & contacts from GoHighLevel...");
@@ -279,6 +327,16 @@ export default function ClientsDirectoryClient() {
     if (!formClientName || !formContactName || !formEmail) {
       toast.error("Please fill in all required fields.");
       return;
+    }
+
+    if (duplicateMatches.length > 0) {
+      const existingNames = duplicateMatches.map((m) => `"${m.name}"`).join(", ");
+      const confirmed = window.confirm(
+        `Warning: Existing client/contact record(s) (${existingNames}) were found matching this name or email.\n\nDo you still want to create a new client record anyway?`
+      );
+      if (!confirmed) {
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -1296,6 +1354,65 @@ export default function ClientsDirectoryClient() {
                   className="text-xs h-9"
                 />
               </div>
+
+              {/* DUPLICATE DETECTION ALERT BANNER */}
+              {duplicateMatches.length > 0 && (
+                <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl space-y-2 animate-in fade-in-50 duration-200">
+                  <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>Existing Client / Contact Detected</span>
+                    {isCheckingDuplicates && (
+                      <Loader2 className="h-3 w-3 animate-spin text-amber-600 ml-auto" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-amber-800 leading-snug">
+                    A record with this business name, contact, or email already exists in your workspace:
+                  </p>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {duplicateMatches.map((match) => (
+                      <div
+                        key={`${match.id}-${match.matchType}`}
+                        className="bg-white/80 border border-amber-200/80 rounded-lg p-2 flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 text-xs truncate">
+                              {match.name}
+                            </span>
+                            <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                              {match.status}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                            Matched by{" "}
+                            <span className="font-semibold text-slate-700">
+                              {match.matchType === "contact_email"
+                                ? "Email"
+                                : match.matchType === "contact_name"
+                                  ? "Contact Name"
+                                  : match.matchType === "ghl_contact"
+                                    ? "GHL Contact ID"
+                                    : "Business Name"}
+                            </span>
+                            : {match.matchedValue}
+                          </p>
+                        </div>
+                        <Link
+                          href={`/clients/${match.id}`}
+                          target="_blank"
+                          className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-indigo-650 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-colors"
+                        >
+                          View
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-amber-700 italic">
+                    Tip: If you are trying to combine records, you can also use the checkbox multi-select in the directory table to merge them.
+                  </p>
+                </div>
+              )}
 
               {/* Access Flags */}
               <div className="pt-2 border-t border-slate-100 flex gap-4">
