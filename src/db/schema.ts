@@ -1404,3 +1404,80 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
     references: [adAccounts.id],
   }),
 }));
+
+// --- 33. ANALYST CONVERSATIONS & MESSAGES ---
+export const analystConversations = pgTable(
+  "analyst_conversations",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default("New Analysis"),
+    adAccountId: integer("ad_account_id").references(() => adAccounts.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  () => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+    index("analyst_conv_org_idx").on(sql`organization_id`),
+    index("analyst_conv_user_idx").on(sql`user_id`),
+    index("analyst_conv_updated_idx").on(sql`updated_at`),
+  ],
+).enableRLS();
+
+export const analystMessages = pgTable(
+  "analyst_messages",
+  {
+    id: serial("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => analystConversations.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 32 }).notNull(), // 'user' | 'assistant' | 'system'
+    content: text("content").notNull(),
+    toolCalls: jsonb("tool_calls"), // Array of tool names + args invoked
+    toolResults: jsonb("tool_results"), // Array of tool execution outputs
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  () => [
+    index("analyst_msg_conv_idx").on(sql`conversation_id`),
+    index("analyst_msg_created_idx").on(sql`created_at`),
+  ],
+);
+
+export const analystConversationsRelations = relations(
+  analystConversations,
+  ({ one, many }) => ({
+    user: one(user, {
+      fields: [analystConversations.userId],
+      references: [user.id],
+    }),
+    organization: one(organization, {
+      fields: [analystConversations.organizationId],
+      references: [organization.id],
+    }),
+    adAccount: one(adAccounts, {
+      fields: [analystConversations.adAccountId],
+      references: [adAccounts.id],
+    }),
+    messages: many(analystMessages),
+  }),
+);
+
+export const analystMessagesRelations = relations(
+  analystMessages,
+  ({ one }) => ({
+    conversation: one(analystConversations, {
+      fields: [analystMessages.conversationId],
+      references: [analystConversations.id],
+    }),
+  }),
+);

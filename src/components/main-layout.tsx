@@ -4,6 +4,7 @@ import {
   Activity,
   BarChart3,
   BellRing,
+  Bot,
   Building2,
   ChevronDown,
   ChevronRight,
@@ -73,6 +74,7 @@ const navItems: NavItem[] = [
       },
     ],
   },
+  { href: "/analyst", label: "Analyst", icon: Bot },
   { href: "/clients", label: "Clients", icon: Building2 },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/accounts", label: "Ad Accounts", icon: BarChart3 },
@@ -240,7 +242,6 @@ export function MainLayout({
     </Suspense>
   );
 
-
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 antialiased">
       {/* 1. DESKTOP SIDEBAR */}
@@ -348,6 +349,7 @@ export function MainLayout({
             {pathname === "/overview" && "Dashboard / Overview / God View"}
             {pathname === "/overview/industry" &&
               "Dashboard / Overview / Industry Benchmarks"}
+            {pathname?.startsWith("/analyst") && "Dashboard / Analyst"}
             {pathname?.startsWith("/clients") && "Dashboard / Clients"}
             {pathname?.startsWith("/contacts") && "Dashboard / Contacts"}
             {pathname?.startsWith("/accounts") && "Dashboard / Ad Accounts"}

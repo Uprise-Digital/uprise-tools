@@ -1,5 +1,24 @@
+import {
+  getAccountAnomaliesAction,
+  getAccountByNameAction,
+  getAgencyPortfolioMetricsAction,
+  getCampaignDetailsAction,
+  getConcentrationReportAction,
+  getHistoricalComparisonAction,
+  getImpressionShareReportInternal,
+  getSearchTermInsightsAction,
+  listAccountsAction,
+} from "@/actions/agency.actions";
+import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
+import { withBypassTenantDb } from "@/db/db-helper";
+import { adAccounts } from "@/db/schema";
 import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
+import {
+  getMelbourneDateStrings,
+  getMelbourneTodayStr,
+} from "@/lib/date-utils";
+import { eq } from "drizzle-orm";
 
 /**
  * Robust JSON parser for AI generated responses.
@@ -343,4 +362,502 @@ export async function generateMorningBriefingText(data: {
     console.error("Morning Briefing Generation Error:", error);
     return fallback;
   }
+}
+
+/**
+ * ─── USE CASE 4: IN-DEPTH CONVERSATIONAL AI ANALYST ────────────────────────────
+ */
+export interface AnalystToolDeclaration {
+  name: string;
+  description: string;
+  parameters: {
+    type: string;
+    properties: Record<string, any>;
+    required?: string[];
+  };
+}
+
+export const ANALYST_TOOLS: AnalystToolDeclaration[] = [
+  {
+    name: "get_agency_god_view",
+    description:
+      "Fetches macro agency portfolio metrics (total spend, conversions, blended CPA, ROAS, clicks, impressions) and fires/alerts across all client ad accounts for a given date range. Use this for agency-wide health questions.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        startDate: {
+          type: "STRING",
+          description: "Start date in YYYY-MM-DD format.",
+        },
+        endDate: {
+          type: "STRING",
+          description: "End date in YYYY-MM-DD format.",
+        },
+      },
+      required: ["startDate", "endDate"],
+    },
+  },
+  {
+    name: "list_accounts",
+    description:
+      "Lists all client ad accounts with their internal database IDs, names, Google/Meta account IDs, currencies, and active status. Call this when you need to know which client accounts exist or find an account ID.",
+    parameters: {
+      type: "OBJECT",
+      properties: {},
+    },
+  },
+  {
+    name: "lookup_account_by_name",
+    description:
+      "Searches for an ad account by client or brand name (partial match). Returns matching accounts with internal ID.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        name: {
+          type: "STRING",
+          description: "Partial or full name of the client or account.",
+        },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "get_account_metrics",
+    description:
+      "Fetches detailed performance metrics (spend, conversions, CPA, ROAS, clicks, CTR, campaign breakdowns) for a specific client account for a date range.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        accountId: {
+          type: "NUMBER",
+          description: "Internal database ID of the ad account.",
+        },
+        startDate: {
+          type: "STRING",
+          description: "Start date in YYYY-MM-DD format.",
+        },
+        endDate: {
+          type: "STRING",
+          description: "End date in YYYY-MM-DD format.",
+        },
+      },
+      required: ["accountId", "startDate", "endDate"],
+    },
+  },
+  {
+    name: "get_historical_comparison",
+    description:
+      "Compares an account's metrics between the current date range and the preceding equivalent period side-by-side with percentage deltas.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        accountId: {
+          type: "NUMBER",
+          description: "Internal database ID of the ad account.",
+        },
+        startDate: {
+          type: "STRING",
+          description: "Start date in YYYY-MM-DD format.",
+        },
+        endDate: {
+          type: "STRING",
+          description: "End date in YYYY-MM-DD format.",
+        },
+      },
+      required: ["accountId", "startDate", "endDate"],
+    },
+  },
+  {
+    name: "get_search_term_insights",
+    description:
+      "Returns top converting search queries vs wasted spend queries (queries that spent budget but generated 0 conversions).",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        accountId: {
+          type: "NUMBER",
+          description: "Internal database ID of the ad account.",
+        },
+        startDate: {
+          type: "STRING",
+          description: "Start date in YYYY-MM-DD format.",
+        },
+        endDate: {
+          type: "STRING",
+          description: "End date in YYYY-MM-DD format.",
+        },
+        limit: {
+          type: "NUMBER",
+          description: "Maximum search terms to analyze (default 25).",
+        },
+      },
+      required: ["accountId", "startDate", "endDate"],
+    },
+  },
+  {
+    name: "get_account_anomalies",
+    description:
+      "Detects statistically significant anomalies in an account's recent performance against its 30-day baseline.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        accountId: {
+          type: "NUMBER",
+          description: "Internal database ID of the ad account.",
+        },
+        lookbackDays: {
+          type: "NUMBER",
+          description: "Baseline period in days (default 30).",
+        },
+      },
+      required: ["accountId"],
+    },
+  },
+  {
+    name: "get_concentration_report",
+    description:
+      "Returns Herfindahl-Hirschman Index (HHI) concentration risk analysis across the entire agency portfolio, identifying top whale accounts and revenue-at-risk.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        startDate: {
+          type: "STRING",
+          description: "Start date in YYYY-MM-DD format.",
+        },
+        endDate: {
+          type: "STRING",
+          description: "End date in YYYY-MM-DD format.",
+        },
+      },
+      required: ["startDate", "endDate"],
+    },
+  },
+  {
+    name: "get_impression_share_report",
+    description:
+      "Returns Search Impression Share, Lost IS (Budget), and Lost IS (Rank) to detect auction visibility bottlenecks.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        accountId: {
+          type: "NUMBER",
+          description: "Internal database ID of the ad account.",
+        },
+        startDate: {
+          type: "STRING",
+          description: "Start date in YYYY-MM-DD format.",
+        },
+        endDate: {
+          type: "STRING",
+          description: "End date in YYYY-MM-DD format.",
+        },
+      },
+      required: ["accountId"],
+    },
+  },
+  {
+    name: "get_campaign_details",
+    description:
+      "Returns campaign settings, bidding strategies (e.g. Target CPA, Max Conversions), daily budget caps, status, and geo targets.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        accountId: {
+          type: "NUMBER",
+          description: "Internal database ID of the ad account.",
+        },
+      },
+      required: ["accountId"],
+    },
+  },
+];
+
+export async function executeAnalystTool(
+  toolName: string,
+  args: Record<string, any>,
+  organizationId?: string,
+): Promise<any> {
+  const dates = getMelbourneDateStrings();
+  const defaultStart = args.startDate || dates.yesterdayStr;
+  const defaultEnd = args.endDate || dates.todayStr;
+
+  switch (toolName) {
+    case "get_agency_god_view": {
+      const res = await getAgencyPortfolioMetricsAction(
+        defaultStart,
+        defaultEnd,
+      );
+      return res.success
+        ? res.data
+        : { error: res.error || "Failed to fetch portfolio data" };
+    }
+    case "list_accounts": {
+      const res = await listAccountsAction();
+      return res.success
+        ? res.data
+        : { error: res.error || "Failed to list accounts" };
+    }
+    case "lookup_account_by_name": {
+      const res = await getAccountByNameAction(args.name);
+      return res.success
+        ? res.data
+        : { error: res.error || "Failed to lookup account" };
+    }
+    case "get_account_metrics": {
+      const accountId = Number(args.accountId);
+      const account = await withBypassTenantDb(async (tx) => {
+        return await tx.query.adAccounts.findFirst({
+          where: eq(adAccounts.id, accountId),
+        });
+      });
+      if (!account)
+        return { error: `Ad account with ID ${accountId} not found.` };
+      const res = await getDashboardMetricsAction(
+        account.id,
+        account.googleAccountId,
+        defaultStart,
+        defaultEnd,
+      );
+      return res.success
+        ? {
+            account: {
+              id: account.id,
+              name: account.name,
+              currency: account.currencyCode,
+            },
+            metrics: res.data,
+          }
+        : { error: res.error || "Failed to fetch account metrics" };
+    }
+    case "get_historical_comparison": {
+      const res = await getHistoricalComparisonAction(
+        Number(args.accountId),
+        defaultStart,
+        defaultEnd,
+      );
+      return res.success
+        ? res.data
+        : { error: res.error || "Failed to fetch comparison" };
+    }
+    case "get_search_term_insights": {
+      const res = await getSearchTermInsightsAction(
+        Number(args.accountId),
+        defaultStart,
+        defaultEnd,
+        args.limit || 25,
+      );
+      return res.success
+        ? res.data
+        : { error: res.error || "Failed to fetch search term insights" };
+    }
+    case "get_account_anomalies": {
+      const res = await getAccountAnomaliesAction(
+        Number(args.accountId),
+        args.lookbackDays || 30,
+      );
+      return res.success
+        ? res.data
+        : { error: res.error || "Failed to detect anomalies" };
+    }
+    case "get_concentration_report": {
+      const res = await getConcentrationReportAction(defaultStart, defaultEnd);
+      return res.success
+        ? res.data
+        : { error: res.error || "Failed to generate concentration report" };
+    }
+    case "get_impression_share_report": {
+      const res = await getImpressionShareReportInternal(
+        Number(args.accountId),
+        defaultStart,
+        defaultEnd,
+      );
+      return res.success
+        ? res.data
+        : { error: res.error || "Failed to fetch impression share" };
+    }
+    case "get_campaign_details": {
+      const res = await getCampaignDetailsAction(Number(args.accountId));
+      return res.success
+        ? res.data
+        : { error: res.error || "Failed to fetch campaign details" };
+    }
+    default:
+      return { error: `Tool ${toolName} is not recognized.` };
+  }
+}
+
+export async function runAnalystConversationTurn(params: {
+  conversationHistory: {
+    role: "user" | "assistant" | "system";
+    content: string;
+  }[];
+  userMessage: string;
+  selectedAccountId?: number | null;
+  organizationId?: string;
+  userId?: string | null;
+}): Promise<{
+  reply: string;
+  toolCalls: { name: string; args: any; result: any }[];
+}> {
+  const melbourneToday = getMelbourneTodayStr();
+  const dates = getMelbourneDateStrings();
+
+  let contextAccountNote = "";
+  if (params.selectedAccountId) {
+    const acc = await withBypassTenantDb(async (tx) => {
+      return await tx.query.adAccounts.findFirst({
+        where: eq(adAccounts.id, params.selectedAccountId!),
+      });
+    });
+    if (acc) {
+      contextAccountNote = `\nCURRENT SELECTED CONTEXT ACCOUNT:\n- Name: ${acc.name}\n- Internal ID: ${acc.id}\n- Google Account ID: ${acc.googleAccountId}\n- Currency: ${acc.currencyCode || "USD"}\nWhen answering account-specific queries, prioritize this account unless the user asks about another account or the entire portfolio.`;
+    }
+  }
+
+  const systemInstruction = `You are the Senior PPC & Paid Media Strategist Analyst at Uprise Digital.
+You have direct, real-time access to the agency's Google Ads and Meta Ads performance database and analytical tools.
+Current Melbourne Date: ${melbourneToday} (Yesterday: ${dates.yesterdayStr}).
+${contextAccountNote}
+
+YOUR CAPABILITIES & PROTOCOL:
+1. When asked about metrics, portfolio performance, client accounts, wasted spend, or anomalies, USE THE AVAILABLE TOOLS to retrieve exact data before responding. Never guess or hallucinate numbers.
+2. Available Tools:
+   - get_agency_god_view: Overall agency macro spend, conversions, CPA, ROAS, fire alerts.
+   - list_accounts: Discover accounts, internal IDs, and platform links.
+   - lookup_account_by_name: Find accounts by partial name.
+   - get_account_metrics: Detailed metrics and campaign breakdowns for an account.
+   - get_historical_comparison: Period-over-period delta comparisons.
+   - get_search_term_insights: Top converting queries vs wasted spend queries with 0 conversions.
+   - get_account_anomalies: Statistical anomalies against 30-day baseline.
+   - get_concentration_report: Whale accounts and portfolio risk.
+   - get_impression_share_report: Search IS, Lost IS (Budget/Rank).
+   - get_campaign_details: Campaign bidding strategies and budgets.
+3. LANGUAGE & TONE RULES:
+   - STRICTLY British / Commonwealth English spelling (optimise, prioritise, analysed, behaviour, programme, colour).
+   - Proactive, commercially insightful, sharp, and structured.
+   - Format answers using clean Markdown with bold metric highlights, tables where comparisons help, bullet points for recommendations, and clear strategic next steps.
+   - Cite specific numbers (currency, conversions, CPA, deltas %).
+`;
+
+  const messagesPayload: any[] = [];
+  params.conversationHistory.slice(-8).forEach((msg) => {
+    messagesPayload.push({
+      role: msg.role === "assistant" ? "model" : "user",
+      parts: [{ text: msg.content }],
+    });
+  });
+  messagesPayload.push({
+    role: "user",
+    parts: [{ text: params.userMessage }],
+  });
+
+  const toolDeclarations = ANALYST_TOOLS.map((t) => ({
+    name: t.name,
+    description: t.description,
+    parameters: t.parameters,
+  }));
+
+  const executedTools: { name: string; args: any; result: any }[] = [];
+
+  const firstStep = await generateContentTracked(
+    {
+      model: GEMINI_MODEL_LOW,
+      contents: messagesPayload,
+      config: {
+        systemInstruction,
+        tools: [{ functionDeclarations: toolDeclarations }],
+      },
+    },
+    {
+      organizationId: params.organizationId,
+      userId: params.userId,
+      feature: "analyst_chatbot",
+    },
+  );
+
+  const functionCalls = firstStep.response.functionCalls || [];
+
+  if (functionCalls.length > 0) {
+    const modelParts = firstStep.response.candidates?.[0]?.content?.parts || [];
+    messagesPayload.push({
+      role: "model",
+      parts: modelParts,
+    });
+
+    for (const fc of functionCalls) {
+      const toolName = fc.name || "";
+      if (!toolName) continue;
+
+      try {
+        const result = await executeAnalystTool(
+          toolName,
+          fc.args as any,
+          params.organizationId,
+        );
+        executedTools.push({
+          name: toolName,
+          args: fc.args,
+          result,
+        });
+
+        messagesPayload.push({
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                name: toolName,
+                response: { output: result },
+              },
+            },
+          ],
+        });
+      } catch (err: any) {
+        executedTools.push({
+          name: toolName,
+          args: fc.args,
+          result: { error: err.message },
+        });
+        messagesPayload.push({
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                name: toolName,
+                response: { output: { error: err.message } },
+              },
+            },
+          ],
+        });
+      }
+    }
+
+    const finalStep = await generateContentTracked(
+      {
+        model: GEMINI_MODEL_LOW,
+        contents: messagesPayload,
+        config: {
+          systemInstruction,
+        },
+      },
+      {
+        organizationId: params.organizationId,
+        userId: params.userId,
+        feature: "analyst_chatbot",
+      },
+    );
+
+    return {
+      reply:
+        finalStep.response.text ||
+        "I have processed your request and updated the analysis.",
+      toolCalls: executedTools,
+    };
+  }
+
+  return {
+    reply:
+      firstStep.response.text ||
+      "No response was generated. Please try rephrasing.",
+    toolCalls: executedTools,
+  };
 }
