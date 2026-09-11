@@ -42,6 +42,7 @@ import { listAccountsAction } from "@/actions/agency.actions";
 import {
   associateAdAccountAction,
   associateMetaAdAccountAction,
+  createClientGhlSubAccountAction,
   deleteClientOnboardingAction,
   finalizeOnboardingAction,
   getClientEmailLogsAction,
@@ -127,6 +128,7 @@ export default function ClientDetailPageClient({
 
   // Execution states
   const [isRunningPipeline, setIsRunningPipeline] = useState(false);
+  const [isCreatingGhlSubAccount, setIsCreatingGhlSubAccount] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
 
   // Edit Client Details Sidebar States
@@ -341,6 +343,29 @@ export default function ClientDetailPageClient({
       toast.error(error.message || "An unexpected error occurred.");
     } finally {
       setIsRunningPipeline(false);
+    }
+  };
+
+  const handleCreateGhlSubAccount = async () => {
+    if (!client) return;
+    setIsCreatingGhlSubAccount(true);
+    try {
+      const res = await createClientGhlSubAccountAction(client.id);
+      if (res.success) {
+        toast.success(
+          `GoHighLevel sub-account "${res.name}" created successfully!`,
+        );
+        await loadClientDetails();
+      } else {
+        toast.error(res.error || "Failed to create GoHighLevel sub-account.");
+      }
+    } catch (error: any) {
+      toast.error(
+        error.message ||
+          "An unexpected error occurred while creating GHL sub-account.",
+      );
+    } finally {
+      setIsCreatingGhlSubAccount(false);
     }
   };
 
@@ -939,22 +964,45 @@ export default function ClientDetailPageClient({
                 </p>
               </div>
 
-              <Button
-                onClick={handleRunPipeline}
-                disabled={isRunningPipeline}
-                className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-300 text-white font-bold text-xs h-8 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm"
-              >
-                {isRunningPipeline ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Running
-                    Pipeline...
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-3.5 w-3.5 fill-white" /> Run Pipeline
-                  </>
+              <div className="flex items-center gap-2">
+                {!client.ghlSubAccountId && (
+                  <Button
+                    type="button"
+                    onClick={handleCreateGhlSubAccount}
+                    disabled={isCreatingGhlSubAccount}
+                    className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-300 text-white font-bold text-xs h-8 px-3.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    {isCreatingGhlSubAccount ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
+                        Creating Sub-Account...
+                      </>
+                    ) : (
+                      <>
+                        <Building2 className="h-3.5 w-3.5" /> Create GHL
+                        Sub-Account
+                      </>
+                    )}
+                  </Button>
                 )}
-              </Button>
+
+                <Button
+                  onClick={handleRunPipeline}
+                  disabled={isRunningPipeline}
+                  className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-300 text-white font-bold text-xs h-8 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  {isRunningPipeline ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Running
+                      Pipeline...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-3.5 w-3.5 fill-white" /> Run Pipeline
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1039,128 +1087,161 @@ export default function ClientDetailPageClient({
             </div>
           </div>
 
-          {/* Linked GoHighLevel Sub-Account (Shown if pipeline stage is active) */}
-          {isPipelineActive && (
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-indigo-600" />
-                      Linked GoHighLevel Sub-Account
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                      Pipeline Stage: {client.ghlPipelineStage || "Active"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    Active client sub-account for CRM synchronization, lead
-                    routing, and pipeline automations.
-                  </p>
+          {/* Linked GoHighLevel Sub-Account */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-indigo-600" />
+                    Linked GoHighLevel Sub-Account
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                    Pipeline Stage: {client.ghlPipelineStage || "Active"}
+                  </span>
                 </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={openEditClientModal}
-                  className="text-xs h-8 px-3 rounded-lg flex items-center gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer self-start sm:self-auto font-medium"
-                >
-                  <Pencil className="h-3 w-3 text-slate-500" />
-                  {client.ghlSubAccountId
-                    ? "Edit Sub-Account"
-                    : "Link Sub-Account"}
-                </Button>
+                <p className="text-xs text-slate-500">
+                  Client sub-account for CRM synchronization, lead routing, and
+                  pipeline automations.
+                </p>
               </div>
 
-              {client.ghlSubAccountId ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                  <div className="bg-slate-50/80 border border-slate-200/70 rounded-xl p-4 space-y-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                      <span>Sub-Account / Location ID</span>
-                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/70">
-                        Connected
-                      </span>
-                    </span>
-                    <div className="flex items-center justify-between">
-                      <code className="text-xs font-mono font-bold text-slate-900 bg-white px-2.5 py-1 rounded border border-slate-200/80">
-                        {client.ghlSubAccountId}
-                      </code>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          copyToClipboard(
-                            client.ghlSubAccountId,
-                            "GHL Sub-Account ID",
-                          )
-                        }
-                        className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-white transition-colors cursor-pointer"
-                        title="Copy Sub-Account ID"
-                      >
-                        {copiedField === "GHL Sub-Account ID" ? (
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={openEditClientModal}
+                className="text-xs h-8 px-3 rounded-lg flex items-center gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer self-start sm:self-auto font-medium"
+              >
+                <Pencil className="h-3 w-3 text-slate-500" />
+                {client.ghlSubAccountId
+                  ? "Edit Sub-Account"
+                  : "Link Sub-Account"}
+              </Button>
+            </div>
 
-                  <div className="bg-slate-50/80 border border-slate-200/70 rounded-xl p-4 space-y-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                      <span>GHL CRM Access</span>
-                      {client.ghlContactId && (
-                        <span className="text-indigo-600 font-mono text-[10px]">
-                          Contact: {client.ghlContactId}
-                        </span>
-                      )}
+            {client.ghlError && !client.ghlSubAccountId && (
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-800 flex items-start gap-2.5">
+                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-0.5">
+                  <p className="font-bold text-rose-900">
+                    Previous GHL Provisioning Notice
+                  </p>
+                  <p className="text-rose-700 font-mono text-[11px]">
+                    {client.ghlError}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {client.ghlSubAccountId ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <div className="bg-slate-50/80 border border-slate-200/70 rounded-xl p-4 space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span>Sub-Account / Location ID</span>
+                    <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/70">
+                      Connected
                     </span>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-medium text-slate-700">
-                        GoHighLevel Location Dashboard
-                      </p>
-                      <a
-                        href={`https://app.gohighlevel.com/location/${client.ghlSubAccountId}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors"
-                      >
-                        Open Sub-Account
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <code className="text-xs font-mono font-bold text-slate-900 bg-white px-2.5 py-1 rounded border border-slate-200/80">
+                      {client.ghlSubAccountId}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyToClipboard(
+                          client.ghlSubAccountId,
+                          "GHL Sub-Account ID",
+                        )
+                      }
+                      className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-white transition-colors cursor-pointer"
+                      title="Copy Sub-Account ID"
+                    >
+                      {copiedField === "GHL Sub-Account ID" ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
                   </div>
                 </div>
-              ) : (
-                <div className="bg-slate-50/60 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
-                      <Building2 className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">
-                        No GoHighLevel sub-account linked yet
-                      </p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        This client is marked as active in your pipeline. You
-                        can link their GoHighLevel Location ID for
-                        bi-directional CRM syncing.
-                      </p>
-                    </div>
+
+                <div className="bg-slate-50/80 border border-slate-200/70 rounded-xl p-4 space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span>GHL CRM Access</span>
+                    {client.ghlContactId && (
+                      <span className="text-indigo-600 font-mono text-[10px]">
+                        Contact: {client.ghlContactId}
+                      </span>
+                    )}
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-slate-700">
+                      GoHighLevel Location Dashboard
+                    </p>
+                    <a
+                      href={`https://app.gohighlevel.com/location/${client.ghlSubAccountId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors"
+                    >
+                      Open Sub-Account
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
                   </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50/60 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">
+                      No GoHighLevel sub-account linked yet
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Provision a new sub-account location in GoHighLevel or
+                      link an existing Location ID.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    onClick={openEditClientModal}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold h-8 px-3 rounded-lg shrink-0 cursor-pointer shadow-xs"
+                    onClick={handleCreateGhlSubAccount}
+                    disabled={isCreatingGhlSubAccount}
+                    className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-bold h-8 px-3 rounded-lg shrink-0 cursor-pointer shadow-xs flex items-center gap-1.5"
                   >
-                    Link Sub-Account
+                    {isCreatingGhlSubAccount ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Creating Sub-Account...
+                      </>
+                    ) : (
+                      <>
+                        <Building2 className="h-3.5 w-3.5" />
+                        Create GHL Sub-Account
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={openEditClientModal}
+                    className="border-slate-300 text-slate-700 hover:bg-white text-xs font-medium h-8 px-3 rounded-lg shrink-0 cursor-pointer"
+                  >
+                    Link Existing
                   </Button>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
           {/* Email Outbox & Live HTML Preview */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-5">

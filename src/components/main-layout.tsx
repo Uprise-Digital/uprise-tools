@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  Ban,
   BarChart3,
   BellRing,
   Bot,
@@ -71,6 +72,11 @@ const navItems: NavItem[] = [
         href: "/overview/industry",
         label: "Industry Benchmarks",
         icon: Building2,
+      },
+      {
+        href: "/overview/negatives",
+        label: "Negative Keywords",
+        icon: Ban,
       },
     ],
   },
@@ -349,6 +355,8 @@ export function MainLayout({
             {pathname === "/overview" && "Dashboard / Overview / God View"}
             {pathname === "/overview/industry" &&
               "Dashboard / Overview / Industry Benchmarks"}
+            {pathname === "/overview/negatives" &&
+              "Dashboard / Overview / Negative Keywords"}
             {pathname?.startsWith("/analyst") && "Dashboard / Analyst"}
             {pathname?.startsWith("/clients") && "Dashboard / Clients"}
             {pathname?.startsWith("/contacts") && "Dashboard / Contacts"}

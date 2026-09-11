@@ -1206,6 +1206,17 @@ async function executeOnboardingPipeline(
           console.error("Failed to decrypt GHL API key from settings:", err);
         }
       }
+      let ghlAgencyApiKey = ghlIntegrations.ghlAgencyApiKey;
+      if (settings?.ghlAgencyApiKey) {
+        try {
+          ghlAgencyApiKey = decryptToken(settings.ghlAgencyApiKey);
+        } catch (err) {
+          console.error(
+            "Failed to decrypt GHL Agency API key from settings:",
+            err,
+          );
+        }
+      }
       const ghlLocationId =
         settings?.ghlLocationId || ghlIntegrations.ghlLocationId;
       const ghlCompanyId =
@@ -1229,12 +1240,14 @@ async function executeOnboardingPipeline(
         ) {
           const subAcc = await createGhlSubAccount({
             name: record.clientName,
+            email: record.contactEmail || undefined,
+            phone: record.contactPhone || undefined,
             timezone: ghlData.timezone || "Australia/Sydney",
             country: ghlData.country || "AU",
             address: ghlData.address || "",
             city: ghlData.city || "",
             snapshotId: ghlData.snapshotId || undefined,
-            apiKey: ghlApiKey,
+            apiKey: ghlAgencyApiKey || ghlApiKey,
             companyId: ghlCompanyId,
           });
           await db
@@ -1243,8 +1256,31 @@ async function executeOnboardingPipeline(
               ghlSubAccountId: subAcc.id,
               ghlStatus: "success",
               ghlError: null,
+              updatedAt: new Date(),
             })
             .where(eq(clientOnboardings.id, onboardingId));
+
+          // Also update canonical client record if exists
+          try {
+            const canonicalClient = await db.query.clients.findFirst({
+              where: and(
+                eq(clients.organizationId, record.organizationId),
+                ilike(clients.name, record.clientName.trim()),
+              ),
+            });
+            if (canonicalClient) {
+              await db
+                .update(clients)
+                .set({ ghlSubAccountId: subAcc.id, updatedAt: new Date() })
+                .where(eq(clients.id, canonicalClient.id));
+            }
+          } catch (syncErr) {
+            console.warn(
+              "Failed to sync ghlSubAccountId to clients table:",
+              syncErr,
+            );
+          }
+
           console.log(
             `[GHL Automation] Created Sub-Account ${subAcc.id} (${subAcc.name})${
               ghlData.snapshotId ? ` from Snapshot ${ghlData.snapshotId}` : ""
@@ -1887,9 +1923,18 @@ export async function finalizeOnboardingAction(onboardingId: number) {
  */
 export async function retryGhlAutomationAction(onboardingId: number) {
   try {
-    const record = await db.query.clientOnboardings.findFirst({
-      where: eq(clientOnboardings.id, onboardingId),
-    });
+    const { orgId } = await getSessionOrgId();
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(
+      onboardingId,
+      orgId || "",
+    );
+
+    const targetOnboardingId = onboardingRecord?.id || onboardingId;
+    const record =
+      onboardingRecord ||
+      (await db.query.clientOnboardings.findFirst({
+        where: eq(clientOnboardings.id, targetOnboardingId),
+      }));
     if (!record) return { success: false, error: "Client record not found" };
 
     const settings = await db.query.organizationOnboardingSettings.findFirst({
@@ -1903,14 +1948,36 @@ export async function retryGhlAutomationAction(onboardingId: number) {
 
     await db
       .update(clientOnboardings)
-      .set({ ghlStatus: "in_progress", ghlError: null })
-      .where(eq(clientOnboardings.id, onboardingId));
+      .set({ ghlStatus: "in_progress", ghlError: null, updatedAt: new Date() })
+      .where(eq(clientOnboardings.id, targetOnboardingId));
 
     const ghlIntegrations =
       (settings.workflowConfig as any)?.integrations || {};
-    const ghlApiKey = ghlIntegrations.ghlApiKey;
-    const ghlLocationId = ghlIntegrations.ghlLocationId;
-    const ghlCompanyId = ghlIntegrations.ghlCompanyId;
+    let ghlApiKey = ghlIntegrations.ghlApiKey;
+    if (settings.ghlApiKey) {
+      try {
+        ghlApiKey = decryptToken(settings.ghlApiKey);
+      } catch (err) {
+        console.error("Failed to decrypt GHL API key from settings:", err);
+      }
+    }
+    let ghlAgencyApiKey = ghlIntegrations.ghlAgencyApiKey;
+    if (settings.ghlAgencyApiKey) {
+      try {
+        ghlAgencyApiKey = decryptToken(settings.ghlAgencyApiKey);
+      } catch (err) {
+        console.error(
+          "Failed to decrypt GHL Agency API key from settings:",
+          err,
+        );
+      }
+    }
+    const ghlLocationId =
+      settings.ghlLocationId || ghlIntegrations.ghlLocationId;
+    const ghlCompanyId =
+      settings.ghlCompanyId ||
+      ghlIntegrations.ghlCompanyId ||
+      process.env.GHL_COMPANY_ID;
 
     const ghlNode = (settings.workflowConfig as any)?.nodes?.find(
       (n: any) => n.id === "ghl",
@@ -1924,12 +1991,14 @@ export async function retryGhlAutomationAction(onboardingId: number) {
     ) {
       const subAcc = await createGhlSubAccount({
         name: record.clientName,
+        email: record.contactEmail || undefined,
+        phone: record.contactPhone || undefined,
         timezone: ghlData.timezone || "Australia/Sydney",
         country: ghlData.country || "AU",
         address: ghlData.address || "",
         city: ghlData.city || "",
         snapshotId: ghlData.snapshotId || undefined,
-        apiKey: ghlApiKey,
+        apiKey: ghlAgencyApiKey || ghlApiKey,
         companyId: ghlCompanyId,
       });
       await db
@@ -1938,15 +2007,23 @@ export async function retryGhlAutomationAction(onboardingId: number) {
           ghlSubAccountId: subAcc.id,
           ghlStatus: "success",
           ghlError: null,
+          updatedAt: new Date(),
         })
-        .where(eq(clientOnboardings.id, onboardingId));
+        .where(eq(clientOnboardings.id, targetOnboardingId));
+
+      if (clientRecord) {
+        await db
+          .update(clients)
+          .set({ ghlSubAccountId: subAcc.id, updatedAt: new Date() })
+          .where(eq(clients.id, clientRecord.id));
+      }
     } else if (mode === "create-contact") {
       const createdContact = await createGhlContact({
         name: record.primaryContactName || record.clientName,
         email: record.contactEmail,
         tags: ghlData.tagNaming ? [ghlData.tagNaming] : ["onboarded-client"],
         locationId: ghlLocationId,
-        apiKey: ghlApiKey,
+        apiKey: ghlApiKey || ghlAgencyApiKey,
       });
       await db
         .update(clientOnboardings)
@@ -1954,18 +2031,19 @@ export async function retryGhlAutomationAction(onboardingId: number) {
           ghlContactId: createdContact?.id || record.ghlContactId,
           ghlStatus: "success",
           ghlError: null,
+          updatedAt: new Date(),
         })
-        .where(eq(clientOnboardings.id, onboardingId));
+        .where(eq(clientOnboardings.id, targetOnboardingId));
     } else if (mode === "add-tag") {
       const contactId = record.ghlContactId;
       const tag = ghlData.tagNaming || "onboarded-client";
       if (!contactId)
         throw new Error("No GHL Contact ID found for client record");
-      await addGhlContactTag(contactId, tag, ghlApiKey);
+      await addGhlContactTag(contactId, tag, ghlApiKey || ghlAgencyApiKey);
       await db
         .update(clientOnboardings)
-        .set({ ghlStatus: "success", ghlError: null })
-        .where(eq(clientOnboardings.id, onboardingId));
+        .set({ ghlStatus: "success", ghlError: null, updatedAt: new Date() })
+        .where(eq(clientOnboardings.id, targetOnboardingId));
     } else if (mode === "create-contact-note") {
       const contactId = record.ghlContactId;
       if (!contactId)
@@ -1980,11 +2058,11 @@ export async function retryGhlAutomationAction(onboardingId: number) {
           record.primaryContactName,
         )
         .replace(/\{\{\s*contact_email\s*\}\}/g, record.contactEmail);
-      await createContactNote(contactId, body, ghlApiKey);
+      await createContactNote(contactId, body, ghlApiKey || ghlAgencyApiKey);
       await db
         .update(clientOnboardings)
-        .set({ ghlStatus: "success", ghlError: null })
-        .where(eq(clientOnboardings.id, onboardingId));
+        .set({ ghlStatus: "success", ghlError: null, updatedAt: new Date() })
+        .where(eq(clientOnboardings.id, targetOnboardingId));
     } else if (mode === "create-task") {
       const contactId = record.ghlContactId;
       if (!contactId)
@@ -2005,24 +2083,33 @@ export async function retryGhlAutomationAction(onboardingId: number) {
         Date.now() + (isNaN(dueDays) ? 7 : dueDays) * 24 * 60 * 60 * 1000,
       ).toISOString();
 
-      await createGhlTask(contactId, { title, body, dueDate }, ghlApiKey);
+      await createGhlTask(
+        contactId,
+        { title, body, dueDate },
+        ghlApiKey || ghlAgencyApiKey,
+      );
       await db
         .update(clientOnboardings)
-        .set({ ghlStatus: "success", ghlError: null })
-        .where(eq(clientOnboardings.id, onboardingId));
+        .set({ ghlStatus: "success", ghlError: null, updatedAt: new Date() })
+        .where(eq(clientOnboardings.id, targetOnboardingId));
     } else if (mode === "update-opportunity-stage") {
       const oppId = record.ghlOpportunityId;
       if (!oppId)
         throw new Error("No GHL Opportunity ID found for client record");
       const stageId = ghlData.targetStageId || ghlData.stageId;
-      await updateGhlOpportunityStage(oppId, stageId, ghlApiKey);
+      await updateGhlOpportunityStage(
+        oppId,
+        stageId,
+        ghlApiKey || ghlAgencyApiKey,
+      );
       await db
         .update(clientOnboardings)
-        .set({ ghlStatus: "success", ghlError: null })
-        .where(eq(clientOnboardings.id, onboardingId));
+        .set({ ghlStatus: "success", ghlError: null, updatedAt: new Date() })
+        .where(eq(clientOnboardings.id, targetOnboardingId));
     }
 
     revalidatePath("/clients");
+    revalidatePath(`/clients/${onboardingId}`);
     return { success: true };
   } catch (err: any) {
     console.error("retryGhlAutomationAction error:", err);
@@ -2031,10 +2118,182 @@ export async function retryGhlAutomationAction(onboardingId: number) {
       .set({
         ghlStatus: "failed",
         ghlError: err.message || String(err),
+        updatedAt: new Date(),
       })
       .where(eq(clientOnboardings.id, onboardingId));
     revalidatePath("/clients");
+    revalidatePath(`/clients/${onboardingId}`);
     return { success: false, error: err.message || String(err) };
+  }
+}
+
+/**
+ * Manually provisions or creates a GoHighLevel Sub-Account for a client.
+ */
+export async function createClientGhlSubAccountAction(clientId: number) {
+  try {
+    const { orgId, userId } = await getSessionOrgId();
+    if (!orgId) return { success: false, error: "No active organization" };
+
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(
+      clientId,
+      orgId,
+    );
+
+    if (!clientRecord && !onboardingRecord) {
+      return { success: false, error: "Client record not found." };
+    }
+
+    const clientName = clientRecord?.name || onboardingRecord?.clientName;
+    if (!clientName) {
+      return { success: false, error: "Client name is required." };
+    }
+
+    const primaryContact =
+      clientRecord?.contacts?.find((ct: any) => ct.isPrimary) ||
+      clientRecord?.contacts?.[0];
+    const contactEmail =
+      primaryContact?.email || onboardingRecord?.contactEmail || undefined;
+    const contactPhone =
+      primaryContact?.phone || onboardingRecord?.contactPhone || undefined;
+
+    const settings = await db.query.organizationOnboardingSettings.findFirst({
+      where: eq(organizationOnboardingSettings.organizationId, orgId),
+    });
+    if (!settings) {
+      return {
+        success: false,
+        error: "Onboarding settings not configured for this organization.",
+      };
+    }
+
+    const ghlIntegrations =
+      (settings.workflowConfig as any)?.integrations || {};
+    let ghlAgencyApiKey = ghlIntegrations.ghlAgencyApiKey;
+    if (settings.ghlAgencyApiKey) {
+      try {
+        ghlAgencyApiKey = decryptToken(settings.ghlAgencyApiKey);
+      } catch (err) {
+        console.error("Failed to decrypt GHL Agency API key:", err);
+      }
+    }
+    let ghlApiKey = ghlIntegrations.ghlApiKey;
+    if (settings.ghlApiKey) {
+      try {
+        ghlApiKey = decryptToken(settings.ghlApiKey);
+      } catch (err) {
+        console.error("Failed to decrypt GHL API key:", err);
+      }
+    }
+    const effectiveKey = ghlAgencyApiKey || ghlApiKey;
+    if (!effectiveKey) {
+      return {
+        success: false,
+        error:
+          "GoHighLevel Agency API Key is not configured. Please add it in Settings -> Onboarding.",
+      };
+    }
+
+    const ghlCompanyId =
+      settings.ghlCompanyId ||
+      ghlIntegrations.ghlCompanyId ||
+      process.env.GHL_COMPANY_ID;
+
+    const ghlNode = (settings.workflowConfig as any)?.nodes?.find(
+      (n: any) => n.id === "ghl",
+    );
+    const ghlData = ghlNode?.data || {};
+
+    if (onboardingRecord) {
+      await db
+        .update(clientOnboardings)
+        .set({
+          ghlStatus: "in_progress",
+          ghlError: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(clientOnboardings.id, onboardingRecord.id));
+    }
+
+    const subAcc = await createGhlSubAccount({
+      name: clientName,
+      email: contactEmail,
+      phone: contactPhone,
+      timezone: ghlData.timezone || "Australia/Sydney",
+      country: ghlData.country || "AU",
+      address: ghlData.address || "",
+      city: ghlData.city || "",
+      snapshotId: ghlData.snapshotId || undefined,
+      apiKey: effectiveKey,
+      companyId: ghlCompanyId,
+    });
+
+    if (onboardingRecord) {
+      await db
+        .update(clientOnboardings)
+        .set({
+          ghlSubAccountId: subAcc.id,
+          ghlStatus: "success",
+          ghlError: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(clientOnboardings.id, onboardingRecord.id));
+    }
+
+    if (clientRecord) {
+      await db
+        .update(clients)
+        .set({
+          ghlSubAccountId: subAcc.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(clients.id, clientRecord.id));
+    }
+
+    await logAction(
+      userId,
+      "GHL_SUBACCOUNT_CREATED",
+      "clients",
+      clientRecord?.id || onboardingRecord?.id || clientId,
+      {
+        subAccountId: subAcc.id,
+        clientName,
+        clientId: clientRecord?.id,
+        onboardingId: onboardingRecord?.id,
+      },
+    );
+
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${clientId}`);
+
+    return {
+      success: true,
+      subAccountId: subAcc.id,
+      name: subAcc.name,
+    };
+  } catch (err: any) {
+    console.error("createClientGhlSubAccountAction error:", err);
+    const errorMsg = err.message || "Failed to create GHL sub-account.";
+    if (clientId) {
+      try {
+        const { orgId } = await getSessionOrgId();
+        const { onboardingRecord } = await resolveClientRecords(
+          clientId,
+          orgId,
+        );
+        if (onboardingRecord) {
+          await db
+            .update(clientOnboardings)
+            .set({
+              ghlStatus: "failed",
+              ghlError: errorMsg,
+              updatedAt: new Date(),
+            })
+            .where(eq(clientOnboardings.id, onboardingRecord.id));
+        }
+      } catch {}
+    }
+    return { success: false, error: errorMsg };
   }
 }
 
@@ -2140,6 +2399,14 @@ export async function getClientOnboardingByIdAction(clientId: number) {
         ghlSubAccountId:
           clientRecord.ghlSubAccountId || onboardingRecord?.ghlSubAccountId,
         ghlOpportunityId: onboardingRecord?.ghlOpportunityId,
+        ghlStatus:
+          onboardingRecord?.ghlStatus ||
+          (clientRecord.ghlSubAccountId ? "success" : null),
+        ghlError: onboardingRecord?.ghlError || null,
+        ghlContactId:
+          onboardingRecord?.ghlContactId ||
+          primaryContact?.ghlContactId ||
+          null,
         emailSentAt: onboardingRecord?.emailSentAt,
         createdAt: clientRecord.createdAt,
         updatedAt: clientRecord.updatedAt,

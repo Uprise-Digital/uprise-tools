@@ -617,6 +617,7 @@ export async function getGhlSnapshots(
 export async function createGhlSubAccount(data: {
   name: string;
   phone?: string;
+  email?: string;
   address?: string;
   city?: string;
   state?: string;
@@ -642,6 +643,9 @@ export async function createGhlSubAccount(data: {
       website: data.website || "",
       timezone: data.timezone || "Australia/Sydney",
     };
+    if (data.email) {
+      bodyPayload.email = data.email;
+    }
     if (data.snapshotId) {
       bodyPayload.snapshotId = data.snapshotId;
     }
