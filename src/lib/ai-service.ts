@@ -586,6 +586,7 @@ export async function executeAnalystTool(
       const res = await getAgencyPortfolioMetricsAction(
         defaultStart,
         defaultEnd,
+        args.platformFilter || "all",
       );
       return res.success
         ? res.data
@@ -758,32 +759,56 @@ YOUR CAPABILITIES & PROTOCOL:
   }));
 
   const executedTools: { name: string; args: any; result: any }[] = [];
+  const MAX_TOOL_TURNS = 5;
+  let finalReply = "";
 
-  const firstStep = await generateContentTracked(
-    {
-      model: GEMINI_MODEL_LOW,
-      contents: messagesPayload,
-      config: {
-        systemInstruction,
-        tools: [{ functionDeclarations: toolDeclarations }],
+  for (let turn = 1; turn <= MAX_TOOL_TURNS; turn++) {
+    const step = await generateContentTracked(
+      {
+        model: GEMINI_MODEL_LOW,
+        contents: messagesPayload,
+        config: {
+          systemInstruction,
+          tools: [{ functionDeclarations: toolDeclarations }],
+        },
       },
-    },
-    {
-      organizationId: params.organizationId,
-      userId: params.userId,
-      feature: "analyst_chatbot",
-    },
-  );
+      {
+        organizationId: params.organizationId,
+        userId: params.userId,
+        feature: "analyst_chatbot",
+      },
+    );
 
-  const functionCalls = firstStep.response.functionCalls || [];
+    const functionCalls = step.response.functionCalls || [];
 
-  if (functionCalls.length > 0) {
-    const modelParts = firstStep.response.candidates?.[0]?.content?.parts || [];
-    messagesPayload.push({
-      role: "model",
-      parts: modelParts,
-    });
+    // If the model did not call any tools, it generated the conversational / analytical response
+    if (!functionCalls.length) {
+      const rawParts = step.response.candidates?.[0]?.content?.parts || [];
+      const textParts = rawParts
+        .filter((p: any) => typeof p.text === "string" && !p.thought)
+        .map((p: any) => p.text)
+        .join("\n")
+        .trim();
 
+      finalReply = step.response.text?.trim() || textParts || "";
+      break;
+    }
+
+    // Append model response turn (preserves thoughtSignature, functionCalls, and candidate structure)
+    const modelContent = step.response.candidates?.[0]?.content;
+    if (modelContent) {
+      messagesPayload.push(modelContent);
+    } else {
+      messagesPayload.push({
+        role: "model",
+        parts: functionCalls.map((fc) => ({
+          functionCall: { name: fc.name, args: fc.args },
+        })),
+      });
+    }
+
+    // Execute all function calls and gather responses into ONE user turn
+    const functionResponses: any[] = [];
     for (const fc of functionCalls) {
       const toolName = fc.name || "";
       if (!toolName) continue;
@@ -800,16 +825,17 @@ YOUR CAPABILITIES & PROTOCOL:
           result,
         });
 
-        messagesPayload.push({
-          role: "user",
-          parts: [
-            {
-              functionResponse: {
-                name: toolName,
-                response: { output: result },
-              },
-            },
-          ],
+        // Ensure response is always a non-array object for Protobuf Struct compatibility
+        const safeResponse =
+          typeof result === "object" && result !== null && !Array.isArray(result)
+            ? result
+            : { data: result };
+
+        functionResponses.push({
+          functionResponse: {
+            name: toolName,
+            response: safeResponse,
+          },
         });
       } catch (err: any) {
         executedTools.push({
@@ -817,19 +843,31 @@ YOUR CAPABILITIES & PROTOCOL:
           args: fc.args,
           result: { error: err.message },
         });
-        messagesPayload.push({
-          role: "user",
-          parts: [
-            {
-              functionResponse: {
-                name: toolName,
-                response: { output: { error: err.message } },
-              },
-            },
-          ],
+        functionResponses.push({
+          functionResponse: {
+            name: toolName,
+            response: { error: err.message },
+          },
         });
       }
     }
+
+    messagesPayload.push({
+      role: "user",
+      parts: functionResponses,
+    });
+  }
+
+  // If the model exhausted MAX_TOOL_TURNS without generating text, trigger a final synthesis turn
+  if (!finalReply) {
+    messagesPayload.push({
+      role: "user",
+      parts: [
+        {
+          text: "Based on all the performance metrics and account details gathered above, deliver your complete, structured strategic media analysis now in British English.",
+        },
+      ],
+    });
 
     const finalStep = await generateContentTracked(
       {
@@ -837,6 +875,7 @@ YOUR CAPABILITIES & PROTOCOL:
         contents: messagesPayload,
         config: {
           systemInstruction,
+          tools: [{ functionDeclarations: toolDeclarations }],
         },
       },
       {
@@ -846,18 +885,21 @@ YOUR CAPABILITIES & PROTOCOL:
       },
     );
 
-    return {
-      reply:
-        finalStep.response.text ||
-        "I have processed your request and updated the analysis.",
-      toolCalls: executedTools,
-    };
+    const rawParts = finalStep.response.candidates?.[0]?.content?.parts || [];
+    const textParts = rawParts
+      .filter((p: any) => typeof p.text === "string" && !p.thought)
+      .map((p: any) => p.text)
+      .join("\n")
+      .trim();
+
+    finalReply =
+      finalStep.response.text?.trim() ||
+      textParts ||
+      "I have analysed the portfolio data, but could not produce a commentary. Please try asking a specific question regarding CPA, spend, or account performance.";
   }
 
   return {
-    reply:
-      firstStep.response.text ||
-      "No response was generated. Please try rephrasing.",
+    reply: finalReply,
     toolCalls: executedTools,
   };
 }
