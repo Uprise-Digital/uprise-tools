@@ -28,7 +28,8 @@ import {
   Zap,
 } from "lucide-react";
 import { marked } from "marked";
-import React, { useEffect, useRef, useState } from "react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   clearAnalystConversationAction,
@@ -332,7 +333,7 @@ export default function AnalystClient({
   const selectedAccountObj = accounts.find((a) => a.id === selectedAccountId);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] w-full overflow-hidden bg-slate-50/70">
+    <div className="flex h-full min-h-0 w-full overflow-hidden bg-slate-50/70">
       <TopProgressBar loading={isSending || isLoadingMessages} />
 
       {/* ─── LEFT SIDEBAR: CONVERSATION SESSIONS ──────────────────────────────── */}

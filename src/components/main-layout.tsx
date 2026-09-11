@@ -448,24 +448,31 @@ export function MainLayout({
           </div>
         </header>
 
-        {/* 3. CONTENT AREA SCROLL WRAPPER */}
-        <div className="flex-1 overflow-y-auto flex flex-col justify-between">
-          <main className="p-4 md:p-6 lg:p-8 flex-1">{children}</main>
+        {/* 3. CONTENT AREA */}
+        {pathname?.startsWith("/analyst") ? (
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto flex flex-col justify-between">
+            <main className="p-4 md:p-6 lg:p-8 flex-1">{children}</main>
 
-          {/* 4. FOOTER */}
-          <footer className="border-t border-slate-200 bg-white py-3.5 px-6 text-center md:text-left flex flex-col md:flex-row justify-between items-center gap-2">
-            <span className="text-[10px] md:text-[11px] text-slate-400 font-bold tracking-wide">
-              © {new Date().getFullYear()} Uprise Digital. All rights reserved.
-            </span>
-            <span className="text-[10px] md:text-[11px] text-slate-400 font-medium">
-              For support, contact the{" "}
-              <span className="font-bold text-slate-500 hover:text-indigo-500 cursor-pointer">
-                Data Engineering Team
+            {/* 4. FOOTER */}
+            <footer className="border-t border-slate-200 bg-white py-3.5 px-6 text-center md:text-left flex flex-col md:flex-row justify-between items-center gap-2">
+              <span className="text-[10px] md:text-[11px] text-slate-400 font-bold tracking-wide">
+                © {new Date().getFullYear()} Uprise Digital. All rights
+                reserved.
               </span>
-              .
-            </span>
-          </footer>
-        </div>
+              <span className="text-[10px] md:text-[11px] text-slate-400 font-medium">
+                For support, contact the{" "}
+                <span className="font-bold text-slate-500 hover:text-indigo-500 cursor-pointer">
+                  Data Engineering Team
+                </span>
+                .
+              </span>
+            </footer>
+          </div>
+        )}
       </div>
       <BackgroundTasksIndicator />
     </div>
