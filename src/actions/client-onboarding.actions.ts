@@ -125,6 +125,66 @@ async function resolveClientRecords(id: number, orgId: string) {
   return { clientRecord, onboardingRecord };
 }
 
+let hasEnsuredCrmSchema = false;
+async function ensureCrmSchema() {
+  if (hasEnsuredCrmSchema) return;
+  try {
+    await db.execute(
+      sql`CREATE TABLE IF NOT EXISTS "clients" (
+            "id" serial PRIMARY KEY,
+            "organization_id" text NOT NULL REFERENCES "organization"("id") ON DELETE CASCADE,
+            "name" text NOT NULL,
+            "legal_business_name" text,
+            "industry" text NOT NULL DEFAULT 'OTHER',
+            "sub_niche" text,
+            "website_url" text,
+            "status" text NOT NULL DEFAULT 'active',
+            "drive_folder_link" text,
+            "notion_dashboard_link" text,
+            "signal_group_link" text,
+            "ghl_sub_account_id" text,
+            "google_enabled" boolean NOT NULL DEFAULT true,
+            "meta_enabled" boolean NOT NULL DEFAULT true,
+            "created_at" timestamp NOT NULL DEFAULT now(),
+            "updated_at" timestamp NOT NULL DEFAULT now()
+          );
+          CREATE TABLE IF NOT EXISTS "contacts" (
+            "id" serial PRIMARY KEY,
+            "organization_id" text NOT NULL REFERENCES "organization"("id") ON DELETE CASCADE,
+            "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL,
+            "ghl_contact_id" text,
+            "ghl_opportunity_id" text,
+            "first_name" text,
+            "last_name" text,
+            "name" text NOT NULL,
+            "email" text,
+            "phone" text,
+            "job_title" text,
+            "is_primary" boolean NOT NULL DEFAULT false,
+            "pipeline_stage" text,
+            "status" text NOT NULL DEFAULT 'active',
+            "created_at" timestamp NOT NULL DEFAULT now(),
+            "updated_at" timestamp NOT NULL DEFAULT now()
+          );
+          ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_sub_account_id" text;
+          ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_status" text DEFAULT 'pending';
+          ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_error" text;
+          ALTER TABLE "ad_accounts" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
+          ALTER TABLE "meta_ad_accounts" ADD COLUMN IF NOT EXISTS "client_onboarding_id" integer REFERENCES "client_onboardings"("id") ON DELETE SET NULL;
+          ALTER TABLE "meta_ad_accounts" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
+          ALTER TABLE "call_records" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
+          ALTER TABLE "call_records" ADD COLUMN IF NOT EXISTS "contact_id" integer REFERENCES "contacts"("id") ON DELETE SET NULL;
+          ALTER TABLE "clients" ADD COLUMN IF NOT EXISTS "google_enabled" boolean NOT NULL DEFAULT true;
+          ALTER TABLE "clients" ADD COLUMN IF NOT EXISTS "meta_enabled" boolean NOT NULL DEFAULT true;
+          ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "google_enabled" boolean NOT NULL DEFAULT true;
+          ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "meta_enabled" boolean NOT NULL DEFAULT true;`,
+    );
+    hasEnsuredCrmSchema = true;
+  } catch (migErr) {
+    console.warn("DB columns migration check warning:", migErr);
+  }
+}
+
 /**
  * Gets all client onboardings for the active organization.
  */
@@ -133,59 +193,7 @@ export async function getClientOnboardingsAction() {
     const { orgId } = await getSessionOrgId();
     if (!orgId) return { success: false, error: "No active organization" };
 
-    // Auto-migrate new columns and core clients / contacts tables if missing in Postgres DB schema
-    try {
-      await db.execute(
-        sql`CREATE TABLE IF NOT EXISTS "clients" (
-              "id" serial PRIMARY KEY,
-              "organization_id" text NOT NULL REFERENCES "organization"("id") ON DELETE CASCADE,
-              "name" text NOT NULL,
-              "legal_business_name" text,
-              "industry" text NOT NULL DEFAULT 'OTHER',
-              "sub_niche" text,
-              "website_url" text,
-              "status" text NOT NULL DEFAULT 'active',
-              "drive_folder_link" text,
-              "notion_dashboard_link" text,
-              "signal_group_link" text,
-              "ghl_sub_account_id" text,
-              "created_at" timestamp NOT NULL DEFAULT now(),
-              "updated_at" timestamp NOT NULL DEFAULT now()
-            );
-            CREATE TABLE IF NOT EXISTS "contacts" (
-              "id" serial PRIMARY KEY,
-              "organization_id" text NOT NULL REFERENCES "organization"("id") ON DELETE CASCADE,
-              "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL,
-              "ghl_contact_id" text,
-              "ghl_opportunity_id" text,
-              "first_name" text,
-              "last_name" text,
-              "name" text NOT NULL,
-              "email" text,
-              "phone" text,
-              "job_title" text,
-              "is_primary" boolean NOT NULL DEFAULT false,
-              "pipeline_stage" text,
-              "status" text NOT NULL DEFAULT 'active',
-              "created_at" timestamp NOT NULL DEFAULT now(),
-              "updated_at" timestamp NOT NULL DEFAULT now()
-            );
-            ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_sub_account_id" text;
-            ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_status" text DEFAULT 'pending';
-            ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "ghl_error" text;
-            ALTER TABLE "ad_accounts" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
-            ALTER TABLE "meta_ad_accounts" ADD COLUMN IF NOT EXISTS "client_onboarding_id" integer REFERENCES "client_onboardings"("id") ON DELETE SET NULL;
-            ALTER TABLE "meta_ad_accounts" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
-            ALTER TABLE "call_records" ADD COLUMN IF NOT EXISTS "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL;
-            ALTER TABLE "call_records" ADD COLUMN IF NOT EXISTS "contact_id" integer REFERENCES "contacts"("id") ON DELETE SET NULL;
-            ALTER TABLE "clients" ADD COLUMN IF NOT EXISTS "google_enabled" boolean NOT NULL DEFAULT true;
-            ALTER TABLE "clients" ADD COLUMN IF NOT EXISTS "meta_enabled" boolean NOT NULL DEFAULT true;
-            ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "google_enabled" boolean NOT NULL DEFAULT true;
-            ALTER TABLE "client_onboardings" ADD COLUMN IF NOT EXISTS "meta_enabled" boolean NOT NULL DEFAULT true;`,
-      );
-    } catch (migErr) {
-      console.warn("DB columns migration check warning:", migErr);
-    }
+    await ensureCrmSchema();
 
     let records: any[] = [];
     try {
@@ -2494,6 +2502,9 @@ export async function getCrmDirectoryDataAction() {
     const { orgId } = await getSessionOrgId();
     if (!orgId)
       return { success: false as const, error: "No active organization" };
+
+    // Ensure CRM tables and new platform boolean columns exist in PostgreSQL
+    await ensureCrmSchema();
 
     // 1. Fetch canonical clients
     let clientsList: any[] = [];
