@@ -913,38 +913,36 @@ export default function AgencyNegativesClient() {
                 return (
                   <Card
                     key={item.id}
-                    className={`rounded-2xl border transition-all duration-200 flex flex-col justify-between overflow-hidden shadow-2xs ${
+                    className={`rounded-xl border transition-all duration-200 flex flex-col justify-between overflow-hidden shadow-2xs ${
                       isSelected
                         ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/10"
                         : "border-slate-200/90 hover:border-slate-300 bg-white"
                     }`}
                   >
-                    <CardHeader className="bg-slate-50/60 border-b border-slate-100 p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                    <div className="bg-slate-50/70 border-b border-slate-100 px-3.5 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleSelectItem(item.id)}
-                            className="h-4 w-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                            className="h-3.5 w-3.5 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer shrink-0"
                           />
-                          <div>
+                          <div className="truncate">
                             <Link
                               href={`/accounts/${item.adAccountId}/negatives`}
-                              className="text-xs font-extrabold text-slate-800 hover:text-indigo-600 flex items-center gap-1 group"
+                              className="text-xs font-bold text-slate-800 hover:text-indigo-600 truncate flex items-center gap-1 group"
                             >
-                              {item.accountName}
-                              <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <span className="truncate">
+                                {item.accountName}
+                              </span>
+                              <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                             </Link>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              ID: {item.googleAccountId}
-                            </span>
                           </div>
                         </div>
 
-                        {/* Status Badge */}
                         <span
-                          className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full capitalize ${
+                          className={`text-[9.5px] font-extrabold px-2 py-0.2 rounded-full capitalize shrink-0 ${
                             item.status === "pending"
                               ? "bg-amber-100 text-amber-800"
                               : item.status === "approved"
@@ -958,9 +956,9 @@ export default function AgencyNegativesClient() {
                         </span>
                       </div>
 
-                      {/* Keyword Tag */}
-                      <div className="mt-3 flex items-center justify-between gap-2">
-                        <div className="font-mono text-sm font-bold text-indigo-700 bg-indigo-50/60 border border-indigo-100 px-2.5 py-1 rounded-lg">
+                      {/* Keyword Tag & Match Selector Row */}
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <div className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50/80 border border-indigo-100 px-2 py-0.5 rounded-md truncate">
                           {currentMatchType === "exact"
                             ? `[${item.keyword}]`
                             : currentMatchType === "phrase"
@@ -968,7 +966,6 @@ export default function AgencyNegativesClient() {
                               : item.keyword}
                         </div>
 
-                        {/* Match Type Selector */}
                         <select
                           value={currentMatchType}
                           onChange={(e) =>
@@ -980,72 +977,87 @@ export default function AgencyNegativesClient() {
                               },
                             }))
                           }
-                          className="text-[11px] font-semibold bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 focus:outline-none"
+                          className="text-[10.5px] font-semibold bg-white border border-slate-200 rounded-md px-1.5 py-0.5 text-slate-700 focus:outline-none shrink-0"
                         >
                           <option value="phrase">Phrase</option>
                           <option value="exact">Exact</option>
                           <option value="broad">Broad</option>
                         </select>
                       </div>
-                    </CardHeader>
+                    </div>
 
-                    <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                      <div className="space-y-3">
-                        {/* Wasted Query Metadata */}
+                    <div className="p-3 space-y-2.5 flex-1 flex flex-col justify-between text-xs">
+                      <div className="space-y-2">
+                        {/* Wasted Query Metadata + Inline Stats */}
                         {item.searchQuery && (
-                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                              Triggering Query
-                            </span>
-                            <span className="text-xs font-medium text-slate-800 font-sans">
-                              "{item.searchQuery}"
-                            </span>
+                          <div className="bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 flex items-baseline justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Triggering Query
+                              </span>
+                              <span
+                                className="text-[11px] font-medium text-slate-800 truncate block"
+                                title={item.searchQuery}
+                              >
+                                "{item.searchQuery}"
+                              </span>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Wasted
+                              </span>
+                              <span className="text-xs font-extrabold font-mono text-rose-600">
+                                {fCur(item.spend)}
+                              </span>
+                            </div>
                           </div>
                         )}
 
-                        {/* Stats Row */}
-                        <div className="grid grid-cols-3 gap-2 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 text-center">
+                        {/* Compact Stats Pill Bar (Spend, Clicks, Convs) */}
+                        <div className="flex items-center justify-around bg-slate-50/80 py-1.5 px-2 rounded-lg border border-slate-100 text-center text-[10.5px]">
                           <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase">
-                              Spend
+                            <span className="text-[8.5px] text-slate-400 font-bold uppercase mr-1">
+                              Spend:
                             </span>
-                            <p className="text-xs font-extrabold font-mono text-slate-800 mt-0.5">
+                            <span className="font-extrabold font-mono text-slate-800">
                               {fCur(item.spend)}
-                            </p>
-                          </div>
-                          <div className="border-x border-slate-200/80">
-                            <span className="text-[9px] text-slate-400 font-bold uppercase">
-                              Clicks
                             </span>
-                            <p className="text-xs font-extrabold font-mono text-slate-800 mt-0.5">
-                              {item.clicks}
-                            </p>
                           </div>
+                          <div className="h-3 w-px bg-slate-200" />
                           <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase">
-                              Convs
+                            <span className="text-[8.5px] text-slate-400 font-bold uppercase mr-1">
+                              Clicks:
                             </span>
-                            <p className="text-xs font-extrabold font-mono text-slate-800 mt-0.5">
+                            <span className="font-extrabold font-mono text-slate-800">
+                              {item.clicks}
+                            </span>
+                          </div>
+                          <div className="h-3 w-px bg-slate-200" />
+                          <div>
+                            <span className="text-[8.5px] text-slate-400 font-bold uppercase mr-1">
+                              Convs:
+                            </span>
+                            <span className="font-extrabold font-mono text-slate-800">
                               {item.conversions}
-                            </p>
+                            </span>
                           </div>
                         </div>
 
                         {/* Rationale */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
-                            <Info className="h-3 w-3 text-indigo-400" />
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                            <Info className="h-2.5 w-2.5 text-indigo-400 shrink-0" />
                             AI Rationale
                           </span>
-                          <p className="text-xs text-slate-600 bg-indigo-50/20 p-2 rounded-lg border border-indigo-50 leading-relaxed italic">
+                          <p className="text-[11px] text-slate-600 bg-indigo-50/20 p-2 rounded-lg border border-indigo-50/60 leading-relaxed italic line-clamp-3 hover:line-clamp-none transition-all">
                             {item.rationale}
                           </p>
                         </div>
 
                         {/* Target Scope */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] text-slate-400 font-bold uppercase block">
-                            Target Scope
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase shrink-0">
+                            Scope:
                           </span>
                           <select
                             value={currentScope}
@@ -1058,7 +1070,7 @@ export default function AgencyNegativesClient() {
                                 },
                               }))
                             }
-                            className="text-xs bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-600 font-semibold focus:outline-none w-full"
+                            className="text-[11px] bg-white border border-slate-200 rounded-md px-2 py-1 text-slate-600 font-medium focus:outline-none w-full truncate"
                           >
                             <option value="global">
                               Global (Account-wide)
@@ -1071,23 +1083,23 @@ export default function AgencyNegativesClient() {
 
                         {/* Prior Error */}
                         {item.error && (
-                          <div className="p-2 bg-rose-50 text-rose-700 border border-rose-100 rounded-lg text-[10px] flex items-start gap-1.5">
-                            <AlertTriangle className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />
-                            <span>{item.error}</span>
+                          <div className="p-1.5 bg-rose-50 text-rose-700 border border-rose-100 rounded-md text-[9.5px] flex items-start gap-1">
+                            <AlertTriangle className="h-3 w-3 text-rose-500 shrink-0 mt-0.5" />
+                            <span className="truncate">{item.error}</span>
                           </div>
                         )}
                       </div>
 
                       {/* Card Footer Actions */}
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-1.5 mt-4">
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-1.5 mt-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           disabled={isWorking}
                           onClick={() => handleSingleAction(item.id, "denied")}
-                          className="text-xs text-slate-500 hover:text-slate-800 rounded-lg h-8 px-2.5"
+                          className="text-[11px] text-slate-500 hover:text-slate-800 rounded-lg h-7 px-2"
                         >
-                          <X className="h-3.5 w-3.5 mr-1" />
+                          <X className="h-3 w-3 mr-0.5" />
                           Deny
                         </Button>
                         <Button
@@ -1097,9 +1109,9 @@ export default function AgencyNegativesClient() {
                           onClick={() =>
                             handleSingleAction(item.id, "archived")
                           }
-                          className="text-xs text-slate-400 hover:text-slate-600 rounded-lg h-8 px-2"
+                          className="text-[11px] text-slate-400 hover:text-slate-600 rounded-lg h-7 px-1.5"
                         >
-                          <Archive className="h-3.5 w-3.5 mr-1" />
+                          <Archive className="h-3 w-3 mr-0.5" />
                           Archive
                         </Button>
                         <Button
@@ -1108,17 +1120,17 @@ export default function AgencyNegativesClient() {
                           onClick={() =>
                             handleSingleAction(item.id, "approved")
                           }
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg h-8 px-3 shadow-2xs flex items-center gap-1"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg h-7 px-2.5 shadow-2xs flex items-center gap-1"
                         >
                           {isWorking ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <Check className="h-3.5 w-3.5" />
+                            <Check className="h-3 w-3" />
                           )}
                           Approve
                         </Button>
                       </div>
-                    </CardContent>
+                    </div>
                   </Card>
                 );
               })}
