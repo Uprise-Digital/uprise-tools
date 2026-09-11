@@ -33,14 +33,14 @@ export function TopProgressBar({
       className={cn(
         "fixed top-0 left-0 right-0 z-50 h-1 overflow-hidden pointer-events-none transition-opacity duration-200",
         trackColors[color],
-        className
+        className,
       )}
     >
       <div
         className={cn(
           "h-full w-1/3 relative rounded-full animate-indeterminate-slide",
           barColors[color],
-          barClassName
+          barClassName,
         )}
       />
     </div>

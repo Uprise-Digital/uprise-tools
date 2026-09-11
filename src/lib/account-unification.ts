@@ -105,7 +105,10 @@ function levenshteinDistance(a: string, b: string): number {
   for (let i = 1; i <= m; i++) {
     let prev = i;
     for (let j = 1; j <= n; j++) {
-      const val = a[i - 1] === b[j - 1] ? row[j - 1] : Math.min(row[j - 1], prev, row[j]) + 1;
+      const val =
+        a[i - 1] === b[j - 1]
+          ? row[j - 1]
+          : Math.min(row[j - 1], prev, row[j]) + 1;
       row[j - 1] = prev;
       prev = val;
     }
@@ -132,10 +135,7 @@ export function stemAccountName(name: string): string {
   if (!norm) return "";
 
   // Strip trailing 's' or plural endings across known segments or words
-  return norm
-    .replace(/ies\b/g, "y")
-    .replace(/es\b/g, "")
-    .replace(/s\b/g, "");
+  return norm.replace(/ies\b/g, "y").replace(/es\b/g, "").replace(/s\b/g, "");
 }
 
 /**
@@ -231,19 +231,21 @@ export function unifyAccounts(
 
     // Pass 0: Explicit Client Association (Source of Truth!)
     let metaMatch = gClientId
-      ? metaByClientIdMap
-          .get(gClientId)
-          ?.find((m) => !matchedMetaIds.has(m.id))
+      ? metaByClientIdMap.get(gClientId)?.find((m) => !matchedMetaIds.has(m.id))
       : undefined;
 
     // Pass 1: Exact normalized match
     if (!metaMatch && normName) {
-      metaMatch = metaByNameMap.get(normName)?.find((m) => !matchedMetaIds.has(m.id));
+      metaMatch = metaByNameMap
+        .get(normName)
+        ?.find((m) => !matchedMetaIds.has(m.id));
     }
 
     // Pass 2: Stemmed match (e.g. "xtech" vs "xtechs", "renewable" vs "renewables")
     if (!metaMatch && stemName) {
-      metaMatch = metaByStemMap.get(stemName)?.find((m) => !matchedMetaIds.has(m.id));
+      metaMatch = metaByStemMap
+        .get(stemName)
+        ?.find((m) => !matchedMetaIds.has(m.id));
     }
 
     // Pass 3: Fuzzy / Levenshtein distance match against remaining Meta accounts
@@ -262,7 +264,8 @@ export function unifyAccounts(
         primaryId: gAcc.id,
         primaryPlatform: "google",
         clientId: gAcc.clientId || metaMatch.clientId || null,
-        clientOnboardingId: gAcc.clientOnboardingId || metaMatch.clientOnboardingId || null,
+        clientOnboardingId:
+          gAcc.clientOnboardingId || metaMatch.clientOnboardingId || null,
         googleId: gAcc.id,
         googleAccountId: gAcc.googleAccountId,
         googleStatus: gAcc.googleStatus,

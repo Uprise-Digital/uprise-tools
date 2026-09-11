@@ -681,7 +681,16 @@ export default function NegativesClientWorkspace({
 
   return (
     <div className="space-y-6 p-4 max-w-7xl mx-auto min-h-screen relative">
-      <TopProgressBar loading={isLoadingDB || isLoadingLiveNegs || isGenerating || isUpdatingTurbo || isSavingPersona} color="indigo" />
+      <TopProgressBar
+        loading={
+          isLoadingDB ||
+          isLoadingLiveNegs ||
+          isGenerating ||
+          isUpdatingTurbo ||
+          isSavingPersona
+        }
+        color="indigo"
+      />
       {!account.isActive && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-3 shadow-sm">
           <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />

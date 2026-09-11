@@ -66,8 +66,8 @@ export async function getGhlCredentials(
     });
 
     const candidateKey = preferAgency
-      ? (settings?.ghlAgencyApiKey || settings?.ghlApiKey)
-      : (settings?.ghlApiKey || settings?.ghlAgencyApiKey);
+      ? settings?.ghlAgencyApiKey || settings?.ghlApiKey
+      : settings?.ghlApiKey || settings?.ghlAgencyApiKey;
 
     if (candidateKey) {
       try {

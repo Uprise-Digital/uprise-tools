@@ -87,6 +87,8 @@ export interface ClientEntity {
   latestSentiment?: string | null;
   createdAt: Date;
   updatedAt: Date;
+  googleEnabled?: boolean;
+  metaEnabled?: boolean;
   adAccounts?: { id: number; name: string; googleAccountId: string }[];
   metaAdAccounts?: { id: number; name: string; metaAccountId: string }[];
 }
@@ -136,7 +138,9 @@ export default function ClientsDirectoryClient() {
   const [loadingGhl, setLoadingGhl] = useState(false);
   const [ghlSearchError, setGhlSearchError] = useState<string | null>(null);
   const [hasSearchedGhl, setHasSearchedGhl] = useState(false);
-  const [selectedGhlContact, setSelectedGhlContact] = useState<any | null>(null);
+  const [selectedGhlContact, setSelectedGhlContact] = useState<any | null>(
+    null,
+  );
 
   // Multi-Select & Merge States
   const [selectedClientIds, setSelectedClientIds] = useState<number[]>([]);
@@ -181,14 +185,16 @@ export default function ClientsDirectoryClient() {
       setGhlSearchError(null);
       try {
         const res = await fetch(
-          `/api/gohighlevel/search?q=${encodeURIComponent(ghlSearchQuery.trim())}`
+          `/api/gohighlevel/search?q=${encodeURIComponent(ghlSearchQuery.trim())}`,
         );
         const data = await res.json();
         if (res.ok && data.contacts) {
           setGhlResults(data.contacts);
           setHasSearchedGhl(true);
         } else if (!res.ok || data.error) {
-          setGhlSearchError(data.error || "Failed to search GoHighLevel contacts.");
+          setGhlSearchError(
+            data.error || "Failed to search GoHighLevel contacts.",
+          );
           setGhlResults([]);
           setHasSearchedGhl(true);
         }
@@ -204,7 +210,9 @@ export default function ClientsDirectoryClient() {
   }, [ghlSearchQuery]);
 
   // Duplicate Detection States
-  const [duplicateMatches, setDuplicateMatches] = useState<ExistingClientMatch[]>([]);
+  const [duplicateMatches, setDuplicateMatches] = useState<
+    ExistingClientMatch[]
+  >([]);
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
 
   // Debounced duplicate checker
@@ -247,21 +255,31 @@ export default function ClientsDirectoryClient() {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [formClientName, formContactName, formEmail, selectedGhlContact, isNewClientOpen]);
+  }, [
+    formClientName,
+    formContactName,
+    formEmail,
+    selectedGhlContact,
+    isNewClientOpen,
+  ]);
 
   const handleSyncGhlClients = async () => {
     setIsSyncingGhl(true);
-    const toastId = toast.loading("Syncing all clients & contacts from GoHighLevel...");
+    const toastId = toast.loading(
+      "Syncing all clients & contacts from GoHighLevel...",
+    );
     try {
       const res = await syncAllGhlClientsAction();
       if (res.success) {
         toast.success(
           `GHL Sync Complete! Found ${res.totalFound} contact(s) (${res.totalImported} imported, ${res.totalUpdated} updated)`,
-          { id: toastId }
+          { id: toastId },
         );
         await loadData();
       } else {
-        toast.error(res.error || "Failed to sync clients from GHL", { id: toastId });
+        toast.error(res.error || "Failed to sync clients from GHL", {
+          id: toastId,
+        });
       }
     } catch (err: any) {
       toast.error(err.message || "GHL Sync failed", { id: toastId });
@@ -272,17 +290,21 @@ export default function ClientsDirectoryClient() {
 
   const handleSyncCallNotes = async () => {
     setIsSyncingNotes(true);
-    const toastId = toast.loading("Scanning calls and pushing ~100-word summaries into GHL Contact Notes...");
+    const toastId = toast.loading(
+      "Scanning calls and pushing ~100-word summaries into GHL Contact Notes...",
+    );
     try {
       const res = await syncGhlCallNotesAction();
       if (res.success) {
         toast.success(
           `GHL Notes Sync Complete! Posted ${res.totalNotesPosted} note(s) into GoHighLevel across ${res.totalProcessed} calls.`,
-          { id: toastId }
+          { id: toastId },
         );
         await loadData();
       } else {
-        toast.error(res.error || "Failed to sync call notes into GHL", { id: toastId });
+        toast.error(res.error || "Failed to sync call notes into GHL", {
+          id: toastId,
+        });
       }
     } catch (err: any) {
       toast.error(err.message || "Call Notes Sync failed", { id: toastId });
@@ -293,13 +315,15 @@ export default function ClientsDirectoryClient() {
 
   const handleMigrateGhl = async () => {
     setIsMigrating(true);
-    const toastId = toast.loading("Organizing records into canonical Clients and linked Contacts...");
+    const toastId = toast.loading(
+      "Organizing records into canonical Clients and linked Contacts...",
+    );
     try {
       const res = await migrateGhlRecordsToClientsAndContactsAction();
       if (res.success) {
         toast.success(
           `CRM Clean Complete! Organized into ${res.clientsCreated} unique Client(s), ${res.contactsCreated} Contact(s), and linked ${res.accountsLinked} ad account(s).`,
-          { id: toastId, duration: 6000 }
+          { id: toastId, duration: 6000 },
         );
         await loadData();
       } else {
@@ -332,9 +356,11 @@ export default function ClientsDirectoryClient() {
     }
 
     if (duplicateMatches.length > 0) {
-      const existingNames = duplicateMatches.map((m) => `"${m.name}"`).join(", ");
+      const existingNames = duplicateMatches
+        .map((m) => `"${m.name}"`)
+        .join(", ");
       const confirmed = window.confirm(
-        `Warning: Existing client/contact record(s) (${existingNames}) were found matching this name or email.\n\nDo you still want to create a new client record anyway?`
+        `Warning: Existing client/contact record(s) (${existingNames}) were found matching this name or email.\n\nDo you still want to create a new client record anyway?`,
       );
       if (!confirmed) {
         return;
@@ -349,6 +375,8 @@ export default function ClientsDirectoryClient() {
         contactEmail: formEmail,
         googleAdsAccess: formGoogleAds,
         metaAdsAccess: formMetaAds,
+        googleEnabled: formGoogleAds,
+        metaEnabled: formMetaAds,
         ghlContactId: selectedGhlContact?.id || "",
       });
 
@@ -369,14 +397,20 @@ export default function ClientsDirectoryClient() {
       }
     } catch (err: any) {
       console.error("Client Onboarding submit error:", err);
-      toast.error(`Error creating client record: ${err.message || String(err)}`);
+      toast.error(
+        `Error creating client record: ${err.message || String(err)}`,
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteClient = async (clientId: number, clientName: string) => {
-    if (!confirm(`Are you sure you want to delete ${clientName}? This will unlink any connected ad accounts and contacts.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete ${clientName}? This will unlink any connected ad accounts and contacts.`,
+      )
+    ) {
       return;
     }
 
@@ -395,27 +429,40 @@ export default function ClientsDirectoryClient() {
 
   const toggleSelectClient = (id: number) => {
     setSelectedClientIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
   };
 
   const toggleSelectAll = (visibleIds: number[]) => {
     if (visibleIds.length === 0) return;
-    const allSelected = visibleIds.every((id) => selectedClientIds.includes(id));
+    const allSelected = visibleIds.every((id) =>
+      selectedClientIds.includes(id),
+    );
     if (allSelected) {
-      setSelectedClientIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+      setSelectedClientIds((prev) =>
+        prev.filter((id) => !visibleIds.includes(id)),
+      );
     } else {
-      setSelectedClientIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+      setSelectedClientIds((prev) =>
+        Array.from(new Set([...prev, ...visibleIds])),
+      );
     }
   };
 
-  const handleBulkUpdateStatus = async (status: "active" | "pending" | "churned") => {
+  const handleBulkUpdateStatus = async (
+    status: "active" | "pending" | "churned",
+  ) => {
     if (selectedClientIds.length === 0) return;
-    const toastId = toast.loading(`Setting ${selectedClientIds.length} client(s) to ${status}...`);
+    const toastId = toast.loading(
+      `Setting ${selectedClientIds.length} client(s) to ${status}...`,
+    );
     try {
       const res = await bulkUpdateClientStatusAction(selectedClientIds, status);
       if (res.success) {
-        toast.success(`Updated ${res.updatedCount || selectedClientIds.length} client(s) to ${status}!`, { id: toastId });
+        toast.success(
+          `Updated ${res.updatedCount || selectedClientIds.length} client(s) to ${status}!`,
+          { id: toastId },
+        );
         setSelectedClientIds([]);
         await loadData();
       } else {
@@ -423,11 +470,17 @@ export default function ClientsDirectoryClient() {
       }
     } catch (err: any) {
       console.error("Failed to bulk update client status:", err);
-      toast.error(err.message || "Error updating client status", { id: toastId });
+      toast.error(err.message || "Error updating client status", {
+        id: toastId,
+      });
     }
   };
 
-  const handleUpdateSingleStatus = async (clientId: number, clientName: string, status: "active" | "pending" | "churned") => {
+  const handleUpdateSingleStatus = async (
+    clientId: number,
+    clientName: string,
+    status: "active" | "pending" | "churned",
+  ) => {
     const toastId = toast.loading(`Setting ${clientName} to ${status}...`);
     try {
       const res = await bulkUpdateClientStatusAction([clientId], status);
@@ -461,14 +514,18 @@ export default function ClientsDirectoryClient() {
       return;
     }
 
-    const secondaryIds = selectedClientIds.filter((id) => id !== primaryTargetId);
+    const secondaryIds = selectedClientIds.filter(
+      (id) => id !== primaryTargetId,
+    );
     if (secondaryIds.length === 0) {
       toast.error("Please select at least one secondary client to merge.");
       return;
     }
 
     setIsMerging(true);
-    const toastId = toast.loading("Merging clients and consolidating ad accounts...");
+    const toastId = toast.loading(
+      "Merging clients and consolidating ad accounts...",
+    );
     try {
       const res = await mergeClientsAction({
         targetClientId: primaryTargetId,
@@ -479,7 +536,7 @@ export default function ClientsDirectoryClient() {
       if (res.success) {
         toast.success(
           `Successfully merged ${selectedClientIds.length} clients into "${customFinalName || "Primary Client"}"!`,
-          { id: toastId }
+          { id: toastId },
         );
         setIsMergeModalOpen(false);
         setSelectedClientIds([]);
@@ -512,12 +569,17 @@ export default function ClientsDirectoryClient() {
       if (clientTab === "active") {
         if (c.status !== "active" && c.status !== "completed") return false;
       } else if (clientTab === "pending") {
-        if (c.status !== "pending" && c.status !== "draft" && c.status !== "in_progress") return false;
+        if (
+          c.status !== "pending" &&
+          c.status !== "draft" &&
+          c.status !== "in_progress"
+        )
+          return false;
       } else if (clientTab === "churned") {
         if (c.status !== "churned" && c.status !== "cancelled") return false;
       } else if (clientTab === "with_ads") {
-        const hasGoogle = (c.adAccounts && c.adAccounts.length > 0);
-        const hasMeta = (c.metaAdAccounts && c.metaAdAccounts.length > 0);
+        const hasGoogle = c.adAccounts && c.adAccounts.length > 0;
+        const hasMeta = c.metaAdAccounts && c.metaAdAccounts.length > 0;
         if (!hasGoogle && !hasMeta) return false;
       }
 
@@ -536,18 +598,30 @@ export default function ClientsDirectoryClient() {
     // Sorting
     result.sort((a, b) => {
       if (sortBy === "last_contacted") {
-        const aTime = a.lastCallAt ? new Date(a.lastCallAt).getTime() : new Date(a.createdAt).getTime();
-        const bTime = b.lastCallAt ? new Date(b.lastCallAt).getTime() : new Date(b.createdAt).getTime();
+        const aTime = a.lastCallAt
+          ? new Date(a.lastCallAt).getTime()
+          : new Date(a.createdAt).getTime();
+        const bTime = b.lastCallAt
+          ? new Date(b.lastCallAt).getTime()
+          : new Date(b.createdAt).getTime();
         if (a.callCount && !b.callCount) return -1;
         if (!a.callCount && b.callCount) return 1;
         return bTime - aTime;
       }
-      if (sortBy === "call_count") return (b.callCount || 0) - (a.callCount || 0);
-      if (sortBy === "lead_score") return (b.latestLeadScore || 0) - (a.latestLeadScore || 0);
+      if (sortBy === "call_count")
+        return (b.callCount || 0) - (a.callCount || 0);
+      if (sortBy === "lead_score")
+        return (b.latestLeadScore || 0) - (a.latestLeadScore || 0);
       if (sortBy === "name_asc") return a.name.localeCompare(b.name);
       if (sortBy === "name_desc") return b.name.localeCompare(a.name);
-      if (sortBy === "created_desc") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      if (sortBy === "created_asc") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (sortBy === "created_desc")
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      if (sortBy === "created_asc")
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       return 0;
     });
 
@@ -556,13 +630,27 @@ export default function ClientsDirectoryClient() {
 
   // Counts for Metric Cards & Tabs
   const totalClientsCount = clients.length;
-  const activeClientsCount = clients.filter((c) => c.status === "active" || c.status === "completed").length;
-  const pendingClientsCount = clients.filter((c) => c.status === "pending" || c.status === "draft" || c.status === "in_progress").length;
-  const churnedClientsCount = clients.filter((c) => c.status === "churned" || c.status === "cancelled").length;
-  const clientsWithAdsCount = clients.filter(
-    (c) => (c.adAccounts && c.adAccounts.length > 0) || (c.metaAdAccounts && c.metaAdAccounts.length > 0)
+  const activeClientsCount = clients.filter(
+    (c) => c.status === "active" || c.status === "completed",
   ).length;
-  const totalCallsLogged = clients.reduce((acc, c) => acc + (c.callCount || 0), 0);
+  const pendingClientsCount = clients.filter(
+    (c) =>
+      c.status === "pending" ||
+      c.status === "draft" ||
+      c.status === "in_progress",
+  ).length;
+  const churnedClientsCount = clients.filter(
+    (c) => c.status === "churned" || c.status === "cancelled",
+  ).length;
+  const clientsWithAdsCount = clients.filter(
+    (c) =>
+      (c.adAccounts && c.adAccounts.length > 0) ||
+      (c.metaAdAccounts && c.metaAdAccounts.length > 0),
+  ).length;
+  const totalCallsLogged = clients.reduce(
+    (acc, c) => acc + (c.callCount || 0),
+    0,
+  );
 
   const resetFilters = () => {
     setSearchTerm("");
@@ -579,7 +667,10 @@ export default function ClientsDirectoryClient() {
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 relative">
-      <TopProgressBar loading={loading || isSyncingGhl || isMigrating || isSyncingNotes} color="indigo" />
+      <TopProgressBar
+        loading={loading || isSyncingGhl || isMigrating || isSyncingNotes}
+        color="indigo"
+      />
       {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -587,7 +678,8 @@ export default function ClientsDirectoryClient() {
             Clients Directory
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Manage canonical client businesses, connected Google &amp; Meta ad accounts, and client workspaces.
+            Manage canonical client businesses, connected Google &amp; Meta ad
+            accounts, and client workspaces.
           </p>
         </div>
 
@@ -599,7 +691,12 @@ export default function ClientsDirectoryClient() {
             className="border-purple-200 hover:bg-purple-50 text-purple-700 font-bold text-xs h-9 px-3.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
             title="Scan calls, generate summaries, and write notes directly to GHL Contact profiles"
           >
-            <PhoneCall className={cn("h-3.5 w-3.5 text-purple-600", isSyncingNotes && "animate-spin")} />
+            <PhoneCall
+              className={cn(
+                "h-3.5 w-3.5 text-purple-600",
+                isSyncingNotes && "animate-spin",
+              )}
+            />
             {isSyncingNotes ? "Syncing Notes..." : "Auto-Sync GHL Call Notes"}
           </Button>
 
@@ -610,7 +707,12 @@ export default function ClientsDirectoryClient() {
             className="border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-bold text-xs h-9 px-3.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
             title="Organize GHL records into canonical Clients and Contacts, automatically linking Google and Meta accounts."
           >
-            <Building2 className={cn("h-3.5 w-3.5 text-indigo-600", isMigrating && "animate-spin")} />
+            <Building2
+              className={cn(
+                "h-3.5 w-3.5 text-indigo-600",
+                isMigrating && "animate-spin",
+              )}
+            />
             {isMigrating ? "Organizing..." : "Organize CRM (Deduplicate)"}
           </Button>
 
@@ -620,7 +722,12 @@ export default function ClientsDirectoryClient() {
             variant="outline"
             className="border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs h-9 px-3.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
-            <RefreshCw className={cn("h-3.5 w-3.5 text-indigo-600", isSyncingGhl && "animate-spin")} />
+            <RefreshCw
+              className={cn(
+                "h-3.5 w-3.5 text-indigo-600",
+                isSyncingGhl && "animate-spin",
+              )}
+            />
             {isSyncingGhl ? "Syncing GHL..." : "Sync GHL"}
           </Button>
 
@@ -711,7 +818,9 @@ export default function ClientsDirectoryClient() {
               onClick={() => setClientTab("all")}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                clientTab === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                clientTab === "all"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900",
               )}
             >
               All Clients ({totalClientsCount})
@@ -721,7 +830,9 @@ export default function ClientsDirectoryClient() {
               onClick={() => setClientTab("active")}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                clientTab === "active" ? "bg-white text-emerald-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                clientTab === "active"
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900",
               )}
             >
               Active ({activeClientsCount})
@@ -731,7 +842,9 @@ export default function ClientsDirectoryClient() {
               onClick={() => setClientTab("pending")}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                clientTab === "pending" ? "bg-white text-amber-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                clientTab === "pending"
+                  ? "bg-white text-amber-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900",
               )}
             >
               Pending ({pendingClientsCount})
@@ -741,7 +854,9 @@ export default function ClientsDirectoryClient() {
               onClick={() => setClientTab("churned")}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                clientTab === "churned" ? "bg-white text-rose-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                clientTab === "churned"
+                  ? "bg-white text-rose-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900",
               )}
             >
               Churned ({churnedClientsCount})
@@ -751,7 +866,9 @@ export default function ClientsDirectoryClient() {
               onClick={() => setClientTab("with_ads")}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                clientTab === "with_ads" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                clientTab === "with_ads"
+                  ? "bg-white text-indigo-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900",
               )}
             >
               With Ad Accounts ({clientsWithAdsCount})
@@ -770,7 +887,7 @@ export default function ClientsDirectoryClient() {
                 "px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-colors",
                 callFilter === "all"
                   ? "bg-slate-900 text-white border-slate-900"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
               )}
             >
               All
@@ -782,7 +899,7 @@ export default function ClientsDirectoryClient() {
                 "px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-colors flex items-center gap-1",
                 callFilter === "has_calls"
                   ? "bg-purple-600 text-white border-purple-600"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
               )}
             >
               <PhoneCall className="h-3 w-3" /> With Calls
@@ -794,7 +911,7 @@ export default function ClientsDirectoryClient() {
                 "px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-colors flex items-center gap-1",
                 callFilter === "hot_leads"
                   ? "bg-rose-600 text-white border-rose-600"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
               )}
             >
               <Flame className="h-3 w-3 text-amber-300" /> Hot (7+)
@@ -823,7 +940,9 @@ export default function ClientsDirectoryClient() {
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 font-medium outline-none focus:border-indigo-500 cursor-pointer"
               >
-                <option value="last_contacted">Sort by: Last Call / Contact</option>
+                <option value="last_contacted">
+                  Sort by: Last Call / Contact
+                </option>
                 <option value="call_count">Sort by: Call Count</option>
                 <option value="lead_score">Sort by: Highest Lead Score</option>
                 <option value="created_desc">Sort by: Added (Newest)</option>
@@ -856,9 +975,13 @@ export default function ClientsDirectoryClient() {
                     type="checkbox"
                     checked={
                       filteredAndSortedClients.length > 0 &&
-                      filteredAndSortedClients.every((c) => selectedClientIds.includes(c.id))
+                      filteredAndSortedClients.every((c) =>
+                        selectedClientIds.includes(c.id),
+                      )
                     }
-                    onChange={() => toggleSelectAll(filteredAndSortedClients.map((c) => c.id))}
+                    onChange={() =>
+                      toggleSelectAll(filteredAndSortedClients.map((c) => c.id))
+                    }
                     className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer h-4 w-4"
                     title="Select all visible clients"
                   />
@@ -892,10 +1015,20 @@ export default function ClientsDirectoryClient() {
                 />
               ) : filteredAndSortedClients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-sm space-y-2">
-                    <p className="font-semibold text-slate-700">No clients found matching the selected filters.</p>
+                  <TableCell
+                    colSpan={7}
+                    className="text-center py-12 text-slate-400 text-sm space-y-2"
+                  >
+                    <p className="font-semibold text-slate-700">
+                      No clients found matching the selected filters.
+                    </p>
                     {hasActiveFilters && (
-                      <Button variant="outline" size="sm" onClick={resetFilters} className="text-xs text-indigo-600 hover:bg-indigo-50 border-indigo-200">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={resetFilters}
+                        className="text-xs text-indigo-600 hover:bg-indigo-50 border-indigo-200"
+                      >
                         Clear Filters
                       </Button>
                     )}
@@ -909,12 +1042,17 @@ export default function ClientsDirectoryClient() {
                       key={client.id}
                       className={cn(
                         "border-slate-100 transition-colors cursor-pointer",
-                        isSelected ? "bg-indigo-50/70 hover:bg-indigo-50" : "hover:bg-slate-50/80"
+                        isSelected
+                          ? "bg-indigo-50/70 hover:bg-indigo-50"
+                          : "hover:bg-slate-50/80",
                       )}
                       onClick={() => router.push(`/clients/${client.id}`)}
                     >
                       {/* Checkbox Column */}
-                      <TableCell className="py-3 pl-4" onClick={(e) => e.stopPropagation()}>
+                      <TableCell
+                        className="py-3 pl-4"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -930,29 +1068,41 @@ export default function ClientsDirectoryClient() {
                             <span className="hover:text-indigo-600 transition-colors font-bold text-slate-900">
                               {client.name}
                             </span>
-                            <div className="relative inline-flex items-center" onClick={(e) => e.stopPropagation()}>
+                            <div
+                              className="relative inline-flex items-center"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <select
                                 value={
-                                  client.status === "pending" || client.status === "draft" || client.status === "in_progress"
+                                  client.status === "pending" ||
+                                  client.status === "draft" ||
+                                  client.status === "in_progress"
                                     ? "pending"
-                                    : client.status === "churned" || client.status === "cancelled"
-                                    ? "churned"
-                                    : "active"
+                                    : client.status === "churned" ||
+                                        client.status === "cancelled"
+                                      ? "churned"
+                                      : "active"
                                 }
                                 onChange={(e) =>
                                   handleUpdateSingleStatus(
                                     client.id,
                                     client.name,
-                                    e.target.value as "active" | "pending" | "churned"
+                                    e.target.value as
+                                      | "active"
+                                      | "pending"
+                                      | "churned",
                                   )
                                 }
                                 className={cn(
                                   "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border cursor-pointer appearance-none pr-5 transition-all outline-none",
-                                  client.status === "churned" || client.status === "cancelled"
+                                  client.status === "churned" ||
+                                    client.status === "cancelled"
                                     ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
-                                    : client.status === "pending" || client.status === "draft" || client.status === "in_progress"
-                                    ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                                    : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                    : client.status === "pending" ||
+                                        client.status === "draft" ||
+                                        client.status === "in_progress"
+                                      ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                                      : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
                                 )}
                                 title="Change client status"
                               >
@@ -963,174 +1113,192 @@ export default function ClientsDirectoryClient() {
                               <ChevronDown className="h-3 w-3 absolute right-1.5 pointer-events-none text-slate-400" />
                             </div>
                           </div>
-                          {client.legalBusinessName && client.legalBusinessName !== client.name && (
-                            <span className="block text-[11px] font-normal text-slate-400">
-                              {client.legalBusinessName}
-                            </span>
+                          {client.legalBusinessName &&
+                            client.legalBusinessName !== client.name && (
+                              <span className="block text-[11px] font-normal text-slate-400">
+                                {client.legalBusinessName}
+                              </span>
+                            )}
+                        </div>
+                      </TableCell>
+
+                      {/* Industry & Details */}
+                      <TableCell className="py-3 text-sm">
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                            {client.industry || "OTHER"}
+                          </span>
+                          {client.websiteUrl && (
+                            <a
+                              href={client.websiteUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="block text-[11px] text-indigo-600 hover:underline truncate max-w-[160px]"
+                            >
+                              {client.websiteUrl.replace(/^https?:\/\//, "")}
+                            </a>
                           )}
                         </div>
                       </TableCell>
 
-                    {/* Industry & Details */}
-                    <TableCell className="py-3 text-sm">
-                      <div className="space-y-0.5">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                          {client.industry || "OTHER"}
-                        </span>
-                        {client.websiteUrl && (
-                          <a
-                            href={client.websiteUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="block text-[11px] text-indigo-600 hover:underline truncate max-w-[160px]"
-                          >
-                            {client.websiteUrl.replace(/^https?:\/\//, "")}
-                          </a>
-                        )}
-                      </div>
-                    </TableCell>
+                      {/* Connected Ad Accounts */}
+                      <TableCell className="py-3">
+                        <div className="flex flex-col gap-1 items-start">
+                          {client.adAccounts && client.adAccounts.length > 0
+                            ? client.adAccounts.map((acc) => (
+                                <span
+                                  key={acc.id}
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-700 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors"
+                                  title={`Google Ads: ${acc.name} (${acc.googleAccountId})`}
+                                >
+                                  <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="truncate max-w-[130px] font-medium">
+                                    {acc.name}
+                                  </span>
+                                </span>
+                              ))
+                            : null}
 
-                    {/* Connected Ad Accounts */}
-                    <TableCell className="py-3">
-                      <div className="flex flex-col gap-1 items-start">
-                        {client.adAccounts && client.adAccounts.length > 0 ? (
-                          client.adAccounts.map((acc) => (
-                            <span
-                              key={acc.id}
-                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-700 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors"
-                              title={`Google Ads: ${acc.name} (${acc.googleAccountId})`}
-                            >
-                              <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
-                              <span className="truncate max-w-[130px] font-medium">{acc.name}</span>
-                            </span>
-                          ))
-                        ) : null}
+                          {client.metaAdAccounts &&
+                          client.metaAdAccounts.length > 0
+                            ? client.metaAdAccounts.map((acc) => (
+                                <span
+                                  key={acc.id}
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-700 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors"
+                                  title={`Meta Ads: ${acc.name} (${acc.metaAccountId})`}
+                                >
+                                  <MetaLogo className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="truncate max-w-[130px] font-medium">
+                                    {acc.name}
+                                  </span>
+                                </span>
+                              ))
+                            : null}
 
-                        {client.metaAdAccounts && client.metaAdAccounts.length > 0 ? (
-                          client.metaAdAccounts.map((acc) => (
-                            <span
-                              key={acc.id}
-                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-700 border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors"
-                              title={`Meta Ads: ${acc.name} (${acc.metaAccountId})`}
-                            >
-                              <MetaLogo className="w-3.5 h-3.5 shrink-0" />
-                              <span className="truncate max-w-[130px] font-medium">{acc.name}</span>
-                            </span>
-                          ))
-                        ) : null}
-
-                        {!client.adAccounts?.length && !client.metaAdAccounts?.length && (
-                          <span className="text-[11px] text-slate-400">No ad accounts</span>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    {/* Contacts Count */}
-                    <TableCell className="py-3 text-sm">
-                      <Link
-                        href={`/contacts?search=${encodeURIComponent(client.name)}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 transition-colors"
-                        title="View client contacts in Contacts directory"
-                      >
-                        <Users className="h-3 w-3 text-slate-500" />
-                        {client.contactsCount || 0} contact{(client.contactsCount || 0) === 1 ? "" : "s"}
-                      </Link>
-                    </TableCell>
-
-                    {/* Call History */}
-                    <TableCell className="py-3">
-                      {client.callCount && client.callCount > 0 ? (
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
-                              <PhoneCall className="h-2.5 w-2.5 text-purple-600" />
-                              {client.callCount} call{client.callCount > 1 ? "s" : ""}
-                            </span>
-                            {client.latestLeadScore !== null && client.latestLeadScore !== undefined && (
-                              <span
-                                className={cn(
-                                  "px-1.5 py-0.5 rounded text-[10px] font-bold",
-                                  client.latestLeadScore >= 8
-                                    ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                    : client.latestLeadScore >= 5
-                                      ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                      : "bg-slate-50 text-slate-600 border border-slate-200"
-                                )}
-                              >
-                                Score: {client.latestLeadScore}/10
+                          {!client.adAccounts?.length &&
+                            !client.metaAdAccounts?.length && (
+                              <span className="text-[11px] text-slate-400">
+                                No ad accounts
                               </span>
                             )}
-                          </div>
-                          {client.lastCallAt && (
-                            <p className="text-[10px] text-slate-400">
-                              Last: {new Date(client.lastCallAt).toLocaleDateString()}
-                            </p>
-                          )}
                         </div>
-                      ) : (
-                        <span className="text-[11px] text-slate-400">No calls logged</span>
-                      )}
-                    </TableCell>
+                      </TableCell>
 
-                    {/* Actions */}
-                    <TableCell className="py-3 text-right">
-                      <div className="flex justify-end items-center gap-1.5">
-                        <Button
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/clients/${client.id}?tab=calls`);
-                          }}
-                          className="text-xs h-8 hover:bg-purple-50 hover:text-purple-600 text-slate-600 rounded-lg cursor-pointer flex items-center gap-1 font-semibold"
-                          title="View Call History & AI Transcripts"
+                      {/* Contacts Count */}
+                      <TableCell className="py-3 text-sm">
+                        <Link
+                          href={`/contacts?search=${encodeURIComponent(client.name)}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 transition-colors"
+                          title="View client contacts in Contacts directory"
                         >
-                          <PhoneCall className="h-3.5 w-3.5 text-purple-500" />
-                          Calls
-                        </Button>
+                          <Users className="h-3 w-3 text-slate-500" />
+                          {client.contactsCount || 0} contact
+                          {(client.contactsCount || 0) === 1 ? "" : "s"}
+                        </Link>
+                      </TableCell>
 
-                        <Button
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/clients/${client.id}`);
-                          }}
-                          className="text-xs h-8 hover:bg-slate-100 text-slate-600 rounded-lg cursor-pointer font-semibold"
-                        >
-                          Workspace
-                        </Button>
+                      {/* Call History */}
+                      <TableCell className="py-3">
+                        {client.callCount && client.callCount > 0 ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
+                                <PhoneCall className="h-2.5 w-2.5 text-purple-600" />
+                                {client.callCount} call
+                                {client.callCount > 1 ? "s" : ""}
+                              </span>
+                              {client.latestLeadScore !== null &&
+                                client.latestLeadScore !== undefined && (
+                                  <span
+                                    className={cn(
+                                      "px-1.5 py-0.5 rounded text-[10px] font-bold",
+                                      client.latestLeadScore >= 8
+                                        ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                        : client.latestLeadScore >= 5
+                                          ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                          : "bg-slate-50 text-slate-600 border border-slate-200",
+                                    )}
+                                  >
+                                    Score: {client.latestLeadScore}/10
+                                  </span>
+                                )}
+                            </div>
+                            {client.lastCallAt && (
+                              <p className="text-[10px] text-slate-400">
+                                Last:{" "}
+                                {new Date(
+                                  client.lastCallAt,
+                                ).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-400">
+                            No calls logged
+                          </span>
+                        )}
+                      </TableCell>
 
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClient(client.id, client.name);
-                          }}
-                          className="h-8 w-8 hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg cursor-pointer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
+                      {/* Actions */}
+                      <TableCell className="py-3 text-right">
+                        <div className="flex justify-end items-center gap-1.5">
+                          <Button
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/clients/${client.id}?tab=calls`);
+                            }}
+                            className="text-xs h-8 hover:bg-purple-50 hover:text-purple-600 text-slate-600 rounded-lg cursor-pointer flex items-center gap-1 font-semibold"
+                            title="View Call History & AI Transcripts"
+                          >
+                            <PhoneCall className="h-3.5 w-3.5 text-purple-500" />
+                            Calls
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/clients/${client.id}`);
+                            }}
+                            className="text-xs h-8 hover:bg-slate-100 text-slate-600 rounded-lg cursor-pointer font-semibold"
+                          >
+                            Workspace
+                          </Button>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClient(client.id, client.name);
+                            }}
+                            className="h-8 w-8 hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg cursor-pointer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-    </div>
 
       {/* Floating Action Bar for Selected Clients */}
       {selectedClientIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200">
           <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
-            {selectedClientIds.length} client{selectedClientIds.length > 1 ? "s" : ""} selected
+            {selectedClientIds.length} client
+            {selectedClientIds.length > 1 ? "s" : ""} selected
           </span>
           <div className="h-4 w-px bg-slate-700" />
-          
+
           {/* Quick Status Changers */}
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-slate-400 font-medium">Set:</span>
@@ -1196,10 +1364,14 @@ export default function ClientsDirectoryClient() {
                   <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
                     <Layers className="h-4 w-4" />
                   </div>
-                  <h2 className="text-lg font-bold text-slate-900">Merge Clients</h2>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Merge Clients
+                  </h2>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Consolidate {selectedClientIds.length} client records into one. All connected Google &amp; Meta ad accounts, contacts, and call history will be transferred into the primary client.
+                  Consolidate {selectedClientIds.length} client records into
+                  one. All connected Google &amp; Meta ad accounts, contacts,
+                  and call history will be transferred into the primary client.
                 </p>
               </div>
               <button
@@ -1233,7 +1405,7 @@ export default function ClientsDirectoryClient() {
                             "p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between",
                             isTarget
                               ? "border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500/20"
-                              : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+                              : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/50",
                           )}
                         >
                           <div className="flex items-center gap-3">
@@ -1259,9 +1431,15 @@ export default function ClientsDirectoryClient() {
                               <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
                                 <span>{client.industry || "General"}</span>
                                 <span>•</span>
-                                <span>{(client.adAccounts?.length || 0) + (client.metaAdAccounts?.length || 0)} ad accounts</span>
+                                <span>
+                                  {(client.adAccounts?.length || 0) +
+                                    (client.metaAdAccounts?.length || 0)}{" "}
+                                  ad accounts
+                                </span>
                                 <span>•</span>
-                                <span>{client.contactsCount || 0} contacts</span>
+                                <span>
+                                  {client.contactsCount || 0} contacts
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -1294,7 +1472,11 @@ export default function ClientsDirectoryClient() {
                   What happens next?
                 </div>
                 <p className="text-[11px] text-amber-700 leading-relaxed">
-                  The other {selectedClientIds.length - 1} client record(s) will be merged into the primary client. All Google Ads accounts, Meta Ads accounts, contacts, and call history logs will be retained and safely re-linked. This action cannot be automatically undone.
+                  The other {selectedClientIds.length - 1} client record(s) will
+                  be merged into the primary client. All Google Ads accounts,
+                  Meta Ads accounts, contacts, and call history logs will be
+                  retained and safely re-linked. This action cannot be
+                  automatically undone.
                 </p>
               </div>
             </div>
@@ -1315,7 +1497,9 @@ export default function ClientsDirectoryClient() {
                 type="button"
                 size="sm"
                 onClick={handleConfirmMerge}
-                disabled={isMerging || !primaryTargetId || !customFinalName.trim()}
+                disabled={
+                  isMerging || !primaryTargetId || !customFinalName.trim()
+                }
                 className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold h-9 px-4 rounded-xl cursor-pointer flex items-center gap-1.5"
               >
                 {isMerging ? (
@@ -1341,7 +1525,9 @@ export default function ClientsDirectoryClient() {
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-6 space-y-6 shadow-2xl animate-in zoom-in-95 duration-150">
             <div className="flex justify-between items-start border-b border-slate-100 pb-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Onboard New Client</h2>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Onboard New Client
+                </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Link an existing GoHighLevel contact or create a manual entry.
                 </p>
@@ -1383,29 +1569,42 @@ export default function ClientsDirectoryClient() {
                         onClick={() => handleSelectGhlContact(c)}
                         className="p-2.5 hover:bg-indigo-50 cursor-pointer text-xs transition-colors"
                       >
-                        <p className="font-bold text-slate-800">{c.companyName || c.name}</p>
+                        <p className="font-bold text-slate-800">
+                          {c.companyName || c.name}
+                        </p>
                         <p className="text-[11px] text-slate-500">
-                          {c.name} {c.email ? `(${c.email})` : c.phone ? `(${c.phone})` : ""}
+                          {c.name}{" "}
+                          {c.email
+                            ? `(${c.email})`
+                            : c.phone
+                              ? `(${c.phone})`
+                              : ""}
                         </p>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {hasSearchedGhl && !loadingGhl && ghlResults.length === 0 && !ghlSearchError && (
-                  <div className="absolute top-full left-0 right-0 z-10 bg-white border border-slate-200 rounded-xl shadow-lg mt-1 p-3 text-center text-xs text-slate-500">
-                    No matching GoHighLevel contacts found.
-                  </div>
-                )}
+                {hasSearchedGhl &&
+                  !loadingGhl &&
+                  ghlResults.length === 0 &&
+                  !ghlSearchError && (
+                    <div className="absolute top-full left-0 right-0 z-10 bg-white border border-slate-200 rounded-xl shadow-lg mt-1 p-3 text-center text-xs text-slate-500">
+                      No matching GoHighLevel contacts found.
+                    </div>
+                  )}
 
                 {ghlSearchError && (
-                  <p className="text-[11px] text-rose-500 mt-1">{ghlSearchError}</p>
+                  <p className="text-[11px] text-rose-500 mt-1">
+                    {ghlSearchError}
+                  </p>
                 )}
 
                 {selectedGhlContact && (
                   <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2 flex items-center justify-between text-xs text-indigo-700 mt-2">
                     <span>
-                      Linked to GHL Contact: <strong>{selectedGhlContact.name}</strong>
+                      Linked to GHL Contact:{" "}
+                      <strong>{selectedGhlContact.name}</strong>
                     </span>
                     <button
                       type="button"
@@ -1421,7 +1620,8 @@ export default function ClientsDirectoryClient() {
               {/* Client Business Name */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-700">
-                  Client / Business Name <span className="text-rose-500">*</span>
+                  Client / Business Name{" "}
+                  <span className="text-rose-500">*</span>
                 </label>
                 <Input
                   value={formClientName}
@@ -1435,7 +1635,8 @@ export default function ClientsDirectoryClient() {
               {/* Primary Contact Person */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-700">
-                  Primary Contact Person <span className="text-rose-500">*</span>
+                  Primary Contact Person{" "}
+                  <span className="text-rose-500">*</span>
                 </label>
                 <Input
                   value={formContactName}
@@ -1463,7 +1664,9 @@ export default function ClientsDirectoryClient() {
 
               {/* Contact Phone */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">Contact Phone</label>
+                <label className="block text-xs font-bold text-slate-700">
+                  Contact Phone
+                </label>
                 <Input
                   value={formPhone}
                   onChange={(e) => setFormPhone(e.target.value)}
@@ -1483,7 +1686,8 @@ export default function ClientsDirectoryClient() {
                     )}
                   </div>
                   <p className="text-[11px] text-amber-800 leading-snug">
-                    A record with this business name, contact, or email already exists in your workspace:
+                    A record with this business name, contact, or email already
+                    exists in your workspace:
                   </p>
                   <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                     {duplicateMatches.map((match) => (
@@ -1526,7 +1730,9 @@ export default function ClientsDirectoryClient() {
                     ))}
                   </div>
                   <p className="text-[10px] text-amber-700 italic">
-                    Tip: If you are trying to combine records, you can also use the checkbox multi-select in the directory table to merge them.
+                    Tip: If you are trying to combine records, you can also use
+                    the checkbox multi-select in the directory table to merge
+                    them.
                   </p>
                 </div>
               )}

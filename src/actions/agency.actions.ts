@@ -86,7 +86,10 @@ export async function getOrGenerateAgencyAiInsightsAction(
       ),
     });
 
-    if (cached && (cached.insights as any)?._platformFilter === platformFilter) {
+    if (
+      cached &&
+      (cached.insights as any)?._platformFilter === platformFilter
+    ) {
       return {
         success: true,
         data: cached.insights,
@@ -131,7 +134,9 @@ export async function getOrGenerateAgencyAiInsightsAction(
               : ["google"];
 
         const gSpend = parseDataNumber(acc.channelBreakdown?.google?.spend);
-        const gConv = parseDataNumber(acc.channelBreakdown?.google?.conversions);
+        const gConv = parseDataNumber(
+          acc.channelBreakdown?.google?.conversions,
+        );
         const mSpend = parseDataNumber(acc.channelBreakdown?.meta?.spend);
         const mConv = parseDataNumber(acc.channelBreakdown?.meta?.conversions);
 
@@ -213,17 +218,25 @@ export async function getOrGenerateAgencyAiInsightsAction(
 
           // Determine primary failing channel
           let primaryFailingChannel: "google" | "meta" | "blended" = "blended";
-          if (a.googleSpend > 0 && a.metaSpend === 0) primaryFailingChannel = "google";
-          else if (a.metaSpend > 0 && a.googleSpend === 0) primaryFailingChannel = "meta";
+          if (a.googleSpend > 0 && a.metaSpend === 0)
+            primaryFailingChannel = "google";
+          else if (a.metaSpend > 0 && a.googleSpend === 0)
+            primaryFailingChannel = "meta";
           else if (a.googleSpend > 0 && a.metaSpend > 0) {
-            const gCpa = a.googleConv > 0 ? a.googleSpend / a.googleConv : 999999;
+            const gCpa =
+              a.googleConv > 0 ? a.googleSpend / a.googleConv : 999999;
             const mCpa = a.metaConv > 0 ? a.metaSpend / a.metaConv : 999999;
             if (gCpa > mCpa * 1.5) primaryFailingChannel = "google";
             else if (mCpa > gCpa * 1.5) primaryFailingChannel = "meta";
             else primaryFailingChannel = "blended";
           }
 
-          return { ...a, bleedScore, evaluationBaseline, primaryFailingChannel };
+          return {
+            ...a,
+            bleedScore,
+            evaluationBaseline,
+            primaryFailingChannel,
+          };
         })
         .sort((a, b) => b.bleedScore - a.bleedScore)
         .map((a) => ({
@@ -476,12 +489,38 @@ export async function getAgencyPortfolioMetricsAction(
     };
 
     // 4. Map Google performance per Google account ID (both current & previous)
-    const googleCurrentAccMap: Record<number, { spend: number; clicks: number; impressions: number; conversions: number }> = {};
-    const googlePrevAccMap: Record<number, { spend: number; clicks: number; impressions: number; conversions: number }> = {};
+    const googleCurrentAccMap: Record<
+      number,
+      {
+        spend: number;
+        clicks: number;
+        impressions: number;
+        conversions: number;
+      }
+    > = {};
+    const googlePrevAccMap: Record<
+      number,
+      {
+        spend: number;
+        clicks: number;
+        impressions: number;
+        conversions: number;
+      }
+    > = {};
 
     activeGoogleAccounts.forEach((acc) => {
-      googleCurrentAccMap[acc.id] = { spend: 0, clicks: 0, impressions: 0, conversions: 0 };
-      googlePrevAccMap[acc.id] = { spend: 0, clicks: 0, impressions: 0, conversions: 0 };
+      googleCurrentAccMap[acc.id] = {
+        spend: 0,
+        clicks: 0,
+        impressions: 0,
+        conversions: 0,
+      };
+      googlePrevAccMap[acc.id] = {
+        spend: 0,
+        clicks: 0,
+        impressions: 0,
+        conversions: 0,
+      };
     });
 
     // 4.1 Daily totals map (pre-populated)
@@ -631,7 +670,9 @@ export async function getAgencyPortfolioMetricsAction(
         const gPrevConversions = gPrevPerf ? gPrevPerf.conversions : 0;
 
         // Meta metrics
-        const mPerf = u.metaAccountId ? metaCurrentMap.get(u.metaAccountId) : null;
+        const mPerf = u.metaAccountId
+          ? metaCurrentMap.get(u.metaAccountId)
+          : null;
         const mSpend = mPerf ? Number(mPerf.spend || 0) : 0;
         const mClicks = mPerf ? Number(mPerf.clicks || 0) : 0;
         const mImpressions = mPerf ? Number(mPerf.impressions || 0) : 0;
@@ -640,11 +681,17 @@ export async function getAgencyPortfolioMetricsAction(
         const mCtr = mImpressions > 0 ? (mClicks / mImpressions) * 100 : 0;
         const mCpc = mClicks > 0 ? mSpend / mClicks : 0;
 
-        const mPrevPerf = u.metaAccountId ? metaPrevMap.get(u.metaAccountId) : null;
+        const mPrevPerf = u.metaAccountId
+          ? metaPrevMap.get(u.metaAccountId)
+          : null;
         const mPrevSpend = mPrevPerf ? Number(mPrevPerf.spend || 0) : 0;
         const mPrevClicks = mPrevPerf ? Number(mPrevPerf.clicks || 0) : 0;
-        const mPrevImpressions = mPrevPerf ? Number(mPrevPerf.impressions || 0) : 0;
-        const mPrevConversions = mPrevPerf ? Number(mPrevPerf.conversions || 0) : 0;
+        const mPrevImpressions = mPrevPerf
+          ? Number(mPrevPerf.impressions || 0)
+          : 0;
+        const mPrevConversions = mPrevPerf
+          ? Number(mPrevPerf.conversions || 0)
+          : 0;
 
         // Channel-level summaries
         googleTotalSpend += gSpend;
@@ -694,7 +741,8 @@ export async function getAgencyPortfolioMetricsAction(
           prevClicks = gPrevClicks;
           prevImpressions = gPrevImpressions;
           prevCpa = prevConversions > 0 ? prevSpend / prevConversions : 0;
-          prevCtr = prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
+          prevCtr =
+            prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
           prevCpc = prevClicks > 0 ? prevSpend / prevClicks : 0;
         } else if (platformFilter === "meta") {
           spend = mSpend;
@@ -710,7 +758,8 @@ export async function getAgencyPortfolioMetricsAction(
           prevClicks = mPrevClicks;
           prevImpressions = mPrevImpressions;
           prevCpa = prevConversions > 0 ? prevSpend / prevConversions : 0;
-          prevCtr = prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
+          prevCtr =
+            prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
           prevCpc = prevClicks > 0 ? prevSpend / prevClicks : 0;
         } else {
           // Blended
@@ -718,7 +767,8 @@ export async function getAgencyPortfolioMetricsAction(
           conversions = gConversions + mConversions;
           clicks = gClicks + mClicks;
           impressions = gImpressions + mImpressions;
-          cpa = conversions > 0 ? spend / conversions : gSpend > 0 ? gCpa : mCpa;
+          cpa =
+            conversions > 0 ? spend / conversions : gSpend > 0 ? gCpa : mCpa;
           ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
           cpc = clicks > 0 ? spend / clicks : 0;
 
@@ -727,7 +777,8 @@ export async function getAgencyPortfolioMetricsAction(
           prevClicks = gPrevClicks + mPrevClicks;
           prevImpressions = gPrevImpressions + mPrevImpressions;
           prevCpa = prevConversions > 0 ? prevSpend / prevConversions : 0;
-          prevCtr = prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
+          prevCtr =
+            prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
           prevCpc = prevClicks > 0 ? prevSpend / prevClicks : 0;
         }
 
@@ -854,7 +905,8 @@ export async function getAgencyPortfolioMetricsAction(
 
     // Previous Whale vs Non-Whale calculation
     const prevWhales = accountBreakdown.filter(
-      (a: any) => prevTotalSpend > 0 && (a.previous?.spend || 0) > prevTotalSpend * 0.25,
+      (a: any) =>
+        prevTotalSpend > 0 && (a.previous?.spend || 0) > prevTotalSpend * 0.25,
     );
     const prevWhaleSpend = prevWhales.reduce(
       (s: number, w: any) => s + (w.previous?.spend || 0),
@@ -919,18 +971,26 @@ export async function getAgencyPortfolioMetricsAction(
           google: {
             spend: googleTotalSpend,
             conversions: googleTotalConversions,
-            cpa: googleTotalConversions > 0 ? googleTotalSpend / googleTotalConversions : 0,
+            cpa:
+              googleTotalConversions > 0
+                ? googleTotalSpend / googleTotalConversions
+                : 0,
             clicks: googleTotalClicks,
             impressions: googleTotalImpressions,
-            spendShare: totalSpend > 0 ? (googleTotalSpend / totalSpend) * 100 : 0,
+            spendShare:
+              totalSpend > 0 ? (googleTotalSpend / totalSpend) * 100 : 0,
           },
           meta: {
             spend: metaTotalSpend,
             conversions: metaTotalConversions,
-            cpa: metaTotalConversions > 0 ? metaTotalSpend / metaTotalConversions : 0,
+            cpa:
+              metaTotalConversions > 0
+                ? metaTotalSpend / metaTotalConversions
+                : 0,
             clicks: metaTotalClicks,
             impressions: metaTotalImpressions,
-            spendShare: totalSpend > 0 ? (metaTotalSpend / totalSpend) * 100 : 0,
+            spendShare:
+              totalSpend > 0 ? (metaTotalSpend / totalSpend) * 100 : 0,
           },
         },
         deltas: {

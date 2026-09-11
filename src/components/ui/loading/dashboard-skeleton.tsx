@@ -13,7 +13,12 @@ export interface DashboardSkeletonProps {
 
 export function PageHeaderSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn("flex flex-col md:flex-row md:items-end justify-between gap-4 animate-pulse", className)}>
+    <div
+      className={cn(
+        "flex flex-col md:flex-row md:items-end justify-between gap-4 animate-pulse",
+        className,
+      )}
+    >
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Skeleton className="w-8 h-8 rounded-lg" />
@@ -61,9 +66,17 @@ export function MetricGridSkeleton({
 
 export function ChartGridSkeleton({ count = 2 }: { count?: number }) {
   return (
-    <div className={cn("grid grid-cols-1 gap-6", count > 1 ? "lg:grid-cols-2" : "")}>
+    <div
+      className={cn(
+        "grid grid-cols-1 gap-6",
+        count > 1 ? "lg:grid-cols-2" : "",
+      )}
+    >
       {Array.from({ length: count }).map((_, i) => (
-        <Card key={i} className="border-slate-200 shadow-sm bg-white h-80 flex flex-col p-5 space-y-4">
+        <Card
+          key={i}
+          className="border-slate-200 shadow-sm bg-white h-80 flex flex-col p-5 space-y-4"
+        >
           <Skeleton className="h-5 w-48" />
           <div className="flex-1 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center">
             <Spinner size="lg" variant="subtle" />
@@ -108,7 +121,9 @@ export function FullDashboardSkeleton({
   className,
 }: DashboardSkeletonProps) {
   return (
-    <div className={cn("space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto", className)}>
+    <div
+      className={cn("space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto", className)}
+    >
       <PageHeaderSkeleton />
 
       {loadingMessage ? (

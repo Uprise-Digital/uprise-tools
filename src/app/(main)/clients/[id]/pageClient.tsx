@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   ArrowLeft,
+  Building2,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -52,9 +53,9 @@ import {
 import { getMetaAdAccountsAction } from "@/actions/meta-settings.actions";
 import { getOnboardingSettingsAction } from "@/actions/onboarding-settings.actions";
 import ClientCallHistory from "@/components/clients/client-call-history";
+import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +66,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Switch } from "@/components/ui/switch";
 import { compileOnboardingEmail } from "@/lib/onboarding-email";
 import { cn } from "@/lib/utils";
 
@@ -96,7 +107,8 @@ export default function ClientDetailPageClient({
   const [metaAdAccountsList, setMetaAdAccountsList] = useState<
     { id: number; name: string; metaAccountId: string }[]
   >([]);
-  const [selectedMetaAdAccountId, setSelectedMetaAdAccountId] = useState<string>("");
+  const [selectedMetaAdAccountId, setSelectedMetaAdAccountId] =
+    useState<string>("");
 
   // Edit Link States
   const [editDrive, setEditDrive] = useState("");
@@ -117,23 +129,27 @@ export default function ClientDetailPageClient({
   const [isRunningPipeline, setIsRunningPipeline] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
 
-  // Edit Client Details Modal States
+  // Edit Client Details Sidebar States
   const [isEditClientOpen, setIsEditClientOpen] = useState(false);
   const [editClientName, setEditClientName] = useState("");
   const [editPrimaryContactName, setEditPrimaryContactName] = useState("");
   const [editContactEmail, setEditContactEmail] = useState("");
   const [editContactPhone, setEditContactPhone] = useState("");
+  const [editGoogleEnabled, setEditGoogleEnabled] = useState(true);
+  const [editMetaEnabled, setEditMetaEnabled] = useState(true);
+  const [editGhlSubAccountId, setEditGhlSubAccountId] = useState("");
   const [isSavingClientDetails, setIsSavingClientDetails] = useState(false);
 
   const loadClientDetails = useCallback(async () => {
     try {
       setLoading(true);
-      const [clientRes, settingsRes, adAccountsRes, metaAccountsRes] = await Promise.all([
-        getClientOnboardingByIdAction(clientId),
-        getOnboardingSettingsAction(),
-        listAccountsAction(),
-        getMetaAdAccountsAction(),
-      ]);
+      const [clientRes, settingsRes, adAccountsRes, metaAccountsRes] =
+        await Promise.all([
+          getClientOnboardingByIdAction(clientId),
+          getOnboardingSettingsAction(),
+          listAccountsAction(),
+          getMetaAdAccountsAction(),
+        ]);
 
       if (clientRes.success && clientRes.client) {
         const c = clientRes.client;
@@ -246,6 +262,11 @@ export default function ClientDetailPageClient({
     setEditPrimaryContactName(client.primaryContactName || "");
     setEditContactEmail(client.contactEmail || "");
     setEditContactPhone(client.contactPhone || "");
+    setEditGoogleEnabled(
+      client.googleEnabled ?? client.googleAdsAccess ?? true,
+    );
+    setEditMetaEnabled(client.metaEnabled ?? client.metaAdsAccess ?? true);
+    setEditGhlSubAccountId(client.ghlSubAccountId || "");
     setIsEditClientOpen(true);
   };
 
@@ -273,6 +294,11 @@ export default function ClientDetailPageClient({
         primaryContactName: editPrimaryContactName.trim(),
         contactEmail: editContactEmail.trim(),
         contactPhone: editContactPhone.trim() || null,
+        googleEnabled: editGoogleEnabled,
+        metaEnabled: editMetaEnabled,
+        googleAdsAccess: editGoogleEnabled,
+        metaAdsAccess: editMetaEnabled,
+        ghlSubAccountId: editGhlSubAccountId.trim() || null,
       });
 
       if (res.success) {
@@ -283,6 +309,11 @@ export default function ClientDetailPageClient({
           primaryContactName: editPrimaryContactName.trim(),
           contactEmail: editContactEmail.trim(),
           contactPhone: editContactPhone.trim() || null,
+          googleEnabled: editGoogleEnabled,
+          metaEnabled: editMetaEnabled,
+          googleAdsAccess: editGoogleEnabled,
+          metaAdsAccess: editMetaEnabled,
+          ghlSubAccountId: editGhlSubAccountId.trim() || null,
         });
         setIsEditClientOpen(false);
       } else {
@@ -480,6 +511,12 @@ export default function ClientDetailPageClient({
   const latestEmailLog = emailLogs[0] || null;
   const isCompleted =
     client?.status === "completed" || client?.status === "active";
+  const isPipelineActive = Boolean(
+    isCompleted ||
+      client?.status === "active" ||
+      (client?.ghlPipelineStage &&
+        /active|won|close|client|onboard/i.test(client.ghlPipelineStage)),
+  );
   const isEmailSent =
     client?.status === "email_sent" ||
     isCompleted ||
@@ -538,7 +575,15 @@ export default function ClientDetailPageClient({
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 relative">
-      <TopProgressBar loading={isRunningPipeline || isFinalizing || isSendingEmail || isSavingClientDetails} color="indigo" />
+      <TopProgressBar
+        loading={
+          isRunningPipeline ||
+          isFinalizing ||
+          isSendingEmail ||
+          isSavingClientDetails
+        }
+        color="indigo"
+      />
       {/* 1. Breadcrumbs & Top Navigation */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -681,32 +726,43 @@ export default function ClientDetailPageClient({
 
           {/* Ad Access Badges */}
           <div className="flex items-center gap-2 shrink-0">
-            {client.googleAdsAccess && (
-              <span
-                className={cn(
-                  "px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border",
-                  client.googleAdsStatus === "granted"
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    : "bg-slate-50 text-slate-600 border-slate-200",
-                )}
-              >
-                <Target className="h-3.5 w-3.5 text-indigo-600" /> Google Ads:{" "}
-                {client.googleAdsStatus}
+            <span
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-all",
+                (client.googleEnabled ?? client.googleAdsAccess ?? true)
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-xs"
+                  : "bg-slate-100 text-slate-400 border-slate-200 line-through opacity-70",
+              )}
+            >
+              <GoogleLogo className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                Google Ads:{" "}
+                {(client.googleEnabled ?? client.googleAdsAccess ?? true)
+                  ? client.googleAdsStatus === "granted"
+                    ? "Active"
+                    : "Enabled"
+                  : "Disabled"}
               </span>
-            )}
-            {client.metaAdsAccess && (
-              <span
-                className={cn(
-                  "px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border",
-                  client.metaAdsStatus === "granted"
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    : "bg-slate-50 text-slate-600 border-slate-200",
-                )}
-              >
-                <Layers className="h-3.5 w-3.5 text-blue-600" /> Meta:{" "}
-                {client.metaAdsStatus}
+            </span>
+
+            <span
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-all",
+                (client.metaEnabled ?? client.metaAdsAccess ?? true)
+                  ? "bg-blue-50 text-blue-700 border-blue-200 shadow-xs"
+                  : "bg-slate-100 text-slate-400 border-slate-200 line-through opacity-70",
+              )}
+            >
+              <MetaLogo className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                Meta:{" "}
+                {(client.metaEnabled ?? client.metaAdsAccess ?? true)
+                  ? client.metaAdsStatus === "granted"
+                    ? "Active"
+                    : "Enabled"
+                  : "Disabled"}
               </span>
-            )}
+            </span>
           </div>
         </div>
 
@@ -982,6 +1038,129 @@ export default function ClientDetailPageClient({
               </Button>
             </div>
           </div>
+
+          {/* Linked GoHighLevel Sub-Account (Shown if pipeline stage is active) */}
+          {isPipelineActive && (
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-indigo-600" />
+                      Linked GoHighLevel Sub-Account
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                      Pipeline Stage: {client.ghlPipelineStage || "Active"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Active client sub-account for CRM synchronization, lead
+                    routing, and pipeline automations.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={openEditClientModal}
+                  className="text-xs h-8 px-3 rounded-lg flex items-center gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer self-start sm:self-auto font-medium"
+                >
+                  <Pencil className="h-3 w-3 text-slate-500" />
+                  {client.ghlSubAccountId
+                    ? "Edit Sub-Account"
+                    : "Link Sub-Account"}
+                </Button>
+              </div>
+
+              {client.ghlSubAccountId ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <div className="bg-slate-50/80 border border-slate-200/70 rounded-xl p-4 space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                      <span>Sub-Account / Location ID</span>
+                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/70">
+                        Connected
+                      </span>
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <code className="text-xs font-mono font-bold text-slate-900 bg-white px-2.5 py-1 rounded border border-slate-200/80">
+                        {client.ghlSubAccountId}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyToClipboard(
+                            client.ghlSubAccountId,
+                            "GHL Sub-Account ID",
+                          )
+                        }
+                        className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-white transition-colors cursor-pointer"
+                        title="Copy Sub-Account ID"
+                      >
+                        {copiedField === "GHL Sub-Account ID" ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50/80 border border-slate-200/70 rounded-xl p-4 space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                      <span>GHL CRM Access</span>
+                      {client.ghlContactId && (
+                        <span className="text-indigo-600 font-mono text-[10px]">
+                          Contact: {client.ghlContactId}
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-slate-700">
+                        GoHighLevel Location Dashboard
+                      </p>
+                      <a
+                        href={`https://app.gohighlevel.com/location/${client.ghlSubAccountId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors"
+                      >
+                        Open Sub-Account
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-50/60 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+                      <Building2 className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">
+                        No GoHighLevel sub-account linked yet
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        This client is marked as active in your pipeline. You
+                        can link their GoHighLevel Location ID for
+                        bi-directional CRM syncing.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={openEditClientModal}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold h-8 px-3 rounded-lg shrink-0 cursor-pointer shadow-xs"
+                  >
+                    Link Sub-Account
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Email Outbox & Live HTML Preview */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-5">
@@ -1358,7 +1537,8 @@ export default function ClientDetailPageClient({
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-500">
-                  Links this client to your Google Ads MCC account for search terms, negatives & briefing audits.
+                  Links this client to your Google Ads MCC account for search
+                  terms, negatives & briefing audits.
                 </p>
               </div>
 
@@ -1390,7 +1570,8 @@ export default function ClientDetailPageClient({
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-500">
-                  Links this client to your Meta Business account for cross-platform blended reporting.
+                  Links this client to your Meta Business account for
+                  cross-platform blended reporting.
                 </p>
               </div>
             </div>
@@ -1403,7 +1584,8 @@ export default function ClientDetailPageClient({
                   </h4>
                   {selectedAdAccountId && selectedMetaAdAccountId && (
                     <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-[10px] font-bold flex items-center gap-1">
-                      <Sparkles className="h-3 w-3 text-indigo-500" /> Blended Dual-Platform Active
+                      <Sparkles className="h-3 w-3 text-indigo-500" /> Blended
+                      Dual-Platform Active
                     </span>
                   )}
                 </div>
@@ -1545,125 +1727,311 @@ export default function ClientDetailPageClient({
         </DialogContent>
       </Dialog>
 
-      {/* 5. Edit Client Details Dialog */}
-      <Dialog open={isEditClientOpen} onOpenChange={setIsEditClientOpen}>
-        <DialogContent className="max-w-md bg-white p-6 rounded-2xl shadow-xl border border-slate-200">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Pencil className="h-4 w-4 text-indigo-600" />
-              Edit Client Details
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Update the business name and primary contact details for this
-              client.
-            </DialogDescription>
-          </DialogHeader>
+      {/* 5. Edit Client Details Sidebar */}
+      <Sheet open={isEditClientOpen} onOpenChange={setIsEditClientOpen}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-md md:max-w-lg p-0 flex flex-col justify-between bg-white border-l border-slate-200 shadow-2xl z-50 overflow-hidden gap-0"
+        >
+          <SheetHeader className="px-6 py-5 sm:px-7 sm:py-6 border-b border-slate-100 bg-slate-50/60 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs shrink-0">
+                <Pencil className="h-5 w-5" />
+              </div>
+              <div>
+                <SheetTitle className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                  Edit Client Details
+                </SheetTitle>
+                <SheetDescription className="text-xs text-slate-500 mt-0.5">
+                  Update business profile, primary contact info, and active
+                  advertising platforms.
+                </SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
 
-          <form onSubmit={handleSaveClientDetails} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="editClientName"
-                className="text-xs font-semibold text-slate-700"
-              >
-                Company / Business Name *
-              </Label>
-              <Input
-                id="editClientName"
-                value={editClientName}
-                onChange={(e) => setEditClientName(e.target.value)}
-                placeholder="e.g. Acme Corporation"
-                className="h-9 text-xs"
-                required
-              />
-              <p className="text-[11px] text-slate-400">
-                Displayed across headers, reports, and onboarding
-                communications.
-              </p>
+          <form
+            id="edit-client-sidebar-form"
+            onSubmit={handleSaveClientDetails}
+            className="flex-1 overflow-y-auto px-6 py-6 sm:px-7 sm:py-7 space-y-6"
+          >
+            {/* Section 1: Business Profile & Primary Contact */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-slate-400" />
+                  Client Profile & Contact
+                </h3>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  Required fields *
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="editClientName"
+                  className="text-xs font-semibold text-slate-700 flex items-center gap-1"
+                >
+                  Company / Business Name
+                  <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  id="editClientName"
+                  value={editClientName}
+                  onChange={(e) => setEditClientName(e.target.value)}
+                  placeholder="e.g. Acme Corporation"
+                  className="h-10 text-xs bg-white border-slate-200 focus-visible:ring-indigo-500"
+                  required
+                />
+                <p className="text-[11px] text-slate-400">
+                  Displayed across agency dashboards, reports, and
+                  communications.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="editPrimaryContactName"
+                  className="text-xs font-semibold text-slate-700 flex items-center gap-1"
+                >
+                  Primary Contact Name
+                  <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  id="editPrimaryContactName"
+                  value={editPrimaryContactName}
+                  onChange={(e) => setEditPrimaryContactName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="h-10 text-xs bg-white border-slate-200 focus-visible:ring-indigo-500"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="editContactEmail"
+                  className="text-xs font-semibold text-slate-700 flex items-center gap-1"
+                >
+                  Contact Email
+                  <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  id="editContactEmail"
+                  type="email"
+                  value={editContactEmail}
+                  onChange={(e) => setEditContactEmail(e.target.value)}
+                  placeholder="client@example.com"
+                  className="h-10 text-xs bg-white border-slate-200 focus-visible:ring-indigo-500"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="editContactPhone"
+                  className="text-xs font-semibold text-slate-700"
+                >
+                  Phone Number (Optional)
+                </Label>
+                <Input
+                  id="editContactPhone"
+                  type="tel"
+                  value={editContactPhone}
+                  onChange={(e) => setEditContactPhone(e.target.value)}
+                  placeholder="e.g. +61 400 000 000"
+                  className="h-10 text-xs bg-white border-slate-200 focus-visible:ring-indigo-500"
+                />
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="editPrimaryContactName"
-                className="text-xs font-semibold text-slate-700"
-              >
-                Primary Contact Name *
-              </Label>
-              <Input
-                id="editPrimaryContactName"
-                value={editPrimaryContactName}
-                onChange={(e) => setEditPrimaryContactName(e.target.value)}
-                placeholder="e.g. John Doe"
-                className="h-9 text-xs"
-                required
-              />
+            {/* Section 2: Advertising Platforms (googleEnabled & metaEnabled) */}
+            <div className="space-y-4 pt-1">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <Target className="h-3.5 w-3.5 text-slate-400" />
+                  Advertising Platforms
+                </h3>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  Channel activation
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {/* Google Ads Toggle */}
+                <div
+                  className={cn(
+                    "p-4 rounded-xl border transition-all flex items-center justify-between gap-4",
+                    editGoogleEnabled
+                      ? "bg-emerald-50/40 border-emerald-200/90 shadow-xs"
+                      : "bg-slate-50/70 border-slate-200 opacity-80",
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-white border border-slate-200/80 shadow-xs shrink-0 mt-0.5">
+                      <GoogleLogo className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900">
+                          Google Ads
+                        </span>
+                        <span
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px] font-semibold",
+                            editGoogleEnabled
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-200 text-slate-600",
+                          )}
+                        >
+                          {editGoogleEnabled ? "Enabled" : "Disabled"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                        Enable Google Ads tracking, reporting dashboards, and
+                        MCC account syncing.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="toggleGoogleEnabled"
+                    checked={editGoogleEnabled}
+                    onCheckedChange={setEditGoogleEnabled}
+                    className="data-[state=checked]:bg-emerald-600 cursor-pointer"
+                  />
+                </div>
+
+                {/* Meta Ads Toggle */}
+                <div
+                  className={cn(
+                    "p-4 rounded-xl border transition-all flex items-center justify-between gap-4",
+                    editMetaEnabled
+                      ? "bg-blue-50/40 border-blue-200/90 shadow-xs"
+                      : "bg-slate-50/70 border-slate-200 opacity-80",
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-white border border-slate-200/80 shadow-xs shrink-0 mt-0.5">
+                      <MetaLogo className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900">
+                          Meta Ads
+                        </span>
+                        <span
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px] font-semibold",
+                            editMetaEnabled
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-slate-200 text-slate-600",
+                          )}
+                        >
+                          {editMetaEnabled ? "Enabled" : "Disabled"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                        Enable Meta Ads campaigns, Facebook & Instagram
+                        portfolio metrics.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="toggleMetaEnabled"
+                    checked={editMetaEnabled}
+                    onCheckedChange={setEditMetaEnabled}
+                    className="data-[state=checked]:bg-blue-600 cursor-pointer"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="editContactEmail"
-                className="text-xs font-semibold text-slate-700"
-              >
-                Contact Email *
-              </Label>
-              <Input
-                id="editContactEmail"
-                type="email"
-                value={editContactEmail}
-                onChange={(e) => setEditContactEmail(e.target.value)}
-                placeholder="client@example.com"
-                className="h-9 text-xs"
-                required
-              />
-            </div>
+            {/* Section 3: Linked GoHighLevel Sub-Account (if pipeline stage is active) */}
+            {isPipelineActive && (
+              <div className="space-y-4 pt-1">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                    Linked GoHighLevel Sub-Account
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Stage: {client.ghlPipelineStage || "Active"}
+                  </span>
+                </div>
 
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="editContactPhone"
-                className="text-xs font-semibold text-slate-700"
-              >
-                Phone Number (Optional)
-              </Label>
-              <Input
-                id="editContactPhone"
-                type="tel"
-                value={editContactPhone}
-                onChange={(e) => setEditContactPhone(e.target.value)}
-                placeholder="e.g. +61 400 000 000"
-                className="h-9 text-xs"
-              />
-            </div>
+                <div className="p-4 rounded-xl border border-slate-200/90 bg-slate-50/50 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900">
+                          GHL Sub-Account / Location ID
+                        </span>
+                        {editGhlSubAccountId ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+                            Linked
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-600">
+                            Not Linked
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        GoHighLevel location/sub-account ID for active CRM sync,
+                        lead automation, and pipelines.
+                      </p>
+                    </div>
+                  </div>
 
-            <DialogFooter className="pt-3 gap-2 flex items-center justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsEditClientOpen(false)}
-                disabled={isSavingClientDetails}
-                className="text-xs h-9 cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSavingClientDetails}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-9 px-4 font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
-              >
-                {isSavingClientDetails ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check className="h-3.5 w-3.5" />
-                    Save Changes
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
+                  <div className="space-y-1.5">
+                    <Input
+                      id="editGhlSubAccountId"
+                      value={editGhlSubAccountId}
+                      onChange={(e) => setEditGhlSubAccountId(e.target.value)}
+                      placeholder="e.g. loc_9f81a7b4 or GHL Location ID"
+                      className="h-10 text-xs font-mono bg-white border-slate-200 focus-visible:ring-indigo-500"
+                    />
+                    {client.ghlContactId && (
+                      <p className="text-[11px] text-slate-400 font-mono">
+                        Associated GHL Contact ID: {client.ghlContactId}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </form>
-        </DialogContent>
-      </Dialog>
+
+          <SheetFooter className="px-6 py-4 sm:px-7 sm:py-5 border-t border-slate-100 bg-slate-50/80 shrink-0 flex flex-row items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEditClientOpen(false)}
+              disabled={isSavingClientDetails}
+              className="text-xs h-9 px-4 cursor-pointer hover:bg-slate-100 border-slate-200 font-medium"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="edit-client-sidebar-form"
+              disabled={isSavingClientDetails}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-9 px-4 font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+            >
+              {isSavingClientDetails ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

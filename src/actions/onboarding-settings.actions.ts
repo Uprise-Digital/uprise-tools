@@ -26,22 +26,29 @@ export async function getGhlSnapshotsAction(
       try {
         const { orgId } = await getSessionOrgId();
         if (orgId) {
-          const settings = await db.query.organizationOnboardingSettings.findFirst({
-            where: eq(organizationOnboardingSettings.organizationId, orgId),
-          });
+          const settings =
+            await db.query.organizationOnboardingSettings.findFirst({
+              where: eq(organizationOnboardingSettings.organizationId, orgId),
+            });
           const rawKey = settings?.ghlAgencyApiKey || settings?.ghlApiKey;
           if (rawKey) {
             effectiveKey = decryptToken(rawKey);
           }
-          if (!effectiveLocId) effectiveLocId = settings?.ghlLocationId || undefined;
-          if (!effectiveCompId) effectiveCompId = settings?.ghlCompanyId || undefined;
+          if (!effectiveLocId)
+            effectiveLocId = settings?.ghlLocationId || undefined;
+          if (!effectiveCompId)
+            effectiveCompId = settings?.ghlCompanyId || undefined;
         }
       } catch (err) {
         console.warn("Could not fetch agency key from session org:", err);
       }
     }
 
-    const snapshots = await getGhlSnapshots(effectiveKey, effectiveLocId, effectiveCompId);
+    const snapshots = await getGhlSnapshots(
+      effectiveKey,
+      effectiveLocId,
+      effectiveCompId,
+    );
     return { success: true, snapshots };
   } catch (err: any) {
     console.error("getGhlSnapshotsAction error:", err);
@@ -319,12 +326,12 @@ export async function saveOnboardingSettingsAction(data: {
     if (ghlEnabled) {
       if (!actualGhlKey && !actualGhlAgencyKey) {
         ghlStatus = "invalid";
-        ghlError = "Please provide a GoHighLevel Location API Key or Agency API Key.";
+        ghlError =
+          "Please provide a GoHighLevel Location API Key or Agency API Key.";
       } else {
         try {
-          const { verifyGhlConnection, verifyGhlAgencyConnection } = await import(
-            "@/service/gohighlevel-service"
-          );
+          const { verifyGhlConnection, verifyGhlAgencyConnection } =
+            await import("@/service/gohighlevel-service");
           if (actualGhlAgencyKey) {
             await verifyGhlAgencyConnection(
               actualGhlAgencyKey,

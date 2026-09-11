@@ -27,7 +27,10 @@ export default async function AdAccountsPage() {
         orderBy: (acc, { desc }) => [desc(acc.createdAt)],
       });
     } catch (gErr) {
-      console.warn("Could not query googleAccounts with nested relations, fallback to base query:", gErr);
+      console.warn(
+        "Could not query googleAccounts with nested relations, fallback to base query:",
+        gErr,
+      );
       googleAccounts = await db.query.adAccounts.findMany({
         orderBy: (acc, { desc }) => [desc(acc.createdAt)],
       });

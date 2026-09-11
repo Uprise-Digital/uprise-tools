@@ -45,10 +45,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
-import {
-  ContentLoadingOverlay,
-  TopProgressBar,
-} from "@/components/ui/loading";
+import { ContentLoadingOverlay, TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,

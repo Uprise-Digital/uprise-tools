@@ -35,7 +35,7 @@ export function Spinner({
         "animate-spin shrink-0",
         sizeClasses[size],
         variantClasses[variant],
-        className
+        className,
       )}
       {...props}
     />

@@ -218,8 +218,8 @@ export default function ReportsClient({
           variant="outline"
           className="w-full md:w-auto bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200 text-indigo-700 hover:from-indigo-100 hover:to-blue-100 shadow-sm"
         >
-          <Sparkles className="h-4 w-4 mr-2 text-indigo-600" /> Send
-          Briefing Now
+          <Sparkles className="h-4 w-4 mr-2 text-indigo-600" /> Send Briefing
+          Now
         </Button>
       </div>
 

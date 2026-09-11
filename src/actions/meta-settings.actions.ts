@@ -494,8 +494,12 @@ export async function getMetaAccountsPerformanceAction(
           const dailyUrl = `https://graph.facebook.com/v19.0/${actId}/insights?fields=spend,clicks,impressions,actions&time_increment=1&time_range=${timeRangeParam}&access_token=${encodeURIComponent(rawToken)}&limit=100`;
 
           const [aggRes, dailyRes] = await Promise.all([
-            fetch(aggregateUrl).then((r) => r.json()).catch(() => null),
-            fetch(dailyUrl).then((r) => r.json()).catch(() => null),
+            fetch(aggregateUrl)
+              .then((r) => r.json())
+              .catch(() => null),
+            fetch(dailyUrl)
+              .then((r) => r.json())
+              .catch(() => null),
           ]);
 
           const data = aggRes;
@@ -748,4 +752,3 @@ export async function getMetaAccountDetailedInsightsAction(
     };
   }
 }
-

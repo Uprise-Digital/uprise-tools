@@ -327,7 +327,10 @@ export default function LpAnalysisClientPage({
 
   return (
     <div className="space-y-6 p-2 max-w-[1400px] mx-auto relative">
-      <TopProgressBar loading={syncingLps || loadingCampaigns || isAuditing} color="indigo" />
+      <TopProgressBar
+        loading={syncingLps || loadingCampaigns || isAuditing}
+        color="indigo"
+      />
       {/* ── HEADER SECTION ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

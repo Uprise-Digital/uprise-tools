@@ -23,7 +23,10 @@ export function TableLoader({
     <TableRow className={cn("hover:bg-transparent", className)}>
       <TableCell
         colSpan={colSpan}
-        className={cn("text-center text-xs text-slate-500 font-sans", heightClassName)}
+        className={cn(
+          "text-center text-xs text-slate-500 font-sans",
+          heightClassName,
+        )}
       >
         <div className="flex flex-col items-center justify-center gap-2.5 py-6">
           <Spinner size={spinnerSize} variant={spinnerVariant} />

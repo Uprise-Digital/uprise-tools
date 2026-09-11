@@ -67,6 +67,8 @@ export interface ClientEntity {
   status: string;
   contactsCount: number;
   callCount: number;
+  googleEnabled?: boolean;
+  metaEnabled?: boolean;
   adAccounts?: { id: number; name: string; googleAccountId: string }[];
   metaAdAccounts?: { id: number; name: string; metaAccountId: string }[];
 }
@@ -101,19 +103,27 @@ export default function ContactsDirectoryClient() {
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [stageFilter, setStageFilter] = useState<"all" | "leads" | "won" | "unassigned">("all");
-  const [callFilter, setCallFilter] = useState<"all" | "with_calls" | "hot_leads">("all");
+  const [stageFilter, setStageFilter] = useState<
+    "all" | "leads" | "won" | "unassigned"
+  >("all");
+  const [callFilter, setCallFilter] = useState<
+    "all" | "with_calls" | "hot_leads"
+  >("all");
 
   // Assignment Modal
   const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [selectedContact, setSelectedContact] = useState<ContactEntity | null>(null);
+  const [selectedContact, setSelectedContact] = useState<ContactEntity | null>(
+    null,
+  );
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [assigningLoading, setAssigningLoading] = useState(false);
   const [clientSearchQuery, setClientSearchQuery] = useState("");
 
   // Promote Modal
   const [promoteModalOpen, setPromoteModalOpen] = useState(false);
-  const [promoteContact, setPromoteContact] = useState<ContactEntity | null>(null);
+  const [promoteContact, setPromoteContact] = useState<ContactEntity | null>(
+    null,
+  );
   const [newClientName, setNewClientName] = useState("");
   const [promotingLoading, setPromotingLoading] = useState(false);
 
@@ -147,7 +157,9 @@ export default function ContactsDirectoryClient() {
     try {
       const res = await syncAllGhlClientsAction();
       if (res.success) {
-        toast.success(`Synced ${res.totalFound || 0} contacts from GoHighLevel!`);
+        toast.success(
+          `Synced ${res.totalFound || 0} contacts from GoHighLevel!`,
+        );
         await fetchData(true);
       } else {
         toast.error(res.error || "GHL sync failed");
@@ -164,7 +176,10 @@ export default function ContactsDirectoryClient() {
     if (!selectedContact) return;
     setAssigningLoading(true);
     try {
-      const res = await assignContactToClientAction(selectedContact.id, selectedClientId);
+      const res = await assignContactToClientAction(
+        selectedContact.id,
+        selectedClientId,
+      );
       if (res.success) {
         const clientObj = clients.find((c) => c.id === selectedClientId);
         toast.success(
@@ -189,9 +204,14 @@ export default function ContactsDirectoryClient() {
     if (!promoteContact || !newClientName.trim()) return;
     setPromotingLoading(true);
     try {
-      const res = await promoteContactToClientAction(promoteContact.id, newClientName.trim());
+      const res = await promoteContactToClientAction(
+        promoteContact.id,
+        newClientName.trim(),
+      );
       if (res.success) {
-        toast.success(`Created client "${newClientName.trim()}" and linked ${promoteContact.name}!`);
+        toast.success(
+          `Created client "${newClientName.trim()}" and linked ${promoteContact.name}!`,
+        );
         setPromoteModalOpen(false);
         setNewClientName("");
         fetchData(true);
@@ -211,7 +231,12 @@ export default function ContactsDirectoryClient() {
       // Stage filter
       if (stageFilter === "leads") {
         const stage = (c.pipelineStage || "").toLowerCase();
-        if (stage.includes("won") || stage.includes("lost") || stage.includes("disqualified")) return false;
+        if (
+          stage.includes("won") ||
+          stage.includes("lost") ||
+          stage.includes("disqualified")
+        )
+          return false;
       } else if (stageFilter === "won") {
         const stage = (c.pipelineStage || "").toLowerCase();
         if (!stage.includes("won") && c.status !== "active") return false;
@@ -221,7 +246,11 @@ export default function ContactsDirectoryClient() {
 
       // Call filter
       if (callFilter === "with_calls" && c.callCount === 0) return false;
-      if (callFilter === "hot_leads" && (!c.latestLeadScore || c.latestLeadScore < 7)) return false;
+      if (
+        callFilter === "hot_leads" &&
+        (!c.latestLeadScore || c.latestLeadScore < 7)
+      )
+        return false;
 
       // Search query
       if (searchQuery.trim()) {
@@ -231,7 +260,13 @@ export default function ContactsDirectoryClient() {
         const matchesPhone = c.phone?.includes(q);
         const matchesClient = c.clientName?.toLowerCase().includes(q);
         const matchesStage = c.pipelineStage?.toLowerCase().includes(q);
-        return matchesName || matchesEmail || matchesPhone || matchesClient || matchesStage;
+        return (
+          matchesName ||
+          matchesEmail ||
+          matchesPhone ||
+          matchesClient ||
+          matchesStage
+        );
       }
 
       return true;
@@ -242,23 +277,33 @@ export default function ContactsDirectoryClient() {
   const filteredClientsForPicker = useMemo(() => {
     if (!clientSearchQuery.trim()) return clients;
     const q = clientSearchQuery.toLowerCase();
-    return clients.filter((c) => c.name.toLowerCase().includes(q) || c.industry.toLowerCase().includes(q));
+    return clients.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.industry.toLowerCase().includes(q),
+    );
   }, [clients, clientSearchQuery]);
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto relative">
-      <TopProgressBar loading={loading || refreshing || syncingGhl} color="indigo" />
+      <TopProgressBar
+        loading={loading || refreshing || syncingGhl}
+        color="indigo"
+      />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Contacts & Leads</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Contacts & Leads
+            </h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
               {contacts.length} Total
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Individual contacts and sales leads synced from GoHighLevel. Assign them to your real client businesses.
+            Individual contacts and sales leads synced from GoHighLevel. Assign
+            them to your real client businesses.
           </p>
         </div>
 
@@ -270,7 +315,9 @@ export default function ContactsDirectoryClient() {
             disabled={refreshing || loading}
             className="text-xs h-9 bg-white"
           >
-            <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5", refreshing && "animate-spin")} />
+            <RefreshCw
+              className={cn("w-3.5 h-3.5 mr-1.5", refreshing && "animate-spin")}
+            />
             Refresh
           </Button>
 
@@ -280,7 +327,12 @@ export default function ContactsDirectoryClient() {
             disabled={syncingGhl}
             className="text-xs h-9 bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-sm"
           >
-            <Zap className={cn("w-3.5 h-3.5 mr-1.5 text-indigo-200", syncingGhl && "animate-spin")} />
+            <Zap
+              className={cn(
+                "w-3.5 h-3.5 mr-1.5 text-indigo-200",
+                syncingGhl && "animate-spin",
+              )}
+            />
             {syncingGhl ? "Syncing GHL..." : "Sync from GHL"}
           </Button>
         </div>
@@ -349,7 +401,9 @@ export default function ContactsDirectoryClient() {
               onClick={() => setCallFilter("all")}
               className={cn(
                 "px-2 py-1 rounded-md font-medium text-[11px]",
-                callFilter === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900",
+                callFilter === "all"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900",
               )}
             >
               All
@@ -399,33 +453,50 @@ export default function ContactsDirectoryClient() {
           {loading ? (
             <div className="p-16 flex flex-col items-center justify-center gap-3">
               <Spinner size="xl" variant="brand" />
-              <p className="text-xs font-semibold text-slate-500">Loading contacts directory...</p>
+              <p className="text-xs font-semibold text-slate-500">
+                Loading contacts directory...
+              </p>
             </div>
           ) : filteredContacts.length === 0 ? (
             <div className="p-16 text-center">
               <Users className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-slate-800">No contacts found</h3>
+              <h3 className="text-sm font-bold text-slate-800">
+                No contacts found
+              </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                {searchQuery ? "Try adjusting your search query or filters." : "No contacts match the selected criteria."}
+                {searchQuery
+                  ? "Try adjusting your search query or filters."
+                  : "No contacts match the selected criteria."}
               </p>
             </div>
           ) : (
             <Table>
               <TableHeader className="bg-slate-50/80 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500">
                 <TableRow>
-                  <TableHead className="font-bold py-3 pl-6">Contact / Lead</TableHead>
+                  <TableHead className="font-bold py-3 pl-6">
+                    Contact / Lead
+                  </TableHead>
                   <TableHead className="font-bold">Pipeline Stage</TableHead>
-                  <TableHead className="font-bold">Assigned Client Business</TableHead>
+                  <TableHead className="font-bold">
+                    Assigned Client Business
+                  </TableHead>
                   <TableHead className="font-bold">Call History</TableHead>
                   <TableHead className="font-bold">Contact Info</TableHead>
-                  <TableHead className="font-bold text-right pr-6">Actions</TableHead>
+                  <TableHead className="font-bold text-right pr-6">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-slate-100 text-xs">
                 {filteredContacts.map((c) => {
-                  const assignedClient = clients.find((cl) => cl.id === c.clientId);
+                  const assignedClient = clients.find(
+                    (cl) => cl.id === c.clientId,
+                  );
                   return (
-                    <TableRow key={c.id} className="hover:bg-slate-50/60 transition-colors group">
+                    <TableRow
+                      key={c.id}
+                      className="hover:bg-slate-50/60 transition-colors group"
+                    >
                       {/* Contact / Lead Name */}
                       <TableCell className="py-3.5 pl-6">
                         <div className="font-semibold text-slate-900 text-xs flex items-center gap-2">
@@ -436,7 +507,11 @@ export default function ContactsDirectoryClient() {
                             </span>
                           )}
                         </div>
-                        {c.jobTitle && <div className="text-[11px] text-slate-400 mt-0.5">{c.jobTitle}</div>}
+                        {c.jobTitle && (
+                          <div className="text-[11px] text-slate-400 mt-0.5">
+                            {c.jobTitle}
+                          </div>
+                        )}
                       </TableCell>
 
                       {/* Pipeline Stage */}
@@ -447,10 +522,16 @@ export default function ContactsDirectoryClient() {
                               "px-2 py-0.5 rounded-full text-[10px] font-semibold border inline-block",
                               c.pipelineStage.toLowerCase().includes("won")
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : c.pipelineStage.toLowerCase().includes("meeting") ||
-                                    c.pipelineStage.toLowerCase().includes("scheduled")
+                                : c.pipelineStage
+                                      .toLowerCase()
+                                      .includes("meeting") ||
+                                    c.pipelineStage
+                                      .toLowerCase()
+                                      .includes("scheduled")
                                   ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                  : c.pipelineStage.toLowerCase().includes("disqualified")
+                                  : c.pipelineStage
+                                        .toLowerCase()
+                                        .includes("disqualified")
                                     ? "bg-rose-50 text-rose-700 border-rose-200"
                                     : "bg-slate-100 text-slate-700 border-slate-200",
                             )}
@@ -458,7 +539,9 @@ export default function ContactsDirectoryClient() {
                             {c.pipelineStage}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-slate-400 italic">No stage</span>
+                          <span className="text-[11px] text-slate-400 italic">
+                            No stage
+                          </span>
                         )}
                       </TableCell>
 
@@ -471,7 +554,9 @@ export default function ContactsDirectoryClient() {
                               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50/80 text-indigo-700 hover:bg-indigo-100 transition-colors border border-indigo-200/60"
                             >
                               <Building2 className="w-3 h-3 text-indigo-500" />
-                              <span className="truncate max-w-[150px]">{assignedClient.name}</span>
+                              <span className="truncate max-w-[150px]">
+                                {assignedClient.name}
+                              </span>
                             </Link>
                             <button
                               type="button"
@@ -499,7 +584,8 @@ export default function ContactsDirectoryClient() {
                               }}
                               className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50/60 hover:bg-indigo-100/80 px-2 py-0.5 rounded border border-dashed border-indigo-300 transition-colors"
                             >
-                              <LinkIcon className="w-2.5 h-2.5" /> Assign to Client
+                              <LinkIcon className="w-2.5 h-2.5" /> Assign to
+                              Client
                             </button>
                             <button
                               type="button"
@@ -523,7 +609,8 @@ export default function ContactsDirectoryClient() {
                           <div className="flex items-center gap-1.5">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-50 text-violet-700 border border-violet-200">
                               <PhoneCall className="w-2.5 h-2.5" />
-                              {c.callCount} {c.callCount === 1 ? "call" : "calls"}
+                              {c.callCount}{" "}
+                              {c.callCount === 1 ? "call" : "calls"}
                             </span>
                             {c.latestLeadScore && (
                               <span
@@ -539,7 +626,9 @@ export default function ContactsDirectoryClient() {
                             )}
                           </div>
                         ) : (
-                          <span className="text-[11px] text-slate-400 italic">No calls</span>
+                          <span className="text-[11px] text-slate-400 italic">
+                            No calls
+                          </span>
                         )}
                       </TableCell>
 
@@ -611,9 +700,16 @@ export default function ContactsDirectoryClient() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-5 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Assign Contact to Client Business</h3>
+              <h3 className="text-base font-bold text-slate-900">
+                Assign Contact to Client Business
+              </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Link <span className="font-semibold text-slate-800">{selectedContact.name}</span> to an agency client company (e.g., Ray Amp Solar, Smooth Concrete).
+                Link{" "}
+                <span className="font-semibold text-slate-800">
+                  {selectedContact.name}
+                </span>{" "}
+                to an agency client company (e.g., Ray Amp Solar, Smooth
+                Concrete).
               </p>
             </div>
 
@@ -634,11 +730,15 @@ export default function ContactsDirectoryClient() {
                   onClick={() => setSelectedClientId(null)}
                   className={cn(
                     "w-full text-left p-2.5 text-xs flex items-center justify-between hover:bg-slate-50 transition-colors",
-                    selectedClientId === null ? "bg-indigo-50/60 font-semibold text-indigo-700" : "text-slate-600",
+                    selectedClientId === null
+                      ? "bg-indigo-50/60 font-semibold text-indigo-700"
+                      : "text-slate-600",
                   )}
                 >
                   <span className="italic">None (Leave Unassigned)</span>
-                  {selectedClientId === null && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                  {selectedClientId === null && (
+                    <Check className="w-3.5 h-3.5 text-indigo-600" />
+                  )}
                 </button>
 
                 {filteredClientsForPicker.map((cl) => {
@@ -650,7 +750,9 @@ export default function ContactsDirectoryClient() {
                       onClick={() => setSelectedClientId(cl.id)}
                       className={cn(
                         "w-full text-left p-2.5 text-xs flex items-center justify-between hover:bg-slate-50 transition-colors",
-                        isSelected ? "bg-indigo-50/60 font-semibold text-indigo-700" : "text-slate-700",
+                        isSelected
+                          ? "bg-indigo-50/60 font-semibold text-indigo-700"
+                          : "text-slate-700",
                       )}
                     >
                       <div className="flex items-center gap-2 truncate">
@@ -662,7 +764,9 @@ export default function ContactsDirectoryClient() {
                           </span>
                         )}
                       </div>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0 ml-2" />}
+                      {isSelected && (
+                        <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0 ml-2" />
+                      )}
                     </button>
                   );
                 })}
@@ -684,7 +788,9 @@ export default function ContactsDirectoryClient() {
                 disabled={assigningLoading}
                 className="text-xs h-8 bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                {assigningLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                {assigningLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                ) : null}
                 Save Assignment
               </Button>
             </div>
@@ -697,15 +803,23 @@ export default function ContactsDirectoryClient() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-5 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Create Client Business</h3>
+              <h3 className="text-base font-bold text-slate-900">
+                Create Client Business
+              </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Promote <span className="font-semibold text-slate-800">{promoteContact.name}</span> into their own distinct client company account.
+                Promote{" "}
+                <span className="font-semibold text-slate-800">
+                  {promoteContact.name}
+                </span>{" "}
+                into their own distinct client company account.
               </p>
             </div>
 
             <div className="p-5 space-y-3">
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Company / Client Name</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Company / Client Name
+                </label>
                 <Input
                   value={newClientName}
                   onChange={(e) => setNewClientName(e.target.value)}
@@ -730,7 +844,9 @@ export default function ContactsDirectoryClient() {
                 disabled={promotingLoading || !newClientName.trim()}
                 className="text-xs h-8 bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                {promotingLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                {promotingLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                ) : null}
                 Create Client & Link
               </Button>
             </div>

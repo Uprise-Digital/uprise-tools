@@ -161,8 +161,12 @@ describe("unifyAccounts", () => {
 
     // They must NOT merge because store numbers 101 vs 102 differ!
     expect(unified).toHaveLength(2);
-    expect(unified.find((u) => u.name === "Subway Store 101")?.platforms).toEqual(["google"]);
-    expect(unified.find((u) => u.name === "Subway Store 102")?.platforms).toEqual(["meta"]);
+    expect(
+      unified.find((u) => u.name === "Subway Store 101")?.platforms,
+    ).toEqual(["google"]);
+    expect(
+      unified.find((u) => u.name === "Subway Store 102")?.platforms,
+    ).toEqual(["meta"]);
   });
 
   it("safeguards against false positives for short distinct brand names", () => {
@@ -234,5 +238,3 @@ describe("unifyAccounts", () => {
     expect(unified[0].clientOnboardingId).toBe(42);
   });
 });
-
-

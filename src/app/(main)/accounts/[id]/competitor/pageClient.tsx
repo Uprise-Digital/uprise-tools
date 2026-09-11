@@ -107,8 +107,7 @@ export default function CompetitorClient({ account }: { account: any }) {
         <div className="flex flex-col items-start gap-1 w-full md:w-auto">
           {isDetectingTarget && (
             <span className="text-[10px] uppercase font-bold tracking-wider text-blue-500 flex items-center gap-1 ml-2">
-              <Spinner size="xs" variant="blue" /> AI locating target
-              keyword...
+              <Spinner size="xs" variant="blue" /> AI locating target keyword...
             </span>
           )}
           {!isDetectingTarget && searchTerm && (

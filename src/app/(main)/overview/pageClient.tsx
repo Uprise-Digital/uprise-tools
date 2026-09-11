@@ -85,7 +85,9 @@ export default function AgencyReportsClient() {
 
   const [startDate, setStartDate] = useState(localMonthStartStr);
   const [endDate, setEndDate] = useState(localTodayStr);
-  const [platformFilter, setPlatformFilter] = useState<"all" | "google" | "meta">("all");
+  const [platformFilter, setPlatformFilter] = useState<
+    "all" | "google" | "meta"
+  >("all");
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
   const [loadingData, setLoadingData] = useState(true);
@@ -400,7 +402,8 @@ export default function AgencyReportsClient() {
         const query = ledgerSearch.toLowerCase();
         return (
           acc.name.toLowerCase().includes(query) ||
-          (acc.googleAccountId && acc.googleAccountId.toLowerCase().includes(query)) ||
+          (acc.googleAccountId &&
+            acc.googleAccountId.toLowerCase().includes(query)) ||
           (acc.metaAccountId && acc.metaAccountId.toLowerCase().includes(query))
         );
       }
@@ -937,7 +940,8 @@ export default function AgencyReportsClient() {
             )}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Macro portfolio performance, period-over-period deltas, and cross-channel intelligence.
+            Macro portfolio performance, period-over-period deltas, and
+            cross-channel intelligence.
           </p>
 
           {/* Platform Filter Tabs */}
@@ -1805,7 +1809,9 @@ export default function AgencyReportsClient() {
               </div>
             )}
             <Button
-              onClick={() => fetchGodModeAi(true, portfolio, true, platformFilter)}
+              onClick={() =>
+                fetchGodModeAi(true, portfolio, true, platformFilter)
+              }
               disabled={isAiLoading || isAiRefreshing || !portfolio}
               size="sm"
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs cursor-pointer"
@@ -2114,7 +2120,9 @@ export default function AgencyReportsClient() {
                 </TableHead>
                 <TableHead className="text-right font-bold">CTR</TableHead>
                 <TableHead className="text-right font-bold">CPC</TableHead>
-                <TableHead className="text-right font-bold pr-6">Action</TableHead>
+                <TableHead className="text-right font-bold pr-6">
+                  Action
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody
@@ -2149,7 +2157,8 @@ export default function AgencyReportsClient() {
                     platformFilter === "all" &&
                     Array.isArray(acc.platforms) &&
                     acc.platforms.length > 1;
-                  const isExpanded = isBlended && !!expandedRows[acc.key || acc.accountId];
+                  const isExpanded =
+                    isBlended && !!expandedRows[acc.key || acc.accountId];
 
                   return (
                     <>
@@ -2158,304 +2167,193 @@ export default function AgencyReportsClient() {
                         className="text-sm hover:bg-slate-50 cursor-pointer transition-colors"
                         onClick={() => handleRowClick(acc.accountId)}
                       >
-                      {/* Chevron expand/collapse toggle */}
-                      <TableCell className="w-8 pl-4 pr-0 py-3.5">
-                        {isBlended ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleRowExpanded(acc.key || acc.accountId);
-                            }}
-                            className="p-1 rounded hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-                            title="Toggle Channel Breakdown"
-                          >
-                            <ChevronDown
-                              className={`w-3.5 h-3.5 transition-transform ${
-                                isExpanded ? "transform rotate-180" : ""
-                              }`}
-                            />
-                          </button>
-                        ) : null}
-                      </TableCell>
-
-                      <TableCell className="py-3.5">
-                        <div className="flex items-center gap-2">
-                          <span
-                            title={
-                              platformFilter === "meta"
-                                ? acc.metaAccountStatus === 1
-                                  ? "Meta Ads: Active"
-                                  : "Meta Ads: Inactive"
-                                : acc.googleStatus === "ENABLED"
-                                  ? "Google Ads: Active"
-                                  : acc.googleStatus === "CANCELED"
-                                    ? "Google Ads: Cancelled"
-                                    : acc.googleStatus === "SUSPENDED"
-                                      ? "Google Ads: Suspended"
-                                      : `Status: ${acc.googleStatus}`
-                            }
-                            className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
-                              platformFilter === "meta"
-                                ? acc.metaAccountStatus === 1
-                                  ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
-                                  : "bg-slate-400"
-                                : acc.googleStatus === "ENABLED"
-                                  ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
-                                  : acc.googleStatus === "CANCELED"
-                                    ? "bg-slate-400"
-                                    : acc.googleStatus === "SUSPENDED"
-                                      ? "bg-rose-500 shadow-sm shadow-rose-500/30"
-                                      : "bg-amber-500"
-                            }`}
-                          />
-                          <span className="font-semibold text-slate-900">
-                            {acc.name}
-                          </span>
-
-                          {isBlended && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200">
-                              <Layers className="w-2.5 h-2.5" />
-                              Blended
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Platform ID Badges */}
-                        <div className="flex flex-wrap items-center gap-1.5 pl-4.5 mt-1">
-                          {platformFilter !== "meta" && acc.googleAccountId && (
-                            <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-1.5 py-0.2 rounded font-mono shadow-2xs">
-                              <GoogleLogo className="w-2.5 h-2.5 shrink-0" />
-                              {acc.googleAccountId}
-                            </span>
-                          )}
-                          {platformFilter !== "google" && acc.metaAccountId && (
-                            <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-blue-800 bg-blue-50 border border-blue-200/70 px-1.5 py-0.2 rounded font-mono shadow-2xs">
-                              <MetaLogo className="w-2.5 h-2.5 shrink-0" />
-                              act_{acc.metaAccountId}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-center py-3.5">
-                        <span
-                          className={`px-2 py-1 text-[10px] rounded-full border uppercase tracking-wider ${risk.classes}`}
-                        >
-                          {risk.label}
-                        </span>
-                      </TableCell>
-
-                      <TableCell className="text-right font-mono py-3.5">
-                        <div className="font-semibold text-slate-900">
-                          {fCur(acc.spend)}
-                        </div>
-                        {acc.deltas?.spendDeltaPct !== null &&
-                        acc.deltas?.spendDeltaPct !== undefined ? (
-                          <div className="text-[10px] text-slate-400">
-                            {acc.deltas.spendDeltaPct > 0 ? "+" : ""}
-                            {acc.deltas.spendDeltaPct.toFixed(1)}% vs prior
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-slate-300">—</div>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="text-right font-mono py-3.5">
-                        <div className="font-bold text-emerald-600">
-                          {fNum(acc.conversions)}
-                        </div>
-                        {acc.deltas?.convDeltaPct !== null &&
-                        acc.deltas?.convDeltaPct !== undefined ? (
-                          <div
-                            className={`text-[10px] font-medium ${
-                              acc.deltas.convDeltaPct >= 0
-                                ? "text-emerald-600"
-                                : "text-rose-600"
-                            }`}
-                          >
-                            {acc.deltas.convDeltaPct > 0 ? "+" : ""}
-                            {acc.deltas.convDeltaPct.toFixed(1)}% (
-                            {acc.deltas.convDeltaAbs > 0 ? "+" : ""}
-                            {acc.deltas.convDeltaAbs})
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-slate-300">—</div>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="text-right font-mono py-3.5">
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span
-                            className={
-                              acc.cpa > (portfolio?.agencyTotals?.cpa || 0) * 1.5
-                                ? "text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded"
-                                : "font-semibold text-slate-800"
-                            }
-                          >
-                            {acc.spend > 0 && acc.conversions === 0 ? "No Conv." : fCur(acc.cpa)}
-                          </span>
-                          {acc.deltas?.cpaDeltaPct !== null &&
-                          acc.deltas?.cpaDeltaPct !== undefined ? (
-                            <span
-                              className={`text-[10px] font-medium px-1 rounded ${
-                                acc.deltas.cpaDeltaPct < 0
-                                  ? "text-emerald-700 bg-emerald-50"
-                                  : acc.deltas.cpaDeltaPct > 0
-                                    ? "text-rose-700 bg-rose-50"
-                                    : "text-slate-500"
-                              }`}
-                            >
-                              {acc.deltas.cpaDeltaPct < 0
-                                ? "▼"
-                                : acc.deltas.cpaDeltaPct > 0
-                                  ? "▲"
-                                  : ""}{" "}
-                              {acc.deltas.cpaDeltaPct > 0 ? "+" : ""}
-                              {acc.deltas.cpaDeltaPct.toFixed(1)}%
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-slate-300">—</span>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-right font-mono py-3.5">
-                        <span
-                          className={
-                            acc.ctr > 0 && acc.ctr < 3
-                              ? "text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded"
-                              : "text-slate-500"
-                          }
-                        >
-                          {fPct(acc.ctr)}
-                        </span>
-                      </TableCell>
-
-                      <TableCell className="text-right font-mono text-slate-500 py-3.5">
-                        {fCur(acc.cpc)}
-                      </TableCell>
-
-                      <TableCell className="text-right pr-6 py-3.5">
-                        {platformFilter === "meta" ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (acc.metaAccountId) {
-                                window.open(
-                                  `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${acc.metaAccountId}`,
-                                  "_blank",
-                                  "noopener,noreferrer",
-                                );
-                              }
-                            }}
-                            className="h-7 text-xs text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-2 cursor-pointer"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5 mr-1" />
-                            Meta Ads
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/accounts/${acc.accountId}`);
-                            }}
-                            className="h-7 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-2 cursor-pointer"
-                          >
-                            <Eye className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                            Details
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-
-                    {/* Drill-down Sub-Rows for Blended Multi-Platform Accounts */}
-                    {isBlended && isExpanded && (
-                      <>
-                        {/* Google Sub-Row */}
-                        <TableRow className="bg-slate-50/70 border-l-2 border-emerald-500 text-xs hover:bg-slate-100/70">
-                          <TableCell className="pl-4 pr-0 py-2.5" />
-                          <TableCell className="pl-6 py-2.5 font-medium text-slate-700">
-                            <div className="flex items-center gap-2">
-                              <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
-                              <span className="font-semibold text-slate-900">
-                                Google Ads
-                              </span>
-                              <span className="font-mono text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-1.5 py-0.5 rounded">
-                                {acc.googleAccountId}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-2.5 text-center text-slate-400 text-[10px]">
-                            Channel
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-slate-800 py-2.5">
-                            {fCur(acc.channelBreakdown?.google?.spend || 0)}
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-slate-800 py-2.5">
-                            {fNum(acc.channelBreakdown?.google?.conversions || 0)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-slate-800 py-2.5">
-                            {fCur(acc.channelBreakdown?.google?.cpa || 0)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-slate-600 py-2.5">
-                            {fPct(acc.channelBreakdown?.google?.ctr || 0)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-slate-600 py-2.5">
-                            {fCur(acc.channelBreakdown?.google?.cpc || 0)}
-                          </TableCell>
-                          <TableCell className="text-right pr-6 py-2.5">
-                            <Button
-                              variant="ghost"
-                              size="sm"
+                        {/* Chevron expand/collapse toggle */}
+                        <TableCell className="w-8 pl-4 pr-0 py-3.5">
+                          {isBlended ? (
+                            <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                router.push(`/accounts/${acc.googleId || acc.accountId}`);
+                                toggleRowExpanded(acc.key || acc.accountId);
                               }}
-                              className="h-6 text-[11px] text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 px-2 cursor-pointer"
+                              className="p-1 rounded hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                              title="Toggle Channel Breakdown"
                             >
-                              View Google
-                            </Button>
-                          </TableCell>
-                        </TableRow>
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 transition-transform ${
+                                  isExpanded ? "transform rotate-180" : ""
+                                }`}
+                              />
+                            </button>
+                          ) : null}
+                        </TableCell>
 
-                        {/* Meta Sub-Row */}
-                        <TableRow className="bg-slate-50/70 border-l-2 border-blue-500 text-xs hover:bg-slate-100/70">
-                          <TableCell className="pl-4 pr-0 py-2.5" />
-                          <TableCell className="pl-6 py-2.5 font-medium text-slate-700">
-                            <div className="flex items-center gap-2">
-                              <MetaLogo className="w-3.5 h-3.5 shrink-0" />
-                              <span className="font-semibold text-slate-900">
-                                Meta Ads
+                        <TableCell className="py-3.5">
+                          <div className="flex items-center gap-2">
+                            <span
+                              title={
+                                platformFilter === "meta"
+                                  ? acc.metaAccountStatus === 1
+                                    ? "Meta Ads: Active"
+                                    : "Meta Ads: Inactive"
+                                  : acc.googleStatus === "ENABLED"
+                                    ? "Google Ads: Active"
+                                    : acc.googleStatus === "CANCELED"
+                                      ? "Google Ads: Cancelled"
+                                      : acc.googleStatus === "SUSPENDED"
+                                        ? "Google Ads: Suspended"
+                                        : `Status: ${acc.googleStatus}`
+                              }
+                              className={`h-2.5 w-2.5 rounded-full flex-shrink-0 cursor-help ${
+                                platformFilter === "meta"
+                                  ? acc.metaAccountStatus === 1
+                                    ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
+                                    : "bg-slate-400"
+                                  : acc.googleStatus === "ENABLED"
+                                    ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
+                                    : acc.googleStatus === "CANCELED"
+                                      ? "bg-slate-400"
+                                      : acc.googleStatus === "SUSPENDED"
+                                        ? "bg-rose-500 shadow-sm shadow-rose-500/30"
+                                        : "bg-amber-500"
+                              }`}
+                            />
+                            <span className="font-semibold text-slate-900">
+                              {acc.name}
+                            </span>
+
+                            {isBlended && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200">
+                                <Layers className="w-2.5 h-2.5" />
+                                Blended
                               </span>
-                              <span className="font-mono text-[10px] text-blue-800 bg-blue-50 border border-blue-200/70 px-1.5 py-0.5 rounded">
-                                act_{acc.metaAccountId}
-                              </span>
+                            )}
+                          </div>
+
+                          {/* Platform ID Badges */}
+                          <div className="flex flex-wrap items-center gap-1.5 pl-4.5 mt-1">
+                            {platformFilter !== "meta" &&
+                              acc.googleAccountId && (
+                                <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-1.5 py-0.2 rounded font-mono shadow-2xs">
+                                  <GoogleLogo className="w-2.5 h-2.5 shrink-0" />
+                                  {acc.googleAccountId}
+                                </span>
+                              )}
+                            {platformFilter !== "google" &&
+                              acc.metaAccountId && (
+                                <span className="inline-flex items-center gap-1 text-[9.5px] font-medium text-blue-800 bg-blue-50 border border-blue-200/70 px-1.5 py-0.2 rounded font-mono shadow-2xs">
+                                  <MetaLogo className="w-2.5 h-2.5 shrink-0" />
+                                  act_{acc.metaAccountId}
+                                </span>
+                              )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-center py-3.5">
+                          <span
+                            className={`px-2 py-1 text-[10px] rounded-full border uppercase tracking-wider ${risk.classes}`}
+                          >
+                            {risk.label}
+                          </span>
+                        </TableCell>
+
+                        <TableCell className="text-right font-mono py-3.5">
+                          <div className="font-semibold text-slate-900">
+                            {fCur(acc.spend)}
+                          </div>
+                          {acc.deltas?.spendDeltaPct !== null &&
+                          acc.deltas?.spendDeltaPct !== undefined ? (
+                            <div className="text-[10px] text-slate-400">
+                              {acc.deltas.spendDeltaPct > 0 ? "+" : ""}
+                              {acc.deltas.spendDeltaPct.toFixed(1)}% vs prior
                             </div>
-                          </TableCell>
-                          <TableCell className="py-2.5 text-center text-slate-400 text-[10px]">
-                            Channel
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-slate-800 py-2.5">
-                            {fCur(acc.channelBreakdown?.meta?.spend || 0)}
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-slate-800 py-2.5">
-                            {fNum(acc.channelBreakdown?.meta?.conversions || 0)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-slate-800 py-2.5">
-                            {fCur(acc.channelBreakdown?.meta?.cpa || 0)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-slate-600 py-2.5">
-                            {fPct(acc.channelBreakdown?.meta?.ctr || 0)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-slate-600 py-2.5">
-                            {fCur(acc.channelBreakdown?.meta?.cpc || 0)}
-                          </TableCell>
-                          <TableCell className="text-right pr-6 py-2.5">
+                          ) : (
+                            <div className="text-[10px] text-slate-300">—</div>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="text-right font-mono py-3.5">
+                          <div className="font-bold text-emerald-600">
+                            {fNum(acc.conversions)}
+                          </div>
+                          {acc.deltas?.convDeltaPct !== null &&
+                          acc.deltas?.convDeltaPct !== undefined ? (
+                            <div
+                              className={`text-[10px] font-medium ${
+                                acc.deltas.convDeltaPct >= 0
+                                  ? "text-emerald-600"
+                                  : "text-rose-600"
+                              }`}
+                            >
+                              {acc.deltas.convDeltaPct > 0 ? "+" : ""}
+                              {acc.deltas.convDeltaPct.toFixed(1)}% (
+                              {acc.deltas.convDeltaAbs > 0 ? "+" : ""}
+                              {acc.deltas.convDeltaAbs})
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-slate-300">—</div>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="text-right font-mono py-3.5">
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span
+                              className={
+                                acc.cpa >
+                                (portfolio?.agencyTotals?.cpa || 0) * 1.5
+                                  ? "text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded"
+                                  : "font-semibold text-slate-800"
+                              }
+                            >
+                              {acc.spend > 0 && acc.conversions === 0
+                                ? "No Conv."
+                                : fCur(acc.cpa)}
+                            </span>
+                            {acc.deltas?.cpaDeltaPct !== null &&
+                            acc.deltas?.cpaDeltaPct !== undefined ? (
+                              <span
+                                className={`text-[10px] font-medium px-1 rounded ${
+                                  acc.deltas.cpaDeltaPct < 0
+                                    ? "text-emerald-700 bg-emerald-50"
+                                    : acc.deltas.cpaDeltaPct > 0
+                                      ? "text-rose-700 bg-rose-50"
+                                      : "text-slate-500"
+                                }`}
+                              >
+                                {acc.deltas.cpaDeltaPct < 0
+                                  ? "▼"
+                                  : acc.deltas.cpaDeltaPct > 0
+                                    ? "▲"
+                                    : ""}{" "}
+                                {acc.deltas.cpaDeltaPct > 0 ? "+" : ""}
+                                {acc.deltas.cpaDeltaPct.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-300">
+                                —
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-right font-mono py-3.5">
+                          <span
+                            className={
+                              acc.ctr > 0 && acc.ctr < 3
+                                ? "text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded"
+                                : "text-slate-500"
+                            }
+                          >
+                            {fPct(acc.ctr)}
+                          </span>
+                        </TableCell>
+
+                        <TableCell className="text-right font-mono text-slate-500 py-3.5">
+                          {fCur(acc.cpc)}
+                        </TableCell>
+
+                        <TableCell className="text-right pr-6 py-3.5">
+                          {platformFilter === "meta" ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -2469,19 +2367,143 @@ export default function AgencyReportsClient() {
                                   );
                                 }
                               }}
-                              className="h-6 text-[11px] text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-2 cursor-pointer"
+                              className="h-7 text-xs text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-2 cursor-pointer"
                             >
-                              <ExternalLink className="w-3 h-3 mr-1" />
+                              <ExternalLink className="w-3.5 h-3.5 mr-1" />
                               Meta Ads
                             </Button>
-                          </TableCell>
-                        </TableRow>
-                      </>
-                    )}
-                  </>
-                );
-              })
-            )}
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/accounts/${acc.accountId}`);
+                              }}
+                              className="h-7 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-2 cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                              Details
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Drill-down Sub-Rows for Blended Multi-Platform Accounts */}
+                      {isBlended && isExpanded && (
+                        <>
+                          {/* Google Sub-Row */}
+                          <TableRow className="bg-slate-50/70 border-l-2 border-emerald-500 text-xs hover:bg-slate-100/70">
+                            <TableCell className="pl-4 pr-0 py-2.5" />
+                            <TableCell className="pl-6 py-2.5 font-medium text-slate-700">
+                              <div className="flex items-center gap-2">
+                                <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
+                                <span className="font-semibold text-slate-900">
+                                  Google Ads
+                                </span>
+                                <span className="font-mono text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-1.5 py-0.5 rounded">
+                                  {acc.googleAccountId}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2.5 text-center text-slate-400 text-[10px]">
+                              Channel
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                              {fCur(acc.channelBreakdown?.google?.spend || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-slate-800 py-2.5">
+                              {fNum(
+                                acc.channelBreakdown?.google?.conversions || 0,
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                              {fCur(acc.channelBreakdown?.google?.cpa || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                              {fPct(acc.channelBreakdown?.google?.ctr || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                              {fCur(acc.channelBreakdown?.google?.cpc || 0)}
+                            </TableCell>
+                            <TableCell className="text-right pr-6 py-2.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(
+                                    `/accounts/${acc.googleId || acc.accountId}`,
+                                  );
+                                }}
+                                className="h-6 text-[11px] text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 px-2 cursor-pointer"
+                              >
+                                View Google
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+
+                          {/* Meta Sub-Row */}
+                          <TableRow className="bg-slate-50/70 border-l-2 border-blue-500 text-xs hover:bg-slate-100/70">
+                            <TableCell className="pl-4 pr-0 py-2.5" />
+                            <TableCell className="pl-6 py-2.5 font-medium text-slate-700">
+                              <div className="flex items-center gap-2">
+                                <MetaLogo className="w-3.5 h-3.5 shrink-0" />
+                                <span className="font-semibold text-slate-900">
+                                  Meta Ads
+                                </span>
+                                <span className="font-mono text-[10px] text-blue-800 bg-blue-50 border border-blue-200/70 px-1.5 py-0.5 rounded">
+                                  act_{acc.metaAccountId}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2.5 text-center text-slate-400 text-[10px]">
+                              Channel
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                              {fCur(acc.channelBreakdown?.meta?.spend || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-slate-800 py-2.5">
+                              {fNum(
+                                acc.channelBreakdown?.meta?.conversions || 0,
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-800 py-2.5">
+                              {fCur(acc.channelBreakdown?.meta?.cpa || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                              {fPct(acc.channelBreakdown?.meta?.ctr || 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-slate-600 py-2.5">
+                              {fCur(acc.channelBreakdown?.meta?.cpc || 0)}
+                            </TableCell>
+                            <TableCell className="text-right pr-6 py-2.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (acc.metaAccountId) {
+                                    window.open(
+                                      `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${acc.metaAccountId}`,
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    );
+                                  }
+                                }}
+                                className="h-6 text-[11px] text-blue-700 hover:text-blue-900 hover:bg-blue-50 px-2 cursor-pointer"
+                              >
+                                <ExternalLink className="w-3 h-3 mr-1" />
+                                Meta Ads
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        </>
+                      )}
+                    </>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>

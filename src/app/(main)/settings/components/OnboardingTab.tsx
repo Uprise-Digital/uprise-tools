@@ -616,12 +616,14 @@ function OnboardingTabContent({
   );
   const [ghlAgencyApiKey, setGhlAgencyApiKey] = useState(
     onboardingSettings?.ghlAgencyApiKey ??
-      (onboardingSettings as any)?.workflowConfig?.integrations?.ghlAgencyApiKey ??
+      (onboardingSettings as any)?.workflowConfig?.integrations
+        ?.ghlAgencyApiKey ??
       "",
   );
   const [ghlLocationId, setGhlLocationId] = useState(
     onboardingSettings?.ghlLocationId ??
-      (onboardingSettings as any)?.workflowConfig?.integrations?.ghlLocationId ??
+      (onboardingSettings as any)?.workflowConfig?.integrations
+        ?.ghlLocationId ??
       "",
   );
   const [ghlCompanyId, setGhlCompanyId] = useState(
@@ -640,14 +642,16 @@ function OnboardingTabContent({
   useEffect(() => {
     if (ghlSnapshots.length === 0 && !loadingSnapshots) {
       setLoadingSnapshots(true);
-      getGhlSnapshotsAction(ghlAgencyApiKey || ghlApiKey, ghlLocationId, ghlCompanyId).then(
-        (res) => {
-          if (res.success && res.snapshots) {
-            setGhlSnapshots(res.snapshots);
-          }
-          setLoadingSnapshots(false);
-        },
-      );
+      getGhlSnapshotsAction(
+        ghlAgencyApiKey || ghlApiKey,
+        ghlLocationId,
+        ghlCompanyId,
+      ).then((res) => {
+        if (res.success && res.snapshots) {
+          setGhlSnapshots(res.snapshots);
+        }
+        setLoadingSnapshots(false);
+      });
     }
   }, [
     ghlApiKey,
@@ -2736,7 +2740,8 @@ Founder | ${orgName}`;
               <CardTitle className="text-sm font-bold flex flex-wrap items-center gap-2 text-slate-800">
                 <img src="/images/logos/ghl.svg" alt="" className="w-4 h-4" />
                 GoHighLevel Onboarding Integration
-                {ghlEnabled && (ghlLocationId || ghlApiKey || ghlAgencyApiKey) ? (
+                {ghlEnabled &&
+                (ghlLocationId || ghlApiKey || ghlAgencyApiKey) ? (
                   <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -2752,7 +2757,9 @@ Founder | ${orgName}`;
                 )}
               </CardTitle>
               <CardDescription className="text-xs">
-                Syncs client onboarding records, searches contacts, updates opportunity pipeline stages, and auto-provisions sub-accounts from snapshots.
+                Syncs client onboarding records, searches contacts, updates
+                opportunity pipeline stages, and auto-provisions sub-accounts
+                from snapshots.
               </CardDescription>
             </div>
             <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -2788,7 +2795,8 @@ Founder | ${orgName}`;
                   placeholder="e.g. 4DzNF3tH5ln9gwq7GtjW"
                 />
                 <p className="text-[10px] text-slate-500">
-                  Your primary CRM sub-account where client contacts and opportunities reside.
+                  Your primary CRM sub-account where client contacts and
+                  opportunities reside.
                 </p>
               </div>
               <div className="space-y-1.5">
@@ -2807,7 +2815,8 @@ Founder | ${orgName}`;
                   placeholder="e.g. BwvkM3wHfHWTcRf9EO3t"
                 />
                 <p className="text-[10px] text-slate-500">
-                  Found in your Agency Settings URL or Agency Developers dashboard.
+                  Found in your Agency Settings URL or Agency Developers
+                  dashboard.
                 </p>
               </div>
             </div>
@@ -2849,7 +2858,10 @@ Founder | ${orgName}`;
                   </button>
                 </div>
                 <p className="text-[10px] text-slate-500">
-                  Generate inside <strong>Uprise Digital Sub-Account</strong> → Settings → Developers → Private Integration Tokens with <code>contacts.readonly</code> & <code>opportunities.write</code> scopes.
+                  Generate inside <strong>Uprise Digital Sub-Account</strong> →
+                  Settings → Developers → Private Integration Tokens with{" "}
+                  <code>contacts.readonly</code> &{" "}
+                  <code>opportunities.write</code> scopes.
                 </p>
               </div>
 
@@ -2889,7 +2901,10 @@ Founder | ${orgName}`;
                   </button>
                 </div>
                 <p className="text-[10px] text-slate-500">
-                  Generate in <strong>Agency View</strong> → Settings → Developers → Private Integration Tokens with <code>locations.write</code> & <code>snapshots.readonly</code> scopes.
+                  Generate in <strong>Agency View</strong> → Settings →
+                  Developers → Private Integration Tokens with{" "}
+                  <code>locations.write</code> & <code>snapshots.readonly</code>{" "}
+                  scopes.
                 </p>
               </div>
             </div>

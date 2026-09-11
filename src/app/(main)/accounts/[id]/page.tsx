@@ -102,4 +102,3 @@ export default async function AccountDetailPage({ params }: PageProps) {
     />
   );
 }
-
