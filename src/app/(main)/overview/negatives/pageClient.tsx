@@ -7,6 +7,8 @@ import {
   Ban,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   DollarSign,
   ExternalLink,
   Flame,
@@ -98,6 +100,15 @@ export default function AgencyNegativesClient() {
   const [accountFilter, setAccountFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [matchTypeFilter, setMatchTypeFilter] = useState<string>("ALL");
+
+  // Pagination for Live Active Exclusions
+  const [livePage, setLivePage] = useState<number>(1);
+  const [liveLimit, setLiveLimit] = useState<number>(50);
+
+  // Reset live page on filter change
+  useEffect(() => {
+    setLivePage(1);
+  }, [accountFilter, searchQuery]);
 
   // Selection for bulk actions
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -239,6 +250,16 @@ export default function AgencyNegativesClient() {
       return true;
     });
   }, [liveActiveNegatives, accountFilter, searchQuery]);
+
+  // Paginated chunk for Live Active Negatives to prevent rendering tens of thousands of DOM nodes
+  const liveTotalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredLiveNegatives.length / liveLimit));
+  }, [filteredLiveNegatives.length, liveLimit]);
+
+  const paginatedLiveNegatives = useMemo(() => {
+    const start = (livePage - 1) * liveLimit;
+    return filteredLiveNegatives.slice(start, start + liveLimit);
+  }, [filteredLiveNegatives, livePage, liveLimit]);
 
   // Selection Handlers
   const toggleSelectAll = () => {
@@ -661,8 +682,10 @@ export default function AgencyNegativesClient() {
           >
             Live Active Exclusions
             {liveActiveNegatives.length > 0 && (
-              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold">
-                {liveActiveNegatives.length}
+              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono">
+                {new Intl.NumberFormat("en-AU").format(
+                  liveActiveNegatives.length,
+                )}
               </span>
             )}
           </button>
@@ -1401,51 +1424,154 @@ export default function AgencyNegativesClient() {
                 </p>
               </div>
             ) : (
-              <Table className="text-xs">
-                <TableHeader className="bg-slate-50/60">
-                  <TableRow className="border-b border-slate-100">
-                    <TableHead className="font-bold text-slate-700">
-                      Client
-                    </TableHead>
-                    <TableHead className="font-bold text-slate-700">
-                      Negative Keyword
-                    </TableHead>
-                    <TableHead className="font-bold text-slate-700">
-                      Match Type
-                    </TableHead>
-                    <TableHead className="font-bold text-slate-700">
-                      Campaign
-                    </TableHead>
-                    <TableHead className="font-bold text-slate-700 text-right">
-                      Criterion ID
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredLiveNegatives.map((row, idx) => (
-                    <TableRow
-                      key={idx}
-                      className="hover:bg-slate-50 border-b border-slate-50"
-                    >
-                      <TableCell className="font-bold text-slate-800">
-                        {row.accountName}
-                      </TableCell>
-                      <TableCell className="font-mono font-bold text-indigo-600">
-                        {row.keyword}
-                      </TableCell>
-                      <TableCell className="capitalize text-slate-500 font-medium">
-                        {row.matchType.toLowerCase()}
-                      </TableCell>
-                      <TableCell className="text-slate-600">
-                        {row.campaignName}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-slate-400">
-                        {row.criterionId || "—"}
-                      </TableCell>
+              <>
+                <Table className="text-xs">
+                  <TableHeader className="bg-slate-50/60">
+                    <TableRow className="border-b border-slate-100">
+                      <TableHead className="font-bold text-slate-700">
+                        Client
+                      </TableHead>
+                      <TableHead className="font-bold text-slate-700">
+                        Negative Keyword
+                      </TableHead>
+                      <TableHead className="font-bold text-slate-700">
+                        Match Type
+                      </TableHead>
+                      <TableHead className="font-bold text-slate-700">
+                        Campaign
+                      </TableHead>
+                      <TableHead className="font-bold text-slate-700 text-right">
+                        Criterion ID
+                      </TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedLiveNegatives.map((row, idx) => (
+                      <TableRow
+                        key={`${row.criterionId}-${idx}`}
+                        className="hover:bg-slate-50 border-b border-slate-50"
+                      >
+                        <TableCell className="font-bold text-slate-800">
+                          {row.accountName}
+                        </TableCell>
+                        <TableCell className="font-mono font-bold text-indigo-600">
+                          {row.keyword}
+                        </TableCell>
+                        <TableCell className="capitalize text-slate-500 font-medium">
+                          {row.matchType.toLowerCase()}
+                        </TableCell>
+                        <TableCell className="text-slate-600">
+                          {row.campaignName}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-slate-400">
+                          {row.criterionId || "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {/* PAGINATION FOOTER */}
+                <div className="border-t border-slate-100 p-4 bg-slate-50/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+                  <div>
+                    Showing{" "}
+                    <strong className="text-slate-800 font-mono">
+                      {filteredLiveNegatives.length > 0
+                        ? (livePage - 1) * liveLimit + 1
+                        : 0}
+                    </strong>{" "}
+                    to{" "}
+                    <strong className="text-slate-800 font-mono">
+                      {Math.min(
+                        livePage * liveLimit,
+                        filteredLiveNegatives.length,
+                      )}
+                    </strong>{" "}
+                    of{" "}
+                    <strong className="text-slate-800 font-mono">
+                      {new Intl.NumberFormat("en-AU").format(
+                        filteredLiveNegatives.length,
+                      )}
+                    </strong>{" "}
+                    active exclusions
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 border border-slate-200 rounded-lg px-2.5 py-1 bg-white shadow-2xs">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                        Per page:
+                      </span>
+                      <select
+                        value={liveLimit}
+                        onChange={(e) => {
+                          setLiveLimit(parseInt(e.target.value, 10));
+                          setLivePage(1);
+                        }}
+                        className="bg-transparent border-none focus:outline-none text-xs font-bold text-slate-700 cursor-pointer"
+                      >
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={250}>250</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        disabled={livePage <= 1}
+                        onClick={() => setLivePage(1)}
+                        className="h-8 w-8 rounded-lg border-slate-200 text-xs font-bold"
+                        title="First Page"
+                      >
+                        &laquo;
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        disabled={livePage <= 1}
+                        onClick={() =>
+                          setLivePage((prev) => Math.max(1, prev - 1))
+                        }
+                        className="h-8 w-8 rounded-lg border-slate-200"
+                        title="Previous Page"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <span className="text-xs px-2 font-mono font-semibold text-slate-600">
+                        Page {livePage} of {liveTotalPages}
+                      </span>
+
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        disabled={livePage >= liveTotalPages}
+                        onClick={() =>
+                          setLivePage((prev) =>
+                            Math.min(liveTotalPages, prev + 1),
+                          )
+                        }
+                        className="h-8 w-8 rounded-lg border-slate-200"
+                        title="Next Page"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        disabled={livePage >= liveTotalPages}
+                        onClick={() => setLivePage(liveTotalPages)}
+                        className="h-8 w-8 rounded-lg border-slate-200 text-xs font-bold"
+                        title="Last Page"
+                      >
+                        &raquo;
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
