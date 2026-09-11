@@ -32,7 +32,6 @@ import {
 } from "@/actions/lp-analysis.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -57,6 +56,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Table,
   TableBody,

@@ -29,7 +29,6 @@ import {
   rollMcpApiKeyAction,
 } from "@/actions/mcp.actions";
 import { Button } from "@/components/ui/button";
-import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -38,6 +37,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import { getAppUrl } from "@/lib/app-url";
 
 const AVAILABLE_TOOLS = [

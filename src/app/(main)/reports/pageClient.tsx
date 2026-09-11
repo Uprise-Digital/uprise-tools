@@ -20,7 +20,6 @@ import { toast } from "sonner";
 import { sendMorningBriefingAction } from "@/actions/briefing.actions";
 import { saveBriefingSettingsAction } from "@/actions/briefing-settings.actions";
 import { Button } from "@/components/ui/button";
-import { TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -29,6 +28,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TopProgressBar } from "@/components/ui/loading";
 
 interface TeamMember {
   id: string;

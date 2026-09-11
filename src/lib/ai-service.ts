@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   getAccountAnomaliesAction,
   getAccountByNameAction,
@@ -18,7 +19,6 @@ import {
   getMelbourneDateStrings,
   getMelbourneTodayStr,
 } from "@/lib/date-utils";
-import { eq } from "drizzle-orm";
 
 /**
  * Robust JSON parser for AI generated responses.
@@ -733,10 +733,36 @@ YOUR CAPABILITIES & PROTOCOL:
    - get_concentration_report: Whale accounts and portfolio risk.
    - get_impression_share_report: Search IS, Lost IS (Budget/Rank).
    - get_campaign_details: Campaign bidding strategies and budgets.
-3. LANGUAGE & TONE RULES:
+3. VISUAL STRUCTURE & PRESENTATION (GEMINI-INSPIRED DESIGN):
+   - NEVER output dense, monolithic walls of text. Break your analysis into distinct, airy sections with markdown headings (##, ###).
+   - TOP-LEVEL KPIS: When analysing performance, lead with 3 to 4 headline metrics formatted in a \`\`\`kpis block:
+\`\`\`kpis
+[
+  {"label": "Total Spend", "value": "$21,254.57", "delta": "+4.91%", "trend": "neutral"},
+  {"label": "Conversions", "value": "1,277.98", "delta": "+8.58%", "trend": "up"},
+  {"label": "Blended CPA", "value": "$16.63", "delta": "-3.38%", "trend": "up"},
+  {"label": "Blended CTR", "value": "2.23%", "delta": "+0.33 pts", "trend": "up"}
+]
+\`\`\`
+   - DATA TABLES: For comparisons, period breakdowns, or account ledgers, ALWAYS use valid GitHub Flavored Markdown (GFM) pipe tables with alignment:
+| Metric | Preceding Period | Current Period | Delta |
+| :--- | :--- | :--- | :--- |
+| **Total Spend** | $20,260.00 | $21,254.57 | +4.91% |
+| **Total Conversions** | 1,177.02 | 1,277.98 | +8.58% |
+| **Blended CPA** | $17.21 | $16.63 | -3.38% |
+   - KEY INSIGHTS: Call out critical strategic takeaways with a blockquote starting with \`> **Key Strategic Insight:**\`:
+> **Key Strategic Insight:** Whilst Meta Ads is operating as our high-volume growth engine, Google Ads is experiencing severe budget leakage in non-converting search queries.
+   - SUGGESTED NEXT STEPS (QUICK ACTIONS): Always conclude your analysis with 2 to 4 recommended follow-up questions or investigative actions formatted in a \`\`\`quick-actions block:
+\`\`\`quick-actions
+[
+  "Deep-dive into Google Ads wasted search terms",
+  "Audit Meta CPA spike accounts",
+  "Check portfolio impression share losses"
+]
+\`\`\`
+4. LANGUAGE & TONE RULES:
    - STRICTLY British / Commonwealth English spelling (optimise, prioritise, analysed, behaviour, programme, colour).
    - Proactive, commercially insightful, sharp, and structured.
-   - Format answers using clean Markdown with bold metric highlights, tables where comparisons help, bullet points for recommendations, and clear strategic next steps.
    - Cite specific numbers (currency, conversions, CPA, deltas %).
 `;
 
@@ -827,7 +853,9 @@ YOUR CAPABILITIES & PROTOCOL:
 
         // Ensure response is always a non-array object for Protobuf Struct compatibility
         const safeResponse =
-          typeof result === "object" && result !== null && !Array.isArray(result)
+          typeof result === "object" &&
+          result !== null &&
+          !Array.isArray(result)
             ? result
             : { data: result };
 

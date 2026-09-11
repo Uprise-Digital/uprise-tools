@@ -32,7 +32,6 @@ import {
 } from "@/actions/pipeline.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -48,6 +47,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import { Switch } from "@/components/ui/switch";
 
 interface PipelineClientProps {

@@ -24,11 +24,11 @@ import {
   getMetaAccountsPerformanceAction,
   syncMetaAdAccountsAction,
 } from "@/actions/meta-settings.actions";
+import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 import { ReportAutomationTrigger } from "@/components/reportAutomationTrigger";
 import { SyncButton } from "@/components/sync-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TableLoader, TopProgressBar } from "@/components/ui/loading";
 import {
   Card,
   CardContent,
@@ -37,6 +37,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TableLoader, TopProgressBar } from "@/components/ui/loading";
 import {
   Select,
   SelectContent,
@@ -54,7 +55,6 @@ import {
 } from "@/components/ui/table";
 import type { UnifiedAccountRow } from "@/lib/account-unification";
 import { getAllIndustries, getIndustryMeta } from "@/lib/industry-config";
-import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 
 interface AccountsClientPageProps {
   accounts: UnifiedAccountRow[];

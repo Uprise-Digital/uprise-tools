@@ -31,8 +31,8 @@ import {
 } from "@/actions/negative-keywords.actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import { Input } from "@/components/ui/input";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Table,
   TableBody,
