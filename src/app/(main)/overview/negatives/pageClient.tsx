@@ -89,8 +89,8 @@ export default function AgencyNegativesClient() {
 
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<
-    "queue" | "conflicts" | "live" | "matrix"
-  >("queue");
+    "matrix" | "queue" | "conflicts" | "live"
+  >("matrix");
 
   // View Mode: 'cards' | 'table'
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
@@ -639,6 +639,23 @@ export default function AgencyNegativesClient() {
         <div className="flex items-center gap-6">
           <button
             type="button"
+            onClick={() => setActiveTab("matrix")}
+            className={`pb-3 text-xs font-bold transition-all relative flex items-center gap-2 ${
+              activeTab === "matrix"
+                ? "text-indigo-600 border-b-2 border-indigo-600"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Overview
+            {stats && (
+              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono">
+                {stats.totalAccounts} Clients
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab("queue")}
             className={`pb-3 text-xs font-bold transition-all relative flex items-center gap-2 ${
               activeTab === "queue"
@@ -648,7 +665,7 @@ export default function AgencyNegativesClient() {
           >
             Master Review Queue
             {stats && stats.pendingCount > 0 && (
-              <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold">
+              <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono">
                 {stats.pendingCount}
               </span>
             )}
@@ -665,7 +682,7 @@ export default function AgencyNegativesClient() {
           >
             Shared Waste & Conflicts
             {stats && stats.crossAccountConflictsCount > 0 && (
-              <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-extrabold">
+              <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono">
                 {stats.crossAccountConflictsCount}
               </span>
             )}
@@ -688,18 +705,6 @@ export default function AgencyNegativesClient() {
                 )}
               </span>
             )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("matrix")}
-            className={`pb-3 text-xs font-bold transition-all relative flex items-center gap-2 ${
-              activeTab === "matrix"
-                ? "text-indigo-600 border-b-2 border-indigo-600"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            Turbo Governance Matrix
           </button>
         </div>
 
@@ -1577,17 +1582,17 @@ export default function AgencyNegativesClient() {
         </Card>
       )}
 
-      {/* ── 9. TAB 4: TURBO GOVERNANCE MATRIX ── */}
+      {/* ── 6. TAB 1: OVERVIEW & CLIENT AUTOMATION MATRIX ── */}
       {activeTab === "matrix" && (
         <Card className="rounded-2xl border-slate-200/90 shadow-2xs bg-white overflow-hidden">
           <CardHeader className="p-4 border-b border-slate-100 bg-slate-50/50">
             <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <Flame className="h-4 w-4 text-amber-500 fill-amber-400" />
-              Agency Turbo Mode & Governance Matrix
+              Client Accounts Overview & Governance Matrix
             </CardTitle>
             <CardDescription className="text-xs">
-              Monitor client-level automation readiness, buyer persona
-              configurations, and trigger individual account scans.
+              Monitor client-level automation readiness, pending negative
+              keyword suggestions, and jump into individual client workspaces.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
