@@ -121,6 +121,22 @@ export const SYSTEM_EMAIL_TEMPLATES: Record<string, SystemTemplateDefinition> =
         { name: "agency_name", description: "Your agency display name" },
       ],
     },
+    weekly_client_report: {
+      key: "weekly_client_report",
+      name: "Weekly Client Status & Retention Report",
+      category: "team",
+      defaultSubject: "📊 Weekly Client Status & Retention Digest — {{week_date}}",
+      defaultHtml: `<h2>Weekly Client Status & Retention Digest</h2>
+<p>Good morning team! Here is this week's active client status summary and retention risk review for <strong>{{agency_name}}</strong>.</p>
+<div>{{report_content}}</div>
+<p style="font-size: 12px; color: #64748b; margin-top: 24px;">Please review your assigned clients and submit your sentiment ratings before the standup meeting: <a href="{{pulse_url}}">Client Retention Dashboard</a></p>`,
+      variables: [
+        { name: "week_date", description: "Week date identifier" },
+        { name: "report_content", description: "HTML summary of clients and performance" },
+        { name: "pulse_url", description: "Link to Client Retention Board" },
+        { name: "agency_name", description: "Your agency display name" },
+      ],
+    },
   };
 
 export interface SendSystemEmailParams {

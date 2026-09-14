@@ -959,6 +959,19 @@ export const salesReminderSettings = pgTable("sales_reminder_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }).enableRLS();
 
+export const weeklyClientReportSettings = pgTable("weekly_client_report_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: text("organization_id").notNull().default("default-org"),
+  recipients: jsonb("recipients").notNull().default([]), // Array of email strings
+  sendDayOfWeek: text("send_day_of_week").notNull().default("monday"), // 'monday', 'tuesday', etc.
+  sendTime: varchar("send_time", { length: 5 }).notNull().default("08:00"),
+  isActive: boolean("is_active").default(true).notNull(),
+  includeRiskWatchlist: boolean("include_risk_watchlist").default(true).notNull(),
+  includePerformanceMetrics: boolean("include_performance_metrics").default(true).notNull(),
+  includeSentimentPrompt: boolean("include_sentiment_prompt").default(true).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}).enableRLS();
+
 export const orgTriageDefaults = pgTable("org_triage_defaults", {
   id: serial("id").primaryKey(),
   organizationId: text("organization_id").notNull().default("default-org"),

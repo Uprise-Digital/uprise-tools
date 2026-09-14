@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getBriefingSettingsAction } from "@/actions/briefing-settings.actions";
 import { getTeamMembers } from "@/actions/team.actions";
+import { getWeeklyClientReportSettingsAction } from "@/actions/weekly-client-report.actions";
 import ReportsClient from "./pageClient";
 
 export const metadata: Metadata = {
@@ -10,8 +11,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ReportsPage() {
-  const [settingsRes, teamMembers] = await Promise.all([
+  const [settingsRes, weeklySettingsRes, teamMembers] = await Promise.all([
     getBriefingSettingsAction(),
+    getWeeklyClientReportSettingsAction(),
     getTeamMembers(),
   ]);
 
@@ -19,6 +21,11 @@ export default async function ReportsPage() {
     <ReportsClient
       initialSettings={
         settingsRes.success && settingsRes.data ? settingsRes.data : null
+      }
+      initialWeeklySettings={
+        weeklySettingsRes.success && weeklySettingsRes.data
+          ? weeklySettingsRes.data
+          : null
       }
       teamMembers={teamMembers || []}
     />

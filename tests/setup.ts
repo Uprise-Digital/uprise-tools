@@ -337,6 +337,21 @@ const mockDbQuery = {
       isActive: true,
     }),
   },
+  weeklyClientReportSettings: {
+    findFirst: vi.fn().mockResolvedValue({
+      id: 1,
+      organizationId: "org-test-uprise",
+      recipients: ["admin@uprise.com"],
+      sendDayOfWeek: "monday",
+      sendTime: "08:00",
+      isActive: true,
+      includeRiskWatchlist: true,
+      includePerformanceMetrics: true,
+      includeSentimentPrompt: true,
+      updatedAt: new Date(),
+    }),
+    findMany: vi.fn().mockResolvedValue([]),
+  },
   adPerformanceDaily: {
     findMany: vi.fn().mockResolvedValue([
       {
