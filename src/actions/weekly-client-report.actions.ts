@@ -271,8 +271,8 @@ Rules:
         model: GEMINI_MODEL_LOW,
         contents: [{ role: "user", parts: [{ text: dataPrompt }] }],
         config: {
-          temperature: 0.3,
-          maxOutputTokens: 250,
+          temperature: 0.2,
+          maxOutputTokens: 1000,
         },
       },
       {
