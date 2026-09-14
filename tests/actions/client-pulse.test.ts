@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getClientPulseBoardDataAction,
-  getWeekMondayString,
   submitClientPulseRatingAction,
 } from "@/actions/client-pulse.actions";
 import { db } from "@/db";
 import { auth } from "@/lib/auth";
+import { getWeekMondayString } from "@/lib/date-utils";
 
 describe("Client Standup Pulse Actions", () => {
   beforeEach(() => {

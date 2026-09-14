@@ -156,3 +156,19 @@ export function getPreviousPeriodDateRange(startDate: string, endDate: string) {
     durationDays: diffDays + 1,
   };
 }
+
+/**
+ * Returns the Monday ISO date ('YYYY-MM-DD') for a given week offset (0 = current week).
+ */
+export function getWeekMondayString(offsetWeeks: number = 0): string {
+  const now = new Date();
+  const day = now.getUTCDay();
+  // day: 0=Sun, 1=Mon, ..., 6=Sat.
+  // diff to Monday:
+  const diff = now.getUTCDate() - day + (day === 0 ? -6 : 1) + offsetWeeks * 7;
+  const monday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), diff),
+  );
+  return monday.toISOString().split("T")[0];
+}
+
