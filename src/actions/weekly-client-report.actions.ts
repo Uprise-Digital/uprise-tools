@@ -9,6 +9,7 @@ import {
 } from "@/actions/client-pulse.actions";
 import { db } from "@/db";
 import { user, weeklyClientReportSettings } from "@/db/schema";
+import { getAppUrl } from "@/lib/app-url";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import { sendSystemEmail } from "@/lib/email-service";
@@ -191,14 +192,12 @@ export async function buildWeeklyClientReportHtml(params: {
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Weekly Client Status and Retention Digest</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; color: #0f172a;">
-  <div id="email-outer-wrapper" style="width: 100%; background-color: #f1f5f9; padding: 24px 8px; margin: 0 auto; box-sizing: border-box;">
-    <!-- Centered Card Container -->
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" align="center" style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; border-spacing: 0;">
-      
-      <!-- Top Brand Header -->
-      <tr>
-        <td style="padding: 24px 24px 20px 24px; background-color: #0f172a; text-align: left;">
+<body style="margin: 0; padding: 0; background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; color: #0f172a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" align="center" style="width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; border-spacing: 0;">
+    
+    <!-- Top Brand Header -->
+    <tr>
+      <td style="padding: 24px 24px 20px 24px; background-color: #0f172a; text-align: left;">
           <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: #94a3b8; margin-bottom: 6px;">
             Uprise Digital &bull; Client Retention
           </div>
@@ -397,7 +396,6 @@ export async function buildWeeklyClientReportHtml(params: {
       </tr>
 
     </table>
-  </div>
 </body>
 </html>`;
 }
@@ -477,10 +475,7 @@ export async function sendWeeklyClientReportAction(
       throw new Error("No recipients configured for weekly client report.");
     }
 
-    const appBaseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.VERCEL_URL ||
-      "http://localhost:3000";
+    const appBaseUrl = getAppUrl();
 
     const htmlBody = await buildWeeklyClientReportHtml({
       pulseDate,

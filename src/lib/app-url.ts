@@ -14,15 +14,23 @@ export function getAppUrl(): string {
   }
 
   const envUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.BETTER_AUTH_URL ||
+    process.env.PRODUCTION_APP_URL ||
     (process.env.RAILWAY_PUBLIC_DOMAIN
       ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-      : null);
+      : null) ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.BETTER_AUTH_URL;
 
-  if (envUrl) {
+  if (envUrl && !envUrl.includes("localhost")) {
     return envUrl.replace(/\/+$/, "");
   }
 
-  return "http://localhost:3000";
+  // Fallback to Railway production URL or env URL
+  if (process.env.PRODUCTION_APP_URL) {
+    return process.env.PRODUCTION_APP_URL.replace(/\/+$/, "");
+  }
+
+  return envUrl
+    ? envUrl.replace(/\/+$/, "")
+    : "https://uprise-tools-production.up.railway.app";
 }
