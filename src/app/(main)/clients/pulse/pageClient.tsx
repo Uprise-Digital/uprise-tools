@@ -32,14 +32,6 @@ import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner, TopProgressBar } from "@/components/ui/loading";
@@ -877,23 +869,29 @@ export default function StandupPulseBoardClient() {
         </div>
       )}
 
-      {/* ── 5. LOG PULSE MODAL (LIGHT THEME) ── */}
-      <Dialog open={logModalOpen} onOpenChange={setLogModalOpen}>
-        <DialogContent className="bg-white border-slate-200 text-slate-900 max-w-md rounded-2xl shadow-xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
+      {/* ── 5. LOG PULSE SIDEBAR / SHEET (LIGHT THEME) ── */}
+      <Sheet open={logModalOpen} onOpenChange={setLogModalOpen}>
+        <SheetContent
+          side="right"
+          className="bg-white border-slate-200 text-slate-900 w-full sm:max-w-md overflow-y-auto shadow-2xl flex flex-col p-6"
+        >
+          <SheetHeader className="border-b border-slate-200 pb-4 pr-6">
+            <SheetTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
               <HeartPulse className="h-5 w-5 text-indigo-600" />
               Log Retention Pulse
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
+            </SheetTitle>
+            <SheetDescription className="text-xs text-slate-500">
               {selectedClient?.name} &bull; Week of {boardData?.pulseDate}
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
           {selectedClient && (
-            <form onSubmit={handleSubmitRating} className="space-y-4 py-2">
+            <form
+              onSubmit={handleSubmitRating}
+              className="space-y-5 py-4 flex-1 flex flex-col"
+            >
               {/* Performance Context Pill */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5 shadow-2xs">
                 <div className="flex justify-between text-slate-500">
                   <span>Automated Performance Risk:</span>
                   <strong className="text-slate-900 font-bold">
@@ -1013,12 +1011,12 @@ export default function StandupPulseBoardClient() {
               </div>
 
               {/* Standup Note */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 flex-1">
                 <Label className="text-xs font-bold text-slate-700">
                   Meeting Notes / Action Item
                 </Label>
                 <textarea
-                  rows={3}
+                  rows={4}
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
                   placeholder="e.g. Client mentioned lead quality concerns on yesterday's call. Testing new qualifier form fields today."
@@ -1026,7 +1024,7 @@ export default function StandupPulseBoardClient() {
                 />
               </div>
 
-              <DialogFooter className="pt-2">
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-2 mt-auto">
                 <Button
                   type="button"
                   variant="outline"
@@ -1044,11 +1042,11 @@ export default function StandupPulseBoardClient() {
                 >
                   {submittingRating ? "Saving..." : "Save Pulse"}
                 </Button>
-              </DialogFooter>
+              </div>
             </form>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* ── 6. CLIENT RETENTION HISTORY SHEET (LIGHT THEME) ── */}
       <Sheet open={historySheetOpen} onOpenChange={setHistorySheetOpen}>
@@ -1127,18 +1125,21 @@ export default function StandupPulseBoardClient() {
         </SheetContent>
       </Sheet>
 
-      {/* ── 7. MEETING PRESENTATION MODE MODAL (LIGHT THEME) ── */}
-      <Dialog open={meetingModeOpen} onOpenChange={setMeetingModeOpen}>
-        <DialogContent className="bg-white border-slate-200 text-slate-900 max-w-2xl p-6 sm:p-8 rounded-2xl shadow-2xl">
+      {/* ── 7. MEETING PRESENTATION MODE SIDEBAR / SHEET (LIGHT THEME) ── */}
+      <Sheet open={meetingModeOpen} onOpenChange={setMeetingModeOpen}>
+        <SheetContent
+          side="right"
+          className="bg-white border-slate-200 text-slate-900 w-full sm:max-w-xl md:max-w-2xl overflow-y-auto p-6 sm:p-8 shadow-2xl flex flex-col"
+        >
           {activeMeetingClient ? (
-            <div className="space-y-6">
+            <div className="space-y-6 flex-1 flex flex-col">
               {/* Standup Header */}
-              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-4 pr-6">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-indigo-600 text-white font-mono text-xs px-2.5 py-1">
                     Client {meetingClientIndex + 1} of {filteredClients.length}
                   </Badge>
-                  <span className="text-xs text-slate-500 font-medium">
+                  <span className="text-xs text-slate-500 font-medium hidden sm:inline">
                     Standup Meeting Focus
                   </span>
                 </div>
@@ -1148,7 +1149,7 @@ export default function StandupPulseBoardClient() {
                     variant="outline"
                     disabled={meetingClientIndex === 0}
                     onClick={handlePrevMeetingClient}
-                    className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs gap-1 rounded-xl cursor-pointer"
+                    className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs gap-1 rounded-xl cursor-pointer shadow-2xs"
                   >
                     <ChevronLeft className="h-4 w-4" />
                     Prev
@@ -1157,7 +1158,7 @@ export default function StandupPulseBoardClient() {
                     size="sm"
                     disabled={meetingClientIndex >= filteredClients.length - 1}
                     onClick={handleNextMeetingClient}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs gap-1 rounded-xl cursor-pointer font-bold"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs gap-1 rounded-xl cursor-pointer font-bold shadow-2xs"
                   >
                     Next
                     <ChevronRight className="h-4 w-4" />
@@ -1168,7 +1169,7 @@ export default function StandupPulseBoardClient() {
               {/* Main Client Profile in Meeting */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-900">
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900">
                     {activeMeetingClient.name}
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5 font-medium">
@@ -1181,7 +1182,7 @@ export default function StandupPulseBoardClient() {
                 {/* Big Risk Gauge */}
                 <div
                   className={cn(
-                    "px-4 py-3 rounded-2xl border text-center font-mono shadow-xs",
+                    "px-4 py-3 rounded-2xl border text-center font-mono shadow-xs shrink-0",
                     activeMeetingClient.riskTier === "high"
                       ? "bg-red-50 border-red-200 text-red-800"
                       : activeMeetingClient.riskTier === "moderate"
@@ -1189,7 +1190,7 @@ export default function StandupPulseBoardClient() {
                         : "bg-emerald-50 border-emerald-200 text-emerald-800",
                   )}
                 >
-                  <div className="text-3xl font-black">
+                  <div className="text-2xl sm:text-3xl font-black">
                     {activeMeetingClient.compositeRiskScore}%
                   </div>
                   <div className="text-[10px] uppercase font-bold tracking-widest mt-0.5">
@@ -1204,7 +1205,7 @@ export default function StandupPulseBoardClient() {
 
               {/* Side-by-Side: Automated Stats vs Team Consensus */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs shadow-2xs">
                   <div className="text-slate-500 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                     <Target className="h-3.5 w-3.5 text-indigo-600" />
                     Automated 7-Day Numbers
@@ -1248,7 +1249,7 @@ export default function StandupPulseBoardClient() {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs shadow-2xs">
                   <div className="text-slate-500 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5 text-indigo-600" />
                     Team Sentiment Check-In
@@ -1279,7 +1280,7 @@ export default function StandupPulseBoardClient() {
               </div>
 
               {/* Quick Actions in Meeting Mode */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+              <div className="flex items-center justify-between pt-4 border-t border-slate-200 mt-auto">
                 <Button
                   size="sm"
                   onClick={() => handleOpenLogModal(activeMeetingClient)}
@@ -1299,8 +1300,8 @@ export default function StandupPulseBoardClient() {
               </div>
             </div>
           ) : null}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
