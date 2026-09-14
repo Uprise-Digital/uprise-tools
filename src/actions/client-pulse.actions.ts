@@ -131,11 +131,11 @@ export async function getClientPulseBoardDataAction(
     const pulseDate = getWeekMondayString(weekOffset);
     const prevPulseDate = getWeekMondayString(weekOffset - 1);
 
-    // 1. Fetch all clients for the organization
+    // 1. Fetch only active clients for the organization
     const clientsList = await db.query.clients.findMany({
       where: and(
         eq(clients.organizationId, orgId),
-        inArray(clients.status, ["active", "onboarding"]),
+        eq(clients.status, "active"),
       ),
       orderBy: [clients.name],
       with: {
