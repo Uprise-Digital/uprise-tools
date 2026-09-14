@@ -595,6 +595,15 @@ export default function StandupPulseBoardClient() {
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Desktop Table Header */}
+          <div className="hidden xl:grid grid-cols-[240px_160px_minmax(0,1fr)_minmax(0,1fr)_140px] gap-4 px-5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <div>Client</div>
+            <div>Churn Risk</div>
+            <div>7-Day Performance</div>
+            <div>Team Consensus</div>
+            <div className="text-right">Actions</div>
+          </div>
+
           {filteredClients.map((client) => {
             const isHigh = client.riskTier === "high";
             const isModerate = client.riskTier === "moderate";
@@ -603,7 +612,7 @@ export default function StandupPulseBoardClient() {
               <div
                 key={client.id}
                 className={cn(
-                  "p-5 rounded-2xl border transition-all duration-200 bg-white hover:shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-5",
+                  "p-4 sm:p-5 rounded-2xl border transition-all duration-200 bg-white hover:shadow-md grid grid-cols-1 xl:grid-cols-[240px_160px_minmax(0,1fr)_minmax(0,1fr)_140px] gap-4 items-center",
                   isHigh
                     ? "border-red-200 shadow-xs hover:border-red-300"
                     : isModerate
@@ -611,15 +620,16 @@ export default function StandupPulseBoardClient() {
                       : "border-slate-200 hover:border-slate-300 shadow-xs",
                 )}
               >
-                {/* Column 1: Client Overview & Status */}
-                <div className="min-w-[220px] lg:max-w-xs">
+                {/* Column 1: Client Overview & Status (Fixed 240px) */}
+                <div className="min-w-0 pr-2">
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/clients/${client.id}`}
-                      className="font-bold text-slate-900 hover:text-indigo-600 text-base transition-colors flex items-center gap-1.5 group"
+                      className="font-bold text-slate-900 hover:text-indigo-600 text-sm sm:text-base transition-colors flex items-center gap-1.5 group truncate"
+                      title={client.name}
                     >
-                      <span>{client.name}</span>
-                      <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                      <span className="truncate">{client.name}</span>
+                      <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0" />
                     </Link>
                   </div>
 
@@ -645,11 +655,11 @@ export default function StandupPulseBoardClient() {
                   </div>
                 </div>
 
-                {/* Column 2: Composite Churn Risk Score Badge */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
+                {/* Column 2: Composite Churn Risk Score Badge (Fixed 160px) */}
+                <div className="w-full">
                   <div
                     className={cn(
-                      "flex items-center gap-3 px-4 py-2.5 rounded-xl border font-mono shadow-2xs",
+                      "flex items-center justify-between px-3.5 py-2.5 rounded-xl border font-mono shadow-2xs w-full",
                       isHigh
                         ? "bg-red-50 border-red-200 text-red-800"
                         : isModerate
@@ -657,10 +667,10 @@ export default function StandupPulseBoardClient() {
                           : "bg-emerald-50 border-emerald-200 text-emerald-800",
                     )}
                   >
-                    <div className="text-2xl font-black tracking-tight">
+                    <div className="text-xl sm:text-2xl font-black tracking-tight">
                       {client.compositeRiskScore}%
                     </div>
-                    <div className="flex flex-col text-[10px] uppercase font-bold tracking-wider leading-tight">
+                    <div className="flex flex-col text-[9px] uppercase font-bold tracking-wider leading-tight text-right">
                       <span>
                         {isHigh
                           ? "Critical Risk"
@@ -679,7 +689,7 @@ export default function StandupPulseBoardClient() {
                     {client.wowTrend !== null && client.wowTrend !== 0 && (
                       <div
                         className={cn(
-                          "ml-1 flex items-center text-xs font-bold",
+                          "ml-1 flex items-center text-xs font-bold shrink-0",
                           client.wowTrend > 0
                             ? "text-red-600"
                             : "text-emerald-600",
@@ -697,11 +707,11 @@ export default function StandupPulseBoardClient() {
                   </div>
                 </div>
 
-                {/* Column 3: Automated Performance Radar (7-Day Leads & CPA) */}
-                <div className="flex-1 min-w-[240px] bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 text-xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-1.5 font-semibold text-[10px] uppercase tracking-wider">
+                {/* Column 3: Automated Performance Radar (Equal 1fr) */}
+                <div className="w-full h-full min-h-[96px] bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 text-xs flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-slate-500 font-semibold text-[10px] uppercase tracking-wider">
                     <span className="flex items-center gap-1.5 text-slate-700">
-                      <Target className="h-3.5 w-3.5 text-indigo-600" />
+                      <Target className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
                       7-Day Performance
                     </span>
                     <span>
@@ -712,7 +722,7 @@ export default function StandupPulseBoardClient() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] my-1">
                     <div>
                       <span className="text-slate-500">Leads: </span>
                       <strong className="text-slate-900 font-bold">
@@ -756,8 +766,8 @@ export default function StandupPulseBoardClient() {
                   </div>
 
                   {/* Automated reason flags chips */}
-                  {client.automatedFlags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
+                  {client.automatedFlags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
                       {client.automatedFlags.map((flag, idx) => (
                         <span
                           key={idx}
@@ -767,14 +777,18 @@ export default function StandupPulseBoardClient() {
                         </span>
                       ))}
                     </div>
+                  ) : (
+                    <div className="text-[10px] text-slate-400 italic">
+                      Pacing within normal targets
+                    </div>
                   )}
                 </div>
 
-                {/* Column 4: Team Sentiment Consensus & Staff Pills */}
-                <div className="flex-1 min-w-[220px] bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 text-xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-1.5 font-semibold text-[10px] uppercase tracking-wider">
+                {/* Column 4: Team Sentiment Consensus & Staff Pills (Equal 1fr) */}
+                <div className="w-full h-full min-h-[96px] bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 text-xs flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-slate-500 font-semibold text-[10px] uppercase tracking-wider">
                     <span className="flex items-center gap-1.5 text-slate-700">
-                      <Users className="h-3.5 w-3.5 text-indigo-600" />
+                      <Users className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
                       Team Consensus
                     </span>
                     {client.teamSentimentScore !== null ? (
@@ -788,9 +802,9 @@ export default function StandupPulseBoardClient() {
                     )}
                   </div>
 
-                  {/* Staff Pills */}
+                  {/* Staff Pills or placeholder */}
                   {client.staffRatings.length > 0 ? (
-                    <div className="space-y-1.5">
+                    <div className="space-y-1 my-1">
                       <div className="flex flex-wrap items-center gap-1.5">
                         {client.staffRatings.map((rating) => {
                           const initials = rating.userName
@@ -819,20 +833,20 @@ export default function StandupPulseBoardClient() {
 
                       {/* Latest note snippet */}
                       {client.staffRatings[0]?.notes && (
-                        <p className="text-[11px] text-slate-600 italic line-clamp-1 mt-1">
+                        <p className="text-[11px] text-slate-600 italic line-clamp-1">
                           &ldquo;{client.staffRatings[0].notes}&rdquo;
                         </p>
                       )}
                     </div>
                   ) : (
-                    <p className="text-[11px] text-slate-400 italic">
+                    <p className="text-[11px] text-slate-400 italic my-auto">
                       No team members have logged ratings for this week yet.
                     </p>
                   )}
                 </div>
 
-                {/* Column 5: Action Buttons */}
-                <div className="flex items-center gap-2 shrink-0">
+                {/* Column 5: Action Buttons (Fixed 140px) */}
+                <div className="flex items-center justify-start xl:justify-end gap-2 shrink-0">
                   <Button
                     size="sm"
                     onClick={() => handleOpenLogModal(client)}
@@ -844,7 +858,7 @@ export default function StandupPulseBoardClient() {
                     )}
                   >
                     <Pencil className="h-3 w-3" />
-                    {client.currentUserRating ? "Edit My Pulse" : "Log Pulse"}
+                    {client.currentUserRating ? "Edit" : "Log Pulse"}
                   </Button>
 
                   <Button
