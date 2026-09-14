@@ -319,23 +319,38 @@ export async function getClientPulseBoardDataAction(
       let autoRisk = 15; // baseline healthy
       const automatedFlags: string[] = [];
 
-      if (leadsWowChange !== null) {
-        if (leadsWowChange <= -30) {
-          autoRisk += 35;
-          automatedFlags.push(`Leads dropped ${Math.abs(leadsWowChange)}% WoW`);
-        } else if (leadsWowChange <= -15) {
-          autoRisk += 25;
-          automatedFlags.push(`Leads dropped ${Math.abs(leadsWowChange)}% WoW`);
-        } else if (leadsWowChange <= -5) {
-          autoRisk += 15;
-          automatedFlags.push(`Leads down ${Math.abs(leadsWowChange)}% WoW`);
-        } else if (leadsWowChange > 10) {
-          autoRisk -= 10; // good growth
-          automatedFlags.push(`Leads up +${leadsWowChange}% WoW`);
+      // If campaign had zero spend in the last 7 days, treat as paused / dormant rather than high churn risk
+      if (recentSpend === 0 && recentConversions === 0) {
+        if (priorSpend > 50) {
+          automatedFlags.push("Spend paused (0 spend in 7d)");
         }
-      } else if (recentSpend > 100 && recentConversions === 0) {
-        autoRisk += 40;
-        automatedFlags.push("0 conversions despite active spend");
+        // Baseline low/neutral risk for paused campaigns
+        autoRisk = 20;
+      } else {
+        if (leadsWowChange !== null) {
+          if (leadsWowChange <= -30 && recentSpend > 50) {
+            autoRisk += 35;
+            automatedFlags.push(
+              `Leads dropped ${Math.abs(leadsWowChange)}% WoW`,
+            );
+          } else if (leadsWowChange <= -15 && recentSpend > 50) {
+            autoRisk += 25;
+            automatedFlags.push(
+              `Leads dropped ${Math.abs(leadsWowChange)}% WoW`,
+            );
+          } else if (leadsWowChange <= -5 && recentSpend > 50) {
+            autoRisk += 15;
+            automatedFlags.push(`Leads down ${Math.abs(leadsWowChange)}% WoW`);
+          } else if (leadsWowChange > 10) {
+            autoRisk -= 10; // good growth
+            automatedFlags.push(`Leads up +${leadsWowChange}% WoW`);
+          }
+        }
+
+        if (recentSpend > 100 && recentConversions === 0) {
+          autoRisk += 40;
+          automatedFlags.push("0 conversions despite active spend");
+        }
       }
 
       if (cpaVariance !== null) {

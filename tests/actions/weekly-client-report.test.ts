@@ -102,7 +102,9 @@ describe("Weekly Client Retention Report Actions", () => {
     expect(html).toContain("Weekly Client Status &amp; Retention Digest");
     expect(html).toContain("Acme Corp");
     expect(html).toContain("Log Ratings");
-    expect(html).toContain("Attention &amp; Retention Watchlist");
+    expect(html).toContain("Immediate Attention Watchlist");
+    expect(html).toContain("Missing an account?");
+    expect(html).toContain("Check Inactive Accounts");
 
     const text = await buildWeeklyClientReportText({
       pulseDate: "Sep 14, 2026",
