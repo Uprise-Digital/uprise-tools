@@ -4,9 +4,9 @@ import StandupPulseBoardClient from "./pageClient";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Morning Standup Pulse | Uprise Tools",
+  title: "Client Retention | Uprise Tools",
   description:
-    "Weekly client churn risk, team sentiment consensus, and automated lead performance board for morning standups.",
+    "Weekly client churn risk, team sentiment consensus, and automated lead performance board for agency retention.",
 };
 
 export default function StandupPulsePage() {

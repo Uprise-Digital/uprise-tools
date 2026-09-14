@@ -88,7 +88,7 @@ const navItems: NavItem[] = [
     icon: Building2,
     subItems: [
       { href: "/clients", label: "Directory", icon: Building2 },
-      { href: "/clients/pulse", label: "Morning Pulse", icon: HeartPulse },
+      { href: "/clients/pulse", label: "Client Retention", icon: HeartPulse },
     ],
   },
   { href: "/contacts", label: "Contacts", icon: Users },

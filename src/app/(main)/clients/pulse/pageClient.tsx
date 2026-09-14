@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/loading";
+import { Spinner, TopProgressBar } from "@/components/ui/loading";
 import {
   Sheet,
   SheetContent,
@@ -111,7 +111,7 @@ export default function StandupPulseBoardClient() {
         if (res.success && res.data) {
           setBoardData(res.data);
         } else {
-          toast.error(res.error || "Failed to load standup pulse board");
+          toast.error(res.error || "Failed to load client retention data");
         }
       } catch (err: any) {
         toast.error(err.message || "An unexpected error occurred");
@@ -135,7 +135,6 @@ export default function StandupPulseBoardClient() {
       setFormFactor(client.currentUserRating.primaryFactor || "lead_volume");
       setFormNotes(client.currentUserRating.notes || "");
     } else {
-      // Default to team sentiment or automated score as starting point
       const initialScore =
         client.teamSentimentScore ?? client.automatedRiskScore;
       setFormRiskScore(initialScore);
@@ -171,12 +170,11 @@ export default function StandupPulseBoardClient() {
       });
 
       if (res.success) {
-        toast.success(`Standup sentiment saved for ${selectedClient.name}!`);
+        toast.success(`Retention sentiment saved for ${selectedClient.name}!`);
         setLogModalOpen(false);
-        // Refresh silently
         await loadData(weekOffset, true);
       } else {
-        toast.error(res.error || "Failed to save pulse rating");
+        toast.error(res.error || "Failed to save retention rating");
       }
     } catch (err: any) {
       toast.error(err.message || "Error submitting pulse");
@@ -195,10 +193,10 @@ export default function StandupPulseBoardClient() {
       if (res.success && res.data) {
         setHistoryRecords(res.data);
       } else {
-        toast.error("Could not fetch history");
+        toast.error("Could not fetch retention history");
       }
     } catch {
-      toast.error("Error fetching pulse history");
+      toast.error("Error fetching retention history");
     } finally {
       setLoadingHistory(false);
     }
@@ -277,47 +275,39 @@ export default function StandupPulseBoardClient() {
   }, [meetingModeOpen, meetingClientIndex, filteredClients.length]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen bg-slate-950 text-slate-100 p-6 md:p-8 space-y-6">
-      {/* 1. HEADER & CONTROLS */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-800/80 pb-6">
+    <div className="space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto relative">
+      <TopProgressBar loading={loading || refreshing} color="indigo" />
+
+      {/* ── 1. HEADER & CONTROLS ── */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-              <HeartPulse className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold tracking-tight text-white">
-                  Morning Standup Pulse
-                </h1>
-                <Badge
-                  variant="outline"
-                  className="bg-indigo-950/60 border-indigo-700/50 text-indigo-300 font-mono text-[11px] uppercase"
-                >
-                  Weekly Retention
-                </Badge>
-              </div>
-              <p className="text-sm text-slate-400 mt-0.5">
-                Real-time client churn risk index, team sentiment consensus, and
-                automated lead velocity.
-              </p>
-            </div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-600 bg-indigo-50 border border-indigo-200/60 px-2 py-0.5 rounded-full">
+              Clients / Retention
+            </span>
           </div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+            <HeartPulse className="h-7 w-7 text-indigo-600" /> Client Retention
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Real-time client churn risk index, team sentiment consensus, and
+            automated lead velocity.
+          </p>
         </div>
 
         {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           {/* Week Selector */}
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
+          <div className="flex items-center bg-white border border-slate-200 shadow-xs rounded-xl p-1 text-xs">
             <button
               type="button"
               onClick={() => setWeekOffset((prev) => prev - 1)}
-              className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
               title="Previous Week"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="px-3 font-semibold text-slate-200">
+            <span className="px-3 font-semibold text-slate-700">
               {weekOffset === 0
                 ? "This Week"
                 : weekOffset === -1
@@ -328,7 +318,7 @@ export default function StandupPulseBoardClient() {
               type="button"
               disabled={weekOffset >= 0}
               onClick={() => setWeekOffset((prev) => prev + 1)}
-              className="p-1.5 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent rounded-lg text-slate-400 hover:text-white transition-colors"
+              className="p-1.5 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent rounded-lg text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
               title="Next Week"
             >
               <ChevronRight className="h-4 w-4" />
@@ -342,7 +332,7 @@ export default function StandupPulseBoardClient() {
               setMeetingModeOpen(true);
             }}
             disabled={filteredClients.length === 0}
-            className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold text-xs gap-1.5 shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs h-9 px-4 rounded-xl shadow-xs gap-1.5 cursor-pointer"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
             Start Standup Mode
@@ -354,98 +344,98 @@ export default function StandupPulseBoardClient() {
             size="sm"
             onClick={() => loadData(weekOffset, true)}
             disabled={refreshing}
-            className="border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-300 text-xs gap-1.5"
+            className="h-9 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs shadow-xs gap-1.5 cursor-pointer"
           >
             <RefreshCw
-              className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
+              className={cn(
+                "h-3.5 w-3.5 text-indigo-600",
+                refreshing && "animate-spin",
+              )}
             />
             {refreshing ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
       </div>
 
-      {/* 2. EXECUTIVE KPI SUMMARY RIBBON */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── 2. EXECUTIVE KPI SUMMARY CARDS ── */}
+      {loading && !boardData ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="h-28 rounded-2xl bg-slate-900/50 border border-slate-800/80 animate-pulse"
+              className="h-28 rounded-2xl bg-white border border-slate-200/80 shadow-xs animate-pulse"
             />
           ))}
         </div>
       ) : boardData ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Critical Watchlist */}
-          <Card className="bg-slate-900/70 border-slate-800 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
-            <CardContent className="p-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-red-400">
+          <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-4 border-l-red-500 bg-white rounded-2xl">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">
                   Critical Watchlist (&gt;60% Risk)
                 </p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-extrabold text-white">
+                <div className="flex items-baseline gap-1.5">
+                  <p className="text-2xl sm:text-3xl font-black text-slate-900">
                     {boardData.summary.highRiskCount}
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    of {boardData.summary.totalClients} clients
+                  </p>
+                  <span className="text-xs text-slate-400 font-semibold">
+                    / {boardData.summary.totalClients} clients
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-[11px] text-slate-500">
                   Requires immediate retention intervention
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
-                <AlertTriangle className="h-6 w-6" />
+              <div className="p-2.5 rounded-xl bg-red-50 text-red-600 shrink-0">
+                <AlertTriangle className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
 
           {/* Card 2: Moderate Risk Accounts */}
-          <Card className="bg-slate-900/70 border-slate-800 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
-            <CardContent className="p-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-400">
+          <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-4 border-l-amber-500 bg-white rounded-2xl">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600">
                   Moderate Risk (31–60%)
                 </p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-extrabold text-white">
+                <div className="flex items-baseline gap-1.5">
+                  <p className="text-2xl sm:text-3xl font-black text-slate-900">
                     {boardData.summary.moderateRiskCount}
-                  </span>
-                  <span className="text-xs text-slate-400">
+                  </p>
+                  <span className="text-xs text-slate-400 font-semibold">
                     clients monitor closely
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-[11px] text-slate-500">
                   Performance or communication friction
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                <Flame className="h-6 w-6" />
+              <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 shrink-0">
+                <Flame className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
 
           {/* Card 3: Portfolio Retention Index */}
-          <Card className="bg-slate-900/70 border-slate-800 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-500" />
-            <CardContent className="p-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
+          <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-4 border-l-indigo-500 bg-white rounded-2xl">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">
                   Avg Portfolio Churn Risk
                 </p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-extrabold text-white">
+                <div className="flex items-baseline gap-1.5">
+                  <p className="text-2xl sm:text-3xl font-black text-slate-900">
                     {boardData.summary.avgPortfolioRisk}%
-                  </span>
+                  </p>
                   <span
                     className={cn(
-                      "text-xs font-semibold",
+                      "text-xs font-bold",
                       boardData.summary.avgPortfolioRisk > 40
-                        ? "text-amber-400"
-                        : "text-emerald-400",
+                        ? "text-amber-600"
+                        : "text-emerald-600",
                     )}
                   >
                     {boardData.summary.avgPortfolioRisk <= 30
@@ -455,31 +445,32 @@ export default function StandupPulseBoardClient() {
                         : "High Alert"}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Consensus across automated & team signals
+                <p className="text-[11px] text-slate-500">
+                  Consensus across automated &amp; team signals
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-                <Activity className="h-6 w-6" />
+              <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
+                <Activity className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
 
           {/* Card 4: Team Pulse Coverage */}
-          <Card className="bg-slate-900/70 border-slate-800 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
-            <CardContent className="p-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
+          <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-4 border-l-emerald-500 bg-white rounded-2xl">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="space-y-0.5 min-w-0 pr-2 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
                   Team Review Coverage
                 </p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-extrabold text-white">
+                <div className="flex items-baseline gap-1.5">
+                  <p className="text-2xl sm:text-3xl font-black text-slate-900">
                     {boardData.summary.pulseCoveragePercent}%
+                  </p>
+                  <span className="text-xs text-slate-400 font-semibold">
+                    reviewed
                   </span>
-                  <span className="text-xs text-slate-400">reviewed</span>
                 </div>
-                <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
                   <div
                     className="bg-emerald-500 h-full rounded-full transition-all duration-500"
                     style={{
@@ -488,38 +479,38 @@ export default function StandupPulseBoardClient() {
                   />
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                <Users className="h-6 w-6" />
+              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                <Users className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
         </div>
       ) : null}
 
-      {/* 3. SEARCH & FILTERS BAR */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-900/40 p-3 rounded-2xl border border-slate-800/80">
+      {/* ── 3. SEARCH & FILTERS BAR ── */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
         <div className="flex flex-1 items-center gap-2">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               type="text"
               placeholder="Search clients, industries, or notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-slate-950/80 border-slate-800 text-xs text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 h-9 rounded-xl"
+              className="pl-9 bg-slate-50 border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 h-9 rounded-xl"
             />
           </div>
 
           {/* Risk Filter Chips */}
-          <div className="hidden sm:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+          <div className="hidden sm:flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200/80 text-xs">
             <button
               type="button"
               onClick={() => setRiskFilter("all")}
               className={cn(
-                "px-2.5 py-1 rounded-lg font-medium transition-colors",
+                "px-2.5 py-1 rounded-lg text-xs transition-colors cursor-pointer",
                 riskFilter === "all"
-                  ? "bg-indigo-600 text-white font-semibold"
-                  : "text-slate-400 hover:text-white",
+                  ? "bg-white text-slate-900 font-bold shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 font-medium",
               )}
             >
               All ({boardData?.clients.length || 0})
@@ -528,39 +519,39 @@ export default function StandupPulseBoardClient() {
               type="button"
               onClick={() => setRiskFilter("high")}
               className={cn(
-                "px-2.5 py-1 rounded-lg font-medium transition-colors flex items-center gap-1",
+                "px-2.5 py-1 rounded-lg text-xs transition-colors flex items-center gap-1 cursor-pointer",
                 riskFilter === "high"
-                  ? "bg-red-500 text-white font-semibold"
-                  : "text-slate-400 hover:text-red-400",
+                  ? "bg-white text-red-700 font-bold shadow-xs"
+                  : "text-slate-600 hover:text-red-600 font-medium",
               )}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
               Critical ({boardData?.summary.highRiskCount || 0})
             </button>
             <button
               type="button"
               onClick={() => setRiskFilter("moderate")}
               className={cn(
-                "px-2.5 py-1 rounded-lg font-medium transition-colors flex items-center gap-1",
+                "px-2.5 py-1 rounded-lg text-xs transition-colors flex items-center gap-1 cursor-pointer",
                 riskFilter === "moderate"
-                  ? "bg-amber-500 text-white font-semibold"
-                  : "text-slate-400 hover:text-amber-400",
+                  ? "bg-white text-amber-700 font-bold shadow-xs"
+                  : "text-slate-600 hover:text-amber-600 font-medium",
               )}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
               Moderate ({boardData?.summary.moderateRiskCount || 0})
             </button>
             <button
               type="button"
               onClick={() => setRiskFilter("low")}
               className={cn(
-                "px-2.5 py-1 rounded-lg font-medium transition-colors flex items-center gap-1",
+                "px-2.5 py-1 rounded-lg text-xs transition-colors flex items-center gap-1 cursor-pointer",
                 riskFilter === "low"
-                  ? "bg-emerald-500 text-white font-semibold"
-                  : "text-slate-400 hover:text-emerald-400",
+                  ? "bg-white text-emerald-700 font-bold shadow-xs"
+                  : "text-slate-600 hover:text-emerald-600 font-medium",
               )}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               Healthy ({boardData?.summary.healthyCount || 0})
             </button>
           </div>
@@ -568,11 +559,13 @@ export default function StandupPulseBoardClient() {
 
         {/* Sort selector */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 shrink-0">Sort:</span>
+          <span className="text-xs text-slate-500 shrink-0 font-medium">
+            Sort:
+          </span>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            className="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-indigo-500 cursor-pointer shadow-2xs"
           >
             <option value="risk_desc">Highest Risk First</option>
             <option value="risk_asc">Lowest Risk First</option>
@@ -582,22 +575,22 @@ export default function StandupPulseBoardClient() {
         </div>
       </div>
 
-      {/* 4. CLIENT STANDUP TABLE */}
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Spinner className="h-8 w-8 text-indigo-500" />
-          <p className="text-xs text-slate-500 mt-3">
-            Computing churn risk & pulling team sentiment...
+      {/* ── 4. CLIENT RETENTION LIST / CARDS ── */}
+      {loading && !boardData ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200 shadow-xs">
+          <Spinner className="h-8 w-8 text-indigo-600" />
+          <p className="text-xs text-slate-500 mt-3 font-medium">
+            Computing churn risk &amp; pulling team sentiment...
           </p>
         </div>
       ) : filteredClients.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center bg-slate-900/30 rounded-2xl border border-slate-800">
-          <HeartPulse className="h-10 w-10 text-slate-600 mb-3" />
-          <h3 className="text-sm font-semibold text-white">No clients found</h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm">
+        <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-2xl border border-slate-200 shadow-xs">
+          <HeartPulse className="h-10 w-10 text-slate-300 mb-3" />
+          <h3 className="text-sm font-bold text-slate-900">No clients found</h3>
+          <p className="text-xs text-slate-500 mt-1 max-w-sm">
             {searchQuery
               ? "No clients match your search criteria. Try clearing the filter."
-              : "No active clients found in this organization. Onboard clients to start morning standup pulse checks."}
+              : "No active clients found in this organization. Onboard clients to start tracking retention."}
           </p>
         </div>
       ) : (
@@ -610,12 +603,12 @@ export default function StandupPulseBoardClient() {
               <div
                 key={client.id}
                 className={cn(
-                  "p-4 sm:p-5 rounded-2xl border transition-all duration-200 bg-slate-900/50 hover:bg-slate-900/80 flex flex-col lg:flex-row lg:items-center justify-between gap-5",
+                  "p-5 rounded-2xl border transition-all duration-200 bg-white hover:shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-5",
                   isHigh
-                    ? "border-red-500/30 hover:border-red-500/60 shadow-lg shadow-red-950/10"
+                    ? "border-red-200 shadow-xs hover:border-red-300"
                     : isModerate
-                      ? "border-amber-500/30 hover:border-amber-500/60"
-                      : "border-slate-800 hover:border-slate-700",
+                      ? "border-amber-200 shadow-xs hover:border-amber-300"
+                      : "border-slate-200 hover:border-slate-300 shadow-xs",
                 )}
               >
                 {/* Column 1: Client Overview & Status */}
@@ -623,21 +616,21 @@ export default function StandupPulseBoardClient() {
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/clients/${client.id}`}
-                      className="font-bold text-white hover:text-indigo-400 text-base transition-colors flex items-center gap-1.5 group"
+                      className="font-bold text-slate-900 hover:text-indigo-600 text-base transition-colors flex items-center gap-1.5 group"
                     >
                       <span>{client.name}</span>
-                      <ExternalLink className="h-3 w-3 text-slate-500 group-hover:text-indigo-400 transition-colors" />
+                      <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-indigo-600 transition-colors" />
                     </Link>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 mt-1.5">
                     <Badge
                       variant="outline"
-                      className="text-[10px] font-mono uppercase bg-slate-800/80 border-slate-700 text-slate-300"
+                      className="text-[10px] font-semibold uppercase bg-slate-50 border-slate-200 text-slate-600"
                     >
                       {client.industry}
                     </Badge>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       {client.googleEnabled && (
                         <div title="Google Ads Active">
                           <GoogleLogo className="h-3.5 w-3.5" />
@@ -653,15 +646,15 @@ export default function StandupPulseBoardClient() {
                 </div>
 
                 {/* Column 2: Composite Churn Risk Score Badge */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
                   <div
                     className={cn(
-                      "flex items-center gap-3 px-3.5 py-2.5 rounded-xl border font-mono",
+                      "flex items-center gap-3 px-4 py-2.5 rounded-xl border font-mono shadow-2xs",
                       isHigh
-                        ? "bg-red-950/40 border-red-500/40 text-red-200"
+                        ? "bg-red-50 border-red-200 text-red-800"
                         : isModerate
-                          ? "bg-amber-950/40 border-amber-500/40 text-amber-200"
-                          : "bg-emerald-950/40 border-emerald-500/40 text-emerald-200",
+                          ? "bg-amber-50 border-amber-200 text-amber-800"
+                          : "bg-emerald-50 border-emerald-200 text-emerald-800",
                     )}
                   >
                     <div className="text-2xl font-black tracking-tight">
@@ -676,7 +669,7 @@ export default function StandupPulseBoardClient() {
                             : "Healthy"}
                       </span>
                       {client.awaitingTeamPulse && (
-                        <span className="text-[9px] text-amber-400 font-normal lowercase">
+                        <span className="text-[9px] text-amber-600 font-normal lowercase">
                           (auto score only)
                         </span>
                       )}
@@ -688,8 +681,8 @@ export default function StandupPulseBoardClient() {
                         className={cn(
                           "ml-1 flex items-center text-xs font-bold",
                           client.wowTrend > 0
-                            ? "text-red-400"
-                            : "text-emerald-400",
+                            ? "text-red-600"
+                            : "text-emerald-600",
                         )}
                         title={`Risk changed by ${client.wowTrend > 0 ? "+" : ""}${client.wowTrend}% WoW`}
                       >
@@ -705,15 +698,15 @@ export default function StandupPulseBoardClient() {
                 </div>
 
                 {/* Column 3: Automated Performance Radar (7-Day Leads & CPA) */}
-                <div className="flex-1 min-w-[240px] bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 text-xs">
-                  <div className="flex items-center justify-between text-slate-400 mb-1.5 font-medium">
-                    <span className="flex items-center gap-1.5 text-slate-300">
-                      <Target className="h-3.5 w-3.5 text-indigo-400" />
+                <div className="flex-1 min-w-[240px] bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 text-xs">
+                  <div className="flex items-center justify-between text-slate-500 mb-1.5 font-semibold text-[10px] uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5 text-slate-700">
+                      <Target className="h-3.5 w-3.5 text-indigo-600" />
                       7-Day Performance
                     </span>
                     <span>
                       Spend:{" "}
-                      <strong className="text-white">
+                      <strong className="text-slate-900 font-bold">
                         ${client.recentSpend}
                       </strong>
                     </span>
@@ -721,8 +714,8 @@ export default function StandupPulseBoardClient() {
 
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div>
-                      <span className="text-slate-400">Leads: </span>
-                      <strong className="text-white font-semibold">
+                      <span className="text-slate-500">Leads: </span>
+                      <strong className="text-slate-900 font-bold">
                         {client.recentLeads}
                       </strong>
                       {client.leadsWowChange !== null && (
@@ -730,10 +723,10 @@ export default function StandupPulseBoardClient() {
                           className={cn(
                             "ml-1 font-bold",
                             client.leadsWowChange < 0
-                              ? "text-red-400"
+                              ? "text-red-600"
                               : client.leadsWowChange > 0
-                                ? "text-emerald-400"
-                                : "text-slate-400",
+                                ? "text-emerald-600"
+                                : "text-slate-500",
                           )}
                         >
                           ({client.leadsWowChange > 0 ? "+" : ""}
@@ -743,16 +736,16 @@ export default function StandupPulseBoardClient() {
                     </div>
 
                     <div>
-                      <span className="text-slate-400">CPA: </span>
-                      <strong className="text-white font-semibold">
+                      <span className="text-slate-500">CPA: </span>
+                      <strong className="text-slate-900 font-bold">
                         ${client.recentCpa}
                       </strong>
                       {client.targetCpa ? (
                         <span
                           className={cn(
-                            "ml-1",
+                            "ml-1 text-[10px]",
                             client.cpaVariance && client.cpaVariance > 15
-                              ? "text-red-400 font-semibold"
+                              ? "text-red-600 font-bold"
                               : "text-slate-400",
                           )}
                         >
@@ -768,7 +761,7 @@ export default function StandupPulseBoardClient() {
                       {client.automatedFlags.map((flag, idx) => (
                         <span
                           key={idx}
-                          className="px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-300 text-[10px] font-medium border border-slate-700/50"
+                          className="px-2 py-0.5 rounded-md bg-white text-slate-700 text-[10px] font-medium border border-slate-200 shadow-2xs"
                         >
                           {flag}
                         </span>
@@ -778,18 +771,18 @@ export default function StandupPulseBoardClient() {
                 </div>
 
                 {/* Column 4: Team Sentiment Consensus & Staff Pills */}
-                <div className="flex-1 min-w-[220px] bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 text-xs">
-                  <div className="flex items-center justify-between text-slate-400 mb-1.5">
-                    <span className="flex items-center gap-1.5 font-medium text-slate-300">
-                      <Users className="h-3.5 w-3.5 text-indigo-400" />
+                <div className="flex-1 min-w-[220px] bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 text-xs">
+                  <div className="flex items-center justify-between text-slate-500 mb-1.5 font-semibold text-[10px] uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5 text-slate-700">
+                      <Users className="h-3.5 w-3.5 text-indigo-600" />
                       Team Consensus
                     </span>
                     {client.teamSentimentScore !== null ? (
-                      <span className="font-bold text-white">
+                      <span className="font-bold text-slate-900">
                         {client.teamSentimentScore}% Risk
                       </span>
                     ) : (
-                      <span className="text-[11px] text-amber-400 italic">
+                      <span className="text-[11px] text-amber-600 font-semibold">
                         Awaiting Pulse
                       </span>
                     )}
@@ -810,13 +803,13 @@ export default function StandupPulseBoardClient() {
                           return (
                             <div
                               key={rating.id}
-                              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[11px]"
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-slate-200 text-[11px] shadow-2xs"
                               title={`${rating.userName} (${rating.userRole || "Staff"}): ${rating.riskScore}% risk - "${rating.notes || "No notes"}"`}
                             >
                               <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] font-bold flex items-center justify-center">
                                 {initials}
                               </span>
-                              <span className="font-semibold text-slate-200">
+                              <span className="font-bold text-slate-800">
                                 {rating.riskScore}%
                               </span>
                             </div>
@@ -826,13 +819,13 @@ export default function StandupPulseBoardClient() {
 
                       {/* Latest note snippet */}
                       {client.staffRatings[0]?.notes && (
-                        <p className="text-[11px] text-slate-400 italic line-clamp-1 mt-1">
+                        <p className="text-[11px] text-slate-600 italic line-clamp-1 mt-1">
                           &ldquo;{client.staffRatings[0].notes}&rdquo;
                         </p>
                       )}
                     </div>
                   ) : (
-                    <p className="text-[11px] text-slate-500 italic">
+                    <p className="text-[11px] text-slate-400 italic">
                       No team members have logged ratings for this week yet.
                     </p>
                   )}
@@ -844,9 +837,9 @@ export default function StandupPulseBoardClient() {
                     size="sm"
                     onClick={() => handleOpenLogModal(client)}
                     className={cn(
-                      "text-xs font-semibold gap-1.5 shadow-sm",
+                      "text-xs font-bold gap-1.5 h-8 px-3.5 rounded-xl cursor-pointer shadow-xs",
                       client.currentUserRating
-                        ? "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                        ? "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200"
                         : "bg-indigo-600 hover:bg-indigo-500 text-white",
                     )}
                   >
@@ -858,7 +851,7 @@ export default function StandupPulseBoardClient() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleOpenHistory(client)}
-                    className="border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-300 text-xs px-2.5"
+                    className="h-8 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs px-2.5 rounded-xl cursor-pointer shadow-xs"
                     title="View historical retention trend"
                   >
                     <History className="h-3.5 w-3.5" />
@@ -870,15 +863,15 @@ export default function StandupPulseBoardClient() {
         </div>
       )}
 
-      {/* 5. LOG PULSE MODAL */}
+      {/* ── 5. LOG PULSE MODAL (LIGHT THEME) ── */}
       <Dialog open={logModalOpen} onOpenChange={setLogModalOpen}>
-        <DialogContent className="bg-slate-950 border-slate-800 text-white max-w-md">
+        <DialogContent className="bg-white border-slate-200 text-slate-900 max-w-md rounded-2xl shadow-xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
-              <HeartPulse className="h-5 w-5 text-indigo-400" />
-              Log Morning Standup Pulse
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
+              <HeartPulse className="h-5 w-5 text-indigo-600" />
+              Log Retention Pulse
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-400">
+            <DialogDescription className="text-xs text-slate-500">
               {selectedClient?.name} &bull; Week of {boardData?.pulseDate}
             </DialogDescription>
           </DialogHeader>
@@ -886,23 +879,23 @@ export default function StandupPulseBoardClient() {
           {selectedClient && (
             <form onSubmit={handleSubmitRating} className="space-y-4 py-2">
               {/* Performance Context Pill */}
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-1">
-                <div className="flex justify-between text-slate-400">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                <div className="flex justify-between text-slate-500">
                   <span>Automated Performance Risk:</span>
-                  <strong className="text-white">
+                  <strong className="text-slate-900 font-bold">
                     {selectedClient.automatedRiskScore}%
                   </strong>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-500">
                   <span>7-Day Leads:</span>
-                  <strong className="text-white">
+                  <strong className="text-slate-900 font-bold">
                     {selectedClient.recentLeads} leads{" "}
                     {selectedClient.leadsWowChange !== null && (
                       <span
                         className={
                           selectedClient.leadsWowChange < 0
-                            ? "text-red-400"
-                            : "text-emerald-400"
+                            ? "text-red-600 font-bold"
+                            : "text-emerald-600 font-bold"
                         }
                       >
                         ({selectedClient.leadsWowChange > 0 ? "+" : ""}
@@ -916,19 +909,19 @@ export default function StandupPulseBoardClient() {
               {/* Risk Score Slider */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-slate-200">
+                  <Label className="text-xs font-bold text-slate-700">
                     Client Churn Risk (%)
                   </Label>
                   <span
                     className={cn(
                       "text-sm font-black font-mono px-2.5 py-0.5 rounded-lg border",
                       formRiskScore > 80
-                        ? "bg-red-950/60 border-red-500/50 text-red-300"
+                        ? "bg-red-50 border-red-200 text-red-700"
                         : formRiskScore > 60
-                          ? "bg-orange-950/60 border-orange-500/50 text-orange-300"
+                          ? "bg-amber-50 border-amber-200 text-amber-700"
                           : formRiskScore > 30
-                            ? "bg-amber-950/60 border-amber-500/50 text-amber-300"
-                            : "bg-emerald-950/60 border-emerald-500/50 text-emerald-300",
+                            ? "bg-amber-50/60 border-amber-200 text-amber-800"
+                            : "bg-emerald-50 border-emerald-200 text-emerald-700",
                     )}
                   >
                     {formRiskScore}% &bull;{" "}
@@ -951,7 +944,7 @@ export default function StandupPulseBoardClient() {
                   onChange={(e) =>
                     setFormRiskScore(parseInt(e.target.value, 10))
                   }
-                  className="w-full accent-indigo-500 cursor-pointer h-2 bg-slate-800 rounded-lg appearance-none"
+                  className="w-full accent-indigo-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none"
                 />
 
                 {/* Quick Presets */}
@@ -959,28 +952,28 @@ export default function StandupPulseBoardClient() {
                   <button
                     type="button"
                     onClick={() => setFormRiskScore(15)}
-                    className="py-1 px-1.5 text-[11px] font-semibold rounded-lg bg-slate-900 hover:bg-emerald-950/40 hover:text-emerald-300 border border-slate-800 text-slate-400 transition-colors"
+                    className="py-1 px-1.5 text-[11px] font-bold rounded-lg bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200 text-slate-600 transition-colors cursor-pointer"
                   >
                     🟢 15% (Low)
                   </button>
                   <button
                     type="button"
                     onClick={() => setFormRiskScore(45)}
-                    className="py-1 px-1.5 text-[11px] font-semibold rounded-lg bg-slate-900 hover:bg-amber-950/40 hover:text-amber-300 border border-slate-800 text-slate-400 transition-colors"
+                    className="py-1 px-1.5 text-[11px] font-bold rounded-lg bg-slate-50 hover:bg-amber-50 hover:text-amber-700 border border-slate-200 text-slate-600 transition-colors cursor-pointer"
                   >
                     🟡 45% (Med)
                   </button>
                   <button
                     type="button"
                     onClick={() => setFormRiskScore(75)}
-                    className="py-1 px-1.5 text-[11px] font-semibold rounded-lg bg-slate-900 hover:bg-orange-950/40 hover:text-orange-300 border border-slate-800 text-slate-400 transition-colors"
+                    className="py-1 px-1.5 text-[11px] font-bold rounded-lg bg-slate-50 hover:bg-orange-50 hover:text-orange-700 border border-slate-200 text-slate-600 transition-colors cursor-pointer"
                   >
                     🟠 75% (High)
                   </button>
                   <button
                     type="button"
                     onClick={() => setFormRiskScore(95)}
-                    className="py-1 px-1.5 text-[11px] font-semibold rounded-lg bg-slate-900 hover:bg-red-950/40 hover:text-red-300 border border-slate-800 text-slate-400 transition-colors"
+                    className="py-1 px-1.5 text-[11px] font-bold rounded-lg bg-slate-50 hover:bg-red-50 hover:text-red-700 border border-slate-200 text-slate-600 transition-colors cursor-pointer"
                   >
                     🔴 95% (Crit)
                   </button>
@@ -989,13 +982,13 @@ export default function StandupPulseBoardClient() {
 
               {/* Primary Factor / Driver */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-200">
+                <Label className="text-xs font-bold text-slate-700">
                   Primary Driver / Tag
                 </Label>
                 <select
                   value={formFactor}
                   onChange={(e) => setFormFactor(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500 cursor-pointer shadow-2xs"
                 >
                   {PRIMARY_FACTORS.map((f) => (
                     <option key={f.value} value={f.value}>
@@ -1007,7 +1000,7 @@ export default function StandupPulseBoardClient() {
 
               {/* Standup Note */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-200">
+                <Label className="text-xs font-bold text-slate-700">
                   Meeting Notes / Action Item
                 </Label>
                 <textarea
@@ -1015,7 +1008,7 @@ export default function StandupPulseBoardClient() {
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
                   placeholder="e.g. Client mentioned lead quality concerns on yesterday's call. Testing new qualifier form fields today."
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-500 shadow-2xs"
                 />
               </div>
 
@@ -1025,7 +1018,7 @@ export default function StandupPulseBoardClient() {
                   variant="outline"
                   size="sm"
                   onClick={() => setLogModalOpen(false)}
-                  className="border-slate-800 text-slate-400 text-xs"
+                  className="border-slate-200 text-slate-600 text-xs rounded-xl cursor-pointer"
                 >
                   Cancel
                 </Button>
@@ -1033,7 +1026,7 @@ export default function StandupPulseBoardClient() {
                   type="submit"
                   size="sm"
                   disabled={submittingRating}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs"
                 >
                   {submittingRating ? "Saving..." : "Save Pulse"}
                 </Button>
@@ -1043,15 +1036,15 @@ export default function StandupPulseBoardClient() {
         </DialogContent>
       </Dialog>
 
-      {/* 6. CLIENT PULSE HISTORY SHEET */}
+      {/* ── 6. CLIENT RETENTION HISTORY SHEET (LIGHT THEME) ── */}
       <Sheet open={historySheetOpen} onOpenChange={setHistorySheetOpen}>
-        <SheetContent className="bg-slate-950 border-slate-800 text-white w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader className="border-b border-slate-800 pb-4">
-            <SheetTitle className="text-base font-bold text-white flex items-center gap-2">
-              <History className="h-4 w-4 text-indigo-400" />
-              Retention Pulse History &bull; {historyClient?.name}
+        <SheetContent className="bg-white border-slate-200 text-slate-900 w-full sm:max-w-lg overflow-y-auto shadow-2xl">
+          <SheetHeader className="border-b border-slate-200 pb-4">
+            <SheetTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <History className="h-4 w-4 text-indigo-600" />
+              Retention History &bull; {historyClient?.name}
             </SheetTitle>
-            <SheetDescription className="text-xs text-slate-400">
+            <SheetDescription className="text-xs text-slate-500">
               Weekly sentiment timeline and meeting notes over time.
             </SheetDescription>
           </SheetHeader>
@@ -1059,37 +1052,37 @@ export default function StandupPulseBoardClient() {
           <div className="py-4 space-y-4">
             {loadingHistory ? (
               <div className="flex justify-center py-10">
-                <Spinner className="h-6 w-6 text-indigo-500" />
+                <Spinner className="h-6 w-6 text-indigo-600" />
               </div>
             ) : historyRecords.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-8">
-                No past standup pulse entries recorded for this client yet.
+              <p className="text-xs text-slate-500 text-center py-8 font-medium">
+                No past retention pulse entries recorded for this client yet.
               </p>
             ) : (
               <div className="space-y-3">
                 {historyRecords.map((record) => (
                   <div
                     key={record.id}
-                    className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2 text-xs"
+                    className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs shadow-2xs"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-200">
+                        <span className="font-bold text-slate-900">
                           Week of {record.pulseDate}
                         </span>
-                        <span className="text-slate-500">&bull;</span>
-                        <span className="text-slate-400 font-medium">
+                        <span className="text-slate-300">&bull;</span>
+                        <span className="text-slate-500 font-medium">
                           {record.userName}
                         </span>
                       </div>
                       <span
                         className={cn(
-                          "px-2 py-0.5 rounded font-mono font-bold text-[11px]",
+                          "px-2 py-0.5 rounded font-mono font-bold text-[11px] border",
                           record.riskScore > 60
-                            ? "bg-red-950 text-red-300 border border-red-800"
+                            ? "bg-red-50 text-red-700 border-red-200"
                             : record.riskScore > 30
-                              ? "bg-amber-950 text-amber-300 border border-amber-800"
-                              : "bg-emerald-950 text-emerald-300 border border-emerald-800",
+                              ? "bg-amber-50 text-amber-800 border-amber-200"
+                              : "bg-emerald-50 text-emerald-800 border-emerald-200",
                         )}
                       >
                         {record.riskScore}% Risk
@@ -1099,7 +1092,7 @@ export default function StandupPulseBoardClient() {
                     {record.primaryFactor && (
                       <Badge
                         variant="outline"
-                        className="text-[10px] bg-slate-800/60 border-slate-700 text-slate-300 font-normal"
+                        className="text-[10px] bg-white border-slate-200 text-slate-600 font-medium"
                       >
                         {PRIMARY_FACTORS.find(
                           (f) => f.value === record.primaryFactor,
@@ -1108,7 +1101,7 @@ export default function StandupPulseBoardClient() {
                     )}
 
                     {record.notes && (
-                      <p className="text-slate-300 text-xs bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/80 mt-1">
+                      <p className="text-slate-700 text-xs bg-white p-2.5 rounded-lg border border-slate-200 mt-1 shadow-2xs">
                         &ldquo;{record.notes}&rdquo;
                       </p>
                     )}
@@ -1120,18 +1113,18 @@ export default function StandupPulseBoardClient() {
         </SheetContent>
       </Sheet>
 
-      {/* 7. MEETING PRESENTATION MODE MODAL */}
+      {/* ── 7. MEETING PRESENTATION MODE MODAL (LIGHT THEME) ── */}
       <Dialog open={meetingModeOpen} onOpenChange={setMeetingModeOpen}>
-        <DialogContent className="bg-slate-950 border-slate-800 text-white max-w-2xl p-6 sm:p-8">
+        <DialogContent className="bg-white border-slate-200 text-slate-900 max-w-2xl p-6 sm:p-8 rounded-2xl shadow-2xl">
           {activeMeetingClient ? (
             <div className="space-y-6">
               {/* Standup Header */}
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-indigo-600 text-white font-mono text-xs">
+                  <Badge className="bg-indigo-600 text-white font-mono text-xs px-2.5 py-1">
                     Client {meetingClientIndex + 1} of {filteredClients.length}
                   </Badge>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-slate-500 font-medium">
                     Standup Meeting Focus
                   </span>
                 </div>
@@ -1141,7 +1134,7 @@ export default function StandupPulseBoardClient() {
                     variant="outline"
                     disabled={meetingClientIndex === 0}
                     onClick={handlePrevMeetingClient}
-                    className="border-slate-800 bg-slate-900 text-slate-300 text-xs gap-1"
+                    className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs gap-1 rounded-xl cursor-pointer"
                   >
                     <ChevronLeft className="h-4 w-4" />
                     Prev
@@ -1150,7 +1143,7 @@ export default function StandupPulseBoardClient() {
                     size="sm"
                     disabled={meetingClientIndex >= filteredClients.length - 1}
                     onClick={handleNextMeetingClient}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs gap-1"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs gap-1 rounded-xl cursor-pointer font-bold"
                   >
                     Next
                     <ChevronRight className="h-4 w-4" />
@@ -1161,10 +1154,10 @@ export default function StandupPulseBoardClient() {
               {/* Main Client Profile in Meeting */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-black text-white">
+                  <h2 className="text-2xl font-black text-slate-900">
                     {activeMeetingClient.name}
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5 font-medium">
                     {activeMeetingClient.industry} &bull;{" "}
                     {activeMeetingClient.googleEnabled ? "Google Ads " : ""}
                     {activeMeetingClient.metaEnabled ? "Meta Ads" : ""}
@@ -1174,12 +1167,12 @@ export default function StandupPulseBoardClient() {
                 {/* Big Risk Gauge */}
                 <div
                   className={cn(
-                    "px-4 py-3 rounded-2xl border text-center font-mono",
+                    "px-4 py-3 rounded-2xl border text-center font-mono shadow-xs",
                     activeMeetingClient.riskTier === "high"
-                      ? "bg-red-950/60 border-red-500/50 text-red-200"
+                      ? "bg-red-50 border-red-200 text-red-800"
                       : activeMeetingClient.riskTier === "moderate"
-                        ? "bg-amber-950/60 border-amber-500/50 text-amber-200"
-                        : "bg-emerald-950/60 border-emerald-500/50 text-emerald-200",
+                        ? "bg-amber-50 border-amber-200 text-amber-800"
+                        : "bg-emerald-50 border-emerald-200 text-emerald-800",
                   )}
                 >
                   <div className="text-3xl font-black">
@@ -1197,22 +1190,22 @@ export default function StandupPulseBoardClient() {
 
               {/* Side-by-Side: Automated Stats vs Team Consensus */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs">
-                  <div className="text-slate-400 font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                    <Target className="h-3.5 w-3.5 text-indigo-400" />
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+                  <div className="text-slate-500 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Target className="h-3.5 w-3.5 text-indigo-600" />
                     Automated 7-Day Numbers
                   </div>
                   <div className="space-y-1.5 pt-1">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Leads:</span>
-                      <strong className="text-white font-bold">
+                      <span className="text-slate-500">Leads:</span>
+                      <strong className="text-slate-900 font-bold">
                         {activeMeetingClient.recentLeads} leads{" "}
                         {activeMeetingClient.leadsWowChange !== null && (
                           <span
                             className={
                               activeMeetingClient.leadsWowChange < 0
-                                ? "text-red-400"
-                                : "text-emerald-400"
+                                ? "text-red-600 font-bold"
+                                : "text-emerald-600 font-bold"
                             }
                           >
                             ({activeMeetingClient.leadsWowChange > 0 ? "+" : ""}
@@ -1222,8 +1215,8 @@ export default function StandupPulseBoardClient() {
                       </strong>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Current CPA:</span>
-                      <strong className="text-white font-bold">
+                      <span className="text-slate-500">Current CPA:</span>
+                      <strong className="text-slate-900 font-bold">
                         ${activeMeetingClient.recentCpa}
                         {activeMeetingClient.targetCpa && (
                           <span className="text-slate-400 font-normal ml-1">
@@ -1233,36 +1226,36 @@ export default function StandupPulseBoardClient() {
                       </strong>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">7-Day Spend:</span>
-                      <strong className="text-white font-bold">
+                      <span className="text-slate-500">7-Day Spend:</span>
+                      <strong className="text-slate-900 font-bold">
                         ${activeMeetingClient.recentSpend}
                       </strong>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs">
-                  <div className="text-slate-400 font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5 text-indigo-400" />
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+                  <div className="text-slate-500 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-indigo-600" />
                     Team Sentiment Check-In
                   </div>
                   <div className="space-y-1.5 pt-1">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Consensus Score:</span>
-                      <strong className="text-white font-bold">
+                      <span className="text-slate-500">Consensus Score:</span>
+                      <strong className="text-slate-900 font-bold">
                         {activeMeetingClient.teamSentimentScore !== null
                           ? `${activeMeetingClient.teamSentimentScore}%`
                           : "Not yet reviewed"}
                       </strong>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Staff Reviews:</span>
-                      <strong className="text-white font-bold">
+                      <span className="text-slate-500">Staff Reviews:</span>
+                      <strong className="text-slate-900 font-bold">
                         {activeMeetingClient.staffRatingsCount} member(s)
                       </strong>
                     </div>
                     {activeMeetingClient.staffRatings[0]?.notes && (
-                      <p className="text-[11px] text-slate-400 italic line-clamp-2 pt-1 border-t border-slate-800">
+                      <p className="text-[11px] text-slate-600 italic line-clamp-2 pt-1 border-t border-slate-200">
                         &ldquo;{activeMeetingClient.staffRatings[0].notes}
                         &rdquo;
                       </p>
@@ -1272,11 +1265,11 @@ export default function StandupPulseBoardClient() {
               </div>
 
               {/* Quick Actions in Meeting Mode */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
                 <Button
                   size="sm"
                   onClick={() => handleOpenLogModal(activeMeetingClient)}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold gap-1.5"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl gap-1.5 cursor-pointer shadow-xs"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                   Log / Update Sentiment
@@ -1285,7 +1278,7 @@ export default function StandupPulseBoardClient() {
                   size="sm"
                   variant="outline"
                   onClick={() => setMeetingModeOpen(false)}
-                  className="border-slate-800 text-slate-400 text-xs"
+                  className="border-slate-200 text-slate-600 text-xs rounded-xl cursor-pointer hover:bg-slate-50"
                 >
                   Exit Standup Mode
                 </Button>
