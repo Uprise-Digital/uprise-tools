@@ -147,6 +147,7 @@ export interface SendSystemEmailParams {
   templateKey: string;
   to: string | string[];
   replyTo?: string;
+  headers?: Record<string, string>;
   variables?: Record<string, string>;
   customSubject?: string;
   customHtml?: string;
@@ -267,6 +268,7 @@ ${websiteUrl ? `<p style="font-size: 12px; color: #64748b; margin: 0;"><a href="
       from: fromAddress,
       to: recipients,
       replyTo: replyTo || undefined,
+      headers: params.headers || undefined,
       subject: renderedSubject,
       html: fullHtml,
       attachments: attachments?.map((a) => ({

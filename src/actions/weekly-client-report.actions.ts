@@ -392,6 +392,9 @@ export async function buildWeeklyClientReportHtml(params: {
           <div style="margin-top: 2px;">
             Configure schedule and recipients in <a href="${appBaseUrl}/reports" style="color: #4f46e5; text-decoration: underline;">Report Settings</a>.
           </div>
+          <div style="display: none; font-size: 1px; color: #ffffff; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
+            Digest Ref: ${Date.now()}-${Math.random().toString(36).substring(2, 7)}
+          </div>
         </td>
       </tr>
 
@@ -499,12 +502,18 @@ export async function sendWeeklyClientReportAction(
       // Cron context may not have headers session
     }
 
+    const messageId = `<weekly-report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}@uprisedigital.com.au>`;
+
     const emailResult = await sendSystemEmail({
       organizationId: orgId,
       templateKey: "weekly_client_report",
       to: emails,
       customSubject: subject,
       customHtml: htmlBody,
+      headers: {
+        "Message-ID": messageId,
+        "X-Entity-Ref-ID": messageId,
+      },
       variables: {
         week_date: pulseDate,
         pulse_url: `${appBaseUrl}/clients/pulse`,
