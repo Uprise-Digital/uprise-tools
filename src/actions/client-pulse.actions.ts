@@ -114,17 +114,38 @@ export interface ClientPulseBoardData {
  */
 export async function getClientPulseBoardDataAction(
   weekOffset: number = 0,
+  orgIdOverride?: string,
 ): Promise<{ success: boolean; data?: ClientPulseBoardData; error?: string }> {
   try {
-    const ctx = await getAuthOrgContext();
-    if (!ctx || !ctx.orgId) {
+    let orgId: string | null = orgIdOverride || null;
+    let currentUserId: string | null = null;
+
+    if (!orgId) {
+      try {
+        const ctx = await getAuthOrgContext();
+        if (ctx?.orgId) {
+          orgId = ctx.orgId;
+          currentUserId = ctx.userId;
+        }
+      } catch {
+        // Headers might not exist in non-request/cron contexts
+      }
+    }
+
+    if (!orgId) {
+      // Fallback to default organization
+      const firstOrg = await db.query.organization.findFirst();
+      if (firstOrg) {
+        orgId = firstOrg.id;
+      }
+    }
+
+    if (!orgId) {
       return {
         success: false,
         error: "Unauthorized: Active organization context missing",
       };
     }
-    const orgId = ctx.orgId;
-    const currentUserId = ctx.userId;
 
     await ensurePulseSchema();
 

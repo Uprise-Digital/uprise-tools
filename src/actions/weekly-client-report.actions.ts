@@ -450,7 +450,9 @@ export async function buildWeeklyClientReportText(params: {
 /**
  * Compiles and sends the Weekly Client Report email
  */
-export async function sendWeeklyClientReportAction() {
+export async function sendWeeklyClientReportAction(
+  recipientOverride?: string | string[],
+) {
   let emails: string[] = [];
   try {
     const settingsRes = await getWeeklyClientReportSettingsAction();
@@ -467,8 +469,12 @@ export async function sendWeeklyClientReportAction() {
 
     const { pulseDate, clients, summary } = boardRes.data;
 
-    // Recipients fallback
-    if (settings?.recipients && settings.recipients.length > 0) {
+    // Determine recipients (override > settings > team members)
+    if (recipientOverride) {
+      emails = Array.isArray(recipientOverride)
+        ? recipientOverride
+        : [recipientOverride];
+    } else if (settings?.recipients && settings.recipients.length > 0) {
       emails = settings.recipients;
     } else {
       const team = await db
