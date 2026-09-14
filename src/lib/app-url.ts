@@ -20,24 +20,14 @@ export function getAppUrl(): string {
   }
 
   const envProductionUrl = process.env.PRODUCTION_APP_URL;
-  if (envProductionUrl && !envProductionUrl.includes("localhost")) {
+  if (
+    envProductionUrl &&
+    !envProductionUrl.includes("localhost") &&
+    !envProductionUrl.includes("up.railway.app")
+  ) {
     return envProductionUrl.replace(/\/+$/, "");
   }
 
-  const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
-  if (railwayDomain && !railwayDomain.includes("localhost")) {
-    return `https://${railwayDomain}`.replace(/\/+$/, "");
-  }
-
-  const nextPublicUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (nextPublicUrl && !nextPublicUrl.includes("localhost")) {
-    return nextPublicUrl.replace(/\/+$/, "");
-  }
-
-  const authUrl = process.env.BETTER_AUTH_URL;
-  if (authUrl && !authUrl.includes("localhost")) {
-    return authUrl.replace(/\/+$/, "");
-  }
-
+  // Canonical primary domain
   return CANONICAL_APP_URL;
 }
