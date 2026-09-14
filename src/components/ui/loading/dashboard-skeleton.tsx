@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "./spinner";
 import { cn } from "@/lib/utils";
+import { Spinner } from "./spinner";
 
 export interface DashboardSkeletonProps {
   kpiCount?: number;

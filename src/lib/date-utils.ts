@@ -171,4 +171,3 @@ export function getWeekMondayString(offsetWeeks: number = 0): string {
   );
   return monday.toISOString().split("T")[0];
 }
-

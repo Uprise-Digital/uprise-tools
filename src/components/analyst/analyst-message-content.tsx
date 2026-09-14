@@ -308,10 +308,8 @@ export function AnalystMessageContent({
       {kpis && kpis.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 my-2">
           {kpis.map((kpi, idx) => {
-            const isUp =
-              kpi.trend === "up" || kpi.delta?.startsWith("+");
-            const isDown =
-              kpi.trend === "down" || kpi.delta?.startsWith("-");
+            const isUp = kpi.trend === "up" || kpi.delta?.startsWith("+");
+            const isDown = kpi.trend === "down" || kpi.delta?.startsWith("-");
 
             return (
               <div

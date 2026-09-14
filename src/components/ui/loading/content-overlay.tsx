@@ -1,5 +1,5 @@
-import { Spinner } from "./spinner";
 import { cn } from "@/lib/utils";
+import { Spinner } from "./spinner";
 
 export interface ContentLoadingOverlayProps {
   loading: boolean;

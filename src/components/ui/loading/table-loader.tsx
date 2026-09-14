@@ -1,6 +1,6 @@
-import { Spinner } from "./spinner";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { Spinner } from "./spinner";
 
 export interface TableLoaderProps {
   colSpan: number;

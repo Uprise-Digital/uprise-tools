@@ -282,8 +282,9 @@ Rules:
     );
 
     const text =
-      aiRes.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (text) {
+      aiRes.response?.text?.trim?.() ||
+      aiRes.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim?.();
+    if (text && text.length > 20) {
       return text.replace(/\*\*/g, "").replace(/\*/g, "");
     }
   } catch (err) {

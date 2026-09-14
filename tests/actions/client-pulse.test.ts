@@ -93,7 +93,9 @@ describe("Client Standup Pulse Actions", () => {
       expect(client?.teamSentimentScore).toBe(70);
       expect(client?.staffRatingsCount).toBe(1);
       expect(client?.compositeRiskScore).toBeGreaterThan(0);
-      expect(client?.staffRatings[0].notes).toBe("Client questioned lead quality");
+      expect(client?.staffRatings[0].notes).toBe(
+        "Client questioned lead quality",
+      );
     });
 
     it("should fail gracefully if unauthorized", async () => {
