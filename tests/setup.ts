@@ -492,15 +492,23 @@ vi.mock("@/db", () => {
         leftJoin: vi.fn(() => selectBuilder),
         orderBy: vi.fn(() => selectBuilder),
         groupBy: vi.fn(() => selectBuilder),
-        where: vi.fn().mockResolvedValue([
-          {
-            totalSpend: "0.00",
-            id: "test-user-id",
-            name: "Test User",
-            email: "test@uprise.com",
-            role: "admin",
-          },
-        ]),
+        where: vi.fn(() => {
+          const res = [
+            {
+              totalSpend: "0.00",
+              id: "test-user-id",
+              name: "Test User",
+              email: "test@uprise.com",
+              role: "admin",
+              adAccountId: 10,
+              firstDate: "2026-01-01",
+            },
+          ];
+          const queryResult: any = Promise.resolve(res);
+          queryResult.groupBy = vi.fn().mockResolvedValue(res);
+          queryResult.orderBy = vi.fn().mockResolvedValue(res);
+          return queryResult;
+        }),
       };
       return selectBuilder;
     }),

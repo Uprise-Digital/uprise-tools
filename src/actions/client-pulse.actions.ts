@@ -74,6 +74,8 @@ export interface ClientPulseItem {
   recentCpa: number;
   targetCpa: number | null;
   cpaVariance: number | null; // percentage vs target
+  ageInMonths?: number | null; // months since first Google Ads spend
+  ageModifier?: number; // 0.25 (<1m), 0.75 (<3m), 0.9 (<6m), 1.0 (6m+)
   automatedRiskScore: number; // 0 - 100
   automatedFlags: string[];
   // Team sentiment stats
@@ -264,6 +266,37 @@ export async function getClientPulseBoardDataAction(
       }
     }
 
+    // 4b. Fetch earliest Google Ads spend date across campaigns to calculate account age
+    const firstSpendMap = new Map<number, string>();
+    if (allAdAccountIds.length > 0) {
+      try {
+        const firstSpendRows = await db
+          .select({
+            adAccountId: adPerformanceDaily.adAccountId,
+            firstDate: sql<string>`min(${adPerformanceDaily.date})`,
+          })
+          .from(adPerformanceDaily)
+          .where(
+            and(
+              inArray(adPerformanceDaily.adAccountId, allAdAccountIds),
+              sql`cast(${adPerformanceDaily.spend} as numeric) > 0`,
+            ),
+          )
+          .groupBy(adPerformanceDaily.adAccountId);
+
+        for (const row of firstSpendRows) {
+          if (row.adAccountId && row.firstDate) {
+            firstSpendMap.set(row.adAccountId, String(row.firstDate));
+          }
+        }
+      } catch (err) {
+        console.warn(
+          "Could not query earliest spend date for account age:",
+          err,
+        );
+      }
+    }
+
     // 5. Build per-client pulse data
     const clientItems: ClientPulseItem[] = [];
 
@@ -272,6 +305,41 @@ export async function getClientPulseBoardDataAction(
       const targetCpaVal =
         c.adAccounts?.[0]?.targetCpa || c.metaAdAccounts?.[0]?.targetCpa;
       const targetCpa = targetCpaVal ? parseFloat(String(targetCpaVal)) : null;
+
+      // Determine earliest Google Ads campaign spend date for this client
+      let earliestSpendStr: string | null = null;
+      for (const accId of clientAdAccIds) {
+        const d = firstSpendMap.get(accId);
+        if (d) {
+          if (!earliestSpendStr || d < earliestSpendStr) {
+            earliestSpendStr = d;
+          }
+        }
+      }
+
+      // Compute age in months based on first Google Ads spend date
+      let ageInMonths: number | null = null;
+      let ageModifier = 1.0; // mature baseline default (6+ months)
+
+      if (earliestSpendStr) {
+        const firstSpendDate = new Date(earliestSpendStr);
+        const diffMs = today.getTime() - firstSpendDate.getTime();
+        const diffDays = Math.max(
+          0,
+          Math.floor(diffMs / (1000 * 60 * 60 * 24)),
+        );
+        ageInMonths = Math.round((diffDays / 30.4) * 10) / 10;
+
+        if (ageInMonths < 1) {
+          ageModifier = 0.25; // Ramp-up month 1
+        } else if (ageInMonths < 3) {
+          ageModifier = 0.75; // Learning months 1-3
+        } else if (ageInMonths < 6) {
+          ageModifier = 0.9; // Scaling months 3-6
+        } else {
+          ageModifier = 1.0; // Mature 6m+
+        }
+      }
 
       // Group performance for this client into recent 7d and prior 7d
       let recentConversions = 0;
@@ -433,6 +501,24 @@ export async function getClientPulseBoardDataAction(
         }
       }
 
+      // 3. Account Age Modifier (Interpretation B: Ramp-up Penalty Dampener)
+      // New accounts (<6m since first spend) receive scaled penalties while campaigns ramp & learn
+      if (ageModifier < 1.0 && autoRisk > 15) {
+        const rawPenalty = autoRisk - 15;
+        const scaledPenalty = Math.round(rawPenalty * ageModifier);
+        autoRisk = 15 + scaledPenalty;
+
+        const ageLabel =
+          ageInMonths !== null && ageInMonths < 1
+            ? "<1m ramp-up"
+            : ageInMonths !== null && ageInMonths < 3
+              ? `${ageInMonths}m learning`
+              : `${ageInMonths}m scaling`;
+        automatedFlags.push(
+          `Age modifier applied: ${Math.round(ageModifier * 100)}% (${ageLabel})`,
+        );
+      }
+
       const automatedRiskScore = Math.max(5, Math.min(95, autoRisk));
 
       // Staff Sentiment Ratings for this client (Current Week)
@@ -536,6 +622,8 @@ export async function getClientPulseBoardDataAction(
         recentCpa,
         targetCpa,
         cpaVariance,
+        ageInMonths,
+        ageModifier,
         automatedRiskScore,
         automatedFlags,
         teamSentimentScore,

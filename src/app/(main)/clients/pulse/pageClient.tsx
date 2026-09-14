@@ -649,6 +649,22 @@ export default function StandupPulseBoardClient() {
                     >
                       {client.industry}
                     </Badge>
+                    {client.ageInMonths !== undefined &&
+                      client.ageInMonths !== null && (
+                        <span
+                          className={cn(
+                            "text-[10px] px-1.5 py-0.5 rounded font-medium border",
+                            client.ageModifier && client.ageModifier < 1.0
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                              : "bg-slate-50 text-slate-500 border-slate-200",
+                          )}
+                          title={`Account tenure: ${client.ageInMonths} months since first campaign spend. Age modifier: ${Math.round((client.ageModifier ?? 1.0) * 100)}%`}
+                        >
+                          {client.ageInMonths < 1
+                            ? "<1m new"
+                            : `${client.ageInMonths}m`}
+                        </span>
+                      )}
                     <div className="flex items-center gap-1.5">
                       {client.googleEnabled && (
                         <div title="Google Ads Active">
