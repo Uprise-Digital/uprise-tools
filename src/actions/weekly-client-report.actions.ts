@@ -222,10 +222,8 @@ export async function generateWeeklyExecutiveSummary(params: {
   // Build condensed input context for Gemini
   const watchlist = clients.filter(
     (c) =>
-      (c.recentSpend ?? 0) > 50 &&
-      ((c.leadsWowChange ?? 0) <= -30 ||
-        (c.cpaVariance ?? 0) >= 50 ||
-        c.riskTier === "high"),
+      (c.recentSpend ?? 0) > 0 &&
+      (c.riskTier === "high" || c.compositeRiskScore > 50),
   );
   const topWins = clients.filter(
     (c) => (c.recentLeads ?? 0) >= 3 && (c.leadsWowChange ?? 0) >= 15,
@@ -331,23 +329,12 @@ export async function buildWeeklyClientReportHtml(params: {
   const pulseUrl = `${appBaseUrl}/clients/pulse`;
   const inactiveClientsUrl = `${appBaseUrl}/clients?tab=churned`;
 
-  // 1. Genuine Risk Watchlist (Active spend with dropped leads, huge CPA variance, or staff flagged high risk)
+  // 1. Genuine Risk Watchlist (Clients classified as high risk or composite risk > 50% with active spend)
   const watchlist = clients.filter((c) => {
     // Only real alerts, not paused accounts with zero spend
-    const hasActiveSpend = (c.recentSpend ?? 0) > 50;
-    const isExplicitlyHighRisk = c.riskTier === "high";
-    const hasCriticalLeadDrop =
-      hasActiveSpend && c.leadsWowChange !== null && c.leadsWowChange <= -30;
-    const hasSpikedCpa =
-      hasActiveSpend && c.cpaVariance !== null && c.cpaVariance >= 50;
-    const hasWastedSpend =
-      (c.recentSpend ?? 0) > 100 && (c.recentLeads ?? 0) === 0;
-
+    const hasActiveSpend = (c.recentSpend ?? 0) > 0;
     return (
-      isExplicitlyHighRisk ||
-      hasCriticalLeadDrop ||
-      hasSpikedCpa ||
-      hasWastedSpend
+      hasActiveSpend && (c.riskTier === "high" || c.compositeRiskScore > 50)
     );
   });
 

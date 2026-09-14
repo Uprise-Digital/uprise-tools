@@ -309,64 +309,127 @@ export async function getClientPulseBoardDataAction(
         leadsWowChange = 100;
       }
 
-      // CPA Variance vs Target
+      // Industry Benchmark CPAs when explicit targetCpa is not configured
+      const INDUSTRY_BENCHMARK_CPAS: Record<string, number> = {
+        BUILDING_CONSTRUCTION: 180,
+        HOME_SERVICES_TRADES: 85,
+        ENERGY_SOLAR: 140,
+        LEGAL_FINANCIAL: 200,
+        HEALTHCARE_MEDICAL: 110,
+        AUTOMOTIVE_TRANSPORT: 90,
+        PROFESSIONAL_B2B: 150,
+        REAL_ESTATE_PROPERTY: 120,
+        ECOMMERCE_RETAIL: 60,
+        EDUCATION_TRAINING: 100,
+        HOSPITALITY_EVENTS: 80,
+        OTHER: 120,
+      };
+
+      const industryKey = c.industry || "OTHER";
+      const targetOrBench =
+        targetCpa && targetCpa > 0
+          ? targetCpa
+          : INDUSTRY_BENCHMARK_CPAS[industryKey] || 120;
+
+      // CPA Variance vs Target/Benchmark
       let cpaVariance: number | null = null;
-      if (targetCpa && targetCpa > 0 && recentCpa > 0) {
-        cpaVariance = Math.round(((recentCpa - targetCpa) / targetCpa) * 100);
+      if (recentCpa > 0 && targetOrBench > 0) {
+        cpaVariance = Math.round(
+          ((recentCpa - targetOrBench) / targetOrBench) * 100,
+        );
       }
 
       // Automated Risk Scoring (0 to 100)
       let autoRisk = 15; // baseline healthy
       const automatedFlags: string[] = [];
 
-      // If campaign had zero spend in the last 7 days, treat as paused / dormant rather than high churn risk
-      if (recentSpend === 0 && recentConversions === 0) {
-        if (priorSpend > 50) {
-          automatedFlags.push("Spend paused (0 spend in 7d)");
+      // 1. Zero Conversions Branch
+      if (recentConversions === 0) {
+        if (recentSpend === 0) {
+          // Paused / dormant
+          autoRisk = 20;
+          if (priorSpend > 50) {
+            automatedFlags.push("Spend paused (0 spend in 7d)");
+          }
+        } else if (recentSpend < 1.5 * targetOrBench) {
+          // Micro-spend / normal delivery variance within expected inquiry cost
+          autoRisk = 20;
+        } else if (recentSpend >= 2.5 * targetOrBench) {
+          // Critical wasted spend
+          autoRisk += 40;
+          automatedFlags.push(
+            `0 leads despite active spend ($${recentSpend} > 2.5x target)`,
+          );
+        } else {
+          // Moderate concern (1.5x - 2.5x target)
+          autoRisk += 25;
+          automatedFlags.push(
+            `0 leads with spend >1.5x target ($${recentSpend})`,
+          );
         }
-        // Baseline low/neutral risk for paused campaigns
-        autoRisk = 20;
       } else {
-        if (leadsWowChange !== null) {
-          if (leadsWowChange <= -30 && recentSpend > 50) {
-            autoRisk += 35;
-            automatedFlags.push(
-              `Leads dropped ${Math.abs(leadsWowChange)}% WoW`,
-            );
-          } else if (leadsWowChange <= -15 && recentSpend > 50) {
+        // 2. Active Conversions Branch
+        // Lead Drops: Gated by volume to prevent small-number volatility
+        const leadDiff = recentConversions - priorConversions;
+        if (priorConversions >= 10) {
+          // High-volume account: percentage drop is meaningful
+          if (leadsWowChange !== null) {
+            if (leadsWowChange <= -35) {
+              autoRisk += 30;
+              automatedFlags.push(
+                `Leads dropped ${Math.abs(leadsWowChange)}% WoW`,
+              );
+            } else if (leadsWowChange <= -20) {
+              autoRisk += 20;
+              automatedFlags.push(
+                `Leads down ${Math.abs(leadsWowChange)}% WoW`,
+              );
+            }
+          }
+        } else if (priorConversions > 0) {
+          // Low-volume account: evaluate absolute drops only
+          const leadDrop = priorConversions - recentConversions;
+          if (leadDrop >= 5) {
             autoRisk += 25;
-            automatedFlags.push(
-              `Leads dropped ${Math.abs(leadsWowChange)}% WoW`,
-            );
-          } else if (leadsWowChange <= -5 && recentSpend > 50) {
+            automatedFlags.push(`Leads dropped -${leadDrop} WoW`);
+          } else if (leadDrop >= 3) {
             autoRisk += 15;
-            automatedFlags.push(`Leads down ${Math.abs(leadsWowChange)}% WoW`);
-          } else if (leadsWowChange > 10) {
-            autoRisk -= 10; // good growth
-            automatedFlags.push(`Leads up +${leadsWowChange}% WoW`);
+            automatedFlags.push(`Leads down -${leadDrop} WoW`);
+          }
+          // Drops of <= 2 leads on low-volume accounts are normal statistical noise
+        }
+
+        // CPA Variance vs Target / Industry Benchmark
+        if (recentCpa > 1.8 * targetOrBench) {
+          autoRisk += 30;
+          automatedFlags.push(
+            `CPA +${cpaVariance}% above target ($${recentCpa} vs $${targetOrBench})`,
+          );
+        } else if (recentCpa > 1.3 * targetOrBench) {
+          autoRisk += 15;
+          automatedFlags.push(
+            `CPA +${cpaVariance}% above target ($${recentCpa} vs $${targetOrBench})`,
+          );
+        }
+
+        // CPA Redeeming Guardrail: If CPA is on target or better, protect against false alarms
+        if (recentCpa <= targetOrBench && recentConversions >= 2) {
+          autoRisk = Math.min(autoRisk, 25);
+          if (targetCpa && targetCpa > 0) {
+            automatedFlags.push(
+              `CPA on target ($${recentCpa} <= $${targetCpa})`,
+            );
           }
         }
 
-        if (recentSpend > 100 && recentConversions === 0) {
-          autoRisk += 40;
-          automatedFlags.push("0 conversions despite active spend");
-        }
-      }
-
-      if (cpaVariance !== null) {
-        if (cpaVariance >= 50) {
-          autoRisk += 30;
-          automatedFlags.push(
-            `CPA +${cpaVariance}% above target ($${recentCpa} vs $${targetCpa})`,
-          );
-        } else if (cpaVariance >= 20) {
-          autoRisk += 20;
-          automatedFlags.push(`CPA +${cpaVariance}% above target`);
-        } else if (cpaVariance <= -15) {
-          autoRisk -= 10;
-          automatedFlags.push(
-            `CPA ${Math.abs(cpaVariance)}% under target ($${recentCpa} vs $${targetCpa})`,
-          );
+        // Lead Growth Reward
+        if (
+          leadsWowChange !== null &&
+          leadsWowChange >= 15 &&
+          recentConversions >= 3
+        ) {
+          autoRisk = Math.max(5, autoRisk - 10);
+          automatedFlags.push(`Leads up +${leadsWowChange}% WoW`);
         }
       }
 

@@ -26,6 +26,7 @@ import {
   getSearchTermInsightsAction,
   listAccountsAction,
 } from "@/actions/agency.actions";
+import { getClientPulseBoardDataAction } from "@/actions/client-pulse.actions";
 import { getDashboardMetricsAction } from "@/actions/dashboard.actions";
 import {
   getAuditDetailInternal,
@@ -261,6 +262,39 @@ const handler = createMcpHandler(
           };
         }
 
+        return {
+          content: [{ type: "text", text: JSON.stringify(result.data) }],
+        };
+      },
+    );
+
+    server.registerTool(
+      "get_client_pulse_board",
+      {
+        title: "Get Client Pulse Board",
+        description:
+          "Fetches all active clients scored under the pulse retention risk algorithm.",
+        inputSchema: {
+          weekOffset: z
+            .number()
+            .optional()
+            .describe("0 for current week, -1 for previous week"),
+        },
+      },
+      async ({ weekOffset }) => {
+        const result = await getClientPulseBoardDataAction(weekOffset ?? 0);
+        if (!result.success || !result.data) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  error: result.error || "Failed to fetch pulse data",
+                }),
+              },
+            ],
+          };
+        }
         return {
           content: [{ type: "text", text: JSON.stringify(result.data) }],
         };

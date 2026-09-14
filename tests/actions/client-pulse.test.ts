@@ -100,6 +100,7 @@ describe("Client Standup Pulse Actions", () => {
 
     it("should fail gracefully if unauthorized", async () => {
       vi.mocked(auth.api.getSession).mockResolvedValueOnce(null as any);
+      vi.mocked(db.query.organization.findFirst).mockResolvedValueOnce(null as any);
 
       const result = await getClientPulseBoardDataAction();
       expect(result.success).toBe(false);
