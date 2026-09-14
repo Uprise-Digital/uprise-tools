@@ -309,6 +309,38 @@ export const contacts = pgTable(
   ],
 ).enableRLS();
 
+export const clientPulseRatings = pgTable(
+  "client_pulse_ratings",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    clientId: integer("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    pulseDate: text("pulse_date").notNull(), // ISO Date string 'YYYY-MM-DD' representing standup or week start
+    riskScore: integer("risk_score").notNull(), // 0 to 100% churn risk
+    sentiment: text("sentiment").notNull(), // 'low_risk' | 'moderate_risk' | 'high_risk' | 'critical'
+    primaryFactor: text("primary_factor"), // 'lead_volume' | 'lead_quality' | 'cpa_costs' | 'client_communication' | 'expectations' | 'creative_fatigue' | 'other'
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    pgPolicy("tenant_isolation_policy", {
+      for: "all",
+      using: sql`current_setting('app.bypass_rls', true) = 'true' OR organization_id = current_setting('app.current_organization_id', true)`,
+    }),
+    index("pulse_client_date_idx").on(table.clientId, table.pulseDate),
+    index("pulse_org_idx").on(table.organizationId),
+    index("pulse_user_idx").on(table.userId),
+  ],
+).enableRLS();
+
 export const clientOnboardings = pgTable(
   "client_onboardings",
   {
@@ -591,7 +623,26 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   adAccounts: many(adAccounts),
   metaAdAccounts: many(metaAdAccounts),
   callRecords: many(callRecords),
+  pulseRatings: many(clientPulseRatings),
 }));
+
+export const clientPulseRatingsRelations = relations(
+  clientPulseRatings,
+  ({ one }) => ({
+    organization: one(organization, {
+      fields: [clientPulseRatings.organizationId],
+      references: [organization.id],
+    }),
+    client: one(clients, {
+      fields: [clientPulseRatings.clientId],
+      references: [clients.id],
+    }),
+    user: one(user, {
+      fields: [clientPulseRatings.userId],
+      references: [user.id],
+    }),
+  }),
+);
 
 export const contactsRelations = relations(contacts, ({ one, many }) => ({
   organization: one(organization, {

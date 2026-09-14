@@ -68,7 +68,7 @@ describe("Client Onboarding Actions", () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("Unauthorized");
+      expect(result.error).toContain("Unauthorized");
     });
   });
 

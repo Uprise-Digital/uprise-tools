@@ -134,6 +134,18 @@ const mockDbQuery = {
       },
     ]),
   },
+  clients: {
+    findFirst: vi.fn().mockResolvedValue(null),
+    findMany: vi.fn().mockResolvedValue([]),
+  },
+  contacts: {
+    findFirst: vi.fn().mockResolvedValue(null),
+    findMany: vi.fn().mockResolvedValue([]),
+  },
+  clientPulseRatings: {
+    findFirst: vi.fn().mockResolvedValue(null),
+    findMany: vi.fn().mockResolvedValue([]),
+  },
   adAccounts: {
     findFirst: vi.fn().mockResolvedValue({
       id: 1,
@@ -458,11 +470,25 @@ vi.mock("@/db", () => {
   const mockExecutor = {
     execute: vi.fn().mockResolvedValue(true),
     query: mockDbQuery,
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn().mockResolvedValue([{ totalSpend: "0.00" }]),
-      })),
-    })),
+    select: vi.fn(() => {
+      const selectBuilder: any = {
+        from: vi.fn(() => selectBuilder),
+        innerJoin: vi.fn(() => selectBuilder),
+        leftJoin: vi.fn(() => selectBuilder),
+        orderBy: vi.fn(() => selectBuilder),
+        groupBy: vi.fn(() => selectBuilder),
+        where: vi.fn().mockResolvedValue([
+          {
+            totalSpend: "0.00",
+            id: "test-user-id",
+            name: "Test User",
+            email: "test@uprise.com",
+            role: "admin",
+          },
+        ]),
+      };
+      return selectBuilder;
+    }),
     insert: vi.fn(() => ({
       values: vi.fn(() => ({
         returning: vi.fn().mockResolvedValue([{ id: 1 }]),

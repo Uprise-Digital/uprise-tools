@@ -11,6 +11,7 @@ import {
   ChevronRight,
   FileText,
   Globe,
+  HeartPulse,
   LayoutDashboard,
   Menu,
   Plus,
@@ -81,7 +82,15 @@ const navItems: NavItem[] = [
     ],
   },
   { href: "/analyst", label: "Analyst", icon: Bot },
-  { href: "/clients", label: "Clients", icon: Building2 },
+  {
+    href: "/clients",
+    label: "Clients",
+    icon: Building2,
+    subItems: [
+      { href: "/clients", label: "Directory", icon: Building2 },
+      { href: "/clients/pulse", label: "Morning Pulse", icon: HeartPulse },
+    ],
+  },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/accounts", label: "Ad Accounts", icon: BarChart3 },
   { href: "/lp-analysis", label: "LP Analysis", icon: Globe },
@@ -102,13 +111,15 @@ interface OrgItem {
 function NavLinksList({
   isMobile = false,
   setMobileOpen,
-  overviewExpanded,
-  setOverviewExpanded,
+  expandedSections,
+  setExpandedSections,
 }: {
   isMobile?: boolean;
   setMobileOpen: (open: boolean) => void;
-  overviewExpanded: boolean;
-  setOverviewExpanded: React.Dispatch<React.SetStateAction<boolean>>;
+  expandedSections: Record<string, boolean>;
+  setExpandedSections: React.Dispatch<
+    React.SetStateAction<Record<string, boolean>>
+  >;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -123,13 +134,19 @@ function NavLinksList({
           (item.href !== "/" && pathname?.startsWith(item.href));
 
         if (item.subItems && item.subItems.length > 0) {
-          const isExpanded = overviewExpanded;
+          const isExpanded =
+            expandedSections[item.href] ?? (isParentActive || true);
 
           return (
             <div key={item.href} className="flex flex-col gap-1">
               <button
                 type="button"
-                onClick={() => setOverviewExpanded((prev) => !prev)}
+                onClick={() =>
+                  setExpandedSections((prev) => ({
+                    ...prev,
+                    [item.href]: !isExpanded,
+                  }))
+                }
                 className={cn(
                   "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all font-semibold text-xs tracking-wide cursor-pointer select-none",
                   isParentActive
@@ -154,8 +171,8 @@ function NavLinksList({
                   {item.subItems.map((sub) => {
                     const SubIcon = sub.icon;
                     const isSubActive =
-                      sub.href === "/overview"
-                        ? pathname === "/overview"
+                      sub.href === "/overview" || sub.href === "/clients"
+                        ? pathname === sub.href
                         : pathname === sub.href ||
                           pathname?.startsWith(sub.href);
 
@@ -220,7 +237,12 @@ export function MainLayout({
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [overviewExpanded, setOverviewExpanded] = useState(true);
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({
+    "/overview": true,
+    "/clients": true,
+  });
 
   const handleSwitchOrg = async (orgId: string) => {
     if (activeOrganization?.id === orgId) return;
@@ -242,8 +264,8 @@ export function MainLayout({
       <NavLinksList
         isMobile={isMobile}
         setMobileOpen={setMobileOpen}
-        overviewExpanded={overviewExpanded}
-        setOverviewExpanded={setOverviewExpanded}
+        expandedSections={expandedSections}
+        setExpandedSections={setExpandedSections}
       />
     </Suspense>
   );
