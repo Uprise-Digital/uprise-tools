@@ -99,10 +99,10 @@ describe("Weekly Client Retention Report Actions", () => {
       appBaseUrl: "http://localhost:3000",
     });
 
-    expect(html).toContain("Weekly Client Status & Retention Digest");
+    expect(html).toContain("Weekly Client Status &amp; Retention Digest");
     expect(html).toContain("Acme Corp");
-    expect(html).toContain("Log Pulse Now");
-    expect(html).toContain("Attention & Retention Watchlist");
+    expect(html).toContain("Log Ratings");
+    expect(html).toContain("Attention &amp; Retention Watchlist");
 
     const text = await buildWeeklyClientReportText({
       pulseDate: "Sep 14, 2026",

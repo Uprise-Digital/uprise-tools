@@ -184,231 +184,220 @@ export async function buildWeeklyClientReportHtml(params: {
   );
 
   return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Weekly Client Status & Retention Report</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Weekly Client Status and Retention Digest</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f8fafc; padding: 24px 12px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 680px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-          
-          <!-- Header -->
-          <tr>
-            <td style="padding: 28px 32px; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff;">
-              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: #c7d2fe;">Agency Client Retention</div>
-              <h1 style="margin: 6px 0 4px 0; font-size: 24px; font-weight: 800; color: #ffffff;">Weekly Client Status & Retention Digest</h1>
-              <p style="margin: 0; font-size: 13px; color: #e0e7ff;">Week of ${pulseDate} &bull; ${summary.totalClients} Active Clients in Portfolio</p>
-            </td>
-          </tr>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; color: #0f172a;">
+  <div id="email-outer-wrapper" style="width: 100%; background-color: #f1f5f9; padding: 24px 8px; margin: 0 auto; box-sizing: border-box;">
+    <!-- Centered Card Container -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" align="center" style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; border-spacing: 0;">
+      
+      <!-- Top Brand Header -->
+      <tr>
+        <td style="padding: 24px 24px 20px 24px; background-color: #0f172a; text-align: left;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: #94a3b8; margin-bottom: 6px;">
+            Uprise Digital &bull; Client Retention
+          </div>
+          <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 700; line-height: 1.3; color: #ffffff;">
+            Weekly Client Status &amp; Retention Digest
+          </h1>
+          <div style="font-size: 12px; color: #cbd5e1;">
+            Week of ${pulseDate} &bull; ${summary.totalClients} Active Clients
+          </div>
+        </td>
+      </tr>
 
-          <!-- Call to Action Prompt Banner -->
-          ${
-            options.includeSentimentPrompt
-              ? `<tr>
-            <td style="padding: 24px 32px 12px 32px;">
-              <div style="background-color: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; padding: 18px 20px;">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                  <tr>
-                    <td style="vertical-align: middle;">
-                      <h3 style="margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: #4338ca;">
-                        ✍️ Team Sentiment Review Open
-                      </h3>
-                      <p style="margin: 0; font-size: 12px; color: #5b21b6; line-height: 1.5;">
-                        Help calibrate our agency retention score ahead of the morning standup. Log your sentiment, lead quality thoughts, and client feedback for this week.
-                      </p>
-                    </td>
-                    <td style="vertical-align: middle; text-align: right; padding-left: 16px;">
-                      <a href="${pulseUrl}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 12px; text-decoration: none; white-space: nowrap; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
-                        Log Pulse Now &rarr;
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-              </div>
-            </td>
-          </tr>`
-              : ""
-          }
+      <!-- Sentiment Review Action Callout -->
+      ${
+        options.includeSentimentPrompt
+          ? `<tr>
+        <td style="padding: 16px 24px; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+            <tr>
+              <td style="vertical-align: middle;">
+                <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 3px;">
+                  Pre-Standup Sentiment Review Open
+                </div>
+                <div style="font-size: 12px; color: #475569; line-height: 1.4;">
+                  Please enter your client sentiment and lead quality ratings before the team morning standup.
+                </div>
+              </td>
+              <td align="right" style="vertical-align: middle; padding-left: 12px; white-space: nowrap;">
+                <a href="${pulseUrl}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; text-decoration: none;">
+                  Log Ratings &rarr;
+                </a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`
+          : ""
+      }
 
-          <!-- Portfolio Summary KPI Cards -->
-          <tr>
-            <td style="padding: 12px 32px 20px 32px;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                <tr>
-                  <td width="32%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; text-align: center;">
-                    <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">Avg Churn Risk</div>
-                    <div style="font-size: 22px; font-weight: 800; font-family: monospace; color: ${summary.avgPortfolioRisk > 50 ? "#dc2626" : summary.avgPortfolioRisk > 30 ? "#d97706" : "#16a34a"}; margin-top: 2px;">
-                      ${summary.avgPortfolioRisk}%
-                    </div>
-                    <div style="font-size: 10px; color: #64748b;">${summary.avgPortfolioRisk > 50 ? "Elevated" : "Healthy"}</div>
-                  </td>
-                  <td width="2%"></td>
-                  <td width="32%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; text-align: center;">
-                    <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">Critical / Watchlist</div>
-                    <div style="font-size: 22px; font-weight: 800; font-family: monospace; color: #dc2626; margin-top: 2px;">
-                      ${summary.highRiskCount}
-                    </div>
-                    <div style="font-size: 10px; color: #64748b;">Requires action</div>
-                  </td>
-                  <td width="2%"></td>
-                  <td width="32%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; text-align: center;">
-                    <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">Team Coverage</div>
-                    <div style="font-size: 22px; font-weight: 800; font-family: monospace; color: #4f46e5; margin-top: 2px;">
-                      ${summary.pulseCoveragePercent}%
-                    </div>
-                    <div style="font-size: 10px; color: #64748b;">${unreviewedClients.length} awaiting pulse</div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+      <!-- KPI Summary Cards -->
+      <tr>
+        <td style="padding: 20px 24px 16px 24px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+            <tr>
+              <td width="31%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 10px; text-align: center;">
+                <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.04em;">Average Risk</div>
+                <div style="font-size: 20px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: ${summary.avgPortfolioRisk > 50 ? "#b91c1c" : summary.avgPortfolioRisk > 30 ? "#b45309" : "#15803d"}; margin: 4px 0 2px 0;">
+                  ${summary.avgPortfolioRisk}%
+                </div>
+                <div style="font-size: 10px; color: #64748b;">${summary.avgPortfolioRisk > 50 ? "Elevated" : "Healthy"}</div>
+              </td>
+              <td width="3.5%"></td>
+              <td width="31%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 10px; text-align: center;">
+                <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.04em;">Watchlist</div>
+                <div style="font-size: 20px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: ${watchlist.length > 0 ? "#b91c1c" : "#15803d"}; margin: 4px 0 2px 0;">
+                  ${watchlist.length}
+                </div>
+                <div style="font-size: 10px; color: #64748b;">${watchlist.length > 0 ? "Requires review" : "No high alerts"}</div>
+              </td>
+              <td width="3.5%"></td>
+              <td width="31%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 10px; text-align: center;">
+                <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.04em;">Coverage</div>
+                <div style="font-size: 20px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #4338ca; margin: 4px 0 2px 0;">
+                  ${summary.pulseCoveragePercent}%
+                </div>
+                <div style="font-size: 10px; color: #64748b;">${unreviewedClients.length} pending</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
 
-          <!-- Watchlist Section -->
-          ${
-            options.includeRiskWatchlist && watchlist.length > 0
-              ? `<tr>
-            <td style="padding: 0 32px 20px 32px;">
-              <div style="border-top: 1px solid #e2e8f0; padding-top: 16px;">
-                <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 0.05em;">
-                  ⚠️ Attention & Retention Watchlist (${watchlist.length})
-                </h3>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; overflow: hidden;">
-                  ${watchlist
-                    .map(
-                      (c) => `<tr>
-                    <td style="padding: 10px 14px; border-bottom: 1px solid #fee2e2;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                        <tr>
-                          <td>
-                            <strong style="font-size: 13px; color: #991b1b;">${c.name}</strong>
-                            <span style="font-size: 11px; color: #b91c1c; margin-left: 6px;">(${c.industry})</span>
-                            ${
-                              c.automatedFlags && c.automatedFlags.length > 0
-                                ? `<div style="font-size: 11px; color: #b91c1c; margin-top: 2px;">${c.automatedFlags.join(" &bull; ")}</div>`
-                                : ""
-                            }
-                          </td>
-                          <td align="right" style="vertical-align: middle;">
-                            <span style="display: inline-block; background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; padding: 3px 8px; border-radius: 6px; font-family: monospace; font-size: 12px; font-weight: 800;">
-                              ${c.compositeRiskScore}% Risk
-                            </span>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>`,
-                    )
-                    .join("")}
-                </table>
-              </div>
-            </td>
-          </tr>`
-              : ""
-          }
-
-          <!-- Active Clients Status Breakdown Table -->
-          <tr>
-            <td style="padding: 0 32px 24px 32px;">
-              <div style="border-top: 1px solid #e2e8f0; padding-top: 16px;">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                  <tr>
-                    <td>
-                      <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em;">
-                        Active Client Portfolio (${clients.length})
-                      </h3>
-                    </td>
-                    <td align="right">
-                      <a href="${pulseUrl}" style="font-size: 12px; font-weight: 600; color: #4f46e5; text-decoration: none;">
-                        Open Pulse Board &rarr;
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top: 12px; border-collapse: collapse; font-size: 12px; width: 100%;">
-                  <thead>
-                    <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700;">
-                      <th style="padding: 8px 10px;">Client</th>
-                      <th style="padding: 8px 10px; text-align: center;">Risk Score</th>
-                      ${options.includePerformanceMetrics ? `<th style="padding: 8px 10px;">7d Leads / CPA</th>` : ""}
-                      <th style="padding: 8px 10px;">Team Status</th>
-                      <th style="padding: 8px 10px; text-align: right;">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${clients
-                      .slice(0, 30)
-                      .map(
-                        (
-                          c,
-                          idx,
-                        ) => `<tr style="border-bottom: 1px solid #f1f5f9; background-color: ${idx % 2 === 0 ? "#ffffff" : "#fafafa"};">
-                      <td style="padding: 9px 10px;">
-                        <strong style="color: #0f172a; font-size: 12px;">${c.name}</strong>
-                        <div style="color: #64748b; font-size: 10px;">${c.industry}</div>
-                      </td>
-                      <td style="padding: 9px 10px; text-align: center; vertical-align: middle;">
-                        <span style="display: inline-block; padding: 2px 7px; border-radius: 6px; font-family: monospace; font-size: 11px; font-weight: 800; background-color: ${c.riskTier === "high" ? "#fee2e2" : c.riskTier === "moderate" ? "#fef3c7" : "#dcfce7"}; color: ${c.riskTier === "high" ? "#991b1b" : c.riskTier === "moderate" ? "#92400e" : "#166534"};">
-                          ${c.compositeRiskScore}%
-                        </span>
-                      </td>
-                      ${
-                        options.includePerformanceMetrics
-                          ? `<td style="padding: 9px 10px; vertical-align: middle;">
-                        <div><strong>${c.recentLeads} leads</strong> ${c.leadsWowChange !== null ? `<span style="font-size: 10px; color: ${c.leadsWowChange < 0 ? "#dc2626" : "#16a34a"}; font-weight: bold;">(${c.leadsWowChange > 0 ? "+" : ""}${c.leadsWowChange}%)</span>` : ""}</div>
-                        <div style="color: #64748b; font-size: 10px;">CPA: $${c.recentCpa} | Spend: $${c.recentSpend}</div>
-                      </td>`
-                          : ""
-                      }
-                      <td style="padding: 9px 10px; vertical-align: middle;">
+      <!-- Attention Watchlist Section -->
+      ${
+        options.includeRiskWatchlist && watchlist.length > 0
+          ? `<tr>
+        <td style="padding: 0 24px 16px 24px;">
+          <div style="border-top: 1px solid #f1f5f9; padding-top: 16px;">
+            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #b91c1c; margin-bottom: 10px;">
+              Attention &amp; Retention Watchlist (${watchlist.length})
+            </div>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border: 1px solid #fecaca; border-radius: 8px; background-color: #fef2f2; border-collapse: separate;">
+              ${watchlist
+                .map(
+                  (c, idx) => `<tr>
+                <td style="padding: 10px 14px; ${idx < watchlist.length - 1 ? "border-bottom: 1px solid #fee2e2;" : ""}">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                    <tr>
+                      <td style="vertical-align: top;">
+                        <div style="font-size: 13px; font-weight: 700; color: #991b1b;">
+                          ${c.name}
+                        </div>
+                        <div style="font-size: 11px; color: #7f1d1d; margin-top: 1px;">
+                          ${c.industry || "General"} &bull; ${c.recentLeads} leads (7d) &bull; CPA $${c.recentCpa}
+                        </div>
                         ${
-                          c.staffRatingsCount > 0
-                            ? `<span style="color: #16a34a; font-weight: 600; font-size: 11px;">✓ ${c.staffRatingsCount} review(s)</span>`
-                            : `<span style="color: #d97706; font-weight: 600; font-size: 11px;">⏳ Awaiting pulse</span>`
+                          c.automatedFlags && c.automatedFlags.length > 0
+                            ? `<div style="font-size: 11px; color: #991b1b; margin-top: 3px;">${c.automatedFlags.join(" &bull; ")}</div>`
+                            : ""
                         }
                       </td>
-                      <td style="padding: 9px 10px; text-align: right; vertical-align: middle;">
-                        <a href="${pulseUrl}" style="display: inline-block; background-color: #f1f5f9; color: #334155; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; text-decoration: none; border: 1px solid #e2e8f0;">
-                          Review &rarr;
-                        </a>
+                      <td align="right" style="vertical-align: top; padding-left: 8px;">
+                        <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; font-weight: 700; background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;">
+                          ${c.compositeRiskScore}% Risk
+                        </span>
                       </td>
-                    </tr>`,
-                      )
-                      .join("")}
-                  </tbody>
-                </table>
+                    </tr>
+                  </table>
+                </td>
+              </tr>`,
+                )
+                .join("")}
+            </table>
+          </div>
+        </td>
+      </tr>`
+          : ""
+      }
 
-                ${
-                  clients.length > 30
-                    ? `<div style="text-align: center; margin-top: 14px; font-size: 11px; color: #64748b;">
-                  Showing top 30 clients by risk. <a href="${pulseUrl}" style="color: #4f46e5; font-weight: 600; text-decoration: none;">View all ${clients.length} active clients on the retention board &rarr;</a>
-                </div>`
-                    : ""
-                }
-              </div>
-            </td>
-          </tr>
+      <!-- Active Clients Portfolio Section -->
+      <tr>
+        <td style="padding: 0 24px 20px 24px;">
+          <div style="border-top: 1px solid #f1f5f9; padding-top: 16px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 10px;">
+              <tr>
+                <td style="vertical-align: middle;">
+                  <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #475569;">
+                    Active Client Portfolio (${clients.length})
+                  </div>
+                </td>
+                <td align="right" style="vertical-align: middle;">
+                  <a href="${pulseUrl}" style="font-size: 11px; font-weight: 600; color: #4f46e5; text-decoration: none;">
+                    View Dashboard &rarr;
+                  </a>
+                </td>
+              </tr>
+            </table>
 
-          <!-- Footer -->
-          <tr>
-            <td style="padding: 20px 32px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b;">
-              <p style="margin: 0 0 6px 0;">
-                This automated weekly report is sent to all configured team members to facilitate weekly client retention triage.
-              </p>
-              <p style="margin: 0;">
-                Manage report automation and recipients in <a href="${appBaseUrl}/reports" style="color: #4f46e5; text-decoration: underline;">Report Settings</a>.
-              </p>
-            </td>
-          </tr>
+            <!-- Mobile-Friendly Client Rows -->
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; border-collapse: separate;">
+              ${clients
+                .slice(0, 30)
+                .map(
+                  (c, idx) => `<tr>
+                <td style="padding: 10px 14px; background-color: ${idx % 2 === 0 ? "#ffffff" : "#f8fafc"}; ${idx < Math.min(clients.length, 30) - 1 ? "border-bottom: 1px solid #e2e8f0;" : ""}">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                    <tr>
+                      <td style="vertical-align: middle;">
+                        <div style="font-size: 13px; font-weight: 700; color: #0f172a;">
+                          ${c.name}
+                        </div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                          ${c.industry || "General"}
+                          ${
+                            options.includePerformanceMetrics
+                              ? ` &bull; ${c.recentLeads} leads ${c.leadsWowChange !== null ? `(${c.leadsWowChange > 0 ? "+" : ""}${c.leadsWowChange}%)` : ""} &bull; CPA $${c.recentCpa}`
+                              : ""
+                          }
+                        </div>
+                      </td>
+                      <td align="right" style="vertical-align: middle; padding-left: 10px; white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; font-weight: 700; background-color: ${c.riskTier === "high" ? "#fee2e2" : c.riskTier === "moderate" ? "#fef3c7" : "#dcfce7"}; color: ${c.riskTier === "high" ? "#991b1b" : c.riskTier === "moderate" ? "#92400e" : "#166534"};">
+                          ${c.compositeRiskScore}%
+                        </span>
+                        <div style="font-size: 10px; color: ${c.staffRatingsCount > 0 ? "#15803d" : "#9a3412"}; font-weight: 600; margin-top: 2px;">
+                          ${c.staffRatingsCount > 0 ? `${c.staffRatingsCount} review(s)` : "Awaiting"}
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>`,
+                )
+                .join("")}
+            </table>
 
-        </table>
-      </td>
-    </tr>
-  </table>
+            ${
+              clients.length > 30
+                ? `<div style="text-align: center; margin-top: 10px; font-size: 11px; color: #64748b;">
+              Showing first 30 of ${clients.length} active accounts. <a href="${pulseUrl}" style="color: #4f46e5; text-decoration: none; font-weight: 600;">View complete list on retention board &rarr;</a>
+            </div>`
+                : ""
+            }
+          </div>
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td style="padding: 16px 24px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b; line-height: 1.5;">
+          <div>Uprise Digital &bull; Client Retention Automation</div>
+          <div style="margin-top: 2px;">
+            Configure schedule and recipients in <a href="${appBaseUrl}/reports" style="color: #4f46e5; text-decoration: underline;">Report Settings</a>.
+          </div>
+        </td>
+      </tr>
+
+    </table>
+  </div>
 </body>
 </html>`;
 }
@@ -440,7 +429,7 @@ export async function buildWeeklyClientReportText(params: {
   for (const c of clients) {
     body += `- ${c.name} [${c.compositeRiskScore}% Risk] (${c.industry})\n`;
     body += `  7d Leads: ${c.recentLeads} | CPA: $${c.recentCpa} | Spend: $${c.recentSpend}\n`;
-    body += `  Team Status: ${c.staffRatingsCount > 0 ? `${c.staffRatingsCount} review(s)` : "Awaiting pulse"}\n\n`;
+    body += `  Team Status: ${c.staffRatingsCount > 0 ? `${c.staffRatingsCount} review(s)` : "Awaiting review"}\n\n`;
   }
 
   body += `\nManage automation settings at: ${appBaseUrl}/reports\n`;
@@ -505,7 +494,7 @@ export async function sendWeeklyClientReportAction(
       appBaseUrl,
     });
 
-    const subject = `📊 Weekly Client Status & Retention Digest — Week of ${pulseDate}`;
+    const subject = `Weekly Client Status & Retention Digest — Week of ${pulseDate}`;
 
     let orgId: string | undefined;
     try {

@@ -125,14 +125,17 @@ export const SYSTEM_EMAIL_TEMPLATES: Record<string, SystemTemplateDefinition> =
       key: "weekly_client_report",
       name: "Weekly Client Status & Retention Report",
       category: "team",
-      defaultSubject: "📊 Weekly Client Status & Retention Digest — {{week_date}}",
+      defaultSubject: "Weekly Client Status & Retention Digest — {{week_date}}",
       defaultHtml: `<h2>Weekly Client Status & Retention Digest</h2>
 <p>Good morning team! Here is this week's active client status summary and retention risk review for <strong>{{agency_name}}</strong>.</p>
 <div>{{report_content}}</div>
 <p style="font-size: 12px; color: #64748b; margin-top: 24px;">Please review your assigned clients and submit your sentiment ratings before the standup meeting: <a href="{{pulse_url}}">Client Retention Dashboard</a></p>`,
       variables: [
         { name: "week_date", description: "Week date identifier" },
-        { name: "report_content", description: "HTML summary of clients and performance" },
+        {
+          name: "report_content",
+          description: "HTML summary of clients and performance",
+        },
         { name: "pulse_url", description: "Link to Client Retention Board" },
         { name: "agency_name", description: "Your agency display name" },
       ],
@@ -235,7 +238,14 @@ export async function sendSystemEmail(params: SendSystemEmailParams) {
     : `<p style="font-size: 14px; font-weight: bold; margin: 24px 0 4px 0; color: #0f172a;">${brandName} Team</p>
 ${websiteUrl ? `<p style="font-size: 12px; color: #64748b; margin: 0;"><a href="${websiteUrl}" style="color: #4f46e5; text-decoration: none;">${websiteUrl}</a></p>` : ""}`;
 
-  const fullHtml = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
+  const isFullDocument =
+    renderedHtml.includes("<!DOCTYPE") ||
+    renderedHtml.includes("<html") ||
+    renderedHtml.includes('id="email-outer-wrapper"');
+
+  const fullHtml = isFullDocument
+    ? renderedHtml
+    : `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
   ${headerLogoHtml}
   ${renderedHtml}
   <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
