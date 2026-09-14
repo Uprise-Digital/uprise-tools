@@ -5,17 +5,21 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
+  Calculator,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
   Flame,
   HeartPulse,
   History,
+  Info,
   Pencil,
   Play,
   RefreshCw,
   Search,
   Target,
+  TrendingDown,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -87,6 +91,11 @@ export default function StandupPulseBoardClient() {
   );
   const [historyRecords, setHistoryRecords] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Risk Score Breakdown Sheet State
+  const [breakdownSheetOpen, setBreakdownSheetOpen] = useState(false);
+  const [breakdownClient, setBreakdownClient] =
+    useState<ClientPulseItem | null>(null);
 
   // Meeting Presentation Mode State
   const [meetingModeOpen, setMeetingModeOpen] = useState(false);
@@ -192,6 +201,12 @@ export default function StandupPulseBoardClient() {
     } finally {
       setLoadingHistory(false);
     }
+  };
+
+  // Open Breakdown Sheet
+  const handleOpenBreakdown = (client: ClientPulseItem) => {
+    setBreakdownClient(client);
+    setBreakdownSheetOpen(true);
   };
 
   // Filtered & Sorted Clients
@@ -603,13 +618,14 @@ export default function StandupPulseBoardClient() {
             return (
               <div
                 key={client.id}
+                onClick={() => handleOpenBreakdown(client)}
                 className={cn(
-                  "p-4 sm:p-5 rounded-2xl border transition-all duration-200 bg-white hover:shadow-md grid grid-cols-1 xl:grid-cols-[240px_160px_minmax(0,1fr)_minmax(0,1fr)_140px] gap-4 items-center",
+                  "p-4 sm:p-5 rounded-2xl border transition-all duration-200 bg-white hover:shadow-md grid grid-cols-1 xl:grid-cols-[240px_160px_minmax(0,1fr)_minmax(0,1fr)_140px] gap-4 items-center cursor-pointer group/card",
                   isHigh
-                    ? "border-red-200 shadow-xs hover:border-red-300"
+                    ? "border-red-200 shadow-xs hover:border-red-300 hover:bg-red-50/20"
                     : isModerate
-                      ? "border-amber-200 shadow-xs hover:border-amber-300"
-                      : "border-slate-200 hover:border-slate-300 shadow-xs",
+                      ? "border-amber-200 shadow-xs hover:border-amber-300 hover:bg-amber-50/20"
+                      : "border-slate-200 hover:border-slate-300 shadow-xs hover:bg-slate-50/40",
                 )}
               >
                 {/* Column 1: Client Overview & Status (Fixed 240px) */}
@@ -617,8 +633,9 @@ export default function StandupPulseBoardClient() {
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/clients/${client.id}`}
+                      onClick={(e) => e.stopPropagation()}
                       className="font-bold text-slate-900 hover:text-indigo-600 text-sm sm:text-base transition-colors flex items-center gap-1.5 group truncate"
-                      title={client.name}
+                      title={`${client.name} - View client details`}
                     >
                       <span className="truncate">{client.name}</span>
                       <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0" />
@@ -838,10 +855,16 @@ export default function StandupPulseBoardClient() {
                 </div>
 
                 {/* Column 5: Action Buttons (Fixed 140px) */}
-                <div className="flex items-center justify-start xl:justify-end gap-2 shrink-0">
+                <div
+                  className="flex items-center justify-start xl:justify-end gap-2 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <Button
                     size="sm"
-                    onClick={() => handleOpenLogModal(client)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenLogModal(client);
+                    }}
                     className={cn(
                       "text-xs font-bold gap-1.5 h-8 px-3.5 rounded-xl cursor-pointer shadow-xs",
                       client.currentUserRating
@@ -856,7 +879,10 @@ export default function StandupPulseBoardClient() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleOpenHistory(client)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenHistory(client);
+                    }}
                     className="h-8 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs px-2.5 rounded-xl cursor-pointer shadow-xs"
                     title="View historical retention trend"
                   >
@@ -1125,7 +1151,420 @@ export default function StandupPulseBoardClient() {
         </SheetContent>
       </Sheet>
 
-      {/* ── 7. MEETING PRESENTATION MODE SIDEBAR / SHEET (LIGHT THEME) ── */}
+      {/* ── 7. CHURN RISK SCORE BREAKDOWN SIDEBAR / SHEET (LIGHT THEME) ── */}
+      <Sheet open={breakdownSheetOpen} onOpenChange={setBreakdownSheetOpen}>
+        <SheetContent
+          side="right"
+          className="bg-white border-slate-200 text-slate-900 w-full sm:max-w-xl md:max-w-2xl overflow-y-auto shadow-2xl flex flex-col p-6 sm:p-8"
+        >
+          {breakdownClient ? (
+            <div className="space-y-6 flex-1 flex flex-col">
+              {/* Header */}
+              <SheetHeader className="border-b border-slate-200 pb-4 pr-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600">
+                      <Calculator className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <SheetTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        Churn Risk Score Breakdown
+                      </SheetTitle>
+                      <SheetDescription className="text-xs text-slate-500">
+                        {breakdownClient.name} &bull; Week of{" "}
+                        {boardData?.pulseDate}
+                      </SheetDescription>
+                    </div>
+                  </div>
+                </div>
+              </SheetHeader>
+
+              {/* Composite Score Banner */}
+              <div
+                className={cn(
+                  "p-5 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs",
+                  breakdownClient.riskTier === "high"
+                    ? "bg-red-50/70 border-red-200 text-red-950"
+                    : breakdownClient.riskTier === "moderate"
+                      ? "bg-amber-50/70 border-amber-200 text-amber-950"
+                      : "bg-emerald-50/70 border-emerald-200 text-emerald-950",
+                )}
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Overall Composite Risk
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] uppercase font-bold tracking-wide",
+                        breakdownClient.riskTier === "high"
+                          ? "bg-red-100 text-red-800 border-red-300"
+                          : breakdownClient.riskTier === "moderate"
+                            ? "bg-amber-100 text-amber-800 border-amber-300"
+                            : "bg-emerald-100 text-emerald-800 border-emerald-300",
+                      )}
+                    >
+                      {breakdownClient.riskTier === "high"
+                        ? "Critical Risk"
+                        : breakdownClient.riskTier === "moderate"
+                          ? "Moderate Risk"
+                          : "Healthy"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1 max-w-sm">
+                    {breakdownClient.teamSentimentScore !== null &&
+                    (breakdownClient.googleEnabled ||
+                      breakdownClient.metaEnabled)
+                      ? "Calculated as an equal blend: 50% Automated Performance Signals + 50% Team Sentiment Consensus."
+                      : breakdownClient.teamSentimentScore !== null
+                        ? "Derived 100% from logged team sentiment ratings (no linked active ad accounts)."
+                        : breakdownClient.googleEnabled ||
+                            breakdownClient.metaEnabled
+                          ? "Currently reflects 100% Automated Performance Signals while awaiting team sentiment submission for this week."
+                          : "Default baseline risk score for unlinked account."}
+                  </p>
+                </div>
+
+                <div className="text-center shrink-0">
+                  <div className="text-4xl font-black font-mono tracking-tight">
+                    {breakdownClient.compositeRiskScore}%
+                  </div>
+                  {breakdownClient.wowTrend !== null &&
+                    breakdownClient.wowTrend !== 0 && (
+                      <div
+                        className={cn(
+                          "text-xs font-bold flex items-center justify-center gap-0.5 mt-0.5",
+                          breakdownClient.wowTrend > 0
+                            ? "text-red-600"
+                            : "text-emerald-600",
+                        )}
+                      >
+                        {breakdownClient.wowTrend > 0 ? (
+                          <TrendingUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <TrendingDown className="h-3.5 w-3.5" />
+                        )}
+                        <span>
+                          {breakdownClient.wowTrend > 0 ? "+" : ""}
+                          {breakdownClient.wowTrend}% WoW
+                        </span>
+                      </div>
+                    )}
+                </div>
+              </div>
+
+              {/* Formula & Weighting Visualizer */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 shadow-2xs">
+                <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 text-indigo-600" />
+                  Calculation Formula
+                </div>
+
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200 font-mono text-xs text-slate-800 space-y-2">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-500">Weighting Model:</span>
+                    <span className="font-bold text-indigo-600">
+                      {breakdownClient.teamSentimentScore !== null &&
+                      (breakdownClient.googleEnabled ||
+                        breakdownClient.metaEnabled)
+                        ? "(50% × Auto Risk) + (50% × Team Consensus)"
+                        : breakdownClient.teamSentimentScore !== null
+                          ? "100% × Team Sentiment Consensus"
+                          : "100% × Automated Performance Signals (Awaiting Team)"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] pt-1">
+                    <span>
+                      50% × Automated ({breakdownClient.automatedRiskScore}%) ={" "}
+                      <strong>
+                        {Math.round(0.5 * breakdownClient.automatedRiskScore)}%
+                      </strong>
+                    </span>
+                    <span>+</span>
+                    <span>
+                      50% × Team (
+                      {breakdownClient.teamSentimentScore ??
+                        breakdownClient.automatedRiskScore}
+                      %) ={" "}
+                      <strong>
+                        {Math.round(
+                          0.5 *
+                            (breakdownClient.teamSentimentScore ??
+                              breakdownClient.automatedRiskScore),
+                        )}
+                        %
+                      </strong>
+                    </span>
+                    <span>=</span>
+                    <strong className="text-sm text-slate-900">
+                      {breakdownClient.compositeRiskScore}%
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Two Pillars: Component 1 (Automated) & Component 2 (Team Sentiment) */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Scoring Component Pillars
+                </h3>
+
+                {/* Pillar 1: Automated Signals Breakdown */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                      <span className="font-bold text-sm text-slate-900">
+                        1. Automated Performance Signals
+                      </span>
+                    </div>
+                    <span className="font-mono font-bold text-sm text-slate-900 px-2.5 py-0.5 rounded-lg bg-slate-100 border border-slate-200">
+                      {breakdownClient.automatedRiskScore}% Score
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-slate-600 space-y-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                          7-Day Spend
+                        </div>
+                        <div className="font-bold text-slate-900 text-sm mt-0.5">
+                          ${breakdownClient.recentSpend}
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                          7-Day Leads
+                        </div>
+                        <div className="font-bold text-slate-900 text-sm mt-0.5">
+                          {breakdownClient.recentLeads}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          Prior 7d: {breakdownClient.priorLeads}
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                          Leads WoW
+                        </div>
+                        <div
+                          className={cn(
+                            "font-bold text-sm mt-0.5",
+                            breakdownClient.leadsWowChange === null
+                              ? "text-slate-500"
+                              : breakdownClient.leadsWowChange < 0
+                                ? "text-red-600"
+                                : "text-emerald-600",
+                          )}
+                        >
+                          {breakdownClient.leadsWowChange !== null
+                            ? `${breakdownClient.leadsWowChange > 0 ? "+" : ""}${breakdownClient.leadsWowChange}%`
+                            : "N/A"}
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                          Current CPA
+                        </div>
+                        <div className="font-bold text-slate-900 text-sm mt-0.5">
+                          ${breakdownClient.recentCpa}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          {breakdownClient.targetCpa
+                            ? `Tgt: $${breakdownClient.targetCpa}`
+                            : "No target set"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Triggered Algorithmic Flags */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="text-[11px] font-semibold text-slate-700">
+                        Triggered Performance Triggers & Factors:
+                      </div>
+                      {breakdownClient.automatedFlags.length > 0 ? (
+                        <div className="space-y-1">
+                          {breakdownClient.automatedFlags.map((flag, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2 p-2 rounded-lg bg-amber-50/60 border border-amber-200 text-amber-900 text-xs"
+                            >
+                              <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                              <span>{flag}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-2 rounded-lg bg-emerald-50/60 border border-emerald-200 text-emerald-800 text-xs">
+                          Pacing normally within historical conversion and CPA
+                          targets (Base healthy risk 15%).
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pillar 2: Team Sentiment Consensus Breakdown */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-violet-600" />
+                      <span className="font-bold text-sm text-slate-900">
+                        2. Team Sentiment Consensus
+                      </span>
+                    </div>
+                    <span className="font-mono font-bold text-sm text-slate-900 px-2.5 py-0.5 rounded-lg bg-slate-100 border border-slate-200">
+                      {breakdownClient.teamSentimentScore !== null
+                        ? `${breakdownClient.teamSentimentScore}% Consensus`
+                        : "Awaiting Pulse"}
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-slate-600 space-y-2">
+                    <p className="text-xs text-slate-500">
+                      Averaged from {breakdownClient.staffRatings.length} logged
+                      member assessment(s) for this week.
+                    </p>
+
+                    {breakdownClient.staffRatings.length > 0 ? (
+                      <div className="space-y-2 pt-1">
+                        {breakdownClient.staffRatings.map((rating) => {
+                          const initials = rating.userName
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .slice(0, 2)
+                            .toUpperCase();
+
+                          return (
+                            <div
+                              key={rating.id}
+                              className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5 shadow-2xs"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
+                                    {initials}
+                                  </span>
+                                  <span className="font-bold text-slate-900">
+                                    {rating.userName}
+                                  </span>
+                                  {rating.userRole && (
+                                    <span className="text-[10px] text-slate-400 capitalize">
+                                      ({rating.userRole})
+                                    </span>
+                                  )}
+                                </div>
+                                <span
+                                  className={cn(
+                                    "px-2 py-0.5 rounded font-mono font-bold text-[11px] border",
+                                    rating.riskScore > 60
+                                      ? "bg-red-50 text-red-700 border-red-200"
+                                      : rating.riskScore > 30
+                                        ? "bg-amber-50 text-amber-800 border-amber-200"
+                                        : "bg-emerald-50 text-emerald-800 border-emerald-200",
+                                  )}
+                                >
+                                  {rating.riskScore}% Risk
+                                </span>
+                              </div>
+
+                              {rating.primaryFactor && (
+                                <div>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] bg-white border-slate-200 text-slate-600 font-medium"
+                                  >
+                                    {PRIMARY_FACTORS.find(
+                                      (f) => f.value === rating.primaryFactor,
+                                    )?.label || rating.primaryFactor}
+                                  </Badge>
+                                </div>
+                              )}
+
+                              {rating.notes && (
+                                <p className="text-slate-700 text-xs bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs italic">
+                                  &ldquo;{rating.notes}&rdquo;
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200 text-amber-800 text-xs space-y-2">
+                        <p className="font-medium">
+                          No team members have logged ratings for this week yet.
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setBreakdownSheetOpen(false);
+                            handleOpenLogModal(breakdownClient);
+                          }}
+                          className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Be the first to log pulse
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Actions */}
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-between mt-auto">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setBreakdownSheetOpen(false);
+                    handleOpenHistory(breakdownClient);
+                  }}
+                  className="border-slate-200 text-slate-700 text-xs rounded-xl cursor-pointer hover:bg-slate-50 gap-1.5"
+                >
+                  <History className="h-3.5 w-3.5 text-slate-500" />
+                  View Historical Trend
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setBreakdownSheetOpen(false);
+                      handleOpenLogModal(breakdownClient);
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    {breakdownClient.currentUserRating
+                      ? "Edit Sentiment"
+                      : "Log Sentiment"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setBreakdownSheetOpen(false)}
+                    className="border-slate-200 text-slate-600 text-xs rounded-xl cursor-pointer hover:bg-slate-50"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
+
+      {/* ── 8. MEETING PRESENTATION MODE SIDEBAR / SHEET (LIGHT THEME) ── */}
       <Sheet open={meetingModeOpen} onOpenChange={setMeetingModeOpen}>
         <SheetContent
           side="right"
