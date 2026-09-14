@@ -13,8 +13,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    let recipientOverride: string | undefined;
+    try {
+      const body = await request.json();
+      recipientOverride = body?.recipient || body?.email;
+    } catch {
+      // no JSON body
+    }
+
     // 2. Trigger the Weekly Client Report send
-    const result = await sendWeeklyClientReportAction();
+    const result = await sendWeeklyClientReportAction(recipientOverride);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });
@@ -41,6 +49,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const secret = searchParams.get("secret");
+    const recipient = searchParams.get("recipient") || undefined;
 
     const authHeader = request.headers.get("authorization");
     const expectedToken = `Bearer ${process.env.CRON_SECRET}`;
@@ -53,7 +62,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const result = await sendWeeklyClientReportAction();
+    const result = await sendWeeklyClientReportAction(recipient);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });

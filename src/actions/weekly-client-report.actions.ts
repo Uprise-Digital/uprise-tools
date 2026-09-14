@@ -9,6 +9,8 @@ import {
 } from "@/actions/client-pulse.actions";
 import { db } from "@/db";
 import { user, weeklyClientReportSettings } from "@/db/schema";
+import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
+import { generateContentTracked } from "@/lib/ai-logger";
 import { getAppUrl } from "@/lib/app-url";
 import { logAction } from "@/lib/audit";
 import { auth } from "@/lib/auth";
@@ -202,6 +204,100 @@ function formatPerformanceCopy(client: ClientPulseItem): string {
 }
 
 /**
+ * Helper to generate a concise 1-paragraph AI summary of the weekly client data
+ */
+export async function generateWeeklyExecutiveSummary(params: {
+  pulseDate: string;
+  clients: ClientPulseItem[];
+  summary: {
+    totalClients: number;
+    highRiskCount: number;
+    avgPortfolioRisk: number;
+    pulseCoveragePercent: number;
+  };
+  organizationId?: string;
+}): Promise<string> {
+  const { pulseDate, clients, summary, organizationId } = params;
+
+  // Build condensed input context for Gemini
+  const watchlist = clients.filter(
+    (c) =>
+      (c.recentSpend ?? 0) > 50 &&
+      ((c.leadsWowChange ?? 0) <= -30 ||
+        (c.cpaVariance ?? 0) >= 50 ||
+        c.riskTier === "high"),
+  );
+  const topWins = clients.filter(
+    (c) => (c.recentLeads ?? 0) >= 3 && (c.leadsWowChange ?? 0) >= 15,
+  );
+  const pendingRatingsCount = clients.filter(
+    (c) => c.staffRatingsCount === 0,
+  ).length;
+
+  const dataPrompt = `
+You are the Chief Operating Officer of a high-performance digital marketing agency (Uprise Digital).
+Summarize this week's client status and retention data into exactly ONE punchy, executive paragraph (2-4 sentences max).
+
+Data:
+- Week: ${pulseDate}
+- Active clients: ${summary.totalClients}
+- Portfolio Average Risk: ${summary.avgPortfolioRisk}%
+- Attention Watchlist (${watchlist.length} accounts): ${
+    watchlist
+      .slice(0, 3)
+      .map(
+        (c) =>
+          `${c.name} (${c.recentLeads} leads, CPA $${c.recentCpa}, risk ${c.compositeRiskScore}%)`,
+      )
+      .join(", ") || "None"
+  }
+- Momentum/Wins (${topWins.length} accounts): ${
+    topWins
+      .slice(0, 2)
+      .map((c) => `${c.name} (+${c.leadsWowChange}% leads)`)
+      .join(", ") || "Steady"
+  }
+- Team Ratings Pending: ${pendingRatingsCount} unrated accounts
+
+Rules:
+- Exactly 1 paragraph. No bullet points, no markdown headings, no emojis, no asterisks.
+- Professional, decisive tone.
+- Directly highlight the biggest retention vulnerability, celebrate top momentum, and end with a reminder to submit client sentiment ratings before standup.
+`;
+
+  try {
+    const aiRes = await generateContentTracked(
+      {
+        model: GEMINI_MODEL_LOW,
+        contents: [{ role: "user", parts: [{ text: dataPrompt }] }],
+        config: {
+          temperature: 0.3,
+          maxOutputTokens: 250,
+        },
+      },
+      {
+        organizationId,
+        feature: "weekly_client_report_executive_summary",
+      },
+    );
+
+    const text =
+      aiRes.response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (text) {
+      return text.replace(/\*\*/g, "").replace(/\*/g, "");
+    }
+  } catch (err) {
+    console.warn(
+      "Could not generate AI executive summary for weekly report:",
+      err,
+    );
+  }
+
+  // Fallback if AI fails or budget exceeded
+  return `Across our ${summary.totalClients} active clients, overall portfolio churn risk sits at ${summary.avgPortfolioRisk}%, with ${watchlist.length} accounts requiring immediate performance review due to elevated CPA or lead declines. Meanwhile, top performers showed strong week-on-week lead momentum. Team members are requested to log their sentiment ratings on the remaining ${pendingRatingsCount} accounts prior to morning standup.`;
+}
+
+/**
  * Compiles the Weekly Client Report HTML
  */
 export async function buildWeeklyClientReportHtml(params: {
@@ -221,8 +317,16 @@ export async function buildWeeklyClientReportHtml(params: {
     includeSentimentPrompt: boolean;
   };
   appBaseUrl: string;
+  aiExecutiveSummary?: string;
 }): Promise<string> {
-  const { pulseDate, clients, summary, options, appBaseUrl } = params;
+  const {
+    pulseDate,
+    clients,
+    summary,
+    options,
+    appBaseUrl,
+    aiExecutiveSummary,
+  } = params;
   const pulseUrl = `${appBaseUrl}/clients/pulse`;
   const inactiveClientsUrl = `${appBaseUrl}/clients?tab=churned`;
 
@@ -322,6 +426,24 @@ export async function buildWeeklyClientReportHtml(params: {
             </td>
           </tr>
         </table>
+      </td>
+    </tr>`
+        : ""
+    }
+
+    <!-- AI Executive Briefing -->
+    ${
+      aiExecutiveSummary
+        ? `<tr>
+      <td style="padding: 18px 24px 4px 24px;">
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #4f46e5; border-radius: 6px; padding: 14px 16px;">
+          <div style="font-size: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; color: #4338ca; margin-bottom: 6px;">
+            AI Executive Overview
+          </div>
+          <div style="font-size: 13px; line-height: 1.55; color: #334155;">
+            ${aiExecutiveSummary}
+          </div>
+        </div>
       </td>
     </tr>`
         : ""
@@ -683,6 +805,22 @@ export async function sendWeeklyClientReportAction(
 
     const appBaseUrl = getAppUrl();
 
+    let orgId: string | undefined;
+    try {
+      const session = await auth.api.getSession({ headers: await headers() });
+      orgId = session?.session?.activeOrganizationId || undefined;
+    } catch {
+      // Cron context may not have headers session
+    }
+
+    // Generate 1-paragraph AI Executive Summary
+    const aiSummary = await generateWeeklyExecutiveSummary({
+      pulseDate,
+      clients,
+      summary,
+      organizationId: orgId,
+    });
+
     const htmlBody = await buildWeeklyClientReportHtml({
       pulseDate,
       clients,
@@ -693,17 +831,10 @@ export async function sendWeeklyClientReportAction(
         includeSentimentPrompt: settings?.includeSentimentPrompt ?? true,
       },
       appBaseUrl,
+      aiExecutiveSummary: aiSummary,
     });
 
     const subject = `Weekly Client Status & Retention Digest — Week of ${pulseDate}`;
-
-    let orgId: string | undefined;
-    try {
-      const session = await auth.api.getSession({ headers: await headers() });
-      orgId = session?.session?.activeOrganizationId || undefined;
-    } catch {
-      // Cron context may not have headers session
-    }
 
     const messageId = `<weekly-report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}@uprisedigital.com.au>`;
 
