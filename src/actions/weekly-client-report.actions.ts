@@ -8,7 +8,7 @@ import {
   getClientPulseBoardDataAction,
 } from "@/actions/client-pulse.actions";
 import { db } from "@/db";
-import { user, weeklyClientReportSettings } from "@/db/schema";
+import { briefingSettings, user, weeklyClientReportSettings } from "@/db/schema";
 import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
 import { getAppUrl } from "@/lib/app-url";
@@ -780,11 +780,16 @@ export async function sendWeeklyClientReportAction(
     } else if (settings?.recipients && settings.recipients.length > 0) {
       emails = settings.recipients;
     } else {
-      const team = await db
-        .select()
-        .from(user)
-        .where(ne(user.id, SYSTEM_ACTOR));
-      emails = team.map((u) => u.email).filter(Boolean);
+      const bSettings = await db.query.briefingSettings.findFirst();
+      if (bSettings?.recipients && bSettings.recipients.length > 0) {
+        emails = bSettings.recipients;
+      } else {
+        const team = await db
+          .select()
+          .from(user)
+          .where(ne(user.id, SYSTEM_ACTOR));
+        emails = team.map((u) => u.email).filter(Boolean);
+      }
     }
 
     if (emails.length === 0) {
@@ -824,34 +829,48 @@ export async function sendWeeklyClientReportAction(
 
     const subject = `Weekly Client Status & Retention Digest — Week of ${pulseDate}`;
 
-    const messageId = `<weekly-report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}@uprisedigital.com.au>`;
+    let sentCount = 0;
+    const errors: string[] = [];
 
-    const emailResult = await sendSystemEmail({
-      organizationId: orgId,
-      templateKey: "weekly_client_report",
-      to: emails,
-      customSubject: subject,
-      customHtml: htmlBody,
-      headers: {
-        "Message-ID": messageId,
-        "X-Entity-Ref-ID": messageId,
-      },
-      variables: {
-        week_date: pulseDate,
-        pulse_url: `${appBaseUrl}/clients/pulse`,
-      },
-    });
+    for (const recipient of emails) {
+      const messageId = `<weekly-report-${Date.now()}-${Math.random().toString(36).substring(2, 9)}@uprisedigital.com.au>`;
+      try {
+        const emailResult = await sendSystemEmail({
+          organizationId: orgId,
+          templateKey: "weekly_client_report",
+          to: recipient,
+          customSubject: subject,
+          customHtml: htmlBody,
+          headers: {
+            "Message-ID": messageId,
+            "X-Entity-Ref-ID": messageId,
+          },
+          variables: {
+            week_date: pulseDate,
+            pulse_url: `${appBaseUrl}/clients/pulse`,
+          },
+        });
 
-    if (!emailResult.success) {
+        if (emailResult.success) {
+          sentCount++;
+        } else {
+          errors.push(`${recipient}: ${emailResult.error}`);
+        }
+      } catch (err: any) {
+        errors.push(`${recipient}: ${err.message}`);
+      }
+    }
+
+    if (sentCount === 0 && errors.length > 0) {
       throw new Error(
-        emailResult.error || "Failed to dispatch email via provider.",
+        `Failed to dispatch weekly client report: ${errors.join(", ")}`,
       );
     }
 
     return {
       success: true,
-      message: `Weekly client report successfully sent to ${emails.length} recipient(s).`,
-      recipientCount: emails.length,
+      message: `Weekly client report successfully sent to ${sentCount} of ${emails.length} recipient(s).`,
+      recipientCount: sentCount,
     };
   } catch (error: any) {
     console.error("sendWeeklyClientReportAction error:", error);
