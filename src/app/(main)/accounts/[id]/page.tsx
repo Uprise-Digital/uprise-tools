@@ -8,7 +8,11 @@ import {
 } from "@/actions/triage-settings.actions";
 import { db } from "@/db";
 import { adAccounts, metaAdAccounts } from "@/db/schema";
-import { normalizeAccountName } from "@/lib/account-unification";
+import {
+  isAccountMatch,
+  normalizeAccountName,
+  stemAccountName,
+} from "@/lib/account-unification";
 import { getAuthOrgContext } from "@/lib/auth-helpers";
 import ClientDashboard from "./pageClient";
 
@@ -34,7 +38,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
     return notFound();
   }
 
-  // Look up if there is a linked Meta Ad Account in the same organization matching this client's name
+  // Look up if there is a linked Meta Ad Account in the same organization matching this client
   let linkedMetaAccount: {
     id: number;
     metaAccountId: string;
@@ -50,10 +54,39 @@ export default async function AccountDetailPage({ params }: PageProps) {
       where: eq(metaAdAccounts.organizationId, orgId),
     });
 
+    // Pass 0: Explicit Client Association (Source of Truth)
+    let matchedMeta = account.clientId
+      ? orgMetaAccounts.find((m) => m.clientId === account.clientId)
+      : undefined;
+
+    if (!matchedMeta && account.clientOnboardingId) {
+      matchedMeta = orgMetaAccounts.find(
+        (m) => m.clientOnboardingId === account.clientOnboardingId,
+      );
+    }
+
+    // Pass 1: Exact normalized name match
     const normAccountName = normalizeAccountName(account.name);
-    const matchedMeta = orgMetaAccounts.find(
-      (m) => normalizeAccountName(m.name) === normAccountName,
-    );
+    if (!matchedMeta && normAccountName) {
+      matchedMeta = orgMetaAccounts.find(
+        (m) => normalizeAccountName(m.name) === normAccountName,
+      );
+    }
+
+    // Pass 2: Stemmed name match
+    const stemName = stemAccountName(account.name);
+    if (!matchedMeta && stemName) {
+      matchedMeta = orgMetaAccounts.find(
+        (m) => stemAccountName(m.name) === stemName,
+      );
+    }
+
+    // Pass 3: Fuzzy match
+    if (!matchedMeta) {
+      matchedMeta = orgMetaAccounts.find((m) =>
+        isAccountMatch(account.name, m.name),
+      );
+    }
 
     if (matchedMeta) {
       linkedMetaAccount = {
