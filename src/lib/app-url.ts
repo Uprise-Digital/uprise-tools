@@ -19,15 +19,34 @@ export function getAppUrl(): string {
     }
   }
 
-  const envProductionUrl = process.env.PRODUCTION_APP_URL;
-  if (
-    envProductionUrl &&
-    !envProductionUrl.includes("localhost") &&
-    !envProductionUrl.includes("up.railway.app")
-  ) {
-    return envProductionUrl.replace(/\/+$/, "");
+  // 1. Explicit app URL override (custom instances, test stubs, etc.)
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
   }
 
-  // Canonical primary domain
+  // 2. Fallback to custom Railway domain if explicitly set (except default uprise-tools domain where canonical takes precedence)
+  const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+  if (railwayDomain) {
+    if (railwayDomain.includes("uprise-tools")) {
+      return CANONICAL_APP_URL;
+    }
+    return `https://${railwayDomain}`.replace(/\/+$/, "");
+  }
+
+  // 3. Explicit production URL
+  if (
+    process.env.PRODUCTION_APP_URL &&
+    !process.env.PRODUCTION_APP_URL.includes("localhost")
+  ) {
+    return process.env.PRODUCTION_APP_URL.replace(/\/+$/, "");
+  }
+
+  if (
+    process.env.BETTER_AUTH_URL &&
+    !process.env.BETTER_AUTH_URL.includes("localhost")
+  ) {
+    return process.env.BETTER_AUTH_URL.replace(/\/+$/, "");
+  }
+
   return CANONICAL_APP_URL;
 }
