@@ -41,6 +41,7 @@ import {
   getOrgTriageDefaultsAction,
   saveAccountTriageSettingsInternal,
 } from "@/actions/triage-settings.actions";
+import { sendWeeklyClientReportAction } from "@/actions/weekly-client-report.actions";
 import { db } from "@/db";
 import { withBypassTenantDb } from "@/db/db-helper";
 import {
@@ -297,6 +298,49 @@ const handler = createMcpHandler(
         }
         return {
           content: [{ type: "text", text: JSON.stringify(result.data) }],
+        };
+      },
+    );
+
+    server.registerTool(
+      "trigger_weekly_client_report",
+      {
+        title: "Trigger Weekly Client Report",
+        description:
+          "Compiles and sends the weekly client retention report email with AI summary to the configured team recipients or specified recipient overrides.",
+        inputSchema: {
+          recipientOverride: z
+            .array(z.string())
+            .optional()
+            .describe(
+              "Optional array of email addresses to send to. If omitted, sends to configured report recipients or all active team members.",
+            ),
+        },
+      },
+      async ({ recipientOverride }) => {
+        const result = await sendWeeklyClientReportAction(recipientOverride);
+        if (!result.success) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  error: result.error || "Failed to send weekly report",
+                }),
+              },
+            ],
+          };
+        }
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                message: result.message,
+              }),
+            },
+          ],
         };
       },
     );
