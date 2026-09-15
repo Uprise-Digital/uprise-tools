@@ -781,8 +781,11 @@ export async function sendWeeklyClientReportAction(
       emails = settings.recipients;
     } else {
       const bSettings = await db.query.briefingSettings.findFirst();
-      if (bSettings?.recipients && bSettings.recipients.length > 0) {
-        emails = bSettings.recipients;
+      const briefingRecipients = Array.isArray(bSettings?.recipients)
+        ? (bSettings.recipients as string[])
+        : [];
+      if (briefingRecipients.length > 0) {
+        emails = briefingRecipients;
       } else {
         const team = await db
           .select()

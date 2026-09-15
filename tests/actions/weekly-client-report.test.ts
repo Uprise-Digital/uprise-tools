@@ -76,7 +76,7 @@ describe("Weekly Client Retention Report Actions", () => {
         historicalTrend: "improving" as const,
         latestNote: null,
       },
-    ];
+    ] as unknown as import("@/actions/client-pulse.actions").ClientPulseItem[];
 
     const mockSummary = {
       totalClients: 2,
