@@ -2412,9 +2412,24 @@ export async function getClientOnboardingByIdAction(clientId: number) {
     let contactEmail = "";
 
     if (clientRecord) {
+      let clientContacts = clientRecord.contacts || [];
+      if (clientContacts.length === 0) {
+        try {
+          clientContacts = await db.query.contacts.findMany({
+            where: and(
+              eq(contacts.organizationId, orgId),
+              eq(contacts.clientId, clientRecord.id),
+            ),
+            orderBy: [desc(contacts.isPrimary), asc(contacts.name)],
+          });
+        } catch (e) {
+          console.warn("Could not query contacts fallback:", e);
+        }
+      }
+
       const primaryContact =
-        clientRecord.contacts?.find((ct: any) => ct.isPrimary) ||
-        clientRecord.contacts?.[0];
+        clientContacts.find((ct: any) => ct.isPrimary) ||
+        clientContacts[0];
       client = {
         id: clientRecord.id,
         onboardingId: onboardingRecord?.id,
@@ -2483,10 +2498,26 @@ export async function getClientOnboardingByIdAction(clientId: number) {
         metaAdAccounts: clientRecord.metaAdAccounts?.length
           ? clientRecord.metaAdAccounts
           : onboardingRecord?.metaAdAccounts || [],
-        contacts: clientRecord.contacts || [],
+        contacts: clientContacts,
       };
       contactEmail = client.contactEmail || "";
     } else if (onboardingRecord) {
+      let linkedContacts: any[] = [];
+      try {
+        const matchingClient = await db.query.clients.findFirst({
+          where: and(
+            eq(clients.organizationId, orgId),
+            ilike(clients.name, onboardingRecord.clientName.trim()),
+          ),
+          with: { contacts: true },
+        });
+        if (matchingClient?.contacts) {
+          linkedContacts = matchingClient.contacts;
+        }
+      } catch (err) {
+        console.warn("Could not query matching contacts for onboarding:", err);
+      }
+
       client = {
         id: onboardingRecord.id,
         onboardingId: onboardingRecord.id,
@@ -2499,6 +2530,7 @@ export async function getClientOnboardingByIdAction(clientId: number) {
           onboardingRecord.metaEnabled ??
           onboardingRecord.metaAdsAccess ??
           true,
+        contacts: linkedContacts,
       };
       contactEmail = onboardingRecord.contactEmail;
     }

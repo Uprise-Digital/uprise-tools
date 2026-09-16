@@ -818,7 +818,7 @@ export default function ClientDetailPageClient({
             title="Manage and Add Client Contacts"
           >
             <Users className="h-3.5 w-3.5 text-indigo-600" />
-            Contacts ({client.contacts?.length || (client.primaryContactName ? 1 : 0)})
+            Contacts ({client?.contacts?.length || 0})
           </Button>
 
           <Button
@@ -999,7 +999,7 @@ export default function ClientDetailPageClient({
                 onClick={openContactsModal}
                 className="text-[10px] text-indigo-600 hover:text-indigo-700 font-bold hover:underline cursor-pointer"
               >
-                Manage ({client.contacts?.length || (client.primaryContactName ? 1 : 0)})
+                Manage ({client?.contacts?.length || 0})
               </button>
             </div>
             <p className="text-xs font-bold text-slate-800 truncate">
@@ -2013,33 +2013,35 @@ export default function ClientDetailPageClient({
         </DialogContent>
       </Dialog>
 
-      {/* 6. Client Contacts Management Dialog */}
-      <Dialog open={isContactsModalOpen} onOpenChange={setIsContactsModalOpen}>
-        <DialogContent className="max-w-2xl bg-white rounded-2xl shadow-2xl p-0 overflow-hidden border-slate-200">
-          <DialogHeader className="px-6 py-5 border-b border-slate-100 bg-slate-50/70">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs shrink-0">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <DialogTitle className="text-base font-bold text-slate-900 leading-snug">
-                    Client Contacts — {client.clientName}
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-slate-500 mt-0.5">
-                    Manage connected team members, add contacts from your contacts list, or create new contacts.
-                  </DialogDescription>
-                </div>
+      {/* 6. Client Contacts Management Sidebar */}
+      <Sheet open={isContactsModalOpen} onOpenChange={setIsContactsModalOpen}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-md md:max-w-lg lg:max-w-xl p-0 flex flex-col justify-between bg-white border-l border-slate-200 shadow-2xl z-50 overflow-hidden gap-0"
+        >
+          <SheetHeader className="px-6 py-5 sm:px-7 sm:py-6 border-b border-slate-100 bg-slate-50/60 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs shrink-0">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <SheetTitle className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                  Client Contacts
+                </SheetTitle>
+                <SheetDescription className="text-xs text-slate-500 mt-0.5">
+                  Connected contacts &amp; team members for{" "}
+                  <strong className="text-slate-700">{client.clientName}</strong>.
+                </SheetDescription>
               </div>
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex gap-2 pt-3 border-t border-slate-200/60 mt-3">
+            <div className="flex gap-2 pt-3 border-t border-slate-200/60 mt-4 overflow-x-auto">
               <button
                 type="button"
                 onClick={() => setActiveContactTab("list")}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer",
                   activeContactTab === "list"
                     ? "bg-white text-indigo-700 shadow-xs border border-slate-200"
                     : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/80",
@@ -2053,7 +2055,7 @@ export default function ClientDetailPageClient({
                 type="button"
                 onClick={() => setActiveContactTab("link")}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer",
                   activeContactTab === "link"
                     ? "bg-white text-indigo-700 shadow-xs border border-slate-200"
                     : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/80",
@@ -2067,46 +2069,80 @@ export default function ClientDetailPageClient({
                 type="button"
                 onClick={() => setActiveContactTab("new")}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer",
                   activeContactTab === "new"
                     ? "bg-white text-indigo-700 shadow-xs border border-slate-200"
                     : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/80",
                 )}
               >
                 <Pencil className="h-3.5 w-3.5" />
-                + Create New Contact
+                + Create
               </button>
             </div>
-          </DialogHeader>
+          </SheetHeader>
 
-          <div className="p-6 max-h-[60vh] overflow-y-auto">
+          <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-7 sm:py-7 space-y-4">
             {/* TAB 1: Currently Linked Contacts */}
             {activeContactTab === "list" && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {!client.contacts || client.contacts.length === 0 ? (
-                  <div className="py-12 text-center space-y-3 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                    <Users className="h-8 w-8 text-slate-300 mx-auto" />
-                    <div>
-                      <p className="text-sm font-bold text-slate-700">
-                        No contacts connected yet
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                        Connect people to {client.clientName} from your agency contacts list to track calls and communications.
-                      </p>
+                  <div className="space-y-4">
+                    <div className="py-10 px-4 text-center space-y-3 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
+                      <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                        <Users className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">
+                          No contacts linked yet
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                          Link an existing contact from your agency contacts directory, or create a new contact profile.
+                        </p>
+                      </div>
+                      <div className="pt-2">
+                        <Button
+                          size="sm"
+                          onClick={() => setActiveContactTab("link")}
+                          className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold gap-1.5 shadow-xs cursor-pointer"
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                          Choose from Contacts List
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-center gap-2 pt-2">
-                      <Button
-                        size="sm"
-                        onClick={() => setActiveContactTab("link")}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold gap-1.5 cursor-pointer"
-                      >
-                        <UserPlus className="h-3.5 w-3.5" />
-                        Add from Contacts List
-                      </Button>
-                    </div>
+
+                    {client.primaryContactName && (
+                      <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-3.5 space-y-2 text-xs">
+                        <div className="flex items-center gap-2 text-amber-900 font-bold">
+                          <Info className="h-4 w-4 text-amber-600 shrink-0" />
+                          <span>Onboarding Profile Details</span>
+                        </div>
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          This client profile lists <strong>{client.primaryContactName}</strong>
+                          {client.contactEmail ? ` (${client.contactEmail})` : ""} as the primary contact, but they are not yet in your CRM contacts directory.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={isCreatingContact}
+                          onClick={() => {
+                            setNewContactName(client.primaryContactName || "");
+                            setNewContactEmail(client.contactEmail || "");
+                            setNewContactPhone(client.contactPhone || "");
+                            setNewContactIsPrimary(true);
+                            setActiveContactTab("new");
+                          }}
+                          className="h-7 text-xs bg-white text-amber-900 border-amber-200 hover:bg-amber-50 font-semibold cursor-pointer gap-1"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Save as CRM Contact
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {client.contacts.map((ct: any) => {
                       const isPrimary = ct.isPrimary;
                       return (
@@ -2295,7 +2331,7 @@ export default function ClientDetailPageClient({
                                   {isLinkingContactId === ct.id ? (
                                     <Loader2 className="h-3 w-3 animate-spin" />
                                   ) : (
-                                    "+ Add to Client"
+                                    "+ Add"
                                   )}
                                 </Button>
                                 <Button
@@ -2307,7 +2343,7 @@ export default function ClientDetailPageClient({
                                   className="h-7 text-[11px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
                                   title="Add and make primary contact"
                                 >
-                                  + Add as Primary
+                                  + Primary
                                 </Button>
                               </>
                             )}
@@ -2405,7 +2441,7 @@ export default function ClientDetailPageClient({
                       className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                     />
                     <span className="text-xs font-semibold text-slate-700">
-                      Set as Primary Contact for {client.clientName}
+                      Set as Primary Contact
                     </span>
                   </label>
 
@@ -2419,14 +2455,14 @@ export default function ClientDetailPageClient({
                     ) : (
                       <UserPlus className="h-3.5 w-3.5" />
                     )}
-                    Save &amp; Link Contact
+                    Save Contact
                   </Button>
                 </div>
               </form>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* 5. Edit Client Details Sidebar */}
       <Sheet open={isEditClientOpen} onOpenChange={setIsEditClientOpen}>
