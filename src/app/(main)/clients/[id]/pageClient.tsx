@@ -54,8 +54,10 @@ import {
   getClientEmailLogsAction,
   getClientOnboardingByIdAction,
   getOrgContactsAction,
+  linkGhlContactToClientAction,
   runOnboardingPipelineAction,
   sendOnboardingEmailAction,
+  syncAllGhlClientsAction,
   updateClientOnboardingAction,
 } from "@/actions/client-onboarding.actions";
 import { getMetaAdAccountsAction } from "@/actions/meta-settings.actions";
@@ -171,6 +173,16 @@ export default function ClientDetailPageClient({
   const [newContactJobTitle, setNewContactJobTitle] = useState("");
   const [newContactIsPrimary, setNewContactIsPrimary] = useState(false);
   const [isCreatingContact, setIsCreatingContact] = useState(false);
+
+  // GoHighLevel Contact Search & Sync States
+  const [ghlSearchResults, setGhlSearchResults] = useState<any[]>([]);
+  const [isSearchingGhl, setIsSearchingGhl] = useState(false);
+  const [isSyncingGhl, setIsSyncingGhl] = useState(false);
+  const [isLinkingGhlId, setIsLinkingGhlId] = useState<string | null>(null);
+
+  const [ghlPickerResults, setGhlPickerResults] = useState<any[]>([]);
+  const [isSearchingGhlPicker, setIsSearchingGhlPicker] = useState(false);
+  const [selectedGhlContact, setSelectedGhlContact] = useState<any | null>(null);
 
   const loadClientDetails = useCallback(async () => {
     try {
@@ -324,12 +336,16 @@ export default function ClientDetailPageClient({
       setSelectedContactId(null);
       setSelectedContactName(null);
     }
+    setSelectedGhlContact(null);
     setContactSearchQuery("");
+    setGhlPickerResults([]);
+    setIsSearchingGhlPicker(false);
     setIsEditClientOpen(true);
     loadOrgContacts();
   };
 
   const handleSelectContactFromList = (contact: any) => {
+    setSelectedGhlContact(null);
     setSelectedContactId(contact.id);
     setSelectedContactName(contact.name);
     setEditPrimaryContactName(contact.name);
@@ -339,10 +355,94 @@ export default function ClientDetailPageClient({
     toast.success(`Selected "${contact.name}" from contacts list`);
   };
 
+  const handleSelectGhlContact = (ghlContact: any) => {
+    setSelectedGhlContact(ghlContact);
+    setSelectedContactName(ghlContact.name);
+    setEditPrimaryContactName(ghlContact.name);
+    if (ghlContact.email) setEditContactEmail(ghlContact.email);
+    if (ghlContact.phone) setEditContactPhone(ghlContact.phone);
+
+    const match = orgContacts.find(
+      (c: any) =>
+        (c.ghlContactId && c.ghlContactId === ghlContact.id) ||
+        (ghlContact.email &&
+          c.email &&
+          c.email.toLowerCase() === ghlContact.email.toLowerCase()),
+    );
+    setSelectedContactId(match ? match.id : null);
+    setIsContactPickerOpen(false);
+    toast.success(`Selected "${ghlContact.name}" from GoHighLevel`);
+  };
+
   const handleClearSelectedContact = () => {
     setSelectedContactId(null);
     setSelectedContactName(null);
+    setSelectedGhlContact(null);
   };
+
+  // Debounced live search for GHL in Contacts Sidebar
+  useEffect(() => {
+    const q = contactsModalSearch.trim();
+    if (q.length < 2) {
+      setGhlSearchResults([]);
+      setIsSearchingGhl(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingGhl(true);
+      try {
+        const res = await fetch(
+          `/api/gohighlevel/search?q=${encodeURIComponent(q)}`,
+        );
+        const data = await res.json();
+        if (res.ok && data.contacts) {
+          setGhlSearchResults(data.contacts);
+        } else {
+          setGhlSearchResults([]);
+        }
+      } catch (err) {
+        console.error("Failed to search GHL contacts:", err);
+        setGhlSearchResults([]);
+      } finally {
+        setIsSearchingGhl(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [contactsModalSearch]);
+
+  // Debounced live search for GHL in Edit Client Popover
+  useEffect(() => {
+    const q = contactSearchQuery.trim();
+    if (q.length < 2) {
+      setGhlPickerResults([]);
+      setIsSearchingGhlPicker(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingGhlPicker(true);
+      try {
+        const res = await fetch(
+          `/api/gohighlevel/search?q=${encodeURIComponent(q)}`,
+        );
+        const data = await res.json();
+        if (res.ok && data.contacts) {
+          setGhlPickerResults(data.contacts);
+        } else {
+          setGhlPickerResults([]);
+        }
+      } catch (err) {
+        console.error("Failed to search GHL contacts for picker:", err);
+        setGhlPickerResults([]);
+      } finally {
+        setIsSearchingGhlPicker(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [contactSearchQuery]);
 
   const filteredOrgContacts = useMemo(() => {
     if (!contactSearchQuery.trim()) return orgContacts;
@@ -378,11 +478,87 @@ export default function ClientDetailPageClient({
     });
   }, [orgContacts, contactsModalSearch]);
 
+  const unimportedGhlContacts = useMemo(() => {
+    if (!ghlSearchResults || ghlSearchResults.length === 0) return [];
+    return ghlSearchResults.filter((ghl: any) => {
+      return !orgContacts.some(
+        (ct: any) =>
+          (ct.ghlContactId && ct.ghlContactId === ghl.id) ||
+          (ghl.email &&
+            ct.email &&
+            ct.email.toLowerCase() === ghl.email.toLowerCase()),
+      );
+    });
+  }, [ghlSearchResults, orgContacts]);
+
+  const unimportedGhlPickerContacts = useMemo(() => {
+    if (!ghlPickerResults || ghlPickerResults.length === 0) return [];
+    return ghlPickerResults.filter((ghl: any) => {
+      return !orgContacts.some(
+        (ct: any) =>
+          (ct.ghlContactId && ct.ghlContactId === ghl.id) ||
+          (ghl.email &&
+            ct.email &&
+            ct.email.toLowerCase() === ghl.email.toLowerCase()),
+      );
+    });
+  }, [ghlPickerResults, orgContacts]);
+
   const openContactsModal = () => {
     setIsContactsModalOpen(true);
     setActiveContactTab("list");
     setContactsModalSearch("");
+    setGhlSearchResults([]);
+    setIsSearchingGhl(false);
     loadOrgContacts();
+  };
+
+  const handleQuickLinkGhlContact = async (
+    ghlContact: any,
+    makePrimary = false,
+  ) => {
+    if (!client) return;
+    setIsLinkingGhlId(ghlContact.id);
+    try {
+      const res = await linkGhlContactToClientAction(
+        ghlContact,
+        client.id,
+        makePrimary,
+      );
+      if (res.success) {
+        toast.success(
+          makePrimary
+            ? `Linked "${ghlContact.name}" as primary contact!`
+            : `Linked "${ghlContact.name}" to client!`,
+        );
+        await Promise.all([loadClientDetails(), loadOrgContacts()]);
+      } else {
+        toast.error(res.error || "Failed to link GoHighLevel contact");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to link GoHighLevel contact");
+    } finally {
+      setIsLinkingGhlId(null);
+    }
+  };
+
+  const handleSyncGhl = async () => {
+    setIsSyncingGhl(true);
+    try {
+      const res = await syncAllGhlClientsAction();
+      if (res.success) {
+        toast.success(
+          `Synced from GoHighLevel! Found ${res.totalFound || 0}, imported ${res.totalImported || 0}, updated ${res.totalUpdated || 0}.`,
+        );
+        await Promise.all([loadClientDetails(), loadOrgContacts()]);
+      } else {
+        toast.error(res.error || "Failed to sync GoHighLevel contacts");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sync GoHighLevel");
+    } finally {
+      setIsSyncingGhl(false);
+    }
   };
 
   const handleQuickLinkContactToClient = async (
@@ -487,6 +663,10 @@ export default function ClientDetailPageClient({
 
     setIsSavingClientDetails(true);
     try {
+      if (selectedGhlContact) {
+        await linkGhlContactToClientAction(selectedGhlContact, client.id, true);
+      }
+
       const res = await updateClientOnboardingAction(client.id, {
         clientName: editClientName.trim(),
         primaryContactName: editPrimaryContactName.trim(),
@@ -502,7 +682,7 @@ export default function ClientDetailPageClient({
 
       if (res.success) {
         toast.success("Client details updated successfully!");
-        await loadClientDetails();
+        await Promise.all([loadClientDetails(), loadOrgContacts()]);
         setIsEditClientOpen(false);
       } else {
         toast.error(res.error || "Failed to update client details.");
@@ -2102,7 +2282,12 @@ export default function ClientDetailPageClient({
                       <div className="pt-2">
                         <Button
                           size="sm"
-                          onClick={() => setActiveContactTab("link")}
+                          onClick={() => {
+                            if (client.primaryContactName) {
+                              setContactsModalSearch(client.primaryContactName);
+                            }
+                            setActiveContactTab("link");
+                          }}
                           className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold gap-1.5 shadow-xs cursor-pointer"
                         >
                           <UserPlus className="h-3.5 w-3.5" />
@@ -2242,93 +2427,256 @@ export default function ClientDetailPageClient({
               </div>
             )}
 
-            {/* TAB 2: Quick Link from Agency Contacts List */}
+            {/* TAB 2: Quick Link from Agency Contacts List & GoHighLevel */}
             {activeContactTab === "link" && (
               <div className="space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <Input
-                    placeholder="Search agency contacts by name, email, or phone..."
-                    value={contactsModalSearch}
-                    onChange={(e) => setContactsModalSearch(e.target.value)}
-                    className="pl-9 text-xs h-9 bg-slate-50/80 border-slate-200"
-                    autoFocus
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search agency contacts or GoHighLevel CRM..."
+                      value={contactsModalSearch}
+                      onChange={(e) => setContactsModalSearch(e.target.value)}
+                      className="pl-9 pr-8 text-xs h-9 bg-slate-50/80 border-slate-200"
+                      autoFocus
+                    />
+                    {isSearchingGhl && (
+                      <Loader2 className="absolute right-3 top-2.5 h-4 w-4 text-indigo-500 animate-spin" />
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isSyncingGhl}
+                    onClick={handleSyncGhl}
+                    className="h-9 px-2.5 text-xs text-slate-600 hover:text-indigo-600 hover:border-indigo-200 shrink-0 cursor-pointer gap-1.5"
+                    title="Sync all contacts from GoHighLevel CRM"
+                  >
+                    <RefreshCw
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        isSyncingGhl && "animate-spin text-indigo-600",
+                      )}
+                    />
+                    <span className="hidden sm:inline">Sync GHL</span>
+                  </Button>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {loadingOrgContacts ? (
                     <div className="py-12 text-center text-xs text-slate-400">
                       <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-indigo-600" />
                       Loading contacts directory...
                     </div>
-                  ) : filteredModalContacts.length === 0 ? (
-                    <div className="py-12 text-center text-xs text-slate-400">
-                      No contacts found matching &ldquo;{contactsModalSearch}&rdquo;.
-                    </div>
+                  ) : filteredModalContacts.length === 0 &&
+                    unimportedGhlContacts.length === 0 ? (
+                    isSearchingGhl ? (
+                      <div className="py-10 text-center text-xs text-slate-400 space-y-2">
+                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-indigo-600" />
+                        <p>Searching GoHighLevel CRM...</p>
+                      </div>
+                    ) : (
+                      <div className="py-10 px-4 text-center space-y-3 bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+                        <Users className="h-7 w-7 text-slate-300 mx-auto" />
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">
+                            {contactsModalSearch.trim()
+                              ? `No contacts found matching "${contactsModalSearch}"`
+                              : "No contacts available in directory"}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                            {contactsModalSearch.trim()
+                              ? "We checked both your local database and GoHighLevel CRM."
+                              : "Sync your CRM contacts or create a new contact profile directly."}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 pt-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={handleSyncGhl}
+                            disabled={isSyncingGhl}
+                            className="h-7 text-xs gap-1 cursor-pointer"
+                          >
+                            <RefreshCw
+                              className={cn(
+                                "h-3 w-3",
+                                isSyncingGhl && "animate-spin",
+                              )}
+                            />
+                            Sync from GHL
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              if (contactsModalSearch.trim()) {
+                                setNewContactName(contactsModalSearch.trim());
+                              }
+                              setActiveContactTab("new");
+                            }}
+                            className="h-7 text-xs bg-indigo-600 hover:bg-indigo-500 text-white gap-1 cursor-pointer"
+                          >
+                            <UserPlus className="h-3 w-3" />
+                            Create Contact
+                          </Button>
+                        </div>
+                      </div>
+                    )
                   ) : (
-                    filteredModalContacts.map((ct: any) => {
-                      const isAlreadyLinked =
-                        ct.clientId === client.id ||
-                        client.contacts?.some((c: any) => c.id === ct.id);
-                      return (
-                        <div
-                          key={ct.id}
-                          className={cn(
-                            "p-3 rounded-xl border transition-all flex items-center justify-between gap-3",
-                            isAlreadyLinked
-                              ? "bg-slate-50/80 border-slate-200 opacity-70"
-                              : "bg-white border-slate-200 hover:border-indigo-200 hover:shadow-xs",
+                    <>
+                      {/* Local Contacts Section */}
+                      {filteredModalContacts.length > 0 && (
+                        <div className="space-y-2">
+                          {unimportedGhlContacts.length > 0 && (
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 pt-1">
+                              Agency Directory ({filteredModalContacts.length})
+                            </div>
                           )}
-                        >
-                          <div className="space-y-0.5 min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-800 truncate">
-                                {ct.name}
-                              </span>
-                              {ct.jobTitle && (
-                                <span className="text-[10px] text-slate-400 truncate">
-                                  ({ct.jobTitle})
-                                </span>
-                              )}
-                              {isAlreadyLinked && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
-                                  Already Linked
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-slate-500 truncate flex items-center gap-2">
-                              {ct.email && <span>{ct.email}</span>}
-                              {ct.phone && (
-                                <span className="text-slate-400">
-                                  • {ct.phone}
-                                </span>
-                              )}
-                              {ct.client?.name && !isAlreadyLinked && (
-                                <span className="text-[10px] text-amber-700 bg-amber-50 px-1 rounded border border-amber-200/50">
-                                  Currently linked to {ct.client.name}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                          {filteredModalContacts.map((ct: any) => {
+                            const isAlreadyLinked =
+                              ct.clientId === client.id ||
+                              client.contacts?.some((c: any) => c.id === ct.id);
+                            return (
+                              <div
+                                key={ct.id}
+                                className={cn(
+                                  "p-3 rounded-xl border transition-all flex items-center justify-between gap-3",
+                                  isAlreadyLinked
+                                    ? "bg-slate-50/80 border-slate-200 opacity-70"
+                                    : "bg-white border-slate-200 hover:border-indigo-200 hover:shadow-xs",
+                                )}
+                              >
+                                <div className="space-y-0.5 min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-800 truncate">
+                                      {ct.name}
+                                    </span>
+                                    {ct.jobTitle && (
+                                      <span className="text-[10px] text-slate-400 truncate">
+                                        ({ct.jobTitle})
+                                      </span>
+                                    )}
+                                    {isAlreadyLinked && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
+                                        Already Linked
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 truncate flex items-center gap-2">
+                                    {ct.email && <span>{ct.email}</span>}
+                                    {ct.phone && (
+                                      <span className="text-slate-400">
+                                        • {ct.phone}
+                                      </span>
+                                    )}
+                                    {ct.client?.name && !isAlreadyLinked && (
+                                      <span className="text-[10px] text-amber-700 bg-amber-50 px-1 rounded border border-amber-200/50">
+                                        Linked to {ct.client.name}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {isAlreadyLinked ? (
-                              <span className="text-xs text-slate-400 font-medium">
-                                Connected
-                              </span>
-                            ) : (
-                              <>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {isAlreadyLinked ? (
+                                    <span className="text-xs text-slate-400 font-medium">
+                                      Connected
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isLinkingContactId === ct.id}
+                                        onClick={() =>
+                                          handleQuickLinkContactToClient(
+                                            ct.id,
+                                            false,
+                                          )
+                                        }
+                                        className="h-7 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50 border-indigo-200 cursor-pointer"
+                                      >
+                                        {isLinkingContactId === ct.id ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          "+ Add"
+                                        )}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        disabled={isLinkingContactId === ct.id}
+                                        onClick={() =>
+                                          handleQuickLinkContactToClient(
+                                            ct.id,
+                                            true,
+                                          )
+                                        }
+                                        className="h-7 text-[11px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+                                        title="Add and make primary contact"
+                                      >
+                                        + Primary
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* GoHighLevel Live Search Results Section */}
+                      {unimportedGhlContacts.length > 0 && (
+                        <div className="space-y-2 pt-1">
+                          <div className="flex items-center gap-2 px-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200/60 flex items-center gap-1.5">
+                              <Zap className="h-3 w-3 text-purple-600" />
+                              GoHighLevel CRM Matches ({unimportedGhlContacts.length})
+                            </span>
+                          </div>
+                          {unimportedGhlContacts.map((ghl: any) => (
+                            <div
+                              key={ghl.id}
+                              className="p-3 rounded-xl border border-purple-200/70 bg-purple-50/20 hover:bg-purple-50/40 hover:border-purple-300 transition-all flex items-center justify-between gap-3"
+                            >
+                              <div className="space-y-0.5 min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-bold text-slate-900 truncate">
+                                    {ghl.name || "Unnamed Contact"}
+                                  </span>
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                                    GoHighLevel
+                                  </span>
+                                  {ghl.companyName && (
+                                    <span className="text-[10px] text-slate-400 truncate">
+                                      ({ghl.companyName})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-slate-500 truncate flex items-center gap-2">
+                                  {ghl.email && <span>{ghl.email}</span>}
+                                  {ghl.phone && (
+                                    <span className="text-slate-400">
+                                      • {ghl.phone}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  disabled={isLinkingContactId === ct.id}
+                                  disabled={isLinkingGhlId === ghl.id}
                                   onClick={() =>
-                                    handleQuickLinkContactToClient(ct.id, false)
+                                    handleQuickLinkGhlContact(ghl, false)
                                   }
-                                  className="h-7 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50 border-indigo-200 cursor-pointer"
+                                  className="h-7 text-[11px] font-semibold text-purple-700 hover:bg-purple-100/50 border-purple-200 cursor-pointer"
                                 >
-                                  {isLinkingContactId === ct.id ? (
+                                  {isLinkingGhlId === ghl.id ? (
                                     <Loader2 className="h-3 w-3 animate-spin" />
                                   ) : (
                                     "+ Add"
@@ -2336,21 +2684,25 @@ export default function ClientDetailPageClient({
                                 </Button>
                                 <Button
                                   size="sm"
-                                  disabled={isLinkingContactId === ct.id}
+                                  disabled={isLinkingGhlId === ghl.id}
                                   onClick={() =>
-                                    handleQuickLinkContactToClient(ct.id, true)
+                                    handleQuickLinkGhlContact(ghl, true)
                                   }
-                                  className="h-7 text-[11px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
-                                  title="Add and make primary contact"
+                                  className="h-7 text-[11px] font-bold bg-purple-600 hover:bg-purple-500 text-white cursor-pointer shadow-xs"
+                                  title="Import from GoHighLevel and set as primary contact"
                                 >
-                                  + Primary
+                                  {isLinkingGhlId === ghl.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    "+ Primary"
+                                  )}
                                 </Button>
-                              </>
-                            )}
-                          </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      );
-                    })
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -2575,9 +2927,12 @@ export default function ClientDetailPageClient({
                             onChange={(e) =>
                               setContactSearchQuery(e.target.value)
                             }
-                            className="h-8 pl-8 text-xs bg-slate-50 border-slate-200"
+                            className="h-8 pl-8 pr-7 text-xs bg-slate-50 border-slate-200"
                             autoFocus
                           />
+                          {isSearchingGhlPicker && (
+                            <Loader2 className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-indigo-500 animate-spin" />
+                          )}
                         </div>
                         <div className="max-h-56 overflow-y-auto space-y-1 divide-y divide-slate-50">
                           {loadingOrgContacts ? (
@@ -2585,72 +2940,149 @@ export default function ClientDetailPageClient({
                               <Loader2 className="h-4 w-4 animate-spin mx-auto mb-1 text-indigo-600" />
                               Loading contacts...
                             </div>
-                          ) : filteredOrgContacts.length === 0 ? (
+                          ) : filteredOrgContacts.length === 0 &&
+                            unimportedGhlPickerContacts.length === 0 ? (
                             <div className="py-6 text-center text-xs text-slate-400">
-                              No matching contacts found.
+                              {isSearchingGhlPicker
+                                ? "Searching GoHighLevel CRM..."
+                                : "No matching contacts found."}
                             </div>
                           ) : (
-                            filteredOrgContacts.map((ct: any) => {
-                              const isSelected =
-                                selectedContactId === ct.id ||
-                                (editContactEmail &&
-                                  ct.email?.toLowerCase() ===
-                                    editContactEmail.toLowerCase());
-                              return (
-                                <button
-                                  key={ct.id}
-                                  type="button"
-                                  onClick={() =>
-                                    handleSelectContactFromList(ct)
-                                  }
-                                  className={cn(
-                                    "w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-colors flex items-start justify-between gap-2 group cursor-pointer",
-                                    isSelected &&
-                                      "bg-indigo-50/70 border border-indigo-100",
-                                  )}
-                                >
-                                  <div className="space-y-0.5 min-w-0 flex-1">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 truncate">
-                                        {ct.name}
-                                      </span>
-                                      {ct.jobTitle && (
-                                        <span className="text-[10px] text-slate-400 truncate">
-                                          ({ct.jobTitle})
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-[11px] text-slate-500 truncate flex items-center gap-2">
-                                      {ct.email && (
-                                        <span className="truncate">
-                                          {ct.email}
-                                        </span>
-                                      )}
-                                      {ct.phone && (
-                                        <span className="shrink-0 text-slate-400">
-                                          • {ct.phone}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="shrink-0 text-right">
-                                    {isSelected ? (
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold flex items-center gap-0.5">
-                                        <Check className="h-3 w-3" /> Selected
-                                      </span>
-                                    ) : ct.client?.name ? (
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
-                                        {ct.client.name}
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium border border-amber-200/60">
-                                        Unassigned
-                                      </span>
+                            <>
+                              {filteredOrgContacts.map((ct: any) => {
+                                const isSelected =
+                                  selectedContactId === ct.id ||
+                                  (editContactEmail &&
+                                    ct.email?.toLowerCase() ===
+                                      editContactEmail.toLowerCase());
+                                return (
+                                  <button
+                                    key={ct.id}
+                                    type="button"
+                                    onClick={() =>
+                                      handleSelectContactFromList(ct)
+                                    }
+                                    className={cn(
+                                      "w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-colors flex items-start justify-between gap-2 group cursor-pointer",
+                                      isSelected &&
+                                        "bg-indigo-50/70 border border-indigo-100",
                                     )}
+                                  >
+                                    <div className="space-y-0.5 min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 truncate">
+                                          {ct.name}
+                                        </span>
+                                        {ct.jobTitle && (
+                                          <span className="text-[10px] text-slate-400 truncate">
+                                            ({ct.jobTitle})
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[11px] text-slate-500 truncate flex items-center gap-2">
+                                        {ct.email && (
+                                          <span className="truncate">
+                                            {ct.email}
+                                          </span>
+                                        )}
+                                        {ct.phone && (
+                                          <span className="shrink-0 text-slate-400">
+                                            • {ct.phone}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="shrink-0 text-right">
+                                      {isSelected ? (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold flex items-center gap-0.5">
+                                          <Check className="h-3 w-3" /> Selected
+                                        </span>
+                                      ) : ct.client?.name ? (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                                          {ct.client.name}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium border border-amber-200/60">
+                                          Unassigned
+                                        </span>
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+
+                              {/* GHL Live Search matches */}
+                              {unimportedGhlPickerContacts.length > 0 && (
+                                <div className="pt-2 space-y-1">
+                                  <div className="flex items-center gap-1.5 px-2 py-0.5">
+                                    <Zap className="h-3 w-3 text-purple-600" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700">
+                                      GoHighLevel CRM Matches ({unimportedGhlPickerContacts.length})
+                                    </span>
                                   </div>
-                                </button>
-                              );
-                            })
+                                  {unimportedGhlPickerContacts.map((ghl: any) => {
+                                    const isSelected =
+                                      selectedGhlContact?.id === ghl.id ||
+                                      (editContactEmail &&
+                                        ghl.email?.toLowerCase() ===
+                                          editContactEmail.toLowerCase());
+                                    return (
+                                      <button
+                                        key={ghl.id}
+                                        type="button"
+                                        onClick={() =>
+                                          handleSelectGhlContact(ghl)
+                                        }
+                                        className={cn(
+                                          "w-full text-left p-2 rounded-lg hover:bg-purple-50/70 border border-transparent hover:border-purple-200 transition-colors flex items-start justify-between gap-2 group cursor-pointer",
+                                          isSelected &&
+                                            "bg-purple-50/90 border-purple-200",
+                                        )}
+                                      >
+                                        <div className="space-y-0.5 min-w-0 flex-1">
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-xs font-bold text-slate-800 group-hover:text-purple-700 truncate">
+                                              {ghl.name}
+                                            </span>
+                                            <span className="text-[9px] px-1 py-0.2 rounded bg-purple-100 text-purple-700 font-semibold">
+                                              GHL
+                                            </span>
+                                            {ghl.companyName && (
+                                              <span className="text-[10px] text-slate-400 truncate">
+                                                ({ghl.companyName})
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="text-[11px] text-slate-500 truncate flex items-center gap-2">
+                                            {ghl.email && (
+                                              <span className="truncate">
+                                                {ghl.email}
+                                              </span>
+                                            )}
+                                            {ghl.phone && (
+                                              <span className="shrink-0 text-slate-400">
+                                                • {ghl.phone}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                          {isSelected ? (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-bold flex items-center gap-0.5">
+                                              <Check className="h-3 w-3" /> Selected
+                                            </span>
+                                          ) : (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 font-medium border border-purple-100 group-hover:bg-purple-100">
+                                              Select
+                                            </span>
+                                          )}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -2661,7 +3093,12 @@ export default function ClientDetailPageClient({
                 {selectedContactName ? (
                   <div className="flex items-center justify-between bg-white border border-indigo-200/90 rounded-lg p-2.5 text-xs shadow-2xs">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-[11px] shrink-0">
+                      <div className={cn(
+                        "w-7 h-7 rounded-full font-bold flex items-center justify-center text-[11px] shrink-0",
+                        selectedGhlContact
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-indigo-100 text-indigo-700",
+                      )}>
                         {selectedContactName.charAt(0).toUpperCase()}
                       </div>
                       <div className="truncate">
@@ -2669,8 +3106,13 @@ export default function ClientDetailPageClient({
                           <p className="font-bold text-slate-800 truncate leading-tight">
                             {selectedContactName}
                           </p>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-                            Linked
+                          <span className={cn(
+                            "text-[9px] px-1.5 py-0.5 rounded font-semibold border",
+                            selectedGhlContact
+                              ? "bg-purple-50 text-purple-700 border-purple-200"
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200",
+                          )}>
+                            {selectedGhlContact ? "GoHighLevel CRM" : "Linked"}
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">

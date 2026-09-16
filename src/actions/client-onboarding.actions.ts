@@ -3272,6 +3272,182 @@ export async function createContactForClientAction(data: {
 }
 
 /**
+ * Links a GoHighLevel contact directly to a client, upserting them into canonical contacts.
+ */
+export async function linkGhlContactToClientAction(
+  ghlContact: {
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    companyName?: string | null;
+  },
+  clientId: number,
+  isPrimary = false,
+) {
+  try {
+    const { orgId, userId } = await getSessionOrgId();
+    if (!orgId)
+      return { success: false as const, error: "No active organization" };
+
+    await ensureCrmSchema();
+
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(
+      clientId,
+      orgId,
+    );
+
+    let canonicalClientId = clientRecord?.id;
+    let clientName = clientRecord?.name || "";
+
+    if (!canonicalClientId && onboardingRecord) {
+      const [newClient] = await db
+        .insert(clients)
+        .values({
+          organizationId: orgId,
+          name: onboardingRecord.clientName,
+          status: onboardingRecord.status || "active",
+        })
+        .returning();
+      canonicalClientId = newClient.id;
+      clientName = newClient.name;
+    }
+
+    if (!canonicalClientId) {
+      return { success: false as const, error: "Client not found" };
+    }
+
+    if (isPrimary) {
+      await db
+        .update(contacts)
+        .set({ isPrimary: false })
+        .where(
+          and(
+            eq(contacts.clientId, canonicalClientId),
+            eq(contacts.organizationId, orgId),
+          ),
+        );
+    }
+
+    // Check if contact already exists by GHL ID or email
+    let existingContact = await db.query.contacts.findFirst({
+      where: and(
+        eq(contacts.organizationId, orgId),
+        or(
+          eq(contacts.ghlContactId, ghlContact.id),
+          ghlContact.email
+            ? eq(contacts.email, ghlContact.email.trim().toLowerCase())
+            : undefined,
+        ),
+      ),
+    });
+
+    let savedContact: any = null;
+
+    if (existingContact) {
+      const nameParts = (ghlContact.name || existingContact.name)
+        .trim()
+        .split(/\s+/);
+      const [updated] = await db
+        .update(contacts)
+        .set({
+          clientId: canonicalClientId,
+          ghlContactId: ghlContact.id,
+          name: ghlContact.name || existingContact.name,
+          firstName: nameParts[0] || existingContact.firstName,
+          lastName: nameParts.slice(1).join(" ") || existingContact.lastName,
+          email: ghlContact.email
+            ? ghlContact.email.trim().toLowerCase()
+            : existingContact.email,
+          phone: ghlContact.phone
+            ? ghlContact.phone.trim()
+            : existingContact.phone,
+          ...(isPrimary ? { isPrimary: true } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(contacts.id, existingContact.id))
+        .returning();
+      savedContact = updated;
+    } else {
+      const nameParts = (ghlContact.name || "Contact").trim().split(/\s+/);
+      const [inserted] = await db
+        .insert(contacts)
+        .values({
+          organizationId: orgId,
+          clientId: canonicalClientId,
+          ghlContactId: ghlContact.id,
+          name: (ghlContact.name || "Contact").trim(),
+          firstName: nameParts[0] || ghlContact.name,
+          lastName: nameParts.slice(1).join(" ") || null,
+          email: ghlContact.email
+            ? ghlContact.email.trim().toLowerCase()
+            : null,
+          phone: ghlContact.phone ? ghlContact.phone.trim() : null,
+          isPrimary: isPrimary,
+          status: "active",
+        })
+        .returning();
+      savedContact = inserted;
+    }
+
+    if (isPrimary && savedContact) {
+      await db
+        .update(clientOnboardings)
+        .set({
+          primaryContactName: savedContact.name,
+          contactEmail: savedContact.email || "",
+          contactPhone: savedContact.phone || null,
+          ghlContactId: savedContact.ghlContactId || ghlContact.id,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(clientOnboardings.organizationId, orgId),
+            or(
+              eq(clientOnboardings.id, clientId),
+              clientName
+                ? ilike(clientOnboardings.clientName, clientName.trim())
+                : undefined,
+            ),
+          ),
+        );
+    }
+
+    // Link any calls matching GHL contact ID
+    await db
+      .update(callRecords)
+      .set({ clientId: canonicalClientId, contactId: savedContact.id })
+      .where(
+        and(
+          eq(callRecords.ghlContactId, ghlContact.id),
+          eq(callRecords.organizationId, orgId),
+        ),
+      );
+
+    await logAction(
+      userId,
+      "LINK_GHL_CONTACT_TO_CLIENT",
+      "contacts",
+      savedContact.id,
+      {
+        clientId: canonicalClientId,
+        ghlContactId: ghlContact.id,
+        isPrimary,
+      },
+    );
+
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${clientId}`);
+    revalidatePath("/contacts");
+
+    return { success: true as const, contact: savedContact };
+  } catch (error: any) {
+    console.error("linkGhlContactToClientAction error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
  * Promotes an individual Contact into a new canonical Client business.
  */
 export async function promoteContactToClientAction(
