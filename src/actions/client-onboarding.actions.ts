@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
@@ -555,7 +555,9 @@ export async function createClientOnboardingAction(data: {
  */
 export async function updateClientOnboardingAction(
   id: number,
-  data: Partial<typeof clientOnboardings.$inferInsert>,
+  data: Partial<typeof clientOnboardings.$inferInsert> & {
+    contactId?: number | null;
+  },
 ) {
   try {
     const { orgId, userId } = await getSessionOrgId();
@@ -568,6 +570,8 @@ export async function updateClientOnboardingAction(
       return { success: false, error: "Client not found" };
     }
 
+    const { contactId, ...onboardingData } = data;
+
     const googleEnabledVal =
       data.googleEnabled !== undefined
         ? data.googleEnabled
@@ -579,7 +583,7 @@ export async function updateClientOnboardingAction(
       await db
         .update(clientOnboardings)
         .set({
-          ...data,
+          ...onboardingData,
           ...(googleEnabledVal !== undefined
             ? {
                 googleEnabled: googleEnabledVal,
@@ -628,7 +632,57 @@ export async function updateClientOnboardingAction(
         })
         .where(eq(clients.id, clientRecord.id));
 
-      if (data.primaryContactName || data.contactEmail || data.contactPhone) {
+      if (contactId) {
+        // Link this specific contact as primary
+        await db
+          .update(contacts)
+          .set({ isPrimary: false })
+          .where(
+            and(
+              eq(contacts.clientId, clientRecord.id),
+              eq(contacts.organizationId, orgId),
+            ),
+          );
+
+        const nameParts = (data.primaryContactName || "").trim().split(/\s+/);
+        await db
+          .update(contacts)
+          .set({
+            clientId: clientRecord.id,
+            isPrimary: true,
+            ...(data.primaryContactName
+              ? {
+                  name: data.primaryContactName.trim(),
+                  firstName: nameParts[0] || data.primaryContactName.trim(),
+                  lastName: nameParts.slice(1).join(" ") || null,
+                }
+              : {}),
+            ...(data.contactEmail
+              ? { email: data.contactEmail.trim().toLowerCase() }
+              : {}),
+            ...(data.contactPhone !== undefined
+              ? { phone: data.contactPhone ? data.contactPhone.trim() : null }
+              : {}),
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(contacts.id, contactId),
+              eq(contacts.organizationId, orgId),
+            ),
+          );
+
+        // Also associate call records for this contact
+        await db
+          .update(callRecords)
+          .set({ clientId: clientRecord.id })
+          .where(
+            and(
+              eq(callRecords.contactId, contactId),
+              eq(callRecords.organizationId, orgId),
+            ),
+          );
+      } else if (data.primaryContactName || data.contactEmail || data.contactPhone) {
         const existingContact = await db.query.contacts.findFirst({
           where: eq(contacts.clientId, clientRecord.id),
         });
@@ -657,6 +711,19 @@ export async function updateClientOnboardingAction(
               updatedAt: new Date(),
             })
             .where(eq(contacts.id, existingContact.id));
+        } else if (data.primaryContactName) {
+          const nameParts = data.primaryContactName.trim().split(/\s+/);
+          await db.insert(contacts).values({
+            organizationId: orgId,
+            clientId: clientRecord.id,
+            name: data.primaryContactName.trim(),
+            firstName: nameParts[0] || data.primaryContactName.trim(),
+            lastName: nameParts.slice(1).join(" ") || null,
+            email: data.contactEmail ? data.contactEmail.trim().toLowerCase() : null,
+            phone: data.contactPhone ? data.contactPhone.trim() : null,
+            isPrimary: true,
+            status: "active",
+          });
         }
       }
     }
@@ -2913,47 +2980,261 @@ export async function getCrmDirectoryDataAction() {
 }
 
 /**
+ * Retrieves all individual contacts in the current organization for quick-linking.
+ */
+export async function getOrgContactsAction() {
+  try {
+    const { orgId } = await getSessionOrgId();
+    if (!orgId)
+      return { success: false as const, error: "No active organization" };
+
+    await ensureCrmSchema();
+
+    const list = await db.query.contacts.findMany({
+      where: eq(contacts.organizationId, orgId),
+      orderBy: [asc(contacts.name)],
+      with: {
+        client: true,
+      },
+    });
+
+    return { success: true as const, contacts: list };
+  } catch (error: any) {
+    console.error("getOrgContactsAction error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
  * Assigns or unassigns a Contact to a canonical Client business.
  */
 export async function assignContactToClientAction(
   contactId: number,
   clientId: number | null,
+  isPrimary = false,
 ) {
   try {
     const { orgId, userId } = await getSessionOrgId();
     if (!orgId)
       return { success: false as const, error: "No active organization" };
 
-    await db
+    let canonicalClientId = clientId;
+    let clientName = "";
+
+    if (clientId) {
+      const { clientRecord, onboardingRecord } = await resolveClientRecords(
+        clientId,
+        orgId,
+      );
+      if (clientRecord) {
+        canonicalClientId = clientRecord.id;
+        clientName = clientRecord.name;
+      } else if (onboardingRecord) {
+        const [newClient] = await db
+          .insert(clients)
+          .values({
+            organizationId: orgId,
+            name: onboardingRecord.clientName,
+            status: onboardingRecord.status || "active",
+          })
+          .returning();
+        canonicalClientId = newClient.id;
+        clientName = newClient.name;
+      }
+    }
+
+    if (canonicalClientId && isPrimary) {
+      await db
+        .update(contacts)
+        .set({ isPrimary: false })
+        .where(
+          and(
+            eq(contacts.clientId, canonicalClientId),
+            eq(contacts.organizationId, orgId),
+          ),
+        );
+    }
+
+    const [updatedContact] = await db
       .update(contacts)
       .set({
-        clientId: clientId,
+        clientId: canonicalClientId,
+        ...(canonicalClientId && isPrimary ? { isPrimary: true } : {}),
         updatedAt: new Date(),
       })
       .where(
         and(eq(contacts.id, contactId), eq(contacts.organizationId, orgId)),
-      );
+      )
+      .returning();
 
     // Also link any existing call records for this contact to the client
-    if (clientId) {
+    if (canonicalClientId) {
       await db
         .update(callRecords)
-        .set({ clientId: clientId })
+        .set({ clientId: canonicalClientId })
         .where(
           and(
             eq(callRecords.contactId, contactId),
             eq(callRecords.organizationId, orgId),
           ),
         );
+
+      if (isPrimary && updatedContact) {
+        await db
+          .update(clientOnboardings)
+          .set({
+            primaryContactName: updatedContact.name,
+            contactEmail: updatedContact.email || "",
+            contactPhone: updatedContact.phone || null,
+            ghlPipelineStage: updatedContact.pipelineStage || null,
+            ghlContactId: updatedContact.ghlContactId || null,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(clientOnboardings.organizationId, orgId),
+              or(
+                eq(clientOnboardings.id, clientId!),
+                clientName
+                  ? ilike(clientOnboardings.clientName, clientName.trim())
+                  : undefined,
+              ),
+            ),
+          );
+      }
     }
 
     await logAction(userId, "ASSIGN_CONTACT_TO_CLIENT", "contacts", contactId, {
-      clientId,
+      clientId: canonicalClientId,
+      isPrimary,
     });
     revalidatePath("/clients");
-    return { success: true as const };
+    if (clientId) {
+      revalidatePath(`/clients/${clientId}`);
+      if (canonicalClientId && canonicalClientId !== clientId) {
+        revalidatePath(`/clients/${canonicalClientId}`);
+      }
+    }
+    revalidatePath("/contacts");
+    return { success: true as const, contact: updatedContact };
   } catch (error: any) {
     console.error("assignContactToClientAction error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
+ * Creates a new contact and immediately links it to a client.
+ */
+export async function createContactForClientAction(data: {
+  clientId: number;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  jobTitle?: string | null;
+  isPrimary?: boolean;
+}) {
+  try {
+    const { orgId, userId } = await getSessionOrgId();
+    if (!orgId)
+      return { success: false as const, error: "No active organization" };
+
+    await ensureCrmSchema();
+
+    const { clientRecord, onboardingRecord } = await resolveClientRecords(
+      data.clientId,
+      orgId,
+    );
+
+    let canonicalClientId = clientRecord?.id;
+    let clientName = clientRecord?.name || "";
+
+    if (!canonicalClientId && onboardingRecord) {
+      const [newClient] = await db
+        .insert(clients)
+        .values({
+          organizationId: orgId,
+          name: onboardingRecord.clientName,
+          status: onboardingRecord.status || "active",
+        })
+        .returning();
+      canonicalClientId = newClient.id;
+      clientName = newClient.name;
+    }
+
+    if (!canonicalClientId) {
+      return { success: false as const, error: "Client not found" };
+    }
+
+    if (data.isPrimary) {
+      await db
+        .update(contacts)
+        .set({ isPrimary: false })
+        .where(
+          and(
+            eq(contacts.clientId, canonicalClientId),
+            eq(contacts.organizationId, orgId),
+          ),
+        );
+    }
+
+    const nameParts = data.name.trim().split(/\s+/);
+    const [newContact] = await db
+      .insert(contacts)
+      .values({
+        organizationId: orgId,
+        clientId: canonicalClientId,
+        name: data.name.trim(),
+        firstName: nameParts[0] || data.name.trim(),
+        lastName: nameParts.slice(1).join(" ") || null,
+        email: data.email ? data.email.trim().toLowerCase() : null,
+        phone: data.phone ? data.phone.trim() : null,
+        jobTitle: data.jobTitle ? data.jobTitle.trim() : null,
+        isPrimary: data.isPrimary ?? false,
+        status: "active",
+      })
+      .returning();
+
+    if (data.isPrimary) {
+      await db
+        .update(clientOnboardings)
+        .set({
+          primaryContactName: data.name.trim(),
+          contactEmail: data.email ? data.email.trim().toLowerCase() : "",
+          contactPhone: data.phone ? data.phone.trim() : null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(clientOnboardings.organizationId, orgId),
+            or(
+              eq(clientOnboardings.id, data.clientId),
+              clientName
+                ? ilike(clientOnboardings.clientName, clientName.trim())
+                : undefined,
+            ),
+          ),
+        );
+    }
+
+    await logAction(
+      userId,
+      "CREATE_CLIENT_CONTACT",
+      "contacts",
+      newContact.id,
+      {
+        clientId: canonicalClientId,
+        isPrimary: data.isPrimary,
+      },
+    );
+
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${data.clientId}`);
+    revalidatePath("/contacts");
+
+    return { success: true as const, contact: newContact };
+  } catch (error: any) {
+    console.error("createContactForClientAction error:", error);
     return { success: false as const, error: error.message };
   }
 }

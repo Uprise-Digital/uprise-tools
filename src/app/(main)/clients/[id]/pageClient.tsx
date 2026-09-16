@@ -26,27 +26,34 @@ import {
   Play,
   RefreshCw,
   RotateCw,
+  Search,
   Send,
   SlidersHorizontal,
   Sparkles,
   Target,
   Trash2,
   User,
+  UserPlus,
+  Users,
+  X,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { listAccountsAction } from "@/actions/agency.actions";
 import {
+  assignContactToClientAction,
   associateAdAccountAction,
   associateMetaAdAccountAction,
   createClientGhlSubAccountAction,
+  createContactForClientAction,
   deleteClientOnboardingAction,
   finalizeOnboardingAction,
   getClientEmailLogsAction,
   getClientOnboardingByIdAction,
+  getOrgContactsAction,
   runOnboardingPipelineAction,
   sendOnboardingEmailAction,
   updateClientOnboardingAction,
@@ -68,6 +75,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner, TopProgressBar } from "@/components/ui/loading";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Sheet,
   SheetContent,
@@ -141,6 +153,24 @@ export default function ClientDetailPageClient({
   const [editMetaEnabled, setEditMetaEnabled] = useState(true);
   const [editGhlSubAccountId, setEditGhlSubAccountId] = useState("");
   const [isSavingClientDetails, setIsSavingClientDetails] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
+  const [selectedContactName, setSelectedContactName] = useState<string | null>(null);
+  const [isContactPickerOpen, setIsContactPickerOpen] = useState(false);
+  const [contactSearchQuery, setContactSearchQuery] = useState("");
+  const [orgContacts, setOrgContacts] = useState<any[]>([]);
+  const [loadingOrgContacts, setLoadingOrgContacts] = useState(false);
+
+  // Dedicated Client Contacts Management Modal
+  const [isContactsModalOpen, setIsContactsModalOpen] = useState(false);
+  const [contactsModalSearch, setContactsModalSearch] = useState("");
+  const [isLinkingContactId, setIsLinkingContactId] = useState<number | null>(null);
+  const [activeContactTab, setActiveContactTab] = useState<"list" | "link" | "new">("list");
+  const [newContactName, setNewContactName] = useState("");
+  const [newContactEmail, setNewContactEmail] = useState("");
+  const [newContactPhone, setNewContactPhone] = useState("");
+  const [newContactJobTitle, setNewContactJobTitle] = useState("");
+  const [newContactIsPrimary, setNewContactIsPrimary] = useState(false);
+  const [isCreatingContact, setIsCreatingContact] = useState(false);
 
   const loadClientDetails = useCallback(async () => {
     try {
@@ -258,6 +288,20 @@ export default function ClientDetailPageClient({
     }
   };
 
+  const loadOrgContacts = useCallback(async () => {
+    setLoadingOrgContacts(true);
+    try {
+      const res = await getOrgContactsAction();
+      if (res.success && res.contacts) {
+        setOrgContacts(res.contacts);
+      }
+    } catch (err) {
+      console.error("Failed to load contacts list:", err);
+    } finally {
+      setLoadingOrgContacts(false);
+    }
+  }, []);
+
   const openEditClientModal = () => {
     if (!client) return;
     setEditClientName(client.clientName || "");
@@ -269,7 +313,159 @@ export default function ClientDetailPageClient({
     );
     setEditMetaEnabled(client.metaEnabled ?? client.metaAdsAccess ?? true);
     setEditGhlSubAccountId(client.ghlSubAccountId || "");
+
+    const primaryCt =
+      client.contacts?.find((ct: any) => ct.isPrimary) ||
+      client.contacts?.[0];
+    if (primaryCt) {
+      setSelectedContactId(primaryCt.id);
+      setSelectedContactName(primaryCt.name);
+    } else {
+      setSelectedContactId(null);
+      setSelectedContactName(null);
+    }
+    setContactSearchQuery("");
     setIsEditClientOpen(true);
+    loadOrgContacts();
+  };
+
+  const handleSelectContactFromList = (contact: any) => {
+    setSelectedContactId(contact.id);
+    setSelectedContactName(contact.name);
+    setEditPrimaryContactName(contact.name);
+    if (contact.email) setEditContactEmail(contact.email);
+    if (contact.phone) setEditContactPhone(contact.phone);
+    setIsContactPickerOpen(false);
+    toast.success(`Selected "${contact.name}" from contacts list`);
+  };
+
+  const handleClearSelectedContact = () => {
+    setSelectedContactId(null);
+    setSelectedContactName(null);
+  };
+
+  const filteredOrgContacts = useMemo(() => {
+    if (!contactSearchQuery.trim()) return orgContacts;
+    const q = contactSearchQuery.toLowerCase().trim();
+    return orgContacts.filter((c: any) => {
+      const name = (c.name || "").toLowerCase();
+      const email = (c.email || "").toLowerCase();
+      const phone = (c.phone || "").toLowerCase();
+      const clientName = (c.client?.name || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        phone.includes(q) ||
+        clientName.includes(q)
+      );
+    });
+  }, [orgContacts, contactSearchQuery]);
+
+  const filteredModalContacts = useMemo(() => {
+    if (!contactsModalSearch.trim()) return orgContacts;
+    const q = contactsModalSearch.toLowerCase().trim();
+    return orgContacts.filter((c: any) => {
+      const name = (c.name || "").toLowerCase();
+      const email = (c.email || "").toLowerCase();
+      const phone = (c.phone || "").toLowerCase();
+      const clientName = (c.client?.name || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        phone.includes(q) ||
+        clientName.includes(q)
+      );
+    });
+  }, [orgContacts, contactsModalSearch]);
+
+  const openContactsModal = () => {
+    setIsContactsModalOpen(true);
+    setActiveContactTab("list");
+    setContactsModalSearch("");
+    loadOrgContacts();
+  };
+
+  const handleQuickLinkContactToClient = async (
+    contactId: number,
+    makePrimary = false,
+  ) => {
+    if (!client) return;
+    setIsLinkingContactId(contactId);
+    try {
+      const res = await assignContactToClientAction(
+        contactId,
+        client.id,
+        makePrimary,
+      );
+      if (res.success) {
+        toast.success(
+          makePrimary
+            ? "Contact linked as primary contact!"
+            : "Contact linked to client!",
+        );
+        await Promise.all([loadClientDetails(), loadOrgContacts()]);
+      } else {
+        toast.error(res.error || "Failed to link contact");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to link contact");
+    } finally {
+      setIsLinkingContactId(null);
+    }
+  };
+
+  const handleQuickUnlinkContact = async (contactId: number) => {
+    if (!client) return;
+    setIsLinkingContactId(contactId);
+    try {
+      const res = await assignContactToClientAction(contactId, null);
+      if (res.success) {
+        toast.success("Contact unlinked from client");
+        await Promise.all([loadClientDetails(), loadOrgContacts()]);
+      } else {
+        toast.error(res.error || "Failed to unlink contact");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to unlink contact");
+    } finally {
+      setIsLinkingContactId(null);
+    }
+  };
+
+  const handleCreateNewContactForClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!client || !newContactName.trim()) {
+      toast.error("Contact name is required.");
+      return;
+    }
+    setIsCreatingContact(true);
+    try {
+      const res = await createContactForClientAction({
+        clientId: client.id,
+        name: newContactName.trim(),
+        email: newContactEmail.trim() || null,
+        phone: newContactPhone.trim() || null,
+        jobTitle: newContactJobTitle.trim() || null,
+        isPrimary: newContactIsPrimary,
+      });
+
+      if (res.success) {
+        toast.success(`Contact "${newContactName.trim()}" created and linked!`);
+        setNewContactName("");
+        setNewContactEmail("");
+        setNewContactPhone("");
+        setNewContactJobTitle("");
+        setNewContactIsPrimary(false);
+        setActiveContactTab("list");
+        await Promise.all([loadClientDetails(), loadOrgContacts()]);
+      } else {
+        toast.error(res.error || "Failed to create contact");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create contact");
+    } finally {
+      setIsCreatingContact(false);
+    }
   };
 
   const handleSaveClientDetails = async (e: React.FormEvent) => {
@@ -301,22 +497,12 @@ export default function ClientDetailPageClient({
         googleAdsAccess: editGoogleEnabled,
         metaAdsAccess: editMetaEnabled,
         ghlSubAccountId: editGhlSubAccountId.trim() || null,
+        contactId: selectedContactId,
       });
 
       if (res.success) {
         toast.success("Client details updated successfully!");
-        setClient({
-          ...client,
-          clientName: editClientName.trim(),
-          primaryContactName: editPrimaryContactName.trim(),
-          contactEmail: editContactEmail.trim(),
-          contactPhone: editContactPhone.trim() || null,
-          googleEnabled: editGoogleEnabled,
-          metaEnabled: editMetaEnabled,
-          googleAdsAccess: editGoogleEnabled,
-          metaAdsAccess: editMetaEnabled,
-          ghlSubAccountId: editGhlSubAccountId.trim() || null,
-        });
+        await loadClientDetails();
         setIsEditClientOpen(false);
       } else {
         toast.error(res.error || "Failed to update client details.");
@@ -627,6 +813,16 @@ export default function ClientDetailPageClient({
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
+            onClick={openContactsModal}
+            className="bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs h-8 px-3 rounded-lg flex items-center gap-1.5 shadow-xs border-slate-200 cursor-pointer"
+            title="Manage and Add Client Contacts"
+          >
+            <Users className="h-3.5 w-3.5 text-indigo-600" />
+            Contacts ({client.contacts?.length || (client.primaryContactName ? 1 : 0)})
+          </Button>
+
+          <Button
+            variant="outline"
             onClick={openEditClientModal}
             className="bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs h-8 px-3 rounded-lg flex items-center gap-1.5 shadow-xs border-slate-200 cursor-pointer"
             title="Edit Client & Contact Details"
@@ -794,11 +990,20 @@ export default function ClientDetailPageClient({
         {/* Contact Meta Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
           <div className="bg-slate-50/80 border border-slate-200/60 rounded-xl p-3 space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <User className="h-3 w-3" /> Primary Contact
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                <User className="h-3 w-3" /> Primary Contact
+              </span>
+              <button
+                type="button"
+                onClick={openContactsModal}
+                className="text-[10px] text-indigo-600 hover:text-indigo-700 font-bold hover:underline cursor-pointer"
+              >
+                Manage ({client.contacts?.length || (client.primaryContactName ? 1 : 0)})
+              </button>
+            </div>
             <p className="text-xs font-bold text-slate-800 truncate">
-              {client.primaryContactName}
+              {client.primaryContactName || "Not assigned"}
             </p>
           </div>
 
@@ -1808,6 +2013,421 @@ export default function ClientDetailPageClient({
         </DialogContent>
       </Dialog>
 
+      {/* 6. Client Contacts Management Dialog */}
+      <Dialog open={isContactsModalOpen} onOpenChange={setIsContactsModalOpen}>
+        <DialogContent className="max-w-2xl bg-white rounded-2xl shadow-2xl p-0 overflow-hidden border-slate-200">
+          <DialogHeader className="px-6 py-5 border-b border-slate-100 bg-slate-50/70">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs shrink-0">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base font-bold text-slate-900 leading-snug">
+                    Client Contacts — {client.clientName}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500 mt-0.5">
+                    Manage connected team members, add contacts from your contacts list, or create new contacts.
+                  </DialogDescription>
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex gap-2 pt-3 border-t border-slate-200/60 mt-3">
+              <button
+                type="button"
+                onClick={() => setActiveContactTab("list")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                  activeContactTab === "list"
+                    ? "bg-white text-indigo-700 shadow-xs border border-slate-200"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/80",
+                )}
+              >
+                <Users className="h-3.5 w-3.5" />
+                Linked Contacts ({client.contacts?.length || 0})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveContactTab("link")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                  activeContactTab === "link"
+                    ? "bg-white text-indigo-700 shadow-xs border border-slate-200"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/80",
+                )}
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                Add from Contacts List
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveContactTab("new")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                  activeContactTab === "new"
+                    ? "bg-white text-indigo-700 shadow-xs border border-slate-200"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/80",
+                )}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                + Create New Contact
+              </button>
+            </div>
+          </DialogHeader>
+
+          <div className="p-6 max-h-[60vh] overflow-y-auto">
+            {/* TAB 1: Currently Linked Contacts */}
+            {activeContactTab === "list" && (
+              <div className="space-y-3">
+                {!client.contacts || client.contacts.length === 0 ? (
+                  <div className="py-12 text-center space-y-3 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                    <Users className="h-8 w-8 text-slate-300 mx-auto" />
+                    <div>
+                      <p className="text-sm font-bold text-slate-700">
+                        No contacts connected yet
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                        Connect people to {client.clientName} from your agency contacts list to track calls and communications.
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <Button
+                        size="sm"
+                        onClick={() => setActiveContactTab("link")}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold gap-1.5 cursor-pointer"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        Add from Contacts List
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {client.contacts.map((ct: any) => {
+                      const isPrimary = ct.isPrimary;
+                      return (
+                        <div
+                          key={ct.id}
+                          className={cn(
+                            "p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 bg-white",
+                            isPrimary
+                              ? "border-emerald-200 shadow-xs bg-emerald-50/20"
+                              : "border-slate-200 hover:border-slate-300",
+                          )}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div
+                              className={cn(
+                                "w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0",
+                                isPrimary
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-slate-100 text-slate-700",
+                              )}
+                            >
+                              {ct.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="space-y-0.5 min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-slate-900 truncate">
+                                  {ct.name}
+                                </span>
+                                {isPrimary && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    Primary Contact
+                                  </span>
+                                )}
+                                {ct.jobTitle && (
+                                  <span className="text-[10px] text-slate-400 font-medium truncate">
+                                    {ct.jobTitle}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500 truncate flex items-center gap-3">
+                                {ct.email && (
+                                  <a
+                                    href={`mailto:${ct.email}`}
+                                    className="hover:text-indigo-600 truncate flex items-center gap-1"
+                                  >
+                                    <Mail className="h-3 w-3 text-slate-400" />
+                                    {ct.email}
+                                  </a>
+                                )}
+                                {ct.phone && (
+                                  <a
+                                    href={`tel:${ct.phone}`}
+                                    className="hover:text-indigo-600 shrink-0 flex items-center gap-1"
+                                  >
+                                    <Phone className="h-3 w-3 text-slate-400" />
+                                    {ct.phone}
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {!isPrimary && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={isLinkingContactId === ct.id}
+                                onClick={() =>
+                                  handleQuickLinkContactToClient(ct.id, true)
+                                }
+                                className="h-7 text-[11px] font-semibold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                              >
+                                {isLinkingContactId === ct.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  "Make Primary"
+                                )}
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={isLinkingContactId === ct.id}
+                              onClick={() => handleQuickUnlinkContact(ct.id)}
+                              className="h-7 text-[11px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                              title="Unlink contact from this client"
+                            >
+                              Unlink
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: Quick Link from Agency Contacts List */}
+            {activeContactTab === "link" && (
+              <div className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Search agency contacts by name, email, or phone..."
+                    value={contactsModalSearch}
+                    onChange={(e) => setContactsModalSearch(e.target.value)}
+                    className="pl-9 text-xs h-9 bg-slate-50/80 border-slate-200"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  {loadingOrgContacts ? (
+                    <div className="py-12 text-center text-xs text-slate-400">
+                      <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                      Loading contacts directory...
+                    </div>
+                  ) : filteredModalContacts.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-slate-400">
+                      No contacts found matching &ldquo;{contactsModalSearch}&rdquo;.
+                    </div>
+                  ) : (
+                    filteredModalContacts.map((ct: any) => {
+                      const isAlreadyLinked =
+                        ct.clientId === client.id ||
+                        client.contacts?.some((c: any) => c.id === ct.id);
+                      return (
+                        <div
+                          key={ct.id}
+                          className={cn(
+                            "p-3 rounded-xl border transition-all flex items-center justify-between gap-3",
+                            isAlreadyLinked
+                              ? "bg-slate-50/80 border-slate-200 opacity-70"
+                              : "bg-white border-slate-200 hover:border-indigo-200 hover:shadow-xs",
+                          )}
+                        >
+                          <div className="space-y-0.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-800 truncate">
+                                {ct.name}
+                              </span>
+                              {ct.jobTitle && (
+                                <span className="text-[10px] text-slate-400 truncate">
+                                  ({ct.jobTitle})
+                                </span>
+                              )}
+                              {isAlreadyLinked && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
+                                  Already Linked
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate flex items-center gap-2">
+                              {ct.email && <span>{ct.email}</span>}
+                              {ct.phone && (
+                                <span className="text-slate-400">
+                                  • {ct.phone}
+                                </span>
+                              )}
+                              {ct.client?.name && !isAlreadyLinked && (
+                                <span className="text-[10px] text-amber-700 bg-amber-50 px-1 rounded border border-amber-200/50">
+                                  Currently linked to {ct.client.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isAlreadyLinked ? (
+                              <span className="text-xs text-slate-400 font-medium">
+                                Connected
+                              </span>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={isLinkingContactId === ct.id}
+                                  onClick={() =>
+                                    handleQuickLinkContactToClient(ct.id, false)
+                                  }
+                                  className="h-7 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50 border-indigo-200 cursor-pointer"
+                                >
+                                  {isLinkingContactId === ct.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    "+ Add to Client"
+                                  )}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  disabled={isLinkingContactId === ct.id}
+                                  onClick={() =>
+                                    handleQuickLinkContactToClient(ct.id, true)
+                                  }
+                                  className="h-7 text-[11px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+                                  title="Add and make primary contact"
+                                >
+                                  + Add as Primary
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: Create New Contact */}
+            {activeContactTab === "new" && (
+              <form
+                onSubmit={handleCreateNewContactForClient}
+                className="space-y-4"
+              >
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="modalNewContactName"
+                    className="text-xs font-semibold text-slate-700 flex items-center gap-1"
+                  >
+                    Contact Full Name <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="modalNewContactName"
+                    value={newContactName}
+                    onChange={(e) => setNewContactName(e.target.value)}
+                    placeholder="e.g. Sarah Jenkins"
+                    className="h-9 text-xs"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="modalNewContactEmail"
+                      className="text-xs font-semibold text-slate-700"
+                    >
+                      Email Address
+                    </Label>
+                    <Input
+                      id="modalNewContactEmail"
+                      type="email"
+                      value={newContactEmail}
+                      onChange={(e) => setNewContactEmail(e.target.value)}
+                      placeholder="sarah@client.com"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="modalNewContactPhone"
+                      className="text-xs font-semibold text-slate-700"
+                    >
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="modalNewContactPhone"
+                      type="tel"
+                      value={newContactPhone}
+                      onChange={(e) => setNewContactPhone(e.target.value)}
+                      placeholder="+61 400 000 000"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="modalNewContactJobTitle"
+                    className="text-xs font-semibold text-slate-700"
+                  >
+                    Role / Job Title (Optional)
+                  </Label>
+                  <Input
+                    id="modalNewContactJobTitle"
+                    value={newContactJobTitle}
+                    onChange={(e) => setNewContactJobTitle(e.target.value)}
+                    placeholder="e.g. Operations Manager"
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newContactIsPrimary}
+                      onChange={(e) =>
+                        setNewContactIsPrimary(e.target.checked)
+                      }
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                    />
+                    <span className="text-xs font-semibold text-slate-700">
+                      Set as Primary Contact for {client.clientName}
+                    </span>
+                  </label>
+
+                  <Button
+                    type="submit"
+                    disabled={isCreatingContact || !newContactName.trim()}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs h-8 px-4 cursor-pointer gap-1.5"
+                  >
+                    {isCreatingContact ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <UserPlus className="h-3.5 w-3.5" />
+                    )}
+                    Save &amp; Link Contact
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 5. Edit Client Details Sidebar */}
       <Sheet open={isEditClientOpen} onOpenChange={setIsEditClientOpen}>
         <SheetContent
@@ -1868,6 +2488,177 @@ export default function ClientDetailPageClient({
                   Displayed across agency dashboards, reports, and
                   communications.
                 </p>
+              </div>
+
+              {/* Quick Select from Contacts Directory */}
+              <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-indigo-600" />
+                    Contacts Directory
+                  </span>
+                  <Popover
+                    open={isContactPickerOpen}
+                    onOpenChange={setIsContactPickerOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 font-semibold shadow-2xs gap-1.5 cursor-pointer"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        Choose from Contacts List
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      side="bottom"
+                      align="end"
+                      className="w-80 sm:w-96 p-3 z-[70] shadow-2xl border-slate-200 bg-white"
+                    >
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">
+                              Agency Contacts List
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              Select a contact to auto-fill and link
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {filteredOrgContacts.length} contacts
+                          </span>
+                        </div>
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                          <Input
+                            placeholder="Search by name, email, phone..."
+                            value={contactSearchQuery}
+                            onChange={(e) =>
+                              setContactSearchQuery(e.target.value)
+                            }
+                            className="h-8 pl-8 text-xs bg-slate-50 border-slate-200"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="max-h-56 overflow-y-auto space-y-1 divide-y divide-slate-50">
+                          {loadingOrgContacts ? (
+                            <div className="py-6 text-center text-xs text-slate-400">
+                              <Loader2 className="h-4 w-4 animate-spin mx-auto mb-1 text-indigo-600" />
+                              Loading contacts...
+                            </div>
+                          ) : filteredOrgContacts.length === 0 ? (
+                            <div className="py-6 text-center text-xs text-slate-400">
+                              No matching contacts found.
+                            </div>
+                          ) : (
+                            filteredOrgContacts.map((ct: any) => {
+                              const isSelected =
+                                selectedContactId === ct.id ||
+                                (editContactEmail &&
+                                  ct.email?.toLowerCase() ===
+                                    editContactEmail.toLowerCase());
+                              return (
+                                <button
+                                  key={ct.id}
+                                  type="button"
+                                  onClick={() =>
+                                    handleSelectContactFromList(ct)
+                                  }
+                                  className={cn(
+                                    "w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-colors flex items-start justify-between gap-2 group cursor-pointer",
+                                    isSelected &&
+                                      "bg-indigo-50/70 border border-indigo-100",
+                                  )}
+                                >
+                                  <div className="space-y-0.5 min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 truncate">
+                                        {ct.name}
+                                      </span>
+                                      {ct.jobTitle && (
+                                        <span className="text-[10px] text-slate-400 truncate">
+                                          ({ct.jobTitle})
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 truncate flex items-center gap-2">
+                                      {ct.email && (
+                                        <span className="truncate">
+                                          {ct.email}
+                                        </span>
+                                      )}
+                                      {ct.phone && (
+                                        <span className="shrink-0 text-slate-400">
+                                          • {ct.phone}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    {isSelected ? (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold flex items-center gap-0.5">
+                                        <Check className="h-3 w-3" /> Selected
+                                      </span>
+                                    ) : ct.client?.name ? (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                                        {ct.client.name}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium border border-amber-200/60">
+                                        Unassigned
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {selectedContactName ? (
+                  <div className="flex items-center justify-between bg-white border border-indigo-200/90 rounded-lg p-2.5 text-xs shadow-2xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-[11px] shrink-0">
+                        {selectedContactName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="truncate">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-bold text-slate-800 truncate leading-tight">
+                            {selectedContactName}
+                          </p>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                            Linked
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">
+                          {editContactEmail ||
+                            editContactPhone ||
+                            "Contact details applied"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearSelectedContact}
+                      className="text-[11px] text-slate-400 hover:text-rose-600 font-medium shrink-0 ml-2 cursor-pointer"
+                      title="Clear contact link"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-indigo-900/70 leading-relaxed">
+                    Quickly autofill and link a contact from your agency contacts
+                    directory, or enter details manually below.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
