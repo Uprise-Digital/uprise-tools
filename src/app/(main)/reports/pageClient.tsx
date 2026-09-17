@@ -5,10 +5,14 @@ import {
   Calendar,
   CheckSquare,
   Clock,
+  FileText,
   HeartPulse,
   Mail,
+  Pause,
+  Play,
   Plus,
   Save,
+  Search,
   Send,
   Settings,
   Sparkles,
@@ -17,15 +21,24 @@ import {
   X,
 } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { triggerManualQueueTestAction } from "@/actions/automation.actions";
 import { sendMorningBriefingAction } from "@/actions/briefing.actions";
 import { saveBriefingSettingsAction } from "@/actions/briefing-settings.actions";
+import {
+  type ClientReportAccountItem,
+  type ClientReportAutomationOverview,
+  toggleClientScheduleActiveAction,
+  toggleGlobalClientReportAction,
+} from "@/actions/client-report-automation.actions";
 import {
   saveWeeklyClientReportSettingsAction,
   sendWeeklyClientReportAction,
   type WeeklyClientReportSettingsData,
 } from "@/actions/weekly-client-report.actions";
+import { ReportAutomationTrigger } from "@/components/reportAutomationTrigger";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,6 +49,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TopProgressBar } from "@/components/ui/loading";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 interface TeamMember {
@@ -66,17 +80,19 @@ interface BriefingSettingsData {
 interface ReportsClientProps {
   initialSettings: BriefingSettingsData | null;
   initialWeeklySettings: WeeklyClientReportSettingsData | null;
+  initialClientReportOverview: ClientReportAutomationOverview | null;
   teamMembers: TeamMember[];
 }
 
 export default function ReportsClient({
   initialSettings,
   initialWeeklySettings,
+  initialClientReportOverview,
   teamMembers,
 }: ReportsClientProps) {
-  // Tab state: "daily_briefing" | "weekly_client_report"
+  // Tab state: "daily_briefing" | "weekly_client_report" | "client_reports"
   const [activeTab, setActiveTab] = useState<
-    "daily_briefing" | "weekly_client_report"
+    "daily_briefing" | "weekly_client_report" | "client_reports"
   >("daily_briefing");
 
   // 1. Daily Morning Briefing State
@@ -322,6 +338,168 @@ export default function ReportsClient({
     }));
   };
 
+  // ── Automated Client Reports State & Handlers ──
+  const [clientReportOverview, setClientReportOverview] =
+    useState<ClientReportAutomationOverview | null>(
+      initialClientReportOverview,
+    );
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientFilter, setClientFilter] = useState<
+    "all" | "active" | "paused" | "unscheduled"
+  >("all");
+  const [isTogglingGlobal, setIsTogglingGlobal] = useState(false);
+  const [togglingScheduleId, setTogglingScheduleId] = useState<number | null>(
+    null,
+  );
+  const [testingScheduleId, setTestingScheduleId] = useState<number | null>(
+    null,
+  );
+
+  const handleToggleGlobal = async (checked: boolean) => {
+    setIsTogglingGlobal(true);
+    setClientReportOverview((prev) =>
+      prev ? { ...prev, isGloballyActive: checked } : prev,
+    );
+
+    try {
+      const res = await toggleGlobalClientReportAction(checked);
+      if (res.success) {
+        toast.success(
+          checked
+            ? "Automated client report sending is enabled"
+            : "Automated client report sending is globally paused",
+        );
+      } else {
+        throw new Error(res.error);
+      }
+    } catch (err: any) {
+      setClientReportOverview((prev) =>
+        prev ? { ...prev, isGloballyActive: !checked } : prev,
+      );
+      toast.error(err.message || "Failed to update global status");
+    } finally {
+      setIsTogglingGlobal(false);
+    }
+  };
+
+  const handleToggleSchedule = async (scheduleId: number, checked: boolean) => {
+    setTogglingScheduleId(scheduleId);
+    setClientReportOverview((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        summary: {
+          ...prev.summary,
+          activeSchedules: checked
+            ? prev.summary.activeSchedules + 1
+            : Math.max(0, prev.summary.activeSchedules - 1),
+          pausedSchedules: !checked
+            ? prev.summary.pausedSchedules + 1
+            : Math.max(0, prev.summary.pausedSchedules - 1),
+        },
+        items: prev.items.map((item) =>
+          item.scheduleId === scheduleId
+            ? { ...item, isActive: checked }
+            : item,
+        ),
+      };
+    });
+
+    try {
+      const res = await toggleClientScheduleActiveAction(scheduleId, checked);
+      if (res.success) {
+        toast.success(
+          checked ? "Client schedule resumed" : "Client schedule paused",
+        );
+      } else {
+        throw new Error(res.error);
+      }
+    } catch (err: any) {
+      setClientReportOverview((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          summary: {
+            ...prev.summary,
+            activeSchedules: !checked
+              ? prev.summary.activeSchedules + 1
+              : Math.max(0, prev.summary.activeSchedules - 1),
+            pausedSchedules: checked
+              ? prev.summary.pausedSchedules + 1
+              : Math.max(0, prev.summary.pausedSchedules - 1),
+          },
+          items: prev.items.map((item) =>
+            item.scheduleId === scheduleId
+              ? { ...item, isActive: !checked }
+              : item,
+          ),
+        };
+      });
+      toast.error(err.message || "Failed to toggle schedule");
+    } finally {
+      setTogglingScheduleId(null);
+    }
+  };
+
+  const handleTriggerTest = async (item: ClientReportAccountItem) => {
+    if (!item.scheduleId) return;
+    setTestingScheduleId(item.scheduleId);
+    const toastId = toast.loading(
+      `Sending test report for ${item.accountName}...`,
+    );
+
+    try {
+      const res = await triggerManualQueueTestAction({
+        scheduleId: item.scheduleId,
+        googleAccountId: item.googleAccountId,
+        clientName: item.accountName,
+        isTest: true,
+      });
+
+      if (res.success) {
+        toast.success(
+          `Test report sent to ${item.recipientEmail || "client"}`,
+          { id: toastId },
+        );
+      } else {
+        throw new Error(res.error);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send test report", { id: toastId });
+    } finally {
+      setTestingScheduleId(null);
+    }
+  };
+
+  const filteredClientItems = useMemo(() => {
+    if (!clientReportOverview?.items) return [];
+    return clientReportOverview.items.filter((item) => {
+      // 1. Status Filter
+      if (clientFilter === "active" && (!item.hasSchedule || !item.isActive)) {
+        return false;
+      }
+      if (clientFilter === "paused" && (!item.hasSchedule || item.isActive)) {
+        return false;
+      }
+      if (clientFilter === "unscheduled" && item.hasSchedule) {
+        return false;
+      }
+
+      // 2. Search Filter
+      if (clientSearch.trim()) {
+        const query = clientSearch.toLowerCase();
+        const nameMatch = item.accountName.toLowerCase().includes(query);
+        const idMatch = item.googleAccountId.toLowerCase().includes(query);
+        const emailMatch = (item.recipientEmail || "")
+          .toLowerCase()
+          .includes(query);
+        return nameMatch || idMatch || emailMatch;
+      }
+
+      return true;
+    });
+  }, [clientReportOverview?.items, clientFilter, clientSearch]);
+
   return (
     <div className="space-y-8 md:p-8 max-w-6xl mx-auto relative">
       <TopProgressBar
@@ -397,6 +575,19 @@ export default function ReportsClient({
           >
             <BarChart3 className="h-3.5 w-3.5 text-indigo-600" />📊 Weekly
             Client Retention Report
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("client_reports")}
+            className={cn(
+              "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer",
+              activeTab === "client_reports"
+                ? "bg-white text-indigo-700 shadow-xs border border-slate-200/80"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60",
+            )}
+          >
+            <FileText className="h-3.5 w-3.5 text-indigo-600" />📑 Automated
+            Client Reports
           </button>
         </div>
       </div>
@@ -1220,6 +1411,478 @@ export default function ReportsClient({
               </Card>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TAB 3: AUTOMATED CLIENT REPORTS                               */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {activeTab === "client_reports" && (
+        <div className="space-y-8 animate-in fade-in-50 duration-200">
+          {/* Top Quick Status & Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Card 1: Global Engine Status */}
+            <Card className="py-5 shadow-xs border-slate-200 overflow-hidden relative bg-white">
+              <div
+                className={cn(
+                  "absolute top-0 left-0 w-full h-1.5",
+                  clientReportOverview?.isGloballyActive
+                    ? "bg-emerald-500"
+                    : "bg-amber-500",
+                )}
+              />
+              <CardHeader className="pb-2">
+                <CardDescription className="text-xs uppercase font-bold tracking-wider text-slate-400">
+                  Global Sending Engine
+                </CardDescription>
+                <CardTitle className="flex items-center justify-between text-xl font-bold">
+                  {clientReportOverview?.isGloballyActive ? (
+                    <span className="flex items-center gap-2 text-emerald-600">
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+                      </span>
+                      Active
+                    </span>
+                  ) : (
+                    <span className="text-amber-600 flex items-center gap-2">
+                      <Pause className="h-4 w-4" />
+                      Globally Paused
+                    </span>
+                  )}
+                  <Switch
+                    checked={clientReportOverview?.isGloballyActive ?? true}
+                    onCheckedChange={handleToggleGlobal}
+                    disabled={isTogglingGlobal}
+                    className="cursor-pointer"
+                  />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-slate-500">
+                  {clientReportOverview?.isGloballyActive
+                    ? "All active client schedules run according to their cadence."
+                    : "All automated client sending is paused across the agency."}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Card 2: Active Automations */}
+            <Card className="py-5 shadow-xs border-slate-200 bg-white">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-xs uppercase font-bold tracking-wider text-slate-400">
+                  Active Automations
+                </CardDescription>
+                <CardTitle className="text-2xl font-bold text-slate-900">
+                  {clientReportOverview?.summary.activeSchedules ?? 0}
+                  <span className="text-sm font-normal text-slate-400 ml-1.5">
+                    / {clientReportOverview?.summary.configuredSchedules ?? 0}{" "}
+                    configured
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-slate-500">
+                  {clientReportOverview?.summary.pausedSchedules ?? 0}{" "}
+                  schedule(s) paused on a case-by-case basis.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Card 3: Total Clients Covered */}
+            <Card className="py-5 shadow-xs border-slate-200 bg-white">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-xs uppercase font-bold tracking-wider text-slate-400">
+                  Total Clients
+                </CardDescription>
+                <CardTitle className="text-2xl font-bold text-slate-900">
+                  {clientReportOverview?.summary.totalAccounts ?? 0}
+                  <span className="text-sm font-normal text-slate-400 ml-1.5">
+                    active accounts
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-slate-500">
+                  {(
+                    ((clientReportOverview?.summary.configuredSchedules ?? 0) /
+                      Math.max(
+                        1,
+                        clientReportOverview?.summary.totalAccounts ?? 1,
+                      )) *
+                    100
+                  ).toFixed(0)}
+                  % have automation configured.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Card 4: Last Dispatched */}
+            <Card className="py-5 shadow-xs border-slate-200 bg-white">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-xs uppercase font-bold tracking-wider text-slate-400">
+                  Last Dispatched
+                </CardDescription>
+                <CardTitle className="text-lg font-bold text-slate-900 truncate">
+                  {clientReportOverview?.summary.lastDispatchedAt
+                    ? new Date(
+                        clientReportOverview.summary.lastDispatchedAt,
+                      ).toLocaleDateString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : "No Dispatches Yet"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-slate-500">
+                  Dispatched by daily cron on scheduled day of month.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Master Pause / Resume Global Banner */}
+          <div
+            className={cn(
+              "rounded-2xl p-5 border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4",
+              clientReportOverview?.isGloballyActive
+                ? "bg-slate-50/80 border-slate-200/80"
+                : "bg-amber-50/90 border-amber-200 text-amber-950",
+            )}
+          >
+            <div className="flex items-center gap-3.5">
+              <div
+                className={cn(
+                  "p-2.5 rounded-xl shrink-0",
+                  clientReportOverview?.isGloballyActive
+                    ? "bg-indigo-50 text-indigo-600"
+                    : "bg-amber-100 text-amber-700",
+                )}
+              >
+                <Mail className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-900">
+                  {clientReportOverview?.isGloballyActive
+                    ? "Automated Client Report Sending is Enabled"
+                    : "Automated Client Report Sending is Globally Paused"}
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {clientReportOverview?.isGloballyActive
+                    ? "Monthly performance PDF reports and AI executive summaries will be emailed automatically on each client's configured day of month."
+                    : "All automatic cron sends are suspended across all clients. Individual schedule toggles below remain saved for when you resume."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="text-xs font-semibold text-slate-600">
+                {clientReportOverview?.isGloballyActive
+                  ? "Pause All Reports"
+                  : "Resume All Reports"}
+              </span>
+              <Switch
+                checked={clientReportOverview?.isGloballyActive ?? true}
+                onCheckedChange={handleToggleGlobal}
+                disabled={isTogglingGlobal}
+                className="cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* Interactive Client Reports Table Card */}
+          <Card className="shadow-xs border-slate-200 overflow-hidden bg-white">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    Client Automation Schedules & Toggles
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500 mt-1">
+                    Manage report automation on a case-by-case basis. Use the
+                    toggles to enable or pause individual clients.
+                  </CardDescription>
+                </div>
+
+                {/* Filter and Search Bar */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="relative min-w-[220px]">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                    <Input
+                      placeholder="Search client, ID, or email..."
+                      value={clientSearch}
+                      onChange={(e) => setClientSearch(e.target.value)}
+                      className="pl-8 text-xs h-9 bg-slate-50/50 border-slate-200"
+                    />
+                  </div>
+
+                  <div className="flex items-center bg-slate-100 p-1 rounded-lg text-xs font-medium text-slate-600">
+                    <button
+                      type="button"
+                      onClick={() => setClientFilter("all")}
+                      className={cn(
+                        "px-2.5 py-1 rounded-md transition-all cursor-pointer",
+                        clientFilter === "all"
+                          ? "bg-white text-slate-900 shadow-xs font-bold"
+                          : "hover:text-slate-900",
+                      )}
+                    >
+                      All ({clientReportOverview?.items.length || 0})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClientFilter("active")}
+                      className={cn(
+                        "px-2.5 py-1 rounded-md transition-all cursor-pointer",
+                        clientFilter === "active"
+                          ? "bg-white text-emerald-700 shadow-xs font-bold"
+                          : "hover:text-slate-900",
+                      )}
+                    >
+                      Active (
+                      {clientReportOverview?.summary.activeSchedules || 0})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClientFilter("paused")}
+                      className={cn(
+                        "px-2.5 py-1 rounded-md transition-all cursor-pointer",
+                        clientFilter === "paused"
+                          ? "bg-white text-amber-700 shadow-xs font-bold"
+                          : "hover:text-slate-900",
+                      )}
+                    >
+                      Paused (
+                      {clientReportOverview?.summary.pausedSchedules || 0})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClientFilter("unscheduled")}
+                      className={cn(
+                        "px-2.5 py-1 rounded-md transition-all cursor-pointer",
+                        clientFilter === "unscheduled"
+                          ? "bg-white text-slate-900 shadow-xs font-bold"
+                          : "hover:text-slate-900",
+                      )}
+                    >
+                      Unconfigured
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/75 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+                      <th className="py-3 px-4">Client Account</th>
+                      <th className="py-3 px-4">Schedule</th>
+                      <th className="py-3 px-4">Recipient(s)</th>
+                      <th className="py-3 px-4">AI Summary</th>
+                      <th className="py-3 px-4">Last Dispatched</th>
+                      <th className="py-3 px-4 text-center">Status / Toggle</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredClientItems.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="py-8 text-center text-slate-400"
+                        >
+                          No client report schedules match your criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredClientItems.map((item) => (
+                        <tr
+                          key={item.adAccountId}
+                          className="hover:bg-slate-50/50 transition-colors"
+                        >
+                          <td className="py-3 px-4 font-semibold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  "w-2 h-2 rounded-full shrink-0",
+                                  item.hasSchedule && item.isActive
+                                    ? "bg-emerald-500"
+                                    : item.hasSchedule
+                                      ? "bg-amber-400"
+                                      : "bg-slate-300",
+                                )}
+                              />
+                              <div>
+                                <div className="font-bold text-slate-900">
+                                  {item.accountName}
+                                </div>
+                                <div className="text-[10px] text-slate-400 font-mono">
+                                  G: {item.googleAccountId}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4 text-slate-700">
+                            {item.hasSchedule ? (
+                              <Badge
+                                variant="outline"
+                                className="text-[11px] font-medium bg-slate-50 border-slate-200"
+                              >
+                                <Calendar className="h-3 w-3 mr-1 text-slate-400" />
+                                Monthly (Day {item.dayOfMonth})
+                              </Badge>
+                            ) : (
+                              <span className="text-slate-400 italic">
+                                No schedule
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-4 text-slate-700">
+                            {item.recipientEmail ? (
+                              <div className="max-w-[180px] truncate">
+                                <span className="font-medium text-slate-800">
+                                  {item.recipientEmail}
+                                </span>
+                                {item.ccEmails && (
+                                  <span className="text-[10px] text-slate-400 block truncate">
+                                    CC: {item.ccEmails}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic">—</span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-4">
+                            {item.hasSchedule ? (
+                              item.useAiSummary ? (
+                                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px]">
+                                  <Sparkles className="h-2.5 w-2.5 mr-1" />
+                                  Enabled
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-slate-400 text-[10px]"
+                                >
+                                  Off
+                                </Badge>
+                              )
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-4 text-slate-600">
+                            {item.lastRunAt ? (
+                              <div>
+                                <span className="font-medium text-slate-800">
+                                  {new Date(item.lastRunAt).toLocaleDateString(
+                                    undefined,
+                                    {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    },
+                                  )}
+                                </span>
+                                <span className="text-[10px] text-slate-400 block">
+                                  {new Date(item.lastRunAt).toLocaleTimeString(
+                                    undefined,
+                                    {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )}
+                                </span>
+                              </div>
+                            ) : item.hasSchedule ? (
+                              <span className="text-amber-600 font-medium text-[11px]">
+                                Pending next run
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-4 text-center">
+                            {item.hasSchedule ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <Switch
+                                  checked={item.isActive}
+                                  onCheckedChange={(checked) =>
+                                    item.scheduleId &&
+                                    handleToggleSchedule(
+                                      item.scheduleId,
+                                      checked,
+                                    )
+                                  }
+                                  disabled={
+                                    togglingScheduleId === item.scheduleId
+                                  }
+                                  className="cursor-pointer"
+                                />
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-bold w-12 text-left",
+                                    item.isActive
+                                      ? "text-emerald-700"
+                                      : "text-slate-400",
+                                  )}
+                                >
+                                  {item.isActive ? "Active" : "Paused"}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 italic">
+                                Unconfigured
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {item.hasSchedule && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={
+                                    testingScheduleId === item.scheduleId
+                                  }
+                                  onClick={() => handleTriggerTest(item)}
+                                  className="h-7 px-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 cursor-pointer"
+                                  title="Send Test Report Email"
+                                >
+                                  <Play className="h-3 w-3 mr-1" />
+                                  Test
+                                </Button>
+                              )}
+                              <ReportAutomationTrigger
+                                adAccount={{
+                                  id: item.adAccountId,
+                                  googleAccountId: item.googleAccountId,
+                                  name: item.accountName,
+                                }}
+                                initialRules={item.rawRules}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

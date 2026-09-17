@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getBriefingSettingsAction } from "@/actions/briefing-settings.actions";
+import { getClientReportAutomationOverviewAction } from "@/actions/client-report-automation.actions";
 import { getTeamMembers } from "@/actions/team.actions";
 import { getWeeklyClientReportSettingsAction } from "@/actions/weekly-client-report.actions";
 import ReportsClient from "./pageClient";
@@ -11,11 +12,13 @@ export const metadata: Metadata = {
 };
 
 export default async function ReportsPage() {
-  const [settingsRes, weeklySettingsRes, teamMembers] = await Promise.all([
-    getBriefingSettingsAction(),
-    getWeeklyClientReportSettingsAction(),
-    getTeamMembers(),
-  ]);
+  const [settingsRes, weeklySettingsRes, teamMembers, clientReportOverviewRes] =
+    await Promise.all([
+      getBriefingSettingsAction(),
+      getWeeklyClientReportSettingsAction(),
+      getTeamMembers(),
+      getClientReportAutomationOverviewAction(),
+    ]);
 
   return (
     <ReportsClient
@@ -25,6 +28,11 @@ export default async function ReportsPage() {
       initialWeeklySettings={
         weeklySettingsRes.success && weeklySettingsRes.data
           ? weeklySettingsRes.data
+          : null
+      }
+      initialClientReportOverview={
+        clientReportOverviewRes.success && clientReportOverviewRes.data
+          ? clientReportOverviewRes.data
           : null
       }
       teamMembers={teamMembers || []}
