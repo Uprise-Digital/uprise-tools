@@ -1435,7 +1435,7 @@ export default function ReportsClient({
                 <CardDescription className="text-xs uppercase font-bold tracking-wider text-slate-400">
                   Global Sending Engine
                 </CardDescription>
-                <CardTitle className="flex items-center justify-between text-xl font-bold">
+                <CardTitle className="flex items-center text-xl font-bold">
                   {clientReportOverview?.isGloballyActive ? (
                     <span className="flex items-center gap-2 text-emerald-600">
                       <span className="relative flex h-3 w-3">
@@ -1450,12 +1450,6 @@ export default function ReportsClient({
                       Globally Paused
                     </span>
                   )}
-                  <Switch
-                    checked={clientReportOverview?.isGloballyActive ?? true}
-                    onCheckedChange={handleToggleGlobal}
-                    disabled={isTogglingGlobal}
-                    className="cursor-pointer"
-                  />
                 </CardTitle>
               </CardHeader>
               <CardContent>
