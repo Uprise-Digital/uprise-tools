@@ -1587,86 +1587,80 @@ export default function ReportsClient({
           </div>
 
           {/* Interactive Client Reports Table Card */}
-          <Card className="shadow-xs border-slate-200 overflow-hidden bg-white">
-            <CardHeader className="border-b border-slate-100 pb-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    Client Automation Schedules & Toggles
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-500 mt-1">
-                    Manage report automation on a case-by-case basis. Use the
-                    toggles to enable or pause individual clients.
-                  </CardDescription>
-                </div>
-
-                {/* Filter and Search Bar */}
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <div className="relative min-w-[220px]">
-                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                    <Input
-                      placeholder="Search client, ID, or email..."
-                      value={clientSearch}
-                      onChange={(e) => setClientSearch(e.target.value)}
-                      className="pl-8 text-xs h-9 bg-slate-50/50 border-slate-200"
-                    />
-                  </div>
-
-                  <div className="flex items-center bg-slate-100 p-1 rounded-lg text-xs font-medium text-slate-600">
-                    <button
-                      type="button"
-                      onClick={() => setClientFilter("all")}
-                      className={cn(
-                        "px-2.5 py-1 rounded-md transition-all cursor-pointer",
-                        clientFilter === "all"
-                          ? "bg-white text-slate-900 shadow-xs font-bold"
-                          : "hover:text-slate-900",
-                      )}
-                    >
-                      All ({clientReportOverview?.items.length || 0})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setClientFilter("active")}
-                      className={cn(
-                        "px-2.5 py-1 rounded-md transition-all cursor-pointer",
-                        clientFilter === "active"
-                          ? "bg-white text-emerald-700 shadow-xs font-bold"
-                          : "hover:text-slate-900",
-                      )}
-                    >
-                      Active (
-                      {clientReportOverview?.summary.activeSchedules || 0})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setClientFilter("paused")}
-                      className={cn(
-                        "px-2.5 py-1 rounded-md transition-all cursor-pointer",
-                        clientFilter === "paused"
-                          ? "bg-white text-amber-700 shadow-xs font-bold"
-                          : "hover:text-slate-900",
-                      )}
-                    >
-                      Paused (
-                      {clientReportOverview?.summary.pausedSchedules || 0})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setClientFilter("unscheduled")}
-                      className={cn(
-                        "px-2.5 py-1 rounded-md transition-all cursor-pointer",
-                        clientFilter === "unscheduled"
-                          ? "bg-white text-slate-900 shadow-xs font-bold"
-                          : "hover:text-slate-900",
-                      )}
-                    >
-                      Unconfigured
-                    </button>
-                  </div>
-                </div>
-              </div>
+          <Card className="gap-0 shadow-xs border-slate-200 overflow-hidden bg-white py-0">
+            <CardHeader className="p-6 border-b border-slate-100">
+              <CardTitle className="text-base font-bold text-slate-900">
+                Client Automation Schedules & Toggles
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-500 mt-1">
+                Manage report automation on a case-by-case basis. Use the
+                toggles to enable or pause individual clients.
+              </CardDescription>
             </CardHeader>
+
+            {/* Dedicated Filter & Search Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/40 px-6 py-3">
+              <div className="relative flex-1 min-w-[220px] max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  placeholder="Search client, ID, or email..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  className="pl-8 text-xs h-9 bg-white border-slate-200 shadow-none"
+                />
+              </div>
+
+              <div className="flex items-center bg-slate-100/80 p-1 rounded-xl text-xs font-medium text-slate-600 border border-slate-200/60">
+                <button
+                  type="button"
+                  onClick={() => setClientFilter("all")}
+                  className={cn(
+                    "px-3 py-1 rounded-lg transition-all cursor-pointer",
+                    clientFilter === "all"
+                      ? "bg-white text-slate-900 shadow-2xs font-bold"
+                      : "hover:text-slate-900",
+                  )}
+                >
+                  All ({clientReportOverview?.items.length || 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClientFilter("active")}
+                  className={cn(
+                    "px-3 py-1 rounded-lg transition-all cursor-pointer",
+                    clientFilter === "active"
+                      ? "bg-white text-emerald-700 shadow-2xs font-bold"
+                      : "hover:text-slate-900",
+                  )}
+                >
+                  Active ({clientReportOverview?.summary.activeSchedules || 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClientFilter("paused")}
+                  className={cn(
+                    "px-3 py-1 rounded-lg transition-all cursor-pointer",
+                    clientFilter === "paused"
+                      ? "bg-white text-amber-700 shadow-2xs font-bold"
+                      : "hover:text-slate-900",
+                  )}
+                >
+                  Paused ({clientReportOverview?.summary.pausedSchedules || 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setClientFilter("unscheduled")}
+                  className={cn(
+                    "px-3 py-1 rounded-lg transition-all cursor-pointer",
+                    clientFilter === "unscheduled"
+                      ? "bg-white text-slate-900 shadow-2xs font-bold"
+                      : "hover:text-slate-900",
+                  )}
+                >
+                  Unconfigured
+                </button>
+              </div>
+            </div>
 
             <CardContent className="p-0">
               <div className="overflow-x-auto">
