@@ -561,7 +561,7 @@ export default function ReportsClient({
             )}
           >
             <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
-            ☀️ Daily Morning Briefing
+            Daily Morning Briefing
           </button>
           <button
             type="button"
@@ -573,8 +573,8 @@ export default function ReportsClient({
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/60",
             )}
           >
-            <BarChart3 className="h-3.5 w-3.5 text-indigo-600" />📊 Weekly
-            Client Retention Report
+            <BarChart3 className="h-3.5 w-3.5 text-indigo-600" />
+            Weekly Client Retention Report
           </button>
           <button
             type="button"
@@ -586,8 +586,8 @@ export default function ReportsClient({
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/60",
             )}
           >
-            <FileText className="h-3.5 w-3.5 text-indigo-600" />📑 Automated
-            Client Reports
+            <FileText className="h-3.5 w-3.5 text-indigo-600" />
+            Automated Client Reports
           </button>
         </div>
       </div>
