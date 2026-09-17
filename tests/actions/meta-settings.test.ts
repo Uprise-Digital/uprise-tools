@@ -4,12 +4,12 @@ import {
   disconnectMetaAdsAction,
   getMetaAdAccountsAction,
   getMetaConnectionAction,
-  parseMetaActionsConv,
   syncMetaAdAccountsAction,
 } from "@/actions/meta-settings.actions";
 import { db } from "@/db";
 import { auth } from "@/lib/auth";
 import { encryptToken } from "@/lib/crypto";
+import { parseMetaActionsConv } from "@/lib/meta-utils";
 
 describe("Meta Settings Actions - Permanent System User Token", () => {
   const originalFetch = global.fetch;
