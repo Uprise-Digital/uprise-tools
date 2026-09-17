@@ -426,23 +426,59 @@ export async function updateMetaAutoSyncSettingsAction(
   }
 }
 
-function parseMetaActionsConv(actions?: any[]): number {
-  let count = 0;
-  if (Array.isArray(actions)) {
-    for (const action of actions) {
-      const actionType = action.action_type || "";
-      if (
-        actionType.includes("purchase") ||
-        actionType.includes("lead") ||
-        actionType.includes("conversion") ||
-        actionType.includes("complete_registration") ||
-        actionType === "onsite_conversion.lead_grouped"
-      ) {
-        count += parseInt(action.value || "0", 10);
-      }
+export function parseMetaActionsConv(actions?: any[]): number {
+  if (!Array.isArray(actions) || actions.length === 0) return 0;
+
+  const actionMap = new Map<string, number>();
+  for (const a of actions) {
+    if (a.action_type) {
+      actionMap.set(a.action_type, parseInt(a.value || "0", 10));
     }
   }
-  return count;
+
+  let total = 0;
+
+  // 1. Leads: Prefer canonical top-level 'lead' or 'omni_lead'.
+  // Fallback to onsite lead breakdown only if top-level 'lead' is missing to avoid duplicate counting.
+  const leadVal = actionMap.get("lead") ?? actionMap.get("omni_lead");
+  if (leadVal !== undefined) {
+    total += leadVal;
+  } else {
+    const onsiteLead =
+      actionMap.get("onsite_conversion.lead_grouped") ??
+      actionMap.get("onsite_conversion.lead") ??
+      actionMap.get("onsite_web_lead") ??
+      0;
+    total += onsiteLead;
+  }
+
+  // 2. Purchases
+  const purchaseVal =
+    actionMap.get("purchase") ?? actionMap.get("omni_purchase") ?? 0;
+  total += purchaseVal;
+
+  // 3. Complete Registration (only count if top-level 'lead' is not already present)
+  if (leadVal === undefined) {
+    const regVal =
+      actionMap.get("complete_registration") ??
+      actionMap.get("omni_complete_registration") ??
+      0;
+    total += regVal;
+  }
+
+  // 4. Other key direct business conversion actions
+  total += actionMap.get("contact") ?? 0;
+  total += actionMap.get("schedule") ?? 0;
+  total += actionMap.get("submit_application") ?? 0;
+
+  // 5. Custom Pixel Conversions (offsite_conversion.custom.<pixelId>)
+  for (const [type, val] of actionMap.entries()) {
+    if (type.startsWith("offsite_conversion.custom.")) {
+      total += val;
+    }
+  }
+
+  return total;
 }
 
 /**
@@ -511,22 +547,8 @@ export async function getMetaAccountsPerformanceAction(
             const clicks = parseInt(ins.clicks || "0", 10);
             const impressions = parseInt(ins.impressions || "0", 10);
 
-            // Extract total conversions from actions array (purchases, leads, offsite conversions)
-            let conversions = 0;
-            if (Array.isArray(ins.actions)) {
-              for (const action of ins.actions) {
-                const actionType = action.action_type || "";
-                if (
-                  actionType.includes("purchase") ||
-                  actionType.includes("lead") ||
-                  actionType.includes("conversion") ||
-                  actionType.includes("complete_registration") ||
-                  actionType === "onsite_conversion.lead_grouped"
-                ) {
-                  conversions += parseInt(action.value || "0", 10);
-                }
-              }
-            }
+            // Extract total conversions using deduplicated converter
+            const conversions = parseMetaActionsConv(ins.actions);
 
             const cpa = conversions > 0 ? spend / conversions : 0;
             const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
@@ -648,32 +670,13 @@ export async function getMetaAccountDetailedInsightsAction(
       fetch(campaignsUrl).then((r) => r.json()),
     ]);
 
-    const parseActionsConv = (actions?: any[]) => {
-      let count = 0;
-      if (Array.isArray(actions)) {
-        for (const a of actions) {
-          const type = a.action_type || "";
-          if (
-            type.includes("purchase") ||
-            type.includes("lead") ||
-            type.includes("conversion") ||
-            type.includes("complete_registration") ||
-            type === "onsite_conversion.lead_grouped"
-          ) {
-            count += parseInt(a.value || "0", 10);
-          }
-        }
-      }
-      return count;
-    };
-
     // Parse Daily Time Series
     const timeSeries = Array.isArray(dailyRes?.data)
       ? dailyRes.data.map((day: any) => {
           const spend = parseFloat(day.spend || "0");
           const clicks = parseInt(day.clicks || "0", 10);
           const impressions = parseInt(day.impressions || "0", 10);
-          const conversions = parseActionsConv(day.actions);
+          const conversions = parseMetaActionsConv(day.actions);
 
           return {
             date: day.date_start,
@@ -694,7 +697,7 @@ export async function getMetaAccountDetailedInsightsAction(
           const spend = parseFloat(c.spend || "0");
           const clicks = parseInt(c.clicks || "0", 10);
           const impressions = parseInt(c.impressions || "0", 10);
-          const conversions = parseActionsConv(c.actions);
+          const conversions = parseMetaActionsConv(c.actions);
 
           return {
             campaignId: c.campaign_id,

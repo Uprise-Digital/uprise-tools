@@ -4,6 +4,7 @@ import {
   disconnectMetaAdsAction,
   getMetaAdAccountsAction,
   getMetaConnectionAction,
+  parseMetaActionsConv,
   syncMetaAdAccountsAction,
 } from "@/actions/meta-settings.actions";
 import { db } from "@/db";
@@ -215,6 +216,59 @@ describe("Meta Settings Actions - Permanent System User Token", () => {
 
       expect(res.success).toBe(true);
       expect(db.delete).toHaveBeenCalled();
+    });
+  });
+
+  describe("parseMetaActionsConv", () => {
+    it("should return 0 for empty or undefined actions", () => {
+      expect(parseMetaActionsConv(undefined)).toBe(0);
+      expect(parseMetaActionsConv([])).toBe(0);
+    });
+
+    it("should deduplicate canonical lead from breakdown actions", () => {
+      const sampleActions = [
+        { action_type: "lead", value: "81" },
+        { action_type: "onsite_conversion.lead_grouped", value: "81" },
+        {
+          action_type: "offsite_complete_registration_add_meta_leads",
+          value: "81",
+        },
+        { action_type: "offsite_search_add_meta_leads", value: "81" },
+        { action_type: "offsite_content_view_add_meta_leads", value: "81" },
+      ];
+      // Should count exactly 81, NOT 5 x 81 = 405!
+      expect(parseMetaActionsConv(sampleActions)).toBe(81);
+    });
+
+    it("should ignore engagement events containing 'conversion' such as post_net_like, post_save, post_unlike", () => {
+      const engagementActions = [
+        { action_type: "onsite_conversion.post_net_like", value: "86" },
+        { action_type: "onsite_conversion.post_save", value: "24" },
+        { action_type: "onsite_conversion.post_unlike", value: "10" },
+        { action_type: "onsite_conversion.post_net_comment", value: "4" },
+        { action_type: "onsite_conversion.messaging_block", value: "1" },
+        { action_type: "lead", value: "10" },
+      ];
+      // Should only count the 10 real leads, ignoring all post likes/saves/unlikes
+      expect(parseMetaActionsConv(engagementActions)).toBe(10);
+    });
+
+    it("should correctly sum purchase, contact, schedule, and custom pixel conversions", () => {
+      const businessActions = [
+        { action_type: "lead", value: "50" },
+        { action_type: "purchase", value: "12" },
+        { action_type: "schedule", value: "5" },
+        { action_type: "contact", value: "3" },
+        { action_type: "offsite_conversion.custom.12345678", value: "7" },
+      ];
+      expect(parseMetaActionsConv(businessActions)).toBe(50 + 12 + 5 + 3 + 7);
+    });
+
+    it("should fall back to onsite_conversion.lead_grouped when top-level lead is absent", () => {
+      const onsiteOnly = [
+        { action_type: "onsite_conversion.lead_grouped", value: "15" },
+      ];
+      expect(parseMetaActionsConv(onsiteOnly)).toBe(15);
     });
   });
 });

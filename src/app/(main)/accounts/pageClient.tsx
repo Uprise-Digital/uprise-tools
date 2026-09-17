@@ -12,7 +12,6 @@ import {
   Download,
   ExternalLink,
   Layers,
-  Loader2,
   Search,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -197,13 +196,42 @@ export default function AccountsClientPage({
         )
       : null;
 
-    const gSpend = gMetrics ? Number(gMetrics.spend || 0) : 0;
-    const gConversions = gMetrics ? Number(gMetrics.conversions || 0) : 0;
-    const gCpa = gMetrics ? Number(gMetrics.cpa || 0) : 0;
-    const gCtr = gMetrics ? Number(gMetrics.ctr || 0) : 0;
-    const gCpc = gMetrics ? Number(gMetrics.cpc || 0) : 0;
-    const gClicks = gMetrics ? Number(gMetrics.clicks || 0) : 0;
-    const gImpressions = gMetrics ? Number(gMetrics.impressions || 0) : 0;
+    const gChannel = gMetrics?.channelBreakdown?.google;
+    const gSpend = gChannel
+      ? Number(gChannel.spend || 0)
+      : gMetrics && platformFilter === "google"
+        ? Number(gMetrics.spend || 0)
+        : 0;
+    const gConversions = gChannel
+      ? Number(gChannel.conversions || 0)
+      : gMetrics && platformFilter === "google"
+        ? Number(gMetrics.conversions || 0)
+        : 0;
+    const gCpa = gChannel
+      ? Number(gChannel.cpa || 0)
+      : gMetrics && platformFilter === "google"
+        ? Number(gMetrics.cpa || 0)
+        : 0;
+    const gCtr = gChannel
+      ? Number(gChannel.ctr || 0)
+      : gMetrics && platformFilter === "google"
+        ? Number(gMetrics.ctr || 0)
+        : 0;
+    const gCpc = gChannel
+      ? Number(gChannel.cpc || 0)
+      : gMetrics && platformFilter === "google"
+        ? Number(gMetrics.cpc || 0)
+        : 0;
+    const gClicks = gChannel
+      ? Number(gChannel.clicks || 0)
+      : gMetrics && platformFilter === "google"
+        ? Number(gMetrics.clicks || 0)
+        : 0;
+    const gImpressions = gChannel
+      ? Number(gChannel.impressions || 0)
+      : gMetrics && platformFilter === "google"
+        ? Number(gMetrics.impressions || 0)
+        : 0;
 
     // Look up live Meta metrics if present
     const mMetrics = acc.metaAccountId
