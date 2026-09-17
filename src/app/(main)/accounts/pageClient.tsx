@@ -5,7 +5,6 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  Calendar,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -35,6 +34,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import { TableLoader, TopProgressBar } from "@/components/ui/loading";
 import {
@@ -696,28 +696,15 @@ export default function AccountsClientPage({
           </div>
 
           {/* Date Picker */}
-          <div className="flex items-center bg-white rounded-lg border border-slate-200 shadow-none px-3 py-1.5 gap-2 h-9 text-xs">
-            <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value);
-                setPage(1);
-              }}
-              className="border-none h-6 w-[100px] p-0 text-xs focus-visible:ring-0 shadow-none [color-scheme:light] bg-transparent"
-            />
-            <span className="text-slate-300 font-light">—</span>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => {
-                setEndDate(e.target.value);
-                setPage(1);
-              }}
-              className="border-none h-6 w-[100px] p-0 text-xs focus-visible:ring-0 shadow-none [color-scheme:light] bg-transparent"
-            />
-          </div>
+          <DateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onChange={({ startDate: s, endDate: e }) => {
+              setStartDate(s);
+              setEndDate(e);
+              setPage(1);
+            }}
+          />
 
           {/* Status Filter Select */}
           <div className="w-[130px]">
