@@ -1468,17 +1468,21 @@ export default function ReportsClient({
                   Active Automations
                 </CardDescription>
                 <CardTitle className="text-2xl font-bold text-slate-900">
-                  {clientReportOverview?.summary.activeSchedules ?? 0}
+                  {clientReportOverview?.isGloballyActive
+                    ? (clientReportOverview?.summary.activeSchedules ?? 0)
+                    : 0}
                   <span className="text-sm font-normal text-slate-400 ml-1.5">
-                    / {clientReportOverview?.summary.configuredSchedules ?? 0}{" "}
-                    configured
+                    {clientReportOverview?.isGloballyActive
+                      ? `/ ${clientReportOverview?.summary.configuredSchedules ?? 0} configured`
+                      : `active (${clientReportOverview?.summary.activeSchedules ?? 0} enabled, globally paused)`}
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-slate-500">
-                  {clientReportOverview?.summary.pausedSchedules ?? 0}{" "}
-                  schedule(s) paused on a case-by-case basis.
+                  {clientReportOverview?.isGloballyActive
+                    ? `${clientReportOverview?.summary.pausedSchedules ?? 0} schedule(s) paused on a case-by-case basis.`
+                    : `All sending is paused agency-wide. Individual client schedules remain saved.`}
                 </p>
               </CardContent>
             </Card>
@@ -1629,11 +1633,16 @@ export default function ReportsClient({
                   className={cn(
                     "px-3 py-1 rounded-lg transition-all cursor-pointer",
                     clientFilter === "active"
-                      ? "bg-white text-emerald-700 shadow-2xs font-bold"
+                      ? clientReportOverview?.isGloballyActive
+                        ? "bg-white text-emerald-700 shadow-2xs font-bold"
+                        : "bg-white text-amber-700 shadow-2xs font-bold"
                       : "hover:text-slate-900",
                   )}
                 >
-                  Active ({clientReportOverview?.summary.activeSchedules || 0})
+                  {clientReportOverview?.isGloballyActive
+                    ? "Active"
+                    : "Enabled"}{" "}
+                  ({clientReportOverview?.summary.activeSchedules || 0})
                 </button>
                 <button
                   type="button"
@@ -1697,11 +1706,17 @@ export default function ReportsClient({
                               <span
                                 className={cn(
                                   "w-2 h-2 rounded-full shrink-0",
-                                  item.hasSchedule && item.isActive
+                                  item.hasSchedule &&
+                                    item.isActive &&
+                                    clientReportOverview?.isGloballyActive
                                     ? "bg-emerald-500"
-                                    : item.hasSchedule
-                                      ? "bg-amber-400"
-                                      : "bg-slate-300",
+                                    : item.hasSchedule &&
+                                        item.isActive &&
+                                        !clientReportOverview?.isGloballyActive
+                                      ? "bg-amber-400 ring-2 ring-amber-200"
+                                      : item.hasSchedule
+                                        ? "bg-slate-300"
+                                        : "bg-slate-200",
                                 )}
                               />
                               <div>
@@ -1819,13 +1834,21 @@ export default function ReportsClient({
                                 />
                                 <span
                                   className={cn(
-                                    "text-[10px] font-bold w-12 text-left",
-                                    item.isActive
-                                      ? "text-emerald-700"
-                                      : "text-slate-400",
+                                    "text-[10px] font-bold min-w-[72px] text-left whitespace-nowrap",
+                                    !clientReportOverview?.isGloballyActive &&
+                                      item.isActive
+                                      ? "text-amber-700"
+                                      : item.isActive
+                                        ? "text-emerald-700"
+                                        : "text-slate-400",
                                   )}
                                 >
-                                  {item.isActive ? "Active" : "Paused"}
+                                  {!clientReportOverview?.isGloballyActive &&
+                                  item.isActive
+                                    ? "Paused (Global)"
+                                    : item.isActive
+                                      ? "Active"
+                                      : "Paused"}
                                 </span>
                               </div>
                             ) : (
