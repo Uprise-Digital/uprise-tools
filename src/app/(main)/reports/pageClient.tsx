@@ -473,13 +473,20 @@ export default function ReportsClient({
 
   const filteredClientItems = useMemo(() => {
     if (!clientReportOverview?.items) return [];
+    const isGloballyActive = clientReportOverview.isGloballyActive ?? true;
+
     return clientReportOverview.items.filter((item) => {
       // 1. Status Filter
-      if (clientFilter === "active" && (!item.hasSchedule || !item.isActive)) {
-        return false;
+      if (clientFilter === "active") {
+        // If globally paused, nothing is actively dispatching
+        if (!isGloballyActive) return false;
+        if (!item.hasSchedule || !item.isActive) return false;
       }
-      if (clientFilter === "paused" && (!item.hasSchedule || item.isActive)) {
-        return false;
+      if (clientFilter === "paused") {
+        if (!item.hasSchedule) return false;
+        // If globally paused, any configured item is effectively paused
+        // If globally active, only individually paused items are in this tab
+        if (isGloballyActive && item.isActive) return false;
       }
       if (clientFilter === "unscheduled" && item.hasSchedule) {
         return false;
@@ -498,7 +505,12 @@ export default function ReportsClient({
 
       return true;
     });
-  }, [clientReportOverview?.items, clientFilter, clientSearch]);
+  }, [
+    clientReportOverview?.items,
+    clientReportOverview?.isGloballyActive,
+    clientFilter,
+    clientSearch,
+  ]);
 
   return (
     <div className="space-y-8 md:p-8 max-w-6xl mx-auto relative">
@@ -1633,16 +1645,15 @@ export default function ReportsClient({
                   className={cn(
                     "px-3 py-1 rounded-lg transition-all cursor-pointer",
                     clientFilter === "active"
-                      ? clientReportOverview?.isGloballyActive
-                        ? "bg-white text-emerald-700 shadow-2xs font-bold"
-                        : "bg-white text-amber-700 shadow-2xs font-bold"
+                      ? "bg-white text-emerald-700 shadow-2xs font-bold"
                       : "hover:text-slate-900",
                   )}
                 >
+                  Active (
                   {clientReportOverview?.isGloballyActive
-                    ? "Active"
-                    : "Enabled"}{" "}
-                  ({clientReportOverview?.summary.activeSchedules || 0})
+                    ? clientReportOverview?.summary.activeSchedules || 0
+                    : 0}
+                  )
                 </button>
                 <button
                   type="button"
@@ -1654,7 +1665,11 @@ export default function ReportsClient({
                       : "hover:text-slate-900",
                   )}
                 >
-                  Paused ({clientReportOverview?.summary.pausedSchedules || 0})
+                  Paused (
+                  {clientReportOverview?.isGloballyActive
+                    ? clientReportOverview?.summary.pausedSchedules || 0
+                    : clientReportOverview?.summary.configuredSchedules || 0}
+                  )
                 </button>
                 <button
                   type="button"
@@ -1817,7 +1832,18 @@ export default function ReportsClient({
 
                           <td className="py-3 px-4 text-center">
                             {item.hasSchedule ? (
-                              <div className="flex items-center justify-center gap-2">
+                              <div
+                                className={cn(
+                                  "flex items-center justify-center gap-2",
+                                  !clientReportOverview?.isGloballyActive &&
+                                    "opacity-70",
+                                )}
+                                title={
+                                  !clientReportOverview?.isGloballyActive
+                                    ? "Individual switch disabled while report delivery is globally paused"
+                                    : undefined
+                                }
+                              >
                                 <Switch
                                   checked={item.isActive}
                                   onCheckedChange={(checked) =>
@@ -1828,9 +1854,14 @@ export default function ReportsClient({
                                     )
                                   }
                                   disabled={
+                                    !clientReportOverview?.isGloballyActive ||
                                     togglingScheduleId === item.scheduleId
                                   }
-                                  className="cursor-pointer"
+                                  className={cn(
+                                    clientReportOverview?.isGloballyActive
+                                      ? "cursor-pointer"
+                                      : "cursor-not-allowed",
+                                  )}
                                 />
                                 <span
                                   className={cn(
