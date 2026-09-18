@@ -12,6 +12,10 @@ import {
 } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { getAuthOrgContext } from "@/lib/auth-helpers";
+import {
+  syncAllActiveAccountsLandingPagesInternal,
+  syncCampaignLandingPagesInternal,
+} from "@/actions/lp-analysis.actions";
 import { createNotification } from "@/service/notification.service";
 import {
   type PageSpeedAuditResult,
@@ -427,89 +431,33 @@ export async function runAllLandingPageSpeedTestsAction(
       auditScope = scopeOverride;
     }
 
-    let targetPages: Array<typeof campaignLandingPages.$inferSelect> = [];
     let accountName = "All Accounts";
-
     if (adAccountId && adAccountId > 0) {
       const account = await db.query.adAccounts.findFirst({
         where: eq(adAccounts.id, adAccountId),
       });
       if (account) accountName = account.name;
-
-      if (auditScope === "ENABLED_ONLY") {
-        targetPages = await db.query.campaignLandingPages.findMany({
-          where: and(
-            eq(campaignLandingPages.adAccountId, adAccountId),
-            eq(campaignLandingPages.status, "ENABLED"),
-          ),
-        });
-      } else {
-        targetPages = await db.query.campaignLandingPages.findMany({
-          where: eq(campaignLandingPages.adAccountId, adAccountId),
-        });
-      }
-    } else {
-      // Organization level: fetch all pages across active org accounts
-      const orgAccounts = await db.query.adAccounts.findMany({
-        where: and(
-          eq(adAccounts.organizationId, orgId),
-          eq(adAccounts.isActive, true),
-        ),
-      });
-      const orgAccountIds = orgAccounts.map((a) => a.id);
-
-      if (orgAccountIds.length === 0) {
-        return {
-          success: false,
-          error: "No active ad accounts found in this organization.",
-        };
-      }
-
-      if (auditScope === "ENABLED_ONLY") {
-        targetPages = await db.query.campaignLandingPages.findMany({
-          where: and(
-            inArray(campaignLandingPages.adAccountId, orgAccountIds),
-            eq(campaignLandingPages.status, "ENABLED"),
-          ),
-        });
-      } else {
-        targetPages = await db.query.campaignLandingPages.findMany({
-          where: inArray(campaignLandingPages.adAccountId, orgAccountIds),
-        });
-      }
-    }
-
-    // Filter valid HTTP/HTTPS URLs
-    const validPages = targetPages.filter(
-      (p) => p.url && (p.url.startsWith("http://") || p.url.startsWith("https://")),
-    );
-
-    if (validPages.length === 0) {
-      return {
-        success: false,
-        error:
-          auditScope === "ENABLED_ONLY"
-            ? "No landing pages with valid URLs found on ENABLED campaigns."
-            : "No landing pages with valid URLs found to test.",
-      };
     }
 
     const scopeLabel = auditScope === "ALL" ? "All LPs" : "Enabled Campaigns";
-    const taskTitle =
+    const initialTitle =
       adAccountId && adAccountId > 0
-        ? `PageSpeed Audit: ${accountName} (${validPages.length} pages • ${scopeLabel})`
-        : `Portfolio PageSpeed Audit (${validPages.length} pages • ${scopeLabel})`;
+        ? `PageSpeed Audit: ${accountName} (${scopeLabel})`
+        : `Portfolio PageSpeed Audit (${scopeLabel})`;
 
     // 1. Insert into background_tasks so the bottom-right indicator starts spinning immediately
     const [taskRecord] = await db
       .insert(backgroundTasks)
       .values({
         organizationId: orgId,
-        name: taskTitle,
+        name: initialTitle,
         status: "running",
-        totalItems: validPages.length,
+        totalItems: 0,
         completedItems: 0,
-        currentItem: `Starting audit of ${validPages.length} landing pages...`,
+        currentItem:
+          adAccountId && adAccountId > 0
+            ? `Syncing landing pages from Google Ads for ${accountName}...`
+            : "Syncing landing pages across all active accounts from Google Ads...",
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -517,9 +465,125 @@ export async function runAllLandingPageSpeedTestsAction(
 
     // 2. Fire and forget async execution in background (prevents HTTP connection timeout)
     (async () => {
-      const results: Array<{ pageId: number; success: boolean; error?: string }> = [];
+      const results: Array<{ pageId: number; success: boolean; error?: string }> =
+        [];
       try {
-        console.log(`[Background Task ${taskRecord.id}] Starting ${taskTitle}...`);
+        console.log(
+          `[Background Task ${taskRecord.id}] Starting ${initialTitle}...`,
+        );
+
+        // Step A: Pre-sync from Google Ads to ensure all landing pages are pulled
+        if (adAccountId && adAccountId > 0) {
+          try {
+            await syncCampaignLandingPagesInternal(adAccountId);
+          } catch (syncErr: any) {
+            console.warn(
+              `[Speed Audit Task ${taskRecord.id}] Pre-sync warning for account ${adAccountId}:`,
+              syncErr.message,
+            );
+          }
+        } else {
+          try {
+            await syncAllActiveAccountsLandingPagesInternal(orgId);
+          } catch (syncErr: any) {
+            console.warn(
+              `[Speed Audit Task ${taskRecord.id}] Pre-sync warning for org ${orgId}:`,
+              syncErr.message,
+            );
+          }
+        }
+
+        // Step B: Fetch pages from DB according to auditScope
+        let targetPages: Array<typeof campaignLandingPages.$inferSelect> = [];
+
+        if (adAccountId && adAccountId > 0) {
+          if (auditScope === "ENABLED_ONLY") {
+            targetPages = await db.query.campaignLandingPages.findMany({
+              where: and(
+                eq(campaignLandingPages.adAccountId, adAccountId),
+                eq(campaignLandingPages.status, "ENABLED"),
+              ),
+            });
+          } else {
+            targetPages = await db.query.campaignLandingPages.findMany({
+              where: eq(campaignLandingPages.adAccountId, adAccountId),
+            });
+          }
+        } else {
+          const orgAccounts = await db.query.adAccounts.findMany({
+            where: and(
+              eq(adAccounts.organizationId, orgId),
+              eq(adAccounts.isActive, true),
+            ),
+          });
+          const orgAccountIds = orgAccounts.map((a) => a.id);
+
+          if (orgAccountIds.length === 0) {
+            await db
+              .update(backgroundTasks)
+              .set({
+                status: "failed",
+                error: "No active ad accounts found in this organization.",
+                updatedAt: new Date(),
+              })
+              .where(eq(backgroundTasks.id, taskRecord.id));
+            return;
+          }
+
+          if (auditScope === "ENABLED_ONLY") {
+            targetPages = await db.query.campaignLandingPages.findMany({
+              where: and(
+                inArray(campaignLandingPages.adAccountId, orgAccountIds),
+                eq(campaignLandingPages.status, "ENABLED"),
+              ),
+            });
+          } else {
+            targetPages = await db.query.campaignLandingPages.findMany({
+              where: inArray(campaignLandingPages.adAccountId, orgAccountIds),
+            });
+          }
+        }
+
+        // Filter valid HTTP/HTTPS URLs
+        const validPages = targetPages.filter(
+          (p) =>
+            p.url &&
+            (p.url.startsWith("http://") || p.url.startsWith("https://")),
+        );
+
+        if (validPages.length === 0) {
+          await db
+            .update(backgroundTasks)
+            .set({
+              status: "completed",
+              completedItems: 0,
+              totalItems: 0,
+              currentItem:
+                auditScope === "ENABLED_ONLY"
+                  ? "No landing pages with valid URLs found on ENABLED campaigns."
+                  : "No landing pages with valid URLs found to test.",
+              updatedAt: new Date(),
+            })
+            .where(eq(backgroundTasks.id, taskRecord.id));
+          return;
+        }
+
+        const taskTitle =
+          adAccountId && adAccountId > 0
+            ? `PageSpeed Audit: ${accountName} (${validPages.length} pages • ${scopeLabel})`
+            : `Portfolio PageSpeed Audit (${validPages.length} pages • ${scopeLabel})`;
+
+        // Update task with final title and item count
+        await db
+          .update(backgroundTasks)
+          .set({
+            name: taskTitle,
+            totalItems: validPages.length,
+            completedItems: 0,
+            currentItem: `Starting audit of ${validPages.length} landing pages...`,
+            updatedAt: new Date(),
+          })
+          .where(eq(backgroundTasks.id, taskRecord.id));
 
         for (let i = 0; i < validPages.length; i++) {
           const page = validPages[i];
@@ -638,7 +702,7 @@ export async function runAllLandingPageSpeedTestsAction(
     return {
       success: true,
       taskId: taskRecord.id,
-      message: `Started PageSpeed batch for ${validPages.length} landing pages. Progress tracked in bottom-right task monitor.`,
+      message: `Started PageSpeed audits (${scopeLabel})! Pulling latest landing pages from Google Ads first, then testing.`,
     };
   } catch (error: any) {
     console.error("[runAllLandingPageSpeedTestsAction Error]:", error);

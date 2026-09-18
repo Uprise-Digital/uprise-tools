@@ -2,6 +2,7 @@
 
 import * as cheerio from "cheerio";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import TurndownService from "turndown";
 import { db } from "@/db";
@@ -692,42 +693,78 @@ export async function syncCampaignLandingPagesInternal(adAccountId: number) {
   });
   if (!account) throw new Error("Ad Account not found");
 
+  if (!account.googleAccountId) {
+    return { success: true as const, count: 0 };
+  }
+
   console.log(
     `[Sync] Fetching campaign landing pages from Google Ads for ${account.name}...`,
   );
-  const synced = await fetchCampaignLandingPages(account.googleAccountId);
+  try {
+    const synced = await fetchCampaignLandingPages(account.googleAccountId);
 
-  if (synced && synced.length > 0) {
-    // Loop and upsert individually
-    for (const item of synced) {
-      await db
-        .insert(campaignLandingPages)
-        .values({
-          adAccountId: adAccountId,
-          campaignId: item.campaignId,
-          campaignName: item.campaignName,
-          url: item.url || "",
-          status: item.status,
-        })
-        .onConflictDoUpdate({
-          target: [
-            campaignLandingPages.adAccountId,
-            campaignLandingPages.campaignId,
-          ],
-          set: {
+    if (synced && synced.length > 0) {
+      // Loop and upsert individually
+      for (const item of synced) {
+        await db
+          .insert(campaignLandingPages)
+          .values({
+            adAccountId: adAccountId,
+            campaignId: item.campaignId,
+            campaignName: item.campaignName,
             url: item.url || "",
             status: item.status,
-            updatedAt: new Date(),
-          },
-        });
+          })
+          .onConflictDoUpdate({
+            target: [
+              campaignLandingPages.adAccountId,
+              campaignLandingPages.campaignId,
+            ],
+            set: {
+              url: item.url || "",
+              status: item.status,
+              campaignName: item.campaignName,
+              updatedAt: new Date(),
+            },
+          });
+      }
+      return { success: true as const, count: synced.length };
     }
-  } else {
-    throw new Error(
-      "No campaigns or landing page URLs returned from Google Ads API.",
+    return { success: true as const, count: 0 };
+  } catch (err: any) {
+    console.warn(
+      `[Sync] Failed to fetch Google Ads LPs for ${account.name}:`,
+      err.message,
     );
+    throw err;
   }
+}
 
-  return { success: true as const, count: synced.length };
+export async function syncAllActiveAccountsLandingPagesInternal(
+  orgId?: string,
+) {
+  const accounts = await db.query.adAccounts.findMany({
+    where: and(
+      eq(adAccounts.isActive, true),
+      orgId ? eq(adAccounts.organizationId, orgId) : undefined,
+    ),
+  });
+
+  let totalSynced = 0;
+  for (const acc of accounts) {
+    if (!acc.googleAccountId) continue;
+    try {
+      const res = await syncCampaignLandingPagesInternal(acc.id);
+      if (res.success) {
+        totalSynced += res.count;
+      }
+    } catch (e: any) {
+      console.warn(
+        `[Sync All LPs] Skipping account ${acc.name} (${acc.id}): ${e.message}`,
+      );
+    }
+  }
+  return { success: true as const, count: totalSynced };
 }
 
 export async function syncCampaignLandingPagesAction(adAccountId: number) {
@@ -735,9 +772,30 @@ export async function syncCampaignLandingPagesAction(adAccountId: number) {
   if (!ctx) throw new Error("Unauthorized");
 
   try {
-    return await syncCampaignLandingPagesInternal(adAccountId);
+    const res = await syncCampaignLandingPagesInternal(adAccountId);
+    if (res.count === 0) {
+      return {
+        success: false as const,
+        error: "No campaigns or landing page URLs returned from Google Ads API.",
+      };
+    }
+    return res;
   } catch (error: any) {
     console.error("[syncCampaignLandingPagesAction Error]:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+export async function syncAllActiveAccountsLandingPagesAction() {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  try {
+    const res = await syncAllActiveAccountsLandingPagesInternal(ctx.orgId);
+    revalidatePath("/lp-analysis");
+    return { success: true as const, count: res.count };
+  } catch (error: any) {
+    console.error("[syncAllActiveAccountsLandingPagesAction Error]:", error);
     return { success: false as const, error: error.message };
   }
 }

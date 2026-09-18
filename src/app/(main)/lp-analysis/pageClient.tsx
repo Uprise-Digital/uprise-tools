@@ -43,6 +43,7 @@ import {
   runBatchLandingPageAuditsAction,
   runLandingPageAuditAction,
   saveCampaignLandingPageAction,
+  syncAllActiveAccountsLandingPagesAction,
   syncCampaignLandingPagesAction,
 } from "@/actions/lp-analysis.actions";
 import { runAllLandingPageSpeedTestsAction } from "@/actions/lp-speed.actions";
@@ -357,6 +358,32 @@ export default function LpAnalysisClientPage({
         fetchCampaigns(selectedAccountId);
       } else {
         toast.error(res.error || "Failed to sync from Google Ads.", {
+          id: toastId,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.", { id: toastId });
+    } finally {
+      setSyncingLps(false);
+    }
+  };
+
+  // Sync all active accounts landing pages action
+  const handleSyncAllLps = async () => {
+    setSyncingLps(true);
+    const toastId = toast.loading(
+      "Syncing landing pages across all active accounts from Google Ads...",
+    );
+    try {
+      const res = await syncAllActiveAccountsLandingPagesAction();
+      if (res.success) {
+        toast.success(
+          `Successfully synced ${res.count} landing pages across all accounts!`,
+          { id: toastId },
+        );
+        fetchOrgOverview();
+      } else {
+        toast.error(res.error || "Failed to sync all accounts.", {
           id: toastId,
         });
       }
@@ -902,17 +929,33 @@ export default function LpAnalysisClientPage({
           </div>
 
           {selectedAccountId === 0 ? (
-            <Button
-              onClick={fetchOrgOverview}
-              disabled={loadingOrgOverview}
-              variant="outline"
-              className="border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white h-9"
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 text-slate-500 ${loadingOrgOverview ? "animate-spin text-indigo-600" : ""}`}
-              />
-              Refresh Portfolio Data
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleSyncAllLps}
+                disabled={syncingLps || loadingOrgOverview}
+                variant="outline"
+                className="border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white h-9 hover:border-indigo-300 hover:text-indigo-600"
+                title="Pull and update landing page URLs from Google Ads for all active client accounts"
+              >
+                {syncingLps ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                )}
+                Sync All Landing Pages
+              </Button>
+              <Button
+                onClick={fetchOrgOverview}
+                disabled={loadingOrgOverview}
+                variant="outline"
+                className="border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white h-9"
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 text-slate-500 ${loadingOrgOverview ? "animate-spin text-indigo-600" : ""}`}
+                />
+                Refresh Portfolio Data
+              </Button>
+            </div>
           ) : (
             <Button
               onClick={handleSyncLps}
