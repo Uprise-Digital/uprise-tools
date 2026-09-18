@@ -90,3 +90,56 @@ export async function getActiveBackgroundTasksAction() {
     return { success: false, error: error.message };
   }
 }
+
+export async function cancelBackgroundTaskAction(taskId: number) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  // Get active organization ID
+  let orgId = session.session.activeOrganizationId;
+  if (!orgId) {
+    const userMember = await db.query.member.findFirst({
+      where: eq(member.userId, session.user.id),
+    });
+    if (userMember) {
+      orgId = userMember.organizationId;
+    }
+  }
+
+  if (!orgId) {
+    return { success: false, error: "No active organization" };
+  }
+
+  try {
+    const task = await db.query.backgroundTasks.findFirst({
+      where: and(
+        eq(backgroundTasks.id, taskId),
+        eq(backgroundTasks.organizationId, orgId),
+      ),
+    });
+
+    if (!task) {
+      return { success: false, error: "Task not found" };
+    }
+
+    await db
+      .update(backgroundTasks)
+      .set({
+        status: "failed",
+        error: "Cancelled by user",
+        currentItem: "Cancelled by user",
+        updatedAt: new Date(),
+      })
+      .where(eq(backgroundTasks.id, taskId));
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Failed to cancel background task:", err);
+    return { success: false, error: err.message };
+  }
+}

@@ -586,6 +586,20 @@ export async function runAllLandingPageSpeedTestsAction(
           .where(eq(backgroundTasks.id, taskRecord.id));
 
         for (let i = 0; i < validPages.length; i++) {
+          // Check if task was cancelled by user
+          const checkTask = await db.query.backgroundTasks.findFirst({
+            where: eq(backgroundTasks.id, taskRecord.id),
+          });
+          if (
+            checkTask?.status === "failed" ||
+            checkTask?.status === "cancelled"
+          ) {
+            console.log(
+              `[Background Task ${taskRecord.id}] Cancelled by user. Terminating audit loop.`,
+            );
+            return;
+          }
+
           const page = validPages[i];
           const cleanUrl = page.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
@@ -666,6 +680,16 @@ export async function runAllLandingPageSpeedTestsAction(
               updatedAt: new Date(),
             })
             .where(eq(backgroundTasks.id, taskRecord.id));
+        }
+
+        const finalTaskCheck = await db.query.backgroundTasks.findFirst({
+          where: eq(backgroundTasks.id, taskRecord.id),
+        });
+        if (
+          finalTaskCheck?.status === "failed" ||
+          finalTaskCheck?.status === "cancelled"
+        ) {
+          return;
         }
 
         const processed = results.filter((r) => r.success).length;

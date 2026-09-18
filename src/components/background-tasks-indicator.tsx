@@ -7,10 +7,14 @@ import {
   Database,
   Loader2,
   RefreshCw,
+  X,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getActiveBackgroundTasksAction } from "@/actions/background-tasks.actions";
+import {
+  cancelBackgroundTaskAction,
+  getActiveBackgroundTasksAction,
+} from "@/actions/background-tasks.actions";
 import { cn } from "@/lib/utils";
 
 interface BackgroundTask {
@@ -85,6 +89,33 @@ export function BackgroundTasksIndicator() {
     setIsRefreshing(true);
     await fetchTasks();
     setTimeout(() => setIsRefreshing(false), 400);
+  };
+
+  const [cancellingTaskId, setCancellingTaskId] = useState<number | null>(null);
+
+  const handleCancelTask = async (taskId: number) => {
+    setCancellingTaskId(taskId);
+    try {
+      // Optimistically update UI so task immediately shows as cancelled
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                status: "failed",
+                error: "Cancelled by user",
+                currentItem: "Cancelled by user",
+              }
+            : t,
+        ),
+      );
+      await cancelBackgroundTaskAction(taskId);
+      await fetchTasks();
+    } catch (err) {
+      console.error("Failed to cancel task:", err);
+    } finally {
+      setCancellingTaskId(null);
+    }
   };
 
   const hasRunningTasks = tasks.some((t) => t.status === "running");
@@ -214,11 +245,29 @@ export function BackgroundTasksIndicator() {
                     <span className="text-slate-200 truncate font-medium">
                       {task.name}
                     </span>
-                    <div className="flex items-center flex-shrink-0">
+                    <div className="flex items-center flex-shrink-0 gap-1.5">
                       {task.status === "running" && (
-                        <span className="text-indigo-400 flex items-center gap-1.5 text-[11px] bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-800/50">
-                          <Loader2 className="h-3 w-3 animate-spin" /> Running
-                        </span>
+                        <>
+                          <span className="text-indigo-400 flex items-center gap-1.5 text-[11px] bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-800/50">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Running
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancelTask(task.id);
+                            }}
+                            disabled={cancellingTaskId === task.id}
+                            title="Cancel / Stop this task"
+                            className="text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-900/60 text-[10px] font-medium px-2 py-0.5 rounded-md border border-rose-800/50 flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            {cancellingTaskId === task.id ? (
+                              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                            ) : (
+                              <X className="h-2.5 w-2.5" />
+                            )}
+                            <span>Cancel</span>
+                          </button>
+                        </>
                       )}
                       {task.status === "completed" && (
                         <span className="text-emerald-400 flex items-center gap-1 text-[11px] bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-800/50">
