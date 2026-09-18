@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { PageSpeedSettings } from "@/actions/settings.actions";
+import type { PageSpeedSettings } from "@/lib/pagespeed-settings";
 import { AiUsageTab } from "./components/AiUsageTab";
 import { AuditTab } from "./components/AuditTab";
 import { EmailsTab } from "./components/EmailsTab";

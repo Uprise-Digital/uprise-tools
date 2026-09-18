@@ -36,7 +36,6 @@ import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
 import { exportOrganizationDataAction } from "@/actions/organization-export.actions";
 import { deleteOrganizationAction } from "@/actions/organization-offboarding.actions";
 import {
-  DEFAULT_PAGE_SPEED_SETTINGS,
   disconnectGoogleAdsAction,
   getOrganizationBrandingAction,
   refreshAdAccountsMetadataAction,
@@ -48,10 +47,12 @@ import {
   updateOrganizationNameAction,
   updatePageSpeedAuditScopeAction,
   updatePageSpeedSettingsAction,
+} from "@/actions/settings.actions";
+import {
   type PageSpeedAutoAuditSchedule,
   type PageSpeedDeviceStrategy,
   type PageSpeedSettings,
-} from "@/actions/settings.actions";
+} from "@/lib/pagespeed-settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

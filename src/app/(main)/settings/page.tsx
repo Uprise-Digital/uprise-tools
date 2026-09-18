@@ -5,7 +5,7 @@ import { getOrgTriageDefaultsAction } from "@/actions/triage-settings.actions";
 import {
   DEFAULT_PAGE_SPEED_SETTINGS,
   type PageSpeedSettings,
-} from "@/actions/settings.actions";
+} from "@/lib/pagespeed-settings";
 import { db } from "@/db";
 import {
   adAccounts,
