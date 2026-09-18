@@ -1263,6 +1263,9 @@ export const backgroundTasks = pgTable("background_tasks", {
   name: text("name").notNull(),
   status: text("status").notNull().default("running"), // 'running', 'completed', 'failed'
   error: text("error"),
+  totalItems: integer("total_items"),
+  completedItems: integer("completed_items").default(0),
+  currentItem: text("current_item"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }).enableRLS();

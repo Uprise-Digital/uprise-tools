@@ -285,6 +285,31 @@ export default function LpAnalysisClientPage({
     window.history.replaceState({}, "", url.toString());
   }, [selectedAccountId]);
 
+  // Auto-refresh page data when a background task completes
+  useEffect(() => {
+    const handleTaskDone = (e: any) => {
+      const task = e.detail;
+      console.log("[LpAnalysis] Background task completed, refreshing table data:", task?.name);
+      if (selectedAccountId === 0) {
+        fetchOrgOverview();
+      } else {
+        fetchCampaigns(selectedAccountId);
+      }
+      router.refresh();
+      toast.success(
+        task?.name
+          ? `Completed: ${task.name}. Benchmark data updated!`
+          : "PageSpeed audits completed! Benchmark data updated.",
+        { id: "bg-task-finished", duration: 5000 },
+      );
+    };
+
+    window.addEventListener("uprise:background_task_completed", handleTaskDone);
+    return () => {
+      window.removeEventListener("uprise:background_task_completed", handleTaskDone);
+    };
+  }, [selectedAccountId, fetchOrgOverview, fetchCampaigns, router]);
+
   // Sync campaigns action
   const handleSyncLps = async () => {
     if (!selectedAccountId) return;

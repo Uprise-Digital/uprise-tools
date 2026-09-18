@@ -467,6 +467,9 @@ export async function runAllLandingPageSpeedTestsAction(
         organizationId: orgId,
         name: taskTitle,
         status: "running",
+        totalItems: validPages.length,
+        completedItems: 0,
+        currentItem: `Starting audit of ${validPages.length} landing pages...`,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -478,7 +481,20 @@ export async function runAllLandingPageSpeedTestsAction(
       try {
         console.log(`[Background Task ${taskRecord.id}] Starting ${taskTitle}...`);
 
-        for (const page of validPages) {
+        for (let i = 0; i < validPages.length; i++) {
+          const page = validPages[i];
+          const cleanUrl = page.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+          // Update heartbeat and current page progress
+          await db
+            .update(backgroundTasks)
+            .set({
+              completedItems: i,
+              currentItem: `Auditing: ${cleanUrl} (${i + 1}/${validPages.length})`,
+              updatedAt: new Date(),
+            })
+            .where(eq(backgroundTasks.id, taskRecord.id));
+
           try {
             const audit = await runPageSpeedAudit(page.url, device);
             const targetOrgId = orgId || page.organizationId || "default-org";
@@ -529,6 +545,19 @@ export async function runAllLandingPageSpeedTestsAction(
               error: err.message || "Speed test failed",
             });
           }
+
+          // Update heartbeat after finishing this page
+          await db
+            .update(backgroundTasks)
+            .set({
+              completedItems: i + 1,
+              currentItem:
+                i + 1 === validPages.length
+                  ? "Finalizing audit batch..."
+                  : `Tested ${i + 1}/${validPages.length}. Preparing next page...`,
+              updatedAt: new Date(),
+            })
+            .where(eq(backgroundTasks.id, taskRecord.id));
         }
 
         const processed = results.filter((r) => r.success).length;
@@ -538,6 +567,8 @@ export async function runAllLandingPageSpeedTestsAction(
           .update(backgroundTasks)
           .set({
             status: "completed",
+            completedItems: validPages.length,
+            currentItem: `Completed ${processed}/${validPages.length} pages`,
             updatedAt: new Date(),
           })
           .where(eq(backgroundTasks.id, taskRecord.id));
