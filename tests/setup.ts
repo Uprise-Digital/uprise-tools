@@ -314,6 +314,20 @@ const mockDbQuery = {
         { id: 1, adAccountId: 1, criticalSpendThreshold: 70 },
       ]),
   },
+  organization: {
+    findFirst: vi.fn().mockResolvedValue({
+      id: "org-test-uprise",
+      name: "Uprise Digital Agency",
+      metadata: JSON.stringify({ pageSpeedAuditScope: "ALL" }),
+    }),
+    findMany: vi.fn().mockResolvedValue([
+      {
+        id: "org-test-uprise",
+        name: "Uprise Digital Agency",
+        metadata: JSON.stringify({ pageSpeedAuditScope: "ALL" }),
+      },
+    ]),
+  },
   orgTriageDefaults: {
     findFirst: vi.fn().mockResolvedValue({
       id: 1,

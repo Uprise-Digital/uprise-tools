@@ -139,18 +139,27 @@ export async function processWeeklySpeedChecks() {
 
   // Fetch org audit scope settings
   const orgSettingsMap = new Map<string, "ALL" | "ENABLED_ONLY">();
-  const orgs = await withBypassTenantDb(async (tx) => {
-    return await tx.query.organization.findMany();
-  });
-  for (const org of orgs) {
-    let scope: "ALL" | "ENABLED_ONLY" = "ALL";
-    if (org.metadata) {
-      try {
-        const meta = JSON.parse(org.metadata);
-        if (meta.pageSpeedAuditScope) scope = meta.pageSpeedAuditScope;
-      } catch (e) {}
+  try {
+    const orgs = await withBypassTenantDb(async (tx) => {
+      if (tx?.query?.organization?.findMany) {
+        return await tx.query.organization.findMany();
+      }
+      return [];
+    });
+    for (const org of orgs) {
+      let scope: "ALL" | "ENABLED_ONLY" = "ALL";
+      if (org?.metadata) {
+        try {
+          const meta = JSON.parse(org.metadata);
+          if (meta.pageSpeedAuditScope) scope = meta.pageSpeedAuditScope;
+        } catch (e) {}
+      }
+      if (org?.id) {
+        orgSettingsMap.set(org.id, scope);
+      }
     }
-    orgSettingsMap.set(org.id, scope);
+  } catch (err) {
+    console.warn("[Cron Speed Test] Could not load organization scope settings, defaulting to ALL:", err);
   }
 
   // Filter based on each org's pageSpeedAuditScope setting
