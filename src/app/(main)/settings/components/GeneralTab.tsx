@@ -2,7 +2,9 @@
 
 import {
   AlertTriangle,
+  Calendar,
   CheckCircle2,
+  Clock,
   Database,
   Download,
   Gauge,
@@ -10,9 +12,12 @@ import {
   Image as ImageIcon,
   Key,
   Loader2,
+  Monitor,
+  Play,
   Plus,
   RefreshCw,
   SlidersHorizontal,
+  Smartphone,
   Trash,
   Upload,
   User as UserIcon,
@@ -31,18 +36,31 @@ import { fetchSubAccountsForPreviewAction } from "@/actions/onboarding.actions";
 import { exportOrganizationDataAction } from "@/actions/organization-export.actions";
 import { deleteOrganizationAction } from "@/actions/organization-offboarding.actions";
 import {
+  DEFAULT_PAGE_SPEED_SETTINGS,
   disconnectGoogleAdsAction,
   getOrganizationBrandingAction,
   refreshAdAccountsMetadataAction,
+  triggerTestAutoAuditAction,
   updateAutoSyncSettingsAction,
   updateLinkedAccountsAction,
   updateNegativeKeywordOptionsAction,
   updateOrganizationBrandingAction,
   updateOrganizationNameAction,
   updatePageSpeedAuditScopeAction,
+  updatePageSpeedSettingsAction,
+  type PageSpeedAutoAuditSchedule,
+  type PageSpeedDeviceStrategy,
+  type PageSpeedSettings,
 } from "@/actions/settings.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -115,6 +133,7 @@ interface GeneralTabProps {
   userRole: string;
   initialAutoJoinDomainEnabled: boolean;
   initialPageSpeedScope?: "ALL" | "ENABLED_ONLY";
+  initialPageSpeedSettings?: PageSpeedSettings;
   initialBranding?: {
     brandName: string;
     logoUrl: string;
@@ -140,6 +159,7 @@ export function GeneralTab({
   userRole,
   initialAutoJoinDomainEnabled,
   initialPageSpeedScope = "ALL",
+  initialPageSpeedSettings,
   initialBranding,
 }: GeneralTabProps) {
   const [orgNameInput, setOrgNameInput] = useState(orgName);
@@ -148,18 +168,35 @@ export function GeneralTab({
     initialAutoJoinDomainEnabled,
   );
 
-  // PageSpeed Audit Scope Setting State
+  // PageSpeed Audit Settings State
+  const defaultPs = initialPageSpeedSettings || {
+    scope: initialPageSpeedScope || "ALL",
+    deviceStrategy: "MOBILE",
+    autoAudit: {
+      enabled: false,
+      frequency: "WEEKLY",
+      dayOfWeek: 1,
+      dayOfMonth: 1,
+      time: "09:00",
+    },
+  };
+
   const [pageSpeedAuditScope, setPageSpeedAuditScope] = useState<
     "ALL" | "ENABLED_ONLY"
-  >(initialPageSpeedScope);
-  const [savingPageSpeedScope, setSavingPageSpeedScope] = useState(false);
+  >(defaultPs.scope);
+  const [pageSpeedDeviceStrategy, setPageSpeedDeviceStrategy] =
+    useState<PageSpeedDeviceStrategy>(defaultPs.deviceStrategy);
+  const [autoAuditSchedule, setAutoAuditSchedule] =
+    useState<PageSpeedAutoAuditSchedule>(defaultPs.autoAudit);
+  const [savingPageSpeedSettings, setSavingPageSpeedSettings] = useState(false);
+  const [testingAutoAudit, setTestingAutoAudit] = useState(false);
 
   const handleUpdatePageSpeedScope = async (scope: "ALL" | "ENABLED_ONLY") => {
-    if (savingPageSpeedScope || scope === pageSpeedAuditScope) return;
-    setSavingPageSpeedScope(true);
+    if (savingPageSpeedSettings || scope === pageSpeedAuditScope) return;
+    setSavingPageSpeedSettings(true);
     setPageSpeedAuditScope(scope);
     try {
-      const res = await updatePageSpeedAuditScopeAction(scope);
+      const res = await updatePageSpeedSettingsAction({ scope });
       if (res.success) {
         toast.success(
           scope === "ALL"
@@ -168,13 +205,88 @@ export function GeneralTab({
         );
       } else {
         toast.error(res.error || "Failed to save PageSpeed audit scope.");
-        setPageSpeedAuditScope(initialPageSpeedScope);
+        setPageSpeedAuditScope(pageSpeedAuditScope);
       }
     } catch (err: any) {
       toast.error(err.message || "An error occurred updating audit scope.");
-      setPageSpeedAuditScope(initialPageSpeedScope);
+      setPageSpeedAuditScope(pageSpeedAuditScope);
     } finally {
-      setSavingPageSpeedScope(false);
+      setSavingPageSpeedSettings(false);
+    }
+  };
+
+  const handleUpdateDeviceStrategy = async (strategy: PageSpeedDeviceStrategy) => {
+    if (savingPageSpeedSettings || strategy === pageSpeedDeviceStrategy) return;
+    setSavingPageSpeedSettings(true);
+    setPageSpeedDeviceStrategy(strategy);
+    try {
+      const res = await updatePageSpeedSettingsAction({ deviceStrategy: strategy });
+      if (res.success) {
+        const label =
+          strategy === "BOTH"
+            ? "Both Mobile & Desktop"
+            : strategy === "DESKTOP"
+              ? "Desktop Only"
+              : "Mobile Only";
+        toast.success(`PageSpeed audit device set to ${label}.`);
+      } else {
+        toast.error(res.error || "Failed to save device strategy.");
+        setPageSpeedDeviceStrategy(pageSpeedDeviceStrategy);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred updating device strategy.");
+      setPageSpeedDeviceStrategy(pageSpeedDeviceStrategy);
+    } finally {
+      setSavingPageSpeedSettings(false);
+    }
+  };
+
+  const handleUpdateAutoAuditSchedule = async (
+    updates: Partial<PageSpeedAutoAuditSchedule>,
+  ) => {
+    const updated = { ...autoAuditSchedule, ...updates };
+    setAutoAuditSchedule(updated);
+    setSavingPageSpeedSettings(true);
+    try {
+      const res = await updatePageSpeedSettingsAction({ autoAudit: updates });
+      if (res.success) {
+        if (updates.enabled !== undefined) {
+          toast.success(
+            updates.enabled
+              ? "Automated Full Audits enabled."
+              : "Automated Full Audits disabled.",
+          );
+        } else {
+          toast.success("Automated audit schedule updated.");
+        }
+      } else {
+        toast.error(res.error || "Failed to update automated schedule.");
+        setAutoAuditSchedule(autoAuditSchedule);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred saving schedule.");
+      setAutoAuditSchedule(autoAuditSchedule);
+    } finally {
+      setSavingPageSpeedSettings(false);
+    }
+  };
+
+  const handleTriggerTestAutoAudit = async () => {
+    setTestingAutoAudit(true);
+    try {
+      const res = await triggerTestAutoAuditAction();
+      if (res.success) {
+        toast.success(
+          res.message || "Test automated speed audit completed successfully!",
+          { duration: 6000 },
+        );
+      } else {
+        toast.error(res.error || "Test automated audit failed.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred running test audit.");
+    } finally {
+      setTestingAutoAudit(false);
     }
   };
 
@@ -1446,91 +1558,461 @@ export function GeneralTab({
         {/* LANDING PAGE SPEED AUDITS (GOOGLE PAGESPEED) SETTING CARD */}
         <Card className="gap-0 py-0 border-slate-200 shadow-sm overflow-hidden">
           <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
                   <Gauge className="w-4 h-4 text-blue-600" />
                   Landing Page Speed Audits (Google PageSpeed)
                 </CardTitle>
                 <CardDescription className="text-xs mt-0.5">
-                  Configure default audit scope for &quot;Run All PageSpeed&quot; across your landing pages.
+                  Configure default audit scope, device strategy, and automated schedules across your landing pages.
                 </CardDescription>
               </div>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-[10px] font-semibold border-none px-2.5 py-1",
-                  pageSpeedAuditScope === "ALL"
-                    ? "bg-indigo-100 text-indigo-800"
-                    : "bg-emerald-100 text-emerald-800",
-                )}
-              >
-                {pageSpeedAuditScope === "ALL"
-                  ? "All Landing Pages"
-                  : "Enabled Campaigns Only"}
-              </Badge>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] font-semibold border-none px-2.5 py-1",
+                    pageSpeedAuditScope === "ALL"
+                      ? "bg-indigo-100 text-indigo-800"
+                      : "bg-emerald-100 text-emerald-800",
+                  )}
+                >
+                  {pageSpeedAuditScope === "ALL"
+                    ? "All Landing Pages"
+                    : "Enabled Only"}
+                </Badge>
+
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] font-semibold border-none px-2.5 py-1",
+                    pageSpeedDeviceStrategy === "BOTH"
+                      ? "bg-purple-100 text-purple-800"
+                      : pageSpeedDeviceStrategy === "DESKTOP"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-sky-100 text-sky-800",
+                  )}
+                >
+                  {pageSpeedDeviceStrategy === "BOTH"
+                    ? "⚡ Both Devices"
+                    : pageSpeedDeviceStrategy === "DESKTOP"
+                      ? "🖥️ Desktop Only"
+                      : "📱 Mobile Only"}
+                </Badge>
+
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] font-semibold border-none px-2.5 py-1 flex items-center gap-1",
+                    autoAuditSchedule.enabled
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-slate-100 text-slate-600",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full inline-block",
+                      autoAuditSchedule.enabled
+                        ? "bg-emerald-500 animate-pulse"
+                        : "bg-slate-400",
+                    )}
+                  />
+                  {autoAuditSchedule.enabled
+                    ? `Auto: ${autoAuditSchedule.frequency === "WEEKLY" ? "Weekly" : "Monthly"} @ ${autoAuditSchedule.time}`
+                    : "Auto: Off"}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
-          <CardContent className="p-5 sm:p-6 space-y-4">
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-700 block">
-                Batch Audit Scope
-              </span>
-              <p className="text-[11px] text-slate-500">
-                Choose whether &quot;Run All PageSpeed&quot; tests every landing page in your portfolio or only campaigns that are currently active.
-              </p>
+          <CardContent className="p-5 sm:p-6 space-y-6">
+            {/* 1. BATCH AUDIT SCOPE */}
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-slate-700 block">
+                  Batch Audit Scope
+                </span>
+                <p className="text-[11px] text-slate-500">
+                  Choose whether &quot;Run All PageSpeed&quot; tests every landing page in your portfolio or only campaigns that are currently active.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <button
+                  type="button"
+                  disabled={savingPageSpeedSettings}
+                  onClick={() => handleUpdatePageSpeedScope("ALL")}
+                  className={cn(
+                    "p-4 rounded-xl border text-left transition-all cursor-pointer",
+                    pageSpeedAuditScope === "ALL"
+                      ? "bg-indigo-50/40 border-indigo-600 ring-2 ring-indigo-600/20 text-indigo-950 shadow-xs"
+                      : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
+                  )}
+                >
+                  <div className="font-bold flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-900">
+                      <Globe className="w-4 h-4 text-indigo-600" />
+                      Run All Landing Pages
+                    </span>
+                    {pageSpeedAuditScope === "ALL" && (
+                      <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                    Audits all imported and custom landing pages with valid URLs, even if the Google Ads campaign is currently Paused.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={savingPageSpeedSettings}
+                  onClick={() => handleUpdatePageSpeedScope("ENABLED_ONLY")}
+                  className={cn(
+                    "p-4 rounded-xl border text-left transition-all cursor-pointer",
+                    pageSpeedAuditScope === "ENABLED_ONLY"
+                      ? "bg-emerald-50/40 border-emerald-600 ring-2 ring-emerald-600/20 text-emerald-950 shadow-xs"
+                      : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
+                  )}
+                >
+                  <div className="font-bold flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-900">
+                      <Zap className="w-4 h-4 text-emerald-600" />
+                      Run Only Enabled Campaigns
+                    </span>
+                    {pageSpeedAuditScope === "ENABLED_ONLY" && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                    Only audits landing pages attached to active Google Ads campaigns with status <strong className="text-slate-700">ENABLED</strong>. Paused campaigns are skipped.
+                  </p>
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <button
-                type="button"
-                disabled={savingPageSpeedScope}
-                onClick={() => handleUpdatePageSpeedScope("ALL")}
-                className={cn(
-                  "p-4 rounded-xl border text-left transition-all cursor-pointer",
-                  pageSpeedAuditScope === "ALL"
-                    ? "bg-indigo-50/40 border-indigo-600 ring-2 ring-indigo-600/20 text-indigo-950 shadow-xs"
-                    : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
-                )}
-              >
-                <div className="font-bold flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs text-slate-900">
-                    <Globe className="w-4 h-4 text-indigo-600" />
-                    Run All Landing Pages
-                  </span>
-                  {pageSpeedAuditScope === "ALL" && (
-                    <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
-                  Audits all imported and custom landing pages with valid URLs, even if the Google Ads campaign is currently Paused.
-                </p>
-              </button>
+            <hr className="border-slate-100" />
 
-              <button
-                type="button"
-                disabled={savingPageSpeedScope}
-                onClick={() => handleUpdatePageSpeedScope("ENABLED_ONLY")}
-                className={cn(
-                  "p-4 rounded-xl border text-left transition-all cursor-pointer",
-                  pageSpeedAuditScope === "ENABLED_ONLY"
-                    ? "bg-emerald-50/40 border-emerald-600 ring-2 ring-emerald-600/20 text-emerald-950 shadow-xs"
-                    : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
-                )}
-              >
-                <div className="font-bold flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs text-slate-900">
-                    <Zap className="w-4 h-4 text-emerald-600" />
-                    Run Only Enabled Campaigns
-                  </span>
-                  {pageSpeedAuditScope === "ENABLED_ONLY" && (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
-                  Only audits landing pages attached to active Google Ads campaigns with status <strong className="text-slate-700">ENABLED</strong>. Paused campaigns are skipped.
+            {/* 2. AUDIT DEVICE STRATEGY */}
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-slate-700 block">
+                  Audit Device Strategy
+                </span>
+                <p className="text-[11px] text-slate-500">
+                  Select which viewport devices to audit when running manual batch audits or scheduled automations.
                 </p>
-              </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <button
+                  type="button"
+                  disabled={savingPageSpeedSettings}
+                  onClick={() => handleUpdateDeviceStrategy("MOBILE")}
+                  className={cn(
+                    "p-4 rounded-xl border text-left transition-all cursor-pointer",
+                    pageSpeedDeviceStrategy === "MOBILE"
+                      ? "bg-sky-50/50 border-sky-600 ring-2 ring-sky-600/20 text-sky-950 shadow-xs"
+                      : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
+                  )}
+                >
+                  <div className="font-bold flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-900">
+                      <Smartphone className="w-4 h-4 text-sky-600" />
+                      Mobile Only
+                    </span>
+                    {pageSpeedDeviceStrategy === "MOBILE" && (
+                      <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                    Fastest execution. Audits Mobile Lighthouse score, mobile Core Web Vitals (LCP, CLS, INP), and simulated 4G mobile throttling.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={savingPageSpeedSettings}
+                  onClick={() => handleUpdateDeviceStrategy("DESKTOP")}
+                  className={cn(
+                    "p-4 rounded-xl border text-left transition-all cursor-pointer",
+                    pageSpeedDeviceStrategy === "DESKTOP"
+                      ? "bg-blue-50/50 border-blue-600 ring-2 ring-blue-600/20 text-blue-950 shadow-xs"
+                      : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
+                  )}
+                >
+                  <div className="font-bold flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-900">
+                      <Monitor className="w-4 h-4 text-blue-600" />
+                      Desktop Only
+                    </span>
+                    {pageSpeedDeviceStrategy === "DESKTOP" && (
+                      <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                    Audits Desktop Lighthouse score and desktop Core Web Vitals. Recommended for B2B or desktop-heavy Google Ads campaigns.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={savingPageSpeedSettings}
+                  onClick={() => handleUpdateDeviceStrategy("BOTH")}
+                  className={cn(
+                    "p-4 rounded-xl border text-left transition-all cursor-pointer",
+                    pageSpeedDeviceStrategy === "BOTH"
+                      ? "bg-purple-50/50 border-purple-600 ring-2 ring-purple-600/20 text-purple-950 shadow-xs"
+                      : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
+                  )}
+                >
+                  <div className="font-bold flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-900">
+                      <Zap className="w-4 h-4 text-purple-600" />
+                      Both (Mobile &amp; Desktop)
+                    </span>
+                    {pageSpeedDeviceStrategy === "BOTH" && (
+                      <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                    Comprehensive full-spectrum audit. Runs both mobile and desktop tests sequentially for every landing page in the portfolio.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
+            {/* 3. AUTOMATED FULL AUDIT SCHEDULE */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-slate-700 block flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-indigo-600" />
+                    Automated Full Audit Schedule
+                  </span>
+                  <p className="text-[11px] text-slate-500">
+                    Automatically run recurring portfolio speed audits and receive performance regression alerts via email and notifications.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-600">
+                    {autoAuditSchedule.enabled ? "Active" : "Disabled"}
+                  </span>
+                  <Switch
+                    checked={autoAuditSchedule.enabled}
+                    disabled={savingPageSpeedSettings}
+                    onCheckedChange={(checked) =>
+                      handleUpdateAutoAuditSchedule({ enabled: checked })
+                    }
+                  />
+                </div>
+              </div>
+
+              {autoAuditSchedule.enabled && (
+                <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 sm:p-5 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Frequency */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-700">
+                        Audit Frequency
+                      </Label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={savingPageSpeedSettings}
+                          onClick={() =>
+                            handleUpdateAutoAuditSchedule({ frequency: "WEEKLY" })
+                          }
+                          className={cn(
+                            "flex-1 py-2 px-3 text-xs font-bold rounded-lg border transition-all cursor-pointer text-center",
+                            autoAuditSchedule.frequency === "WEEKLY"
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
+                          )}
+                        >
+                          Weekly
+                        </button>
+                        <button
+                          type="button"
+                          disabled={savingPageSpeedSettings}
+                          onClick={() =>
+                            handleUpdateAutoAuditSchedule({ frequency: "MONTHLY" })
+                          }
+                          className={cn(
+                            "flex-1 py-2 px-3 text-xs font-bold rounded-lg border transition-all cursor-pointer text-center",
+                            autoAuditSchedule.frequency === "MONTHLY"
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50",
+                          )}
+                        >
+                          Monthly
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Day Selector */}
+                    {autoAuditSchedule.frequency === "WEEKLY" ? (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">
+                          Day of the Week
+                        </Label>
+                        <Select
+                          value={String(autoAuditSchedule.dayOfWeek || 1)}
+                          onValueChange={(val) =>
+                            handleUpdateAutoAuditSchedule({
+                              dayOfWeek: parseInt(val, 10),
+                            })
+                          }
+                          disabled={savingPageSpeedSettings}
+                        >
+                          <SelectTrigger className="h-9 bg-white text-xs font-medium border-slate-200">
+                            <SelectValue placeholder="Select day" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Every Monday</SelectItem>
+                            <SelectItem value="2">Every Tuesday</SelectItem>
+                            <SelectItem value="3">Every Wednesday</SelectItem>
+                            <SelectItem value="4">Every Thursday</SelectItem>
+                            <SelectItem value="5">Every Friday</SelectItem>
+                            <SelectItem value="6">Every Saturday</SelectItem>
+                            <SelectItem value="7">Every Sunday</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-700">
+                          Day of the Month
+                        </Label>
+                        <Select
+                          value={String(autoAuditSchedule.dayOfMonth || 1)}
+                          onValueChange={(val) =>
+                            handleUpdateAutoAuditSchedule({
+                              dayOfMonth: parseInt(val, 10),
+                            })
+                          }
+                          disabled={savingPageSpeedSettings}
+                        >
+                          <SelectTrigger className="h-9 bg-white text-xs font-medium border-slate-200">
+                            <SelectValue placeholder="Select date" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 28 }, (_, i) => i + 1).map(
+                              (day) => (
+                                <SelectItem key={day} value={String(day)}>
+                                  {day}
+                                  {day === 1
+                                    ? "st"
+                                    : day === 2
+                                      ? "nd"
+                                      : day === 3
+                                        ? "rd"
+                                        : "th"}{" "}
+                                  of every month
+                                </SelectItem>
+                              ),
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Time of Day */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          Execution Time
+                        </Label>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          AEST (Melbourne)
+                        </span>
+                      </div>
+                      <Input
+                        type="time"
+                        value={autoAuditSchedule.time || "09:00"}
+                        onChange={(e) =>
+                          handleUpdateAutoAuditSchedule({ time: e.target.value })
+                        }
+                        disabled={savingPageSpeedSettings}
+                        className="h-9 bg-white text-xs font-medium border-slate-200"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Schedule Details & Test Trigger Banner */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-200/60">
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>
+                          Runs automatically{" "}
+                          <strong>
+                            {autoAuditSchedule.frequency === "WEEKLY"
+                              ? `every ${
+                                  {
+                                    1: "Monday",
+                                    2: "Tuesday",
+                                    3: "Wednesday",
+                                    4: "Thursday",
+                                    5: "Friday",
+                                    6: "Saturday",
+                                    7: "Sunday",
+                                  }[autoAuditSchedule.dayOfWeek || 1]
+                                }`
+                              : `on the ${autoAuditSchedule.dayOfMonth || 1}${
+                                  autoAuditSchedule.dayOfMonth === 1
+                                    ? "st"
+                                    : autoAuditSchedule.dayOfMonth === 2
+                                      ? "nd"
+                                      : autoAuditSchedule.dayOfMonth === 3
+                                        ? "rd"
+                                        : "th"
+                                } of each month`}
+                          </strong>{" "}
+                          at <strong>{autoAuditSchedule.time || "09:00"}</strong>{" "}
+                          AEST.
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        {autoAuditSchedule.lastRunAt
+                          ? `Last completed: ${new Date(
+                              autoAuditSchedule.lastRunAt,
+                            ).toLocaleDateString("en-AU", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}`
+                          : "Never run yet."}
+                      </p>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={testingAutoAudit}
+                      onClick={handleTriggerTestAutoAudit}
+                      className="h-8 text-xs font-bold bg-white hover:bg-slate-50 border-slate-200 shrink-0 cursor-pointer"
+                    >
+                      {testingAutoAudit ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                          Testing Audit...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+                          Run Test Audit Now
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

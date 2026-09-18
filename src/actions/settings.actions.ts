@@ -764,15 +764,49 @@ export async function updateOrganizationBrandingAction(payload: {
   }
 }
 
-// --- Action: Get PageSpeed Audit Scope Setting ---
-export async function getPageSpeedAuditScopeAction(): Promise<{
-  success: boolean;
+// --- Types: PageSpeed Settings ---
+export type PageSpeedDeviceStrategy = "MOBILE" | "DESKTOP" | "BOTH";
+
+export interface PageSpeedAutoAuditSchedule {
+  enabled: boolean;
+  frequency: "WEEKLY" | "MONTHLY";
+  dayOfWeek: number; // 1 = Monday ... 7 = Sunday
+  dayOfMonth: number; // 1 ... 28
+  time: string; // "HH:MM" 24h format, e.g. "09:00"
+  lastRunAt?: string;
+}
+
+export interface PageSpeedSettings {
   scope: "ALL" | "ENABLED_ONLY";
+  deviceStrategy: PageSpeedDeviceStrategy;
+  autoAudit: PageSpeedAutoAuditSchedule;
+}
+
+export const DEFAULT_PAGE_SPEED_SETTINGS: PageSpeedSettings = {
+  scope: "ALL",
+  deviceStrategy: "MOBILE",
+  autoAudit: {
+    enabled: false,
+    frequency: "WEEKLY",
+    dayOfWeek: 1, // Monday
+    dayOfMonth: 1, // 1st
+    time: "09:00",
+  },
+};
+
+// --- Action: Get Complete PageSpeed Settings ---
+export async function getPageSpeedSettingsAction(): Promise<{
+  success: boolean;
+  settings: PageSpeedSettings;
   error?: string;
 }> {
   const ctx = await getAuthOrgContext();
   if (!ctx) {
-    return { success: false, scope: "ALL", error: "Unauthorized" };
+    return {
+      success: false,
+      settings: DEFAULT_PAGE_SPEED_SETTINGS,
+      error: "Unauthorized",
+    };
   }
 
   try {
@@ -780,7 +814,8 @@ export async function getPageSpeedAuditScopeAction(): Promise<{
       where: eq(organization.id, ctx.orgId),
     });
 
-    let scope: "ALL" | "ENABLED_ONLY" = "ALL";
+    const settings: PageSpeedSettings = { ...DEFAULT_PAGE_SPEED_SETTINGS };
+
     if (org?.metadata) {
       try {
         const meta = JSON.parse(org.metadata);
@@ -788,24 +823,78 @@ export async function getPageSpeedAuditScopeAction(): Promise<{
           meta.pageSpeedAuditScope === "ENABLED_ONLY" ||
           meta.pageSpeedAuditScope === "ALL"
         ) {
-          scope = meta.pageSpeedAuditScope;
+          settings.scope = meta.pageSpeedAuditScope;
+        }
+
+        if (
+          meta.pageSpeedDeviceStrategy === "MOBILE" ||
+          meta.pageSpeedDeviceStrategy === "DESKTOP" ||
+          meta.pageSpeedDeviceStrategy === "BOTH"
+        ) {
+          settings.deviceStrategy = meta.pageSpeedDeviceStrategy;
+        }
+
+        if (meta.pageSpeedAutoAudit && typeof meta.pageSpeedAutoAudit === "object") {
+          settings.autoAudit = {
+            enabled: !!meta.pageSpeedAutoAudit.enabled,
+            frequency:
+              meta.pageSpeedAutoAudit.frequency === "MONTHLY"
+                ? "MONTHLY"
+                : "WEEKLY",
+            dayOfWeek:
+              typeof meta.pageSpeedAutoAudit.dayOfWeek === "number" &&
+              meta.pageSpeedAutoAudit.dayOfWeek >= 1 &&
+              meta.pageSpeedAutoAudit.dayOfWeek <= 7
+                ? meta.pageSpeedAutoAudit.dayOfWeek
+                : 1,
+            dayOfMonth:
+              typeof meta.pageSpeedAutoAudit.dayOfMonth === "number" &&
+              meta.pageSpeedAutoAudit.dayOfMonth >= 1 &&
+              meta.pageSpeedAutoAudit.dayOfMonth <= 28
+                ? meta.pageSpeedAutoAudit.dayOfMonth
+                : 1,
+            time:
+              typeof meta.pageSpeedAutoAudit.time === "string" &&
+              /^([01]\d|2[0-3]):([0-5]\d)$/.test(meta.pageSpeedAutoAudit.time)
+                ? meta.pageSpeedAutoAudit.time
+                : "09:00",
+            lastRunAt: meta.pageSpeedAutoAudit.lastRunAt,
+          };
         }
       } catch (e) {
         // Ignore JSON parse error
       }
     }
 
-    return { success: true, scope };
+    return { success: true, settings };
   } catch (err: any) {
-    console.error("[getPageSpeedAuditScopeAction Error]:", err);
-    return { success: false, scope: "ALL", error: err.message };
+    console.error("[getPageSpeedSettingsAction Error]:", err);
+    return {
+      success: false,
+      settings: DEFAULT_PAGE_SPEED_SETTINGS,
+      error: err.message,
+    };
   }
 }
 
-// --- Action: Update PageSpeed Audit Scope Setting ---
-export async function updatePageSpeedAuditScopeAction(
-  scope: "ALL" | "ENABLED_ONLY",
-): Promise<{ success: boolean; error?: string }> {
+// --- Action: Get PageSpeed Audit Scope Setting (Backwards Compatibility) ---
+export async function getPageSpeedAuditScopeAction(): Promise<{
+  success: boolean;
+  scope: "ALL" | "ENABLED_ONLY";
+  error?: string;
+}> {
+  const res = await getPageSpeedSettingsAction();
+  return { success: res.success, scope: res.settings.scope, error: res.error };
+}
+
+// --- Action: Update PageSpeed Settings ---
+export async function updatePageSpeedSettingsAction(
+  updates: {
+    scope?: "ALL" | "ENABLED_ONLY";
+    deviceStrategy?: PageSpeedDeviceStrategy;
+    autoAudit?: Partial<PageSpeedAutoAuditSchedule>;
+  },
+): Promise<{ success: boolean; settings?: PageSpeedSettings; error?: string }> {
   const ctx = await getAuthOrgContext();
   if (!ctx) {
     return { success: false, error: "Unauthorized" };
@@ -827,7 +916,49 @@ export async function updatePageSpeedAuditScopeAction(
       }
     }
 
-    metaObj.pageSpeedAuditScope = scope;
+    if (updates.scope) {
+      metaObj.pageSpeedAuditScope = updates.scope;
+    }
+
+    if (updates.deviceStrategy) {
+      metaObj.pageSpeedDeviceStrategy = updates.deviceStrategy;
+    }
+
+    if (updates.autoAudit) {
+      if (
+        updates.autoAudit.time !== undefined &&
+        !/^([01]\d|2[0-3]):([0-5]\d)$/.test(updates.autoAudit.time)
+      ) {
+        return {
+          success: false,
+          error: "Invalid time format. Please provide time in HH:mm 24-hour format.",
+        };
+      }
+      if (
+        updates.autoAudit.dayOfMonth !== undefined &&
+        (updates.autoAudit.dayOfMonth < 1 || updates.autoAudit.dayOfMonth > 31)
+      ) {
+        return {
+          success: false,
+          error: "Day of month must be between 1 and 31.",
+        };
+      }
+      if (
+        updates.autoAudit.dayOfWeek !== undefined &&
+        (updates.autoAudit.dayOfWeek < 1 || updates.autoAudit.dayOfWeek > 7)
+      ) {
+        return {
+          success: false,
+          error: "Day of week must be between 1 (Monday) and 7 (Sunday).",
+        };
+      }
+
+      const currentAuto = metaObj.pageSpeedAutoAudit || DEFAULT_PAGE_SPEED_SETTINGS.autoAudit;
+      metaObj.pageSpeedAutoAudit = {
+        ...currentAuto,
+        ...updates.autoAudit,
+      };
+    }
 
     await db
       .update(organization)
@@ -839,10 +970,43 @@ export async function updatePageSpeedAuditScopeAction(
 
     revalidatePath("/settings");
     revalidatePath("/lp-analysis");
-    return { success: true };
+
+    const fullRes = await getPageSpeedSettingsAction();
+    return { success: true, settings: fullRes.settings };
   } catch (error: any) {
-    console.error("[updatePageSpeedAuditScopeAction Error]:", error);
+    console.error("[updatePageSpeedSettingsAction Error]:", error);
     return { success: false, error: error.message };
   }
 }
+
+// --- Action: Update PageSpeed Audit Scope Setting (Backwards Compatibility) ---
+export async function updatePageSpeedAuditScopeAction(
+  scope: "ALL" | "ENABLED_ONLY",
+): Promise<{ success: boolean; error?: string }> {
+  return await updatePageSpeedSettingsAction({ scope });
+}
+
+// --- Action: Trigger Manual Test Run of Automated Full Speed Audit ---
+export async function triggerTestAutoAuditAction(): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+}> {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  try {
+    const { triggerAutomatedFullAuditForOrg } = await import(
+      "@/app/api/cron/speed-test/route"
+    );
+    const result = await triggerAutomatedFullAuditForOrg(ctx.orgId, true);
+    return result;
+  } catch (error: any) {
+    console.error("[triggerTestAutoAuditAction Error]:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 

@@ -26,6 +26,7 @@ export default async function LpAnalysisPage() {
   ]);
 
   let initialPageSpeedScope: "ALL" | "ENABLED_ONLY" = "ALL";
+  let initialPageSpeedDeviceStrategy: "MOBILE" | "DESKTOP" | "BOTH" = "MOBILE";
   if (org?.metadata) {
     try {
       const meta = JSON.parse(org.metadata);
@@ -34,6 +35,13 @@ export default async function LpAnalysisPage() {
         meta.pageSpeedAuditScope === "ALL"
       ) {
         initialPageSpeedScope = meta.pageSpeedAuditScope;
+      }
+      if (
+        meta.pageSpeedDeviceStrategy === "DESKTOP" ||
+        meta.pageSpeedDeviceStrategy === "BOTH" ||
+        meta.pageSpeedDeviceStrategy === "MOBILE"
+      ) {
+        initialPageSpeedDeviceStrategy = meta.pageSpeedDeviceStrategy;
       }
     } catch (e) {
       // Ignore JSON parse error
@@ -44,6 +52,7 @@ export default async function LpAnalysisPage() {
     <LpAnalysisClientPage
       accounts={accounts}
       initialPageSpeedScope={initialPageSpeedScope}
+      initialPageSpeedDeviceStrategy={initialPageSpeedDeviceStrategy}
     />
   );
 }

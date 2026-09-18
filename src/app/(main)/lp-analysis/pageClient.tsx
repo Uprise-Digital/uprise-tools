@@ -154,9 +154,11 @@ interface AccountSummary {
 export default function LpAnalysisClientPage({
   accounts,
   initialPageSpeedScope = "ALL",
+  initialPageSpeedDeviceStrategy = "MOBILE",
 }: {
   accounts: AdAccount[];
   initialPageSpeedScope?: "ALL" | "ENABLED_ONLY";
+  initialPageSpeedDeviceStrategy?: "MOBILE" | "DESKTOP" | "BOTH";
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -165,6 +167,9 @@ export default function LpAnalysisClientPage({
   const [pageSpeedScope, setPageSpeedScope] = useState<"ALL" | "ENABLED_ONLY">(
     initialPageSpeedScope,
   );
+  const [pageSpeedDeviceStrategy, setPageSpeedDeviceStrategy] = useState<
+    "MOBILE" | "DESKTOP" | "BOTH"
+  >(initialPageSpeedDeviceStrategy);
 
   // Selection & Search State (0 = Organization Overview)
   const [selectedAccountId, setSelectedAccountId] = useState<number>(
@@ -600,25 +605,36 @@ export default function LpAnalysisClientPage({
   // Handle Run All PageSpeed Tests
   const handleRunAllPageSpeed = async (
     scopeOverride?: "ALL" | "ENABLED_ONLY",
+    deviceOverride?: "mobile" | "desktop" | "both",
   ) => {
     const isOrgView = selectedAccountId === 0;
     const label = isOrgView
       ? "all portfolio landing pages"
       : `pages in ${selectedAccountName}`;
     const effectiveScope = scopeOverride || pageSpeedScope;
+    const effectiveDevice =
+      deviceOverride ||
+      (pageSpeedDeviceStrategy.toLowerCase() as "mobile" | "desktop" | "both");
+
+    const deviceLabel =
+      effectiveDevice === "both"
+        ? "Both Mobile & Desktop"
+        : effectiveDevice === "desktop"
+          ? "Desktop Only"
+          : "Mobile Only";
 
     setIsRunningPageSpeed(true);
     try {
       const res = await runAllLandingPageSpeedTestsAction(
         isOrgView ? undefined : selectedAccountId,
-        "mobile",
+        effectiveDevice,
         effectiveScope,
       );
 
       if (res.success) {
         toast.success(
           res.message ||
-            `Started PageSpeed audits (${effectiveScope === "ALL" ? "All LPs" : "Enabled Only"}) for ${label}! Track live progress in the bottom-right task monitor.`,
+            `Started PageSpeed audits (${deviceLabel} • ${effectiveScope === "ALL" ? "All LPs" : "Enabled Only"}) for ${label}! Track live progress in the bottom-right task monitor.`,
           { duration: 6000 },
         );
       } else {
@@ -826,7 +842,7 @@ export default function LpAnalysisClientPage({
             Quick Audit
           </Button>
 
-          {/* Run All PageSpeed Action Group with Scope Switcher */}
+          {/* Run All PageSpeed Action Group with Scope & Device Switcher */}
           <div className="inline-flex rounded-lg shadow-xs">
             <Button
               onClick={() => handleRunAllPageSpeed()}
@@ -837,7 +853,7 @@ export default function LpAnalysisClientPage({
                 (selectedAccountId !== 0 && campaigns.length === 0)
               }
               variant="outline"
-              title={`Run Google PageSpeed Insights for ${pageSpeedScope === "ALL" ? "all landing pages (including paused)" : "enabled campaigns only"} (Configured in Settings)`}
+              title={`Run Google PageSpeed Insights (${pageSpeedDeviceStrategy === "BOTH" ? "Mobile & Desktop" : pageSpeedDeviceStrategy === "DESKTOP" ? "Desktop Only" : "Mobile Only"}, ${pageSpeedScope === "ALL" ? "All LPs" : "Enabled Only"}) (Configured in Settings)`}
               className="rounded-r-none border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white h-9 hover:border-indigo-300 hover:text-indigo-600 border-r-0 pr-2.5"
             >
               {isRunningPageSpeed ? (
@@ -847,13 +863,21 @@ export default function LpAnalysisClientPage({
               )}
               <span>Run All PageSpeed</span>
               <span
-                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm ${
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm flex items-center gap-1 ${
                   pageSpeedScope === "ALL"
                     ? "bg-slate-100 text-slate-600 border border-slate-200"
                     : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                 }`}
               >
-                {pageSpeedScope === "ALL" ? "All" : "Enabled"}
+                <span>{pageSpeedScope === "ALL" ? "All" : "Enabled"}</span>
+                <span className="text-slate-300">•</span>
+                <span>
+                  {pageSpeedDeviceStrategy === "BOTH"
+                    ? "📱+🖥️"
+                    : pageSpeedDeviceStrategy === "DESKTOP"
+                      ? "🖥️ Desk"
+                      : "📱 Mob"}
+                </span>
               </span>
             </Button>
             <DropdownMenu>
@@ -867,52 +891,114 @@ export default function LpAnalysisClientPage({
                     (selectedAccountId !== 0 && campaigns.length === 0)
                   }
                   className="rounded-l-none border-slate-200 bg-white h-9 px-2 hover:border-indigo-300 hover:text-indigo-600"
-                  title="Choose audit scope or configure settings"
+                  title="Choose audit scope or device strategy"
                 >
                   <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuContent align="end" className="w-72">
                 <div className="px-2 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  PageSpeed Audit Scope
+                  Device Strategy Override
+                </div>
+                <DropdownMenuItem
+                  onClick={() => handleRunAllPageSpeed(undefined, "mobile")}
+                  className="flex items-center justify-between gap-2 p-2 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-slate-600" />
+                    <div>
+                      <div className="font-bold text-xs">Mobile Only</div>
+                      <p className="text-[10px] text-slate-500">
+                        Default viewport (360x640)
+                      </p>
+                    </div>
+                  </div>
+                  {pageSpeedDeviceStrategy === "MOBILE" && (
+                    <span className="text-[9px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                      Default
+                    </span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleRunAllPageSpeed(undefined, "desktop")}
+                  className="flex items-center justify-between gap-2 p-2 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Monitor className="w-4 h-4 text-slate-600" />
+                    <div>
+                      <div className="font-bold text-xs">Desktop Only</div>
+                      <p className="text-[10px] text-slate-500">
+                        Desktop viewport (1366x768)
+                      </p>
+                    </div>
+                  </div>
+                  {pageSpeedDeviceStrategy === "DESKTOP" && (
+                    <span className="text-[9px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                      Default
+                    </span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleRunAllPageSpeed(undefined, "both")}
+                  className="flex items-center justify-between gap-2 p-2 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-500" />
+                    <div>
+                      <div className="font-bold text-xs">Both Mobile & Desktop</div>
+                      <p className="text-[10px] text-slate-500">
+                        Runs both audits sequentially
+                      </p>
+                    </div>
+                  </div>
+                  {pageSpeedDeviceStrategy === "BOTH" && (
+                    <span className="text-[9px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                      Default
+                    </span>
+                  )}
+                </DropdownMenuItem>
+
+                <div className="h-px bg-slate-100 my-1" />
+                <div className="px-2 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Audit Scope Override
                 </div>
                 <DropdownMenuItem
                   onClick={() => handleRunAllPageSpeed("ALL")}
-                  className="flex items-start gap-2 p-2 cursor-pointer"
+                  className="flex items-center justify-between gap-2 p-2 cursor-pointer"
                 >
-                  <Globe className="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <div className="font-bold text-xs flex items-center justify-between">
-                      <span>All Landing Pages</span>
-                      {pageSpeedScope === "ALL" && (
-                        <span className="text-[9px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
-                          Default
-                        </span>
-                      )}
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-indigo-500" />
+                    <div>
+                      <div className="font-bold text-xs">All Landing Pages</div>
+                      <p className="text-[10px] text-slate-500">
+                        Includes paused campaigns
+                      </p>
                     </div>
-                    <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
-                      Audits all pages, including Paused campaigns
-                    </p>
                   </div>
+                  {pageSpeedScope === "ALL" && (
+                    <span className="text-[9px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                      Default
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleRunAllPageSpeed("ENABLED_ONLY")}
-                  className="flex items-start gap-2 p-2 cursor-pointer"
+                  className="flex items-center justify-between gap-2 p-2 cursor-pointer"
                 >
-                  <Zap className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <div className="font-bold text-xs flex items-center justify-between">
-                      <span>Enabled Only</span>
-                      {pageSpeedScope === "ENABLED_ONLY" && (
-                        <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                          Default
-                        </span>
-                      )}
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-emerald-500" />
+                    <div>
+                      <div className="font-bold text-xs">Enabled Only</div>
+                      <p className="text-[10px] text-slate-500">
+                        Only active campaigns
+                      </p>
                     </div>
-                    <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
-                      Only audits active (ENABLED) campaigns
-                    </p>
                   </div>
+                  {pageSpeedScope === "ENABLED_ONLY" && (
+                    <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      Default
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 <div className="h-px bg-slate-100 my-1" />
                 <DropdownMenuItem asChild>
@@ -921,7 +1007,7 @@ export default function LpAnalysisClientPage({
                     className="flex items-center gap-2 p-2 text-xs font-semibold text-slate-600 hover:text-indigo-600 cursor-pointer w-full"
                   >
                     <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-                    Configure Default in Settings
+                    Configure Defaults in Settings
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>

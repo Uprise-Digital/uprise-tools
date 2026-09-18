@@ -393,7 +393,7 @@ export async function toggleWeeklySpeedCheckAction(
  */
 export async function runAllLandingPageSpeedTestsAction(
   adAccountId?: number,
-  device: "mobile" | "desktop" = "mobile",
+  deviceOverride?: "mobile" | "desktop" | "both",
   scopeOverride?: "ALL" | "ENABLED_ONLY",
 ): Promise<{
   success: boolean;
@@ -409,8 +409,10 @@ export async function runAllLandingPageSpeedTestsAction(
 
     const orgId = ctx.orgId || "default-org";
 
-    // Determine audit scope (from organization settings or explicit override)
+    // Determine audit scope & device strategy (from organization settings or explicit override)
     let auditScope: "ALL" | "ENABLED_ONLY" = "ALL";
+    let deviceStrategy: "mobile" | "desktop" | "both" = "mobile";
+
     const org = await db.query.organization.findFirst({
       where: eq(organization.id, orgId),
     });
@@ -423,6 +425,23 @@ export async function runAllLandingPageSpeedTestsAction(
         ) {
           auditScope = meta.pageSpeedAuditScope;
         }
+
+        if (
+          meta.pageSpeedDeviceStrategy === "DESKTOP" ||
+          meta.pageSpeedDeviceStrategy === "desktop"
+        ) {
+          deviceStrategy = "desktop";
+        } else if (
+          meta.pageSpeedDeviceStrategy === "BOTH" ||
+          meta.pageSpeedDeviceStrategy === "both"
+        ) {
+          deviceStrategy = "both";
+        } else if (
+          meta.pageSpeedDeviceStrategy === "MOBILE" ||
+          meta.pageSpeedDeviceStrategy === "mobile"
+        ) {
+          deviceStrategy = "mobile";
+        }
       } catch (e) {
         // Ignore JSON parse error
       }
@@ -430,6 +449,23 @@ export async function runAllLandingPageSpeedTestsAction(
     if (scopeOverride) {
       auditScope = scopeOverride;
     }
+    if (deviceOverride) {
+      deviceStrategy = deviceOverride;
+    }
+
+    const devicesToTest: Array<"mobile" | "desktop"> =
+      deviceStrategy === "both"
+        ? ["mobile", "desktop"]
+        : deviceStrategy === "desktop"
+          ? ["desktop"]
+          : ["mobile"];
+
+    const deviceLabel =
+      deviceStrategy === "both"
+        ? "Mobile & Desktop"
+        : deviceStrategy === "desktop"
+          ? "Desktop"
+          : "Mobile";
 
     let accountName = "All Accounts";
     if (adAccountId && adAccountId > 0) {
@@ -442,8 +478,8 @@ export async function runAllLandingPageSpeedTestsAction(
     const scopeLabel = auditScope === "ALL" ? "All LPs" : "Enabled Campaigns";
     const initialTitle =
       adAccountId && adAccountId > 0
-        ? `PageSpeed Audit: ${accountName} (${scopeLabel})`
-        : `Portfolio PageSpeed Audit (${scopeLabel})`;
+        ? `PageSpeed Audit: ${accountName} (${deviceLabel} • ${scopeLabel})`
+        : `Portfolio PageSpeed Audit (${deviceLabel} • ${scopeLabel})`;
 
     // 1. Insert into background_tasks so the bottom-right indicator starts spinning immediately
     const [taskRecord] = await db
@@ -568,118 +604,126 @@ export async function runAllLandingPageSpeedTestsAction(
           return;
         }
 
+        const totalTestsCount = validPages.length * devicesToTest.length;
         const taskTitle =
           adAccountId && adAccountId > 0
-            ? `PageSpeed Audit: ${accountName} (${validPages.length} pages • ${scopeLabel})`
-            : `Portfolio PageSpeed Audit (${validPages.length} pages • ${scopeLabel})`;
+            ? `PageSpeed Audit: ${accountName} (${validPages.length} pages • ${deviceLabel} • ${scopeLabel})`
+            : `Portfolio PageSpeed Audit (${validPages.length} pages • ${deviceLabel} • ${scopeLabel})`;
 
         // Update task with final title and item count
         await db
           .update(backgroundTasks)
           .set({
             name: taskTitle,
-            totalItems: validPages.length,
+            totalItems: totalTestsCount,
             completedItems: 0,
-            currentItem: `Starting audit of ${validPages.length} landing pages...`,
+            currentItem: `Starting audit of ${validPages.length} landing pages (${deviceLabel})...`,
             updatedAt: new Date(),
           })
           .where(eq(backgroundTasks.id, taskRecord.id));
 
+        let completedCount = 0;
         for (let i = 0; i < validPages.length; i++) {
-          // Check if task was cancelled by user
-          const checkTask = await db.query.backgroundTasks.findFirst({
-            where: eq(backgroundTasks.id, taskRecord.id),
-          });
-          if (
-            checkTask?.status === "failed" ||
-            checkTask?.status === "cancelled"
-          ) {
-            console.log(
-              `[Background Task ${taskRecord.id}] Cancelled by user. Terminating audit loop.`,
-            );
-            return;
-          }
-
           const page = validPages[i];
           const cleanUrl = page.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
-          // Update heartbeat and current page progress
-          await db
-            .update(backgroundTasks)
-            .set({
-              status: "running",
-              error: null,
-              completedItems: i,
-              currentItem: `Auditing: ${cleanUrl} (${i + 1}/${validPages.length})`,
-              updatedAt: new Date(),
-            })
-            .where(eq(backgroundTasks.id, taskRecord.id));
-
-          try {
-            const audit = await runPageSpeedAudit(page.url, device);
-            const targetOrgId = orgId || page.organizationId || "default-org";
-
-            await db.insert(landingPageSpeedTests).values({
-              organizationId: targetOrgId,
-              adAccountId: page.adAccountId,
-              campaignLandingPageId: page.id,
-              url: page.url,
-              device: audit.device,
-              performanceScore: audit.performanceScore,
-              accessibilityScore: audit.accessibilityScore,
-              bestPracticesScore: audit.bestPracticesScore,
-              seoScore: audit.seoScore,
-              lcpMs: audit.lcpMs,
-              lcpDisplay: audit.lcpDisplay,
-              clsScore: audit.clsScore,
-              clsDisplay: audit.clsDisplay,
-              inpMs: audit.inpMs,
-              inpDisplay: audit.inpDisplay,
-              fcpMs: audit.fcpMs,
-              fcpDisplay: audit.fcpDisplay,
-              ttfbMs: audit.ttfbMs,
-              ttfbDisplay: audit.ttfbDisplay,
-              speedIndexMs: audit.speedIndexMs,
-              speedIndexDisplay: audit.speedIndexDisplay,
-              totalByteWeight: audit.totalByteWeight,
-              opportunities: audit.opportunities,
-              diagnostics: audit.diagnostics,
-              cruxData: audit.cruxData,
-              rawMetrics: {
-                engineUsed: audit.engineUsed,
-                simulationSettings: audit.simulationSettings,
-              },
-              triggerSource: "MANUAL_BATCH",
-              createdAt: new Date(),
+          for (const device of devicesToTest) {
+            // Check if task was cancelled by user
+            const checkTask = await db.query.backgroundTasks.findFirst({
+              where: eq(backgroundTasks.id, taskRecord.id),
             });
+            if (
+              checkTask?.status === "failed" ||
+              checkTask?.status === "cancelled"
+            ) {
+              console.log(
+                `[Background Task ${taskRecord.id}] Cancelled by user. Terminating audit loop.`,
+              );
+              return;
+            }
 
-            results.push({ pageId: page.id, success: true });
-          } catch (err: any) {
-            console.error(
-              `[Background Task ${taskRecord.id}] Failed for ${page.url}:`,
-              err,
-            );
-            results.push({
-              pageId: page.id,
-              success: false,
-              error: err.message || "Speed test failed",
-            });
+            const deviceIcon = device === "mobile" ? "📱 Mobile" : "🖥️ Desktop";
+
+            // Update heartbeat and current page progress
+            await db
+              .update(backgroundTasks)
+              .set({
+                status: "running",
+                error: null,
+                completedItems: completedCount,
+                currentItem: `[${deviceIcon}] Auditing: ${cleanUrl} (${completedCount + 1}/${totalTestsCount})`,
+                updatedAt: new Date(),
+              })
+              .where(eq(backgroundTasks.id, taskRecord.id));
+
+            try {
+              const audit = await runPageSpeedAudit(page.url, device);
+              const targetOrgId = orgId || page.organizationId || "default-org";
+
+              await db.insert(landingPageSpeedTests).values({
+                organizationId: targetOrgId,
+                adAccountId: page.adAccountId,
+                campaignLandingPageId: page.id,
+                url: page.url,
+                device: audit.device,
+                performanceScore: audit.performanceScore,
+                accessibilityScore: audit.accessibilityScore,
+                bestPracticesScore: audit.bestPracticesScore,
+                seoScore: audit.seoScore,
+                lcpMs: audit.lcpMs,
+                lcpDisplay: audit.lcpDisplay,
+                clsScore: audit.clsScore,
+                clsDisplay: audit.clsDisplay,
+                inpMs: audit.inpMs,
+                inpDisplay: audit.inpDisplay,
+                fcpMs: audit.fcpMs,
+                fcpDisplay: audit.fcpDisplay,
+                ttfbMs: audit.ttfbMs,
+                ttfbDisplay: audit.ttfbDisplay,
+                speedIndexMs: audit.speedIndexMs,
+                speedIndexDisplay: audit.speedIndexDisplay,
+                totalByteWeight: audit.totalByteWeight,
+                opportunities: audit.opportunities,
+                diagnostics: audit.diagnostics,
+                cruxData: audit.cruxData,
+                rawMetrics: {
+                  engineUsed: audit.engineUsed,
+                  simulationSettings: audit.simulationSettings,
+                },
+                triggerSource: "MANUAL_BATCH",
+                createdAt: new Date(),
+              });
+
+              results.push({ pageId: page.id, success: true });
+            } catch (err: any) {
+              console.error(
+                `[Background Task ${taskRecord.id}] Failed for ${page.url} (${device}):`,
+                err,
+              );
+              results.push({
+                pageId: page.id,
+                success: false,
+                error: `${device}: ${err.message || "Speed test failed"}`,
+              });
+            }
+
+            completedCount++;
+
+            // Update heartbeat after finishing this test
+            await db
+              .update(backgroundTasks)
+              .set({
+                status: "running",
+                error: null,
+                completedItems: completedCount,
+                currentItem:
+                  completedCount === totalTestsCount
+                    ? "Finalizing audit batch..."
+                    : `Tested ${completedCount}/${totalTestsCount}. Preparing next test...`,
+                updatedAt: new Date(),
+              })
+              .where(eq(backgroundTasks.id, taskRecord.id));
           }
-
-          // Update heartbeat after finishing this page
-          await db
-            .update(backgroundTasks)
-            .set({
-              status: "running",
-              error: null,
-              completedItems: i + 1,
-              currentItem:
-                i + 1 === validPages.length
-                  ? "Finalizing audit batch..."
-                  : `Tested ${i + 1}/${validPages.length}. Preparing next page...`,
-              updatedAt: new Date(),
-            })
-            .where(eq(backgroundTasks.id, taskRecord.id));
         }
 
         const finalTaskCheck = await db.query.backgroundTasks.findFirst({
@@ -699,14 +743,14 @@ export async function runAllLandingPageSpeedTestsAction(
           .update(backgroundTasks)
           .set({
             status: "completed",
-            completedItems: validPages.length,
-            currentItem: `Completed ${processed}/${validPages.length} pages`,
+            completedItems: totalTestsCount,
+            currentItem: `Completed ${processed}/${totalTestsCount} tests across ${validPages.length} pages (${deviceLabel})`,
             updatedAt: new Date(),
           })
           .where(eq(backgroundTasks.id, taskRecord.id));
 
         console.log(
-          `[Background Task ${taskRecord.id}] Finished. Tested ${processed}/${validPages.length} pages.`,
+          `[Background Task ${taskRecord.id}] Finished. Ran ${processed}/${totalTestsCount} tests for ${validPages.length} pages (${deviceLabel}).`,
         );
 
         revalidatePath("/lp-analysis");
@@ -726,7 +770,7 @@ export async function runAllLandingPageSpeedTestsAction(
     return {
       success: true,
       taskId: taskRecord.id,
-      message: `Started PageSpeed audits (${scopeLabel})! Pulling latest landing pages from Google Ads first, then testing.`,
+      message: `Started PageSpeed audits (${deviceLabel} • ${scopeLabel})! Pulling latest landing pages from Google Ads first, then testing.`,
     };
   } catch (error: any) {
     console.error("[runAllLandingPageSpeedTestsAction Error]:", error);

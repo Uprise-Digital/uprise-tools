@@ -2,6 +2,10 @@ import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getOrgTriageDefaultsAction } from "@/actions/triage-settings.actions";
+import {
+  DEFAULT_PAGE_SPEED_SETTINGS,
+  type PageSpeedSettings,
+} from "@/actions/settings.actions";
 import { db } from "@/db";
 import {
   adAccounts,
@@ -171,7 +175,7 @@ export default async function SettingsPage() {
     : null;
 
   let initialAutoJoinDomainEnabled = false;
-  let initialPageSpeedAuditScope: "ALL" | "ENABLED_ONLY" = "ALL";
+  let initialPageSpeedSettings: PageSpeedSettings = { ...DEFAULT_PAGE_SPEED_SETTINGS };
   if (orgRecord?.metadata) {
     try {
       const meta = JSON.parse(orgRecord.metadata);
@@ -180,7 +184,36 @@ export default async function SettingsPage() {
         meta.pageSpeedAuditScope === "ENABLED_ONLY" ||
         meta.pageSpeedAuditScope === "ALL"
       ) {
-        initialPageSpeedAuditScope = meta.pageSpeedAuditScope;
+        initialPageSpeedSettings.scope = meta.pageSpeedAuditScope;
+      }
+      if (
+        meta.pageSpeedDeviceStrategy === "MOBILE" ||
+        meta.pageSpeedDeviceStrategy === "DESKTOP" ||
+        meta.pageSpeedDeviceStrategy === "BOTH"
+      ) {
+        initialPageSpeedSettings.deviceStrategy = meta.pageSpeedDeviceStrategy;
+      }
+      if (meta.pageSpeedAutoAudit && typeof meta.pageSpeedAutoAudit === "object") {
+        initialPageSpeedSettings.autoAudit = {
+          enabled: !!meta.pageSpeedAutoAudit.enabled,
+          frequency:
+            meta.pageSpeedAutoAudit.frequency === "MONTHLY"
+              ? "MONTHLY"
+              : "WEEKLY",
+          dayOfWeek:
+            typeof meta.pageSpeedAutoAudit.dayOfWeek === "number"
+              ? meta.pageSpeedAutoAudit.dayOfWeek
+              : 1,
+          dayOfMonth:
+            typeof meta.pageSpeedAutoAudit.dayOfMonth === "number"
+              ? meta.pageSpeedAutoAudit.dayOfMonth
+              : 1,
+          time:
+            typeof meta.pageSpeedAutoAudit.time === "string"
+              ? meta.pageSpeedAutoAudit.time
+              : "09:00",
+          lastRunAt: meta.pageSpeedAutoAudit.lastRunAt,
+        };
       }
     } catch (e) {
       // Ignore
@@ -217,7 +250,8 @@ export default async function SettingsPage() {
       userEmail={session.user.email}
       userRole={memberRecord?.role || "member"}
       initialAutoJoinDomainEnabled={initialAutoJoinDomainEnabled}
-      initialPageSpeedScope={initialPageSpeedAuditScope}
+      initialPageSpeedScope={initialPageSpeedSettings.scope}
+      initialPageSpeedSettings={initialPageSpeedSettings}
       initialBranding={initialBranding}
       orgId={orgId}
       onboardingSettings={

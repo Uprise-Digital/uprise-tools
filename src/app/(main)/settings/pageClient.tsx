@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { PageSpeedSettings } from "@/actions/settings.actions";
 import { AiUsageTab } from "./components/AiUsageTab";
 import { AuditTab } from "./components/AuditTab";
 import { EmailsTab } from "./components/EmailsTab";
@@ -105,6 +106,7 @@ interface SettingsClientProps {
   userRole: string;
   initialAutoJoinDomainEnabled: boolean;
   initialPageSpeedScope?: "ALL" | "ENABLED_ONLY";
+  initialPageSpeedSettings?: PageSpeedSettings;
   initialBranding?: {
     brandName: string;
     logoUrl: string;
@@ -195,6 +197,7 @@ export default function SettingsClient({
   userRole,
   initialAutoJoinDomainEnabled,
   initialPageSpeedScope,
+  initialPageSpeedSettings,
   initialBranding,
   orgId,
   onboardingSettings,
@@ -321,6 +324,7 @@ export default function SettingsClient({
               userRole={userRole}
               initialAutoJoinDomainEnabled={initialAutoJoinDomainEnabled}
               initialPageSpeedScope={initialPageSpeedScope}
+              initialPageSpeedSettings={initialPageSpeedSettings}
               initialBranding={initialBranding}
             />
           )}
