@@ -16,12 +16,14 @@ import {
   Globe,
   ListChecks,
   Loader2,
+  Monitor,
   MoreHorizontal,
   Play,
   Plus,
   RefreshCw,
   Save,
   Search,
+  Smartphone,
   Sparkles,
   Trash2,
   TrendingUp,
@@ -111,10 +113,33 @@ interface CampaignLP {
     auditType: string;
     createdAt: Date | string;
   }[];
+  latestSpeedTest?: {
+    id: number;
+    performanceScore: number;
+    device: "mobile" | "desktop";
+    lcpDisplay?: string | null;
+    clsDisplay?: string | null;
+    createdAt: Date | string;
+  } | null;
+  speedScores?: {
+    mobile: {
+      id: number;
+      score: number;
+      lcpDisplay?: string | null;
+      createdAt: Date | string;
+    } | null;
+    desktop: {
+      id: number;
+      score: number;
+      lcpDisplay?: string | null;
+      createdAt: Date | string;
+    } | null;
+  };
 }
 
 interface AccountSummary {
   avgCroScore: number | null;
+  avgSpeedScore?: number | null;
   coverageRatio: {
     audited: number;
     total: number;
@@ -1634,22 +1659,25 @@ export default function LpAnalysisClientPage({
                               aria-label="Select all campaigns"
                             />
                           </TableHead>
-                          <TableHead className="font-bold text-xs w-[25%]">
+                          <TableHead className="font-bold text-xs w-[22%]">
                             Campaign Name
                           </TableHead>
-                          <TableHead className="font-bold text-xs w-[18%]">
+                          <TableHead className="font-bold text-xs w-[14%]">
                             30d Performance
                           </TableHead>
-                          <TableHead className="font-bold text-xs w-[12%]">
+                          <TableHead className="font-bold text-xs w-[10%]">
                             Priority
                           </TableHead>
-                          <TableHead className="font-bold text-xs w-[25%]">
+                          <TableHead className="font-bold text-xs w-[20%]">
                             Landing Page URL
                           </TableHead>
-                          <TableHead className="font-bold text-xs w-[12%]">
-                            Latest Score
+                          <TableHead className="font-bold text-xs text-center w-[12%]">
+                            CRO Audit
                           </TableHead>
-                          <TableHead className="text-right font-bold pr-6 text-xs w-[8%]">
+                          <TableHead className="font-bold text-xs text-center w-[16%]">
+                            PageSpeed (Mob / Desk)
+                          </TableHead>
+                          <TableHead className="text-right font-bold pr-6 text-xs w-[6%]">
                             Actions
                           </TableHead>
                         </TableRow>
@@ -1723,17 +1751,11 @@ export default function LpAnalysisClientPage({
                                     </div>
                                     <div className="text-[10px] text-slate-400 flex items-center gap-1.5 font-medium">
                                       <span>
-                                        {Math.round(c.conversions30d || 0)} conv
+                                        {c.conversions30d?.toFixed(1) || 0} conv
                                       </span>
-                                      <span>•</span>
-                                      <span
-                                        className={
-                                          (c.cvr || 0) >= 5
-                                            ? "text-emerald-600 font-bold"
-                                            : "text-slate-500"
-                                        }
-                                      >
-                                        {(c.cvr || 0).toFixed(1)}% CVR
+                                      <span>&bull;</span>
+                                      <span className="text-emerald-600 font-semibold">
+                                        {c.cvr?.toFixed(1) || 0}% CVR
                                       </span>
                                     </div>
                                   </div>
@@ -1747,18 +1769,19 @@ export default function LpAnalysisClientPage({
                                 {/* Landing Page URL */}
                                 <TableCell className="text-xs">
                                   {isEditing ? (
-                                    <div className="flex items-center gap-2 max-w-lg">
+                                    <div className="flex items-center gap-1">
                                       <Input
                                         value={editUrlValue}
                                         onChange={(e) =>
                                           setEditUrlValue(e.target.value)
                                         }
-                                        className="h-8 text-xs bg-white"
-                                        placeholder="https://myclient.com/landing-page"
+                                        placeholder="https://example.com/lp"
+                                        className="h-7 text-xs w-56 font-mono"
+                                        autoFocus
                                       />
                                       <Button
-                                        size="icon"
-                                        className="h-8 w-8 bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+                                        size="sm"
+                                        className="h-7 px-2 bg-indigo-600 hover:bg-indigo-700 text-white"
                                         onClick={() => saveUrl(c)}
                                         disabled={savingUrl}
                                       >
@@ -1805,10 +1828,10 @@ export default function LpAnalysisClientPage({
                                   )}
                                 </TableCell>
 
-                                {/* Latest Score */}
-                                <TableCell className="align-middle">
+                                {/* CRO Audit Score */}
+                                <TableCell className="align-middle text-center">
                                   {c.latestAudit ? (
-                                    <div className="flex flex-col gap-1 items-start">
+                                    <div className="flex flex-col gap-1 items-center justify-center">
                                       <Badge
                                         variant="outline"
                                         className={`rounded-md cursor-pointer font-bold border ${getScoreBadgeStyles(
@@ -1847,6 +1870,78 @@ export default function LpAnalysisClientPage({
                                     <span className="text-slate-400 text-xs italic">
                                       Not Audited
                                     </span>
+                                  )}
+                                </TableCell>
+
+                                {/* PageSpeed Scores (Mobile / Desktop) */}
+                                <TableCell className="align-middle text-center">
+                                  {c.speedScores?.mobile || c.speedScores?.desktop || c.latestSpeedTest ? (
+                                    <div className="flex flex-col gap-1 items-center justify-center">
+                                      <div className="flex items-center gap-1.5 justify-center">
+                                        {/* Mobile Score Badge */}
+                                        {c.speedScores?.mobile ? (
+                                          <Link
+                                            href={`/lp-analysis/speed/${c.id}`}
+                                            title={`Mobile Lighthouse Score: ${c.speedScores.mobile.score}/100${c.speedScores.mobile.lcpDisplay ? ` (LCP: ${c.speedScores.mobile.lcpDisplay})` : ""}`}
+                                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black border transition-transform hover:scale-105 ${getScoreBadgeStyles(
+                                              c.speedScores.mobile.score,
+                                            )}`}
+                                          >
+                                            <Smartphone className="h-3 w-3 text-slate-700" />
+                                            <span>{c.speedScores.mobile.score}</span>
+                                          </Link>
+                                        ) : (
+                                          <span
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-slate-200 text-slate-400 bg-slate-50"
+                                            title="Mobile PageSpeed not tested yet"
+                                          >
+                                            <Smartphone className="h-2.5 w-2.5" /> —
+                                          </span>
+                                        )}
+
+                                        {/* Desktop Score Badge */}
+                                        {c.speedScores?.desktop ? (
+                                          <Link
+                                            href={`/lp-analysis/speed/${c.id}`}
+                                            title={`Desktop Lighthouse Score: ${c.speedScores.desktop.score}/100${c.speedScores.desktop.lcpDisplay ? ` (LCP: ${c.speedScores.desktop.lcpDisplay})` : ""}`}
+                                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black border transition-transform hover:scale-105 ${getScoreBadgeStyles(
+                                              c.speedScores.desktop.score,
+                                            )}`}
+                                          >
+                                            <Monitor className="h-3 w-3 text-slate-700" />
+                                            <span>{c.speedScores.desktop.score}</span>
+                                          </Link>
+                                        ) : (
+                                          <span
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-slate-200 text-slate-400 bg-slate-50"
+                                            title="Desktop PageSpeed not tested yet"
+                                          >
+                                            <Monitor className="h-2.5 w-2.5" /> —
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* LCP Latency subtitle */}
+                                      {(c.speedScores?.mobile?.lcpDisplay || c.latestSpeedTest?.lcpDisplay) && (
+                                        <span className="text-[9px] text-slate-400 font-mono">
+                                          LCP {c.speedScores?.mobile?.lcpDisplay || c.latestSpeedTest?.lcpDisplay}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="flex justify-center">
+                                      {c.url ? (
+                                        <Link
+                                          href={`/lp-analysis/speed/${c.id}`}
+                                          className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 border border-blue-200/70 rounded px-2 py-1 inline-flex items-center gap-1 hover:bg-blue-100 transition-colors"
+                                        >
+                                          <Gauge className="h-3 w-3" />
+                                          Test Speed
+                                        </Link>
+                                      ) : (
+                                        <span className="text-slate-400 text-xs italic">—</span>
+                                      )}
+                                    </div>
                                   )}
                                 </TableCell>
 
@@ -1952,7 +2047,7 @@ export default function LpAnalysisClientPage({
                                 c.audits.length > 0 && (
                                   <TableRow className="bg-slate-50/40 border-t border-slate-150">
                                     <TableCell
-                                      colSpan={7}
+                                      colSpan={8}
                                       className="pl-14 py-3 bg-slate-50/20 pr-6"
                                     >
                                       <div className="space-y-2">

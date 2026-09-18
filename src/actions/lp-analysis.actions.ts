@@ -442,6 +442,12 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
     orderBy: [desc(landingPageAudits.createdAt)],
   });
 
+  // Fetch speed tests history for this account
+  const speedTests = await db.query.landingPageSpeedTests.findMany({
+    where: eq(landingPageSpeedTests.adAccountId, adAccountId),
+    orderBy: [desc(landingPageSpeedTests.createdAt)],
+  });
+
   // Fetch 30-day campaign metrics from adPerformanceDaily
   const thirtyDaysAgoDate = new Date();
   thirtyDaysAgoDate.setUTCDate(thirtyDaysAgoDate.getUTCDate() - 30);
@@ -500,6 +506,29 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
         }
       : null;
 
+    // Match speed tests by campaignLandingPageId or normalized URL
+    const cleanUrl = m.url ? m.url.trim().replace(/\/$/, "").toLowerCase() : "";
+    const pageSpeedTests = speedTests.filter((s) => {
+      if (s.campaignLandingPageId === m.id) return true;
+      if (cleanUrl && s.url) {
+        return s.url.trim().replace(/\/$/, "").toLowerCase() === cleanUrl;
+      }
+      return false;
+    });
+
+    const latestMobile = pageSpeedTests.find((s) => s.device === "mobile") || null;
+    const latestDesktop = pageSpeedTests.find((s) => s.device === "desktop") || null;
+    const latestSpeedTest = pageSpeedTests[0]
+      ? {
+          id: pageSpeedTests[0].id,
+          performanceScore: pageSpeedTests[0].performanceScore,
+          device: pageSpeedTests[0].device,
+          lcpDisplay: pageSpeedTests[0].lcpDisplay,
+          clsDisplay: pageSpeedTests[0].clsDisplay,
+          createdAt: pageSpeedTests[0].createdAt,
+        }
+      : null;
+
     const perf = perfMap.get(m.campaignId) || {
       spend: 0,
       conversions: 0,
@@ -545,6 +574,25 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
         auditType: a.auditType,
         createdAt: a.createdAt,
       })),
+      latestSpeedTest,
+      speedScores: {
+        mobile: latestMobile
+          ? {
+              id: latestMobile.id,
+              score: latestMobile.performanceScore,
+              lcpDisplay: latestMobile.lcpDisplay,
+              createdAt: latestMobile.createdAt,
+            }
+          : null,
+        desktop: latestDesktop
+          ? {
+              id: latestDesktop.id,
+              score: latestDesktop.performanceScore,
+              lcpDisplay: latestDesktop.lcpDisplay,
+              createdAt: latestDesktop.createdAt,
+            }
+          : null,
+      },
     };
   });
 
@@ -562,6 +610,23 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
             (sum, c) => sum + (c.latestAudit?.score || 0),
             0,
           ) / auditedCount,
+        )
+      : null;
+
+  const speedTestedCampaigns = campaigns.filter(
+    (c) => c.latestSpeedTest !== null || c.speedScores?.mobile !== null,
+  );
+  const avgSpeedScore =
+    speedTestedCampaigns.length > 0
+      ? Math.round(
+          speedTestedCampaigns.reduce(
+            (sum, c) =>
+              sum +
+              (c.speedScores?.mobile?.score ??
+                c.latestSpeedTest?.performanceScore ??
+                0),
+            0,
+          ) / speedTestedCampaigns.length,
         )
       : null;
 
@@ -589,6 +654,7 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
 
   const accountSummary = {
     avgCroScore,
+    avgSpeedScore,
     coverageRatio: {
       audited: auditedCount,
       total: totalCampaigns,

@@ -413,10 +413,7 @@ export async function runAllLandingPageSpeedTestsAction(
       if (account) accountName = account.name;
 
       targetPages = await db.query.campaignLandingPages.findMany({
-        where: and(
-          eq(campaignLandingPages.adAccountId, adAccountId),
-          eq(campaignLandingPages.status, "ENABLED"),
-        ),
+        where: eq(campaignLandingPages.adAccountId, adAccountId),
       });
     } else {
       // Organization level: fetch all pages across active org accounts
@@ -436,10 +433,7 @@ export async function runAllLandingPageSpeedTestsAction(
       }
 
       targetPages = await db.query.campaignLandingPages.findMany({
-        where: and(
-          inArray(campaignLandingPages.adAccountId, orgAccountIds),
-          eq(campaignLandingPages.status, "ENABLED"),
-        ),
+        where: inArray(campaignLandingPages.adAccountId, orgAccountIds),
       });
     }
 
@@ -451,7 +445,7 @@ export async function runAllLandingPageSpeedTestsAction(
     if (validPages.length === 0) {
       return {
         success: false,
-        error: "No enabled landing pages with valid URLs found to test.",
+        error: "No landing pages with valid URLs found to test.",
       };
     }
 
