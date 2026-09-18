@@ -32,10 +32,11 @@ export async function getActiveBackgroundTasksAction() {
 
   // Fetch tasks that are currently running, OR completed/failed within the last 10 seconds
   const tenSecondsAgo = new Date(Date.now() - 10 * 1000);
-  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+  const staleHeartbeatThreshold = new Date(Date.now() - 5 * 60 * 1000); // 5 min without heartbeat update
+  const absoluteSafetyThreshold = new Date(Date.now() - 3 * 60 * 60 * 1000); // 3 hours absolute ceiling
 
   try {
-    // Auto-expire stale running tasks older than 15 minutes
+    // Auto-expire stale running tasks only if heartbeat has stopped (>5 min) or total age >3 hours
     await db
       .update(backgroundTasks)
       .set({
@@ -47,7 +48,10 @@ export async function getActiveBackgroundTasksAction() {
         and(
           eq(backgroundTasks.organizationId, orgId),
           eq(backgroundTasks.status, "running"),
-          lte(backgroundTasks.createdAt, fifteenMinutesAgo),
+          or(
+            lte(backgroundTasks.updatedAt, staleHeartbeatThreshold),
+            lte(backgroundTasks.createdAt, absoluteSafetyThreshold),
+          ),
         ),
       );
     const tasks = await db.query.backgroundTasks.findMany({

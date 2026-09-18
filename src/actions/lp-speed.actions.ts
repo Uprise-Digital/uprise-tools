@@ -529,6 +529,8 @@ export async function runAllLandingPageSpeedTestsAction(
           await db
             .update(backgroundTasks)
             .set({
+              status: "running",
+              error: null,
               completedItems: i,
               currentItem: `Auditing: ${cleanUrl} (${i + 1}/${validPages.length})`,
               updatedAt: new Date(),
@@ -590,6 +592,8 @@ export async function runAllLandingPageSpeedTestsAction(
           await db
             .update(backgroundTasks)
             .set({
+              status: "running",
+              error: null,
               completedItems: i + 1,
               currentItem:
                 i + 1 === validPages.length
