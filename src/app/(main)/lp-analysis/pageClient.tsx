@@ -519,33 +519,23 @@ export default function LpAnalysisClientPage({
     const label = isOrgView ? "all portfolio landing pages" : `pages in ${selectedAccountName}`;
 
     setIsRunningPageSpeed(true);
-    const toastId = toast.loading(
-      `Running PageSpeed audits for ${label}... This tests Core Web Vitals (LCP, CLS, INP) directly against Google API.`,
-    );
-
     try {
       const res = await runAllLandingPageSpeedTestsAction(
         isOrgView ? undefined : selectedAccountId,
         "mobile",
       );
 
-      if (res.success && res.data) {
+      if (res.success) {
         toast.success(
-          `PageSpeed batch complete! Audited ${res.data.processed} of ${res.data.total} landing pages.`,
-          { id: toastId },
+          res.message ||
+            `Started PageSpeed audits for ${label}! Track live progress in the bottom-right task monitor.`,
+          { duration: 6000 },
         );
-        if (isOrgView) {
-          fetchOrgOverview();
-        } else {
-          fetchCampaigns(selectedAccountId);
-        }
       } else {
-        toast.error(res.error || "Batch PageSpeed test failed.", { id: toastId });
+        toast.error(res.error || "Batch PageSpeed test failed to start.");
       }
     } catch (err: any) {
-      toast.error(err.message || "An error occurred running batch PageSpeed tests.", {
-        id: toastId,
-      });
+      toast.error(err.message || "An error occurred starting batch PageSpeed tests.");
     } finally {
       setIsRunningPageSpeed(false);
     }

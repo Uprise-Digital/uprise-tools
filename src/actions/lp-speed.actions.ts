@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
   adAccounts,
+  backgroundTasks,
   campaignLandingPages,
   landingPageSpeedTests,
 } from "@/db/schema";
@@ -383,25 +384,15 @@ export async function toggleWeeklySpeedCheckAction(
 
 /**
  * Runs PageSpeed audits for all landing pages in the organization or for a specific account.
+ * Registers an asynchronous background task tracked in the bottom-right task indicator widget.
  */
 export async function runAllLandingPageSpeedTestsAction(
   adAccountId?: number,
   device: "mobile" | "desktop" = "mobile",
 ): Promise<{
   success: boolean;
-  data?: {
-    total: number;
-    processed: number;
-    failed: number;
-    results: Array<{
-      pageId: number;
-      url: string;
-      campaignName: string;
-      score?: number;
-      success: boolean;
-      error?: string;
-    }>;
-  };
+  taskId?: number;
+  message?: string;
   error?: string;
 }> {
   try {
@@ -410,9 +401,17 @@ export async function runAllLandingPageSpeedTestsAction(
       return { success: false, error: "Unauthorized" };
     }
 
+    const orgId = ctx.orgId || "default-org";
+
     let targetPages: Array<typeof campaignLandingPages.$inferSelect> = [];
+    let accountName = "All Accounts";
 
     if (adAccountId && adAccountId > 0) {
+      const account = await db.query.adAccounts.findFirst({
+        where: eq(adAccounts.id, adAccountId),
+      });
+      if (account) accountName = account.name;
+
       targetPages = await db.query.campaignLandingPages.findMany({
         where: and(
           eq(campaignLandingPages.adAccountId, adAccountId),
@@ -423,7 +422,7 @@ export async function runAllLandingPageSpeedTestsAction(
       // Organization level: fetch all pages across active org accounts
       const orgAccounts = await db.query.adAccounts.findMany({
         where: and(
-          eq(adAccounts.organizationId, ctx.orgId),
+          eq(adAccounts.organizationId, orgId),
           eq(adAccounts.isActive, true),
         ),
       });
@@ -431,8 +430,8 @@ export async function runAllLandingPageSpeedTestsAction(
 
       if (orgAccountIds.length === 0) {
         return {
-          success: true,
-          data: { total: 0, processed: 0, failed: 0, results: [] },
+          success: false,
+          error: "No active ad accounts found in this organization.",
         };
       }
 
@@ -444,7 +443,7 @@ export async function runAllLandingPageSpeedTestsAction(
       });
     }
 
-    // Filter valid HTTP/HTTPS URLs and deduplicate URLs to avoid redundant Google audits
+    // Filter valid HTTP/HTTPS URLs
     const validPages = targetPages.filter(
       (p) => p.url && (p.url.startsWith("http://") || p.url.startsWith("https://")),
     );
@@ -456,97 +455,123 @@ export async function runAllLandingPageSpeedTestsAction(
       };
     }
 
-    const results: Array<{
-      pageId: number;
-      url: string;
-      campaignName: string;
-      score?: number;
-      success: boolean;
-      error?: string;
-    }> = [];
+    const taskTitle =
+      adAccountId && adAccountId > 0
+        ? `PageSpeed Audit: ${accountName} (${validPages.length} pages)`
+        : `Portfolio PageSpeed Audit (${validPages.length} pages)`;
 
-    // Audit pages sequentially to be respectful of PageSpeed API rate limits
-    for (const page of validPages) {
+    // 1. Insert into background_tasks so the bottom-right indicator starts spinning immediately
+    const [taskRecord] = await db
+      .insert(backgroundTasks)
+      .values({
+        organizationId: orgId,
+        name: taskTitle,
+        status: "running",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning({ id: backgroundTasks.id });
+
+    // 2. Fire and forget async execution in background (prevents HTTP connection timeout)
+    (async () => {
+      const results: Array<{ pageId: number; success: boolean; error?: string }> = [];
       try {
-        const audit = await runPageSpeedAudit(page.url, device);
-        const targetOrgId = ctx.orgId || page.organizationId || "default-org";
+        console.log(`[Background Task ${taskRecord.id}] Starting ${taskTitle}...`);
 
-        await db.insert(landingPageSpeedTests).values({
-          organizationId: targetOrgId,
-          adAccountId: page.adAccountId,
-          campaignLandingPageId: page.id,
-          url: page.url,
-          device: audit.device,
-          performanceScore: audit.performanceScore,
-          accessibilityScore: audit.accessibilityScore,
-          bestPracticesScore: audit.bestPracticesScore,
-          seoScore: audit.seoScore,
-          lcpMs: audit.lcpMs,
-          lcpDisplay: audit.lcpDisplay,
-          clsScore: audit.clsScore,
-          clsDisplay: audit.clsDisplay,
-          inpMs: audit.inpMs,
-          inpDisplay: audit.inpDisplay,
-          fcpMs: audit.fcpMs,
-          fcpDisplay: audit.fcpDisplay,
-          ttfbMs: audit.ttfbMs,
-          ttfbDisplay: audit.ttfbDisplay,
-          speedIndexMs: audit.speedIndexMs,
-          speedIndexDisplay: audit.speedIndexDisplay,
-          totalByteWeight: audit.totalByteWeight,
-          opportunities: audit.opportunities,
-          diagnostics: audit.diagnostics,
-          cruxData: audit.cruxData,
-          rawMetrics: {
-            engineUsed: audit.engineUsed,
-            simulationSettings: audit.simulationSettings,
-          },
-          triggerSource: "MANUAL_BATCH",
-          createdAt: new Date(),
-        });
+        for (const page of validPages) {
+          try {
+            const audit = await runPageSpeedAudit(page.url, device);
+            const targetOrgId = orgId || page.organizationId || "default-org";
 
-        results.push({
-          pageId: page.id,
-          url: page.url,
-          campaignName: page.campaignName,
-          score: audit.performanceScore,
-          success: true,
-        });
-      } catch (err: any) {
-        console.error(
-          `[Batch PageSpeed Error] Failed for ${page.url} (${page.campaignName}):`,
-          err,
+            await db.insert(landingPageSpeedTests).values({
+              organizationId: targetOrgId,
+              adAccountId: page.adAccountId,
+              campaignLandingPageId: page.id,
+              url: page.url,
+              device: audit.device,
+              performanceScore: audit.performanceScore,
+              accessibilityScore: audit.accessibilityScore,
+              bestPracticesScore: audit.bestPracticesScore,
+              seoScore: audit.seoScore,
+              lcpMs: audit.lcpMs,
+              lcpDisplay: audit.lcpDisplay,
+              clsScore: audit.clsScore,
+              clsDisplay: audit.clsDisplay,
+              inpMs: audit.inpMs,
+              inpDisplay: audit.inpDisplay,
+              fcpMs: audit.fcpMs,
+              fcpDisplay: audit.fcpDisplay,
+              ttfbMs: audit.ttfbMs,
+              ttfbDisplay: audit.ttfbDisplay,
+              speedIndexMs: audit.speedIndexMs,
+              speedIndexDisplay: audit.speedIndexDisplay,
+              totalByteWeight: audit.totalByteWeight,
+              opportunities: audit.opportunities,
+              diagnostics: audit.diagnostics,
+              cruxData: audit.cruxData,
+              rawMetrics: {
+                engineUsed: audit.engineUsed,
+                simulationSettings: audit.simulationSettings,
+              },
+              triggerSource: "MANUAL_BATCH",
+              createdAt: new Date(),
+            });
+
+            results.push({ pageId: page.id, success: true });
+          } catch (err: any) {
+            console.error(
+              `[Background Task ${taskRecord.id}] Failed for ${page.url}:`,
+              err,
+            );
+            results.push({
+              pageId: page.id,
+              success: false,
+              error: err.message || "Speed test failed",
+            });
+          }
+        }
+
+        const processed = results.filter((r) => r.success).length;
+
+        // Mark background task as completed
+        await db
+          .update(backgroundTasks)
+          .set({
+            status: "completed",
+            updatedAt: new Date(),
+          })
+          .where(eq(backgroundTasks.id, taskRecord.id));
+
+        console.log(
+          `[Background Task ${taskRecord.id}] Finished. Tested ${processed}/${validPages.length} pages.`,
         );
-        results.push({
-          pageId: page.id,
-          url: page.url,
-          campaignName: page.campaignName,
-          success: false,
-          error: err.message || "Speed test failed",
-        });
+
+        revalidatePath("/lp-analysis");
+      } catch (fatalErr: any) {
+        console.error(`[Background Task ${taskRecord.id}] Fatal error:`, fatalErr);
+        await db
+          .update(backgroundTasks)
+          .set({
+            status: "failed",
+            error: fatalErr.message || "Failed during PageSpeed audit batch",
+            updatedAt: new Date(),
+          })
+          .where(eq(backgroundTasks.id, taskRecord.id));
       }
-    }
-
-    revalidatePath("/lp-analysis");
-
-    const processed = results.filter((r) => r.success).length;
-    const failed = results.filter((r) => !r.success).length;
+    })();
 
     return {
       success: true,
-      data: {
-        total: validPages.length,
-        processed,
-        failed,
-        results,
-      },
+      taskId: taskRecord.id,
+      message: `Started PageSpeed batch for ${validPages.length} landing pages. Progress tracked in bottom-right task monitor.`,
     };
   } catch (error: any) {
     console.error("[runAllLandingPageSpeedTestsAction Error]:", error);
     return {
       success: false,
-      error: error.message || "Failed to execute batch PageSpeed audits",
+      error: error.message || "Failed to start batch PageSpeed audits",
     };
   }
 }
+
 
