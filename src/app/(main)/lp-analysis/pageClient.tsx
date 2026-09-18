@@ -42,6 +42,7 @@ import {
   saveCampaignLandingPageAction,
   syncCampaignLandingPagesAction,
 } from "@/actions/lp-analysis.actions";
+import { runAllLandingPageSpeedTestsAction } from "@/actions/lp-speed.actions";
 import { cleanCampaignNameToSearchTerm } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -205,6 +206,9 @@ export default function LpAnalysisClientPage({
 
   // Deleting Landing Page State
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Run PageSpeed All State
+  const [isRunningPageSpeed, setIsRunningPageSpeed] = useState(false);
 
   const toggleExpandRow = (campaignId: string) => {
     setExpandedCampaignIds((prev) => ({
@@ -509,6 +513,44 @@ export default function LpAnalysisClientPage({
     }
   };
 
+  // Handle Run All PageSpeed Tests
+  const handleRunAllPageSpeed = async () => {
+    const isOrgView = selectedAccountId === 0;
+    const label = isOrgView ? "all portfolio landing pages" : `pages in ${selectedAccountName}`;
+
+    setIsRunningPageSpeed(true);
+    const toastId = toast.loading(
+      `Running PageSpeed audits for ${label}... This tests Core Web Vitals (LCP, CLS, INP) directly against Google API.`,
+    );
+
+    try {
+      const res = await runAllLandingPageSpeedTestsAction(
+        isOrgView ? undefined : selectedAccountId,
+        "mobile",
+      );
+
+      if (res.success && res.data) {
+        toast.success(
+          `PageSpeed batch complete! Audited ${res.data.processed} of ${res.data.total} landing pages.`,
+          { id: toastId },
+        );
+        if (isOrgView) {
+          fetchOrgOverview();
+        } else {
+          fetchCampaigns(selectedAccountId);
+        }
+      } else {
+        toast.error(res.error || "Batch PageSpeed test failed.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred running batch PageSpeed tests.", {
+        id: toastId,
+      });
+    } finally {
+      setIsRunningPageSpeed(false);
+    }
+  };
+
   // Execute Batch Audit
   const handleBatchAudit = async (customCampaigns?: CampaignLP[]) => {
     const toAudit =
@@ -666,7 +708,8 @@ export default function LpAnalysisClientPage({
           loadingCampaigns ||
           isAuditing ||
           loadingOrgOverview ||
-          isBatchAuditing
+          isBatchAuditing ||
+          isRunningPageSpeed
         }
         color="indigo"
       />
@@ -699,6 +742,26 @@ export default function LpAnalysisClientPage({
           >
             <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
             Quick Audit
+          </Button>
+
+          <Button
+            onClick={handleRunAllPageSpeed}
+            disabled={
+              isRunningPageSpeed ||
+              loadingOrgOverview ||
+              loadingCampaigns ||
+              (selectedAccountId !== 0 && campaigns.length === 0)
+            }
+            variant="outline"
+            title="Run Google PageSpeed Insights (Lighthouse Core Web Vitals) for all landing pages"
+            className="border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white h-9 hover:border-indigo-300 hover:text-indigo-600 shadow-sm"
+          >
+            {isRunningPageSpeed ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+            ) : (
+              <Gauge className="w-3.5 h-3.5 text-blue-500" />
+            )}
+            Run All PageSpeed
           </Button>
 
           {selectedAccountId === 0 ? (

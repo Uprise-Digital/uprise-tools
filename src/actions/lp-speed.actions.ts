@@ -1,6 +1,6 @@
 "use server";
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -380,3 +380,173 @@ export async function toggleWeeklySpeedCheckAction(
     };
   }
 }
+
+/**
+ * Runs PageSpeed audits for all landing pages in the organization or for a specific account.
+ */
+export async function runAllLandingPageSpeedTestsAction(
+  adAccountId?: number,
+  device: "mobile" | "desktop" = "mobile",
+): Promise<{
+  success: boolean;
+  data?: {
+    total: number;
+    processed: number;
+    failed: number;
+    results: Array<{
+      pageId: number;
+      url: string;
+      campaignName: string;
+      score?: number;
+      success: boolean;
+      error?: string;
+    }>;
+  };
+  error?: string;
+}> {
+  try {
+    const ctx = await getAuthOrgContext();
+    if (!ctx) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    let targetPages: Array<typeof campaignLandingPages.$inferSelect> = [];
+
+    if (adAccountId && adAccountId > 0) {
+      targetPages = await db.query.campaignLandingPages.findMany({
+        where: and(
+          eq(campaignLandingPages.adAccountId, adAccountId),
+          eq(campaignLandingPages.status, "ENABLED"),
+        ),
+      });
+    } else {
+      // Organization level: fetch all pages across active org accounts
+      const orgAccounts = await db.query.adAccounts.findMany({
+        where: and(
+          eq(adAccounts.organizationId, ctx.orgId),
+          eq(adAccounts.isActive, true),
+        ),
+      });
+      const orgAccountIds = orgAccounts.map((a) => a.id);
+
+      if (orgAccountIds.length === 0) {
+        return {
+          success: true,
+          data: { total: 0, processed: 0, failed: 0, results: [] },
+        };
+      }
+
+      targetPages = await db.query.campaignLandingPages.findMany({
+        where: and(
+          inArray(campaignLandingPages.adAccountId, orgAccountIds),
+          eq(campaignLandingPages.status, "ENABLED"),
+        ),
+      });
+    }
+
+    // Filter valid HTTP/HTTPS URLs and deduplicate URLs to avoid redundant Google audits
+    const validPages = targetPages.filter(
+      (p) => p.url && (p.url.startsWith("http://") || p.url.startsWith("https://")),
+    );
+
+    if (validPages.length === 0) {
+      return {
+        success: false,
+        error: "No enabled landing pages with valid URLs found to test.",
+      };
+    }
+
+    const results: Array<{
+      pageId: number;
+      url: string;
+      campaignName: string;
+      score?: number;
+      success: boolean;
+      error?: string;
+    }> = [];
+
+    // Audit pages sequentially to be respectful of PageSpeed API rate limits
+    for (const page of validPages) {
+      try {
+        const audit = await runPageSpeedAudit(page.url, device);
+        const targetOrgId = ctx.orgId || page.organizationId || "default-org";
+
+        await db.insert(landingPageSpeedTests).values({
+          organizationId: targetOrgId,
+          adAccountId: page.adAccountId,
+          campaignLandingPageId: page.id,
+          url: page.url,
+          device: audit.device,
+          performanceScore: audit.performanceScore,
+          accessibilityScore: audit.accessibilityScore,
+          bestPracticesScore: audit.bestPracticesScore,
+          seoScore: audit.seoScore,
+          lcpMs: audit.lcpMs,
+          lcpDisplay: audit.lcpDisplay,
+          clsScore: audit.clsScore,
+          clsDisplay: audit.clsDisplay,
+          inpMs: audit.inpMs,
+          inpDisplay: audit.inpDisplay,
+          fcpMs: audit.fcpMs,
+          fcpDisplay: audit.fcpDisplay,
+          ttfbMs: audit.ttfbMs,
+          ttfbDisplay: audit.ttfbDisplay,
+          speedIndexMs: audit.speedIndexMs,
+          speedIndexDisplay: audit.speedIndexDisplay,
+          totalByteWeight: audit.totalByteWeight,
+          opportunities: audit.opportunities,
+          diagnostics: audit.diagnostics,
+          cruxData: audit.cruxData,
+          rawMetrics: {
+            engineUsed: audit.engineUsed,
+            simulationSettings: audit.simulationSettings,
+          },
+          triggerSource: "MANUAL_BATCH",
+          createdAt: new Date(),
+        });
+
+        results.push({
+          pageId: page.id,
+          url: page.url,
+          campaignName: page.campaignName,
+          score: audit.performanceScore,
+          success: true,
+        });
+      } catch (err: any) {
+        console.error(
+          `[Batch PageSpeed Error] Failed for ${page.url} (${page.campaignName}):`,
+          err,
+        );
+        results.push({
+          pageId: page.id,
+          url: page.url,
+          campaignName: page.campaignName,
+          success: false,
+          error: err.message || "Speed test failed",
+        });
+      }
+    }
+
+    revalidatePath("/lp-analysis");
+
+    const processed = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+
+    return {
+      success: true,
+      data: {
+        total: validPages.length,
+        processed,
+        failed,
+        results,
+      },
+    };
+  } catch (error: any) {
+    console.error("[runAllLandingPageSpeedTestsAction Error]:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to execute batch PageSpeed audits",
+    };
+  }
+}
+
