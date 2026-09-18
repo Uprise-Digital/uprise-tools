@@ -1071,37 +1071,50 @@ export default function AgencyReportsClient() {
         }`}
       >
         {/* Card 1: All Accounts */}
-        <Card className="py-0 m-0 shadow-sm border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+        <Card className="py-0 m-0 shadow-sm border-slate-200 min-w-0 overflow-hidden">
+          <CardContent className="p-3.5 sm:p-4 min-w-0">
+            <div className="flex items-center justify-between gap-1.5 mb-1.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate">
                 All Accounts
               </p>
-              <p className="text-lg font-black text-slate-900">
+              <div className="p-1.5 rounded-lg bg-indigo-50 shrink-0">
+                <Users className="h-3.5 w-3.5 text-indigo-600" />
+              </div>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <p
+                className="text-lg font-black text-slate-900 tracking-tight truncate"
+                title={String(portfolio?.agencyTotals?.activeAccountsCount || 0)}
+              >
                 {portfolio?.agencyTotals?.activeAccountsCount || 0}
               </p>
-              <p className="text-[10px] text-slate-400 font-medium">
+              <p className="text-[10px] text-slate-400 font-medium truncate">
                 Active Client Accounts
               </p>
-            </div>
-            <div className="p-2 rounded-lg bg-indigo-50 shrink-0 self-start">
-              <Users className="h-3.5 w-3.5 text-indigo-600" />
             </div>
           </CardContent>
         </Card>
 
         {/* Card 2: Spend */}
-        <Card className="py-0 m-0 shadow-sm border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+        <Card className="py-0 m-0 shadow-sm border-slate-200 min-w-0 overflow-hidden">
+          <CardContent className="p-3.5 sm:p-4 min-w-0">
+            <div className="flex items-center justify-between gap-1.5 mb-1.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate">
                 {platformFilter === "google"
                   ? "Google Spend"
                   : platformFilter === "meta"
                     ? "Meta Spend"
                     : "Blended Spend"}
               </p>
-              <p className="text-lg font-black text-slate-900">
+              <div className="p-1.5 rounded-lg bg-blue-50 shrink-0">
+                <DollarSign className="h-3.5 w-3.5 text-blue-600" />
+              </div>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <p
+                className="text-lg font-black text-slate-900 tracking-tight truncate"
+                title={fCur(totalSpend)}
+              >
                 {fCur(totalSpend)}
               </p>
               <div>
@@ -1113,37 +1126,42 @@ export default function AgencyReportsClient() {
                 />
               </div>
               {platformFilter === "all" && portfolio?.channelSummary && (
-                <div className="flex items-center gap-2 pt-1 text-[10px] text-slate-500 font-mono">
-                  <span className="flex items-center gap-1 text-emerald-700">
-                    <GoogleLogo className="w-2.5 h-2.5" />
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-0.5 text-[10px] text-slate-500 font-mono min-w-0">
+                  <span className="inline-flex items-center gap-1 text-emerald-700 whitespace-nowrap">
+                    <GoogleLogo className="w-2.5 h-2.5 shrink-0" />
                     {fCur(portfolio.channelSummary.google?.spend || 0)}
                   </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 text-blue-700">
-                    <MetaLogo className="w-2.5 h-2.5" />
+                  <span className="text-slate-300">•</span>
+                  <span className="inline-flex items-center gap-1 text-blue-700 whitespace-nowrap">
+                    <MetaLogo className="w-2.5 h-2.5 shrink-0" />
                     {fCur(portfolio.channelSummary.meta?.spend || 0)}
                   </span>
                 </div>
               )}
             </div>
-            <div className="p-2 rounded-lg bg-blue-50 shrink-0 self-start">
-              <DollarSign className="h-3.5 w-3.5 text-blue-600" />
-            </div>
           </CardContent>
         </Card>
 
         {/* Card 3: Total Conversions */}
-        <Card className="py-0 m-0 shadow-sm border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+        <Card className="py-0 m-0 shadow-sm border-slate-200 min-w-0 overflow-hidden">
+          <CardContent className="p-3.5 sm:p-4 min-w-0">
+            <div className="flex items-center justify-between gap-1.5 mb-1.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate">
                 {platformFilter === "google"
                   ? "Google Conv."
                   : platformFilter === "meta"
                     ? "Meta Conv."
                     : "Total Conv."}
               </p>
-              <p className="text-lg font-black text-slate-900">
+              <div className="p-1.5 rounded-lg bg-emerald-50 shrink-0">
+                <Target className="h-3.5 w-3.5 text-emerald-600" />
+              </div>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <p
+                className="text-lg font-black text-slate-900 tracking-tight truncate"
+                title={fNum(totalConv)}
+              >
                 {fNum(totalConv)}
               </p>
               <div>
@@ -1155,37 +1173,42 @@ export default function AgencyReportsClient() {
                 />
               </div>
               {platformFilter === "all" && portfolio?.channelSummary && (
-                <div className="flex items-center gap-2 pt-1 text-[10px] text-slate-500 font-mono">
-                  <span className="flex items-center gap-1 text-emerald-700">
-                    <GoogleLogo className="w-2.5 h-2.5" />
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-0.5 text-[10px] text-slate-500 font-mono min-w-0">
+                  <span className="inline-flex items-center gap-1 text-emerald-700 whitespace-nowrap">
+                    <GoogleLogo className="w-2.5 h-2.5 shrink-0" />
                     {fNum(portfolio.channelSummary.google?.conversions || 0)}
                   </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 text-blue-700">
-                    <MetaLogo className="w-2.5 h-2.5" />
+                  <span className="text-slate-300">•</span>
+                  <span className="inline-flex items-center gap-1 text-blue-700 whitespace-nowrap">
+                    <MetaLogo className="w-2.5 h-2.5 shrink-0" />
                     {fNum(portfolio.channelSummary.meta?.conversions || 0)}
                   </span>
                 </div>
               )}
             </div>
-            <div className="p-2 rounded-lg bg-emerald-50 shrink-0 self-start">
-              <Target className="h-3.5 w-3.5 text-emerald-600" />
-            </div>
           </CardContent>
         </Card>
 
         {/* Card 4: CPA */}
-        <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-2 border-l-indigo-500">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+        <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-2 border-l-indigo-500 min-w-0 overflow-hidden">
+          <CardContent className="p-3.5 sm:p-4 min-w-0">
+            <div className="flex items-center justify-between gap-1.5 mb-1.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate">
                 {platformFilter === "google"
                   ? "Google CPA"
                   : platformFilter === "meta"
                     ? "Meta CPA"
                     : "Blended CPA"}
               </p>
-              <p className="text-lg font-black text-slate-900">
+              <div className="p-1.5 rounded-lg bg-slate-100 shrink-0">
+                <Activity className="h-3.5 w-3.5 text-slate-600" />
+              </div>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <p
+                className="text-lg font-black text-slate-900 tracking-tight truncate"
+                title={fCur(portfolio?.agencyTotals?.cpa || 0)}
+              >
                 {fCur(portfolio?.agencyTotals?.cpa || 0)}
               </p>
               <div>
@@ -1197,33 +1220,38 @@ export default function AgencyReportsClient() {
                 />
               </div>
               {platformFilter === "all" && portfolio?.channelSummary && (
-                <div className="flex items-center gap-2 pt-1 text-[10px] text-slate-500 font-mono">
-                  <span className="flex items-center gap-1 text-emerald-700">
-                    <GoogleLogo className="w-2.5 h-2.5" />
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-0.5 text-[10px] text-slate-500 font-mono min-w-0">
+                  <span className="inline-flex items-center gap-1 text-emerald-700 whitespace-nowrap">
+                    <GoogleLogo className="w-2.5 h-2.5 shrink-0" />
                     {fCur(portfolio.channelSummary.google?.cpa || 0)}
                   </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 text-blue-700">
-                    <MetaLogo className="w-2.5 h-2.5" />
+                  <span className="text-slate-300">•</span>
+                  <span className="inline-flex items-center gap-1 text-blue-700 whitespace-nowrap">
+                    <MetaLogo className="w-2.5 h-2.5 shrink-0" />
                     {fCur(portfolio.channelSummary.meta?.cpa || 0)}
                   </span>
                 </div>
               )}
             </div>
-            <div className="p-2 rounded-lg bg-slate-100 shrink-0 self-start">
-              <Activity className="h-3.5 w-3.5 text-slate-600" />
-            </div>
           </CardContent>
         </Card>
 
         {/* Card 5: Non-Whale CPA */}
-        <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-2 border-l-emerald-500 bg-emerald-50/10">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-700">
+        <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-2 border-l-emerald-500 bg-emerald-50/10 min-w-0 overflow-hidden">
+          <CardContent className="p-3.5 sm:p-4 min-w-0">
+            <div className="flex items-center justify-between gap-1.5 mb-1.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-700 truncate">
                 Non-Whale CPA
               </p>
-              <p className="text-lg font-black text-emerald-800">
+              <div className="p-1.5 rounded-lg bg-emerald-50 shrink-0">
+                <Scale className="h-3.5 w-3.5 text-emerald-600" />
+              </div>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <p
+                className="text-lg font-black text-emerald-800 tracking-tight truncate"
+                title={fCur(nonWhaleCpa)}
+              >
                 {fCur(nonWhaleCpa)}
               </p>
               <div>
@@ -1235,20 +1263,25 @@ export default function AgencyReportsClient() {
                 />
               </div>
             </div>
-            <div className="p-2 rounded-lg bg-emerald-50 shrink-0 self-start">
-              <Scale className="h-3.5 w-3.5 text-emerald-600" />
-            </div>
           </CardContent>
         </Card>
 
         {/* Card 6: Whale Spend Share */}
-        <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-2 border-l-amber-500 bg-amber-50/10">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-amber-700">
+        <Card className="py-0 m-0 shadow-sm border-slate-200 border-l-2 border-l-amber-500 bg-amber-50/10 min-w-0 overflow-hidden">
+          <CardContent className="p-3.5 sm:p-4 min-w-0">
+            <div className="flex items-center justify-between gap-1.5 mb-1.5">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-amber-700 truncate">
                 Whale Spend
               </p>
-              <p className="text-lg font-black text-amber-800">
+              <div className="p-1.5 rounded-lg bg-amber-50 shrink-0">
+                <Activity className="h-3.5 w-3.5 text-amber-600" />
+              </div>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <p
+                className="text-lg font-black text-amber-800 tracking-tight truncate"
+                title={fPct(whaleSpendShare)}
+              >
                 {fPct(whaleSpendShare)}
               </p>
               <div>
@@ -1258,9 +1291,6 @@ export default function AgencyReportsClient() {
                   suffix=" vs prior"
                 />
               </div>
-            </div>
-            <div className="p-2 rounded-lg bg-amber-50 shrink-0 self-start">
-              <Activity className="h-3.5 w-3.5 text-amber-600" />
             </div>
           </CardContent>
         </Card>

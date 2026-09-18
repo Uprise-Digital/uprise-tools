@@ -1,14 +1,16 @@
 "use server";
 
 import * as cheerio from "cheerio";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import TurndownService from "turndown";
 import { db } from "@/db";
 import {
   adAccounts,
+  adPerformanceDaily,
   campaignLandingPages,
   landingPageAudits,
+  landingPageSpeedTests,
 } from "@/db/schema";
 import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
@@ -383,6 +385,29 @@ export async function getLiveCompetitorsRobust(
   return competitorUrls.slice(0, 3);
 }
 
+export function cleanCampaignNameToSearchTerm(campaignName: string): string {
+  let cleaned = campaignName.toLowerCase();
+  cleaned = cleaned.replace(/[|_\-[\]()]/g, " ");
+  cleaned = cleaned
+    .replace(
+      /\b(campaign|search|broad|phrase|exact|ppc|pmax|leads|mcc|leads|client|competitor)\b/g,
+      "",
+    )
+    .replace(
+      /\b\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/g,
+      "",
+    )
+    .replace(
+      /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/g,
+      "",
+    )
+    .replace(/\b\d{4}\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned || "local services australia";
+}
+
 // ============================================================================
 // 3. MASTER ACTION: RETRIEVE CAMPAIGNS & THEIR LANDING PAGES
 // ============================================================================
@@ -437,21 +462,54 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
     orderBy: [desc(landingPageAudits.createdAt)],
   });
 
-  // Group latest audits by campaignId
-  const latestAuditsMap = new Map<string, any>();
-  for (const audit of audits) {
-    if (audit.campaignId && !latestAuditsMap.has(audit.campaignId)) {
-      latestAuditsMap.set(audit.campaignId, {
-        id: audit.id,
-        score: audit.score,
-        auditType: audit.auditType,
-        createdAt: audit.createdAt,
-      });
-    }
+  // Fetch 30-day campaign metrics from adPerformanceDaily
+  const thirtyDaysAgoDate = new Date();
+  thirtyDaysAgoDate.setUTCDate(thirtyDaysAgoDate.getUTCDate() - 30);
+  const thirtyDaysAgoStr = thirtyDaysAgoDate.toISOString().split("T")[0];
+
+  let perfRows: {
+    campaignId: string;
+    spend: string;
+    conversions: string;
+    clicks: number;
+  }[] = [];
+  try {
+    perfRows = await db
+      .select({
+        campaignId: adPerformanceDaily.campaignId,
+        spend: sql<string>`COALESCE(SUM(${adPerformanceDaily.spend}), 0)`,
+        conversions: sql<string>`COALESCE(SUM(${adPerformanceDaily.conversions}), 0)`,
+        clicks: sql<number>`COALESCE(SUM(${adPerformanceDaily.clicks}), 0)`,
+      })
+      .from(adPerformanceDaily)
+      .where(
+        and(
+          eq(adPerformanceDaily.adAccountId, adAccountId),
+          gte(adPerformanceDaily.date, thirtyDaysAgoStr),
+        ),
+      )
+      .groupBy(adPerformanceDaily.campaignId);
+  } catch (perfErr) {
+    console.error(
+      "[LP Analysis] Failed to fetch 30d performance for account:",
+      perfErr,
+    );
   }
 
-  // Map audits back to the campaign list
-  return mappings.map((m) => {
+  const perfMap = new Map<
+    string,
+    { spend: number; conversions: number; clicks: number; cvr: number }
+  >();
+  for (const row of perfRows) {
+    const spend = Number.parseFloat(row.spend) || 0;
+    const conversions = Number.parseFloat(row.conversions) || 0;
+    const clicks = Number(row.clicks) || 0;
+    const cvr = clicks > 0 ? (conversions / clicks) * 100 : 0;
+    perfMap.set(row.campaignId, { spend, conversions, clicks, cvr });
+  }
+
+  // Map audits and metrics back to the campaign list
+  const campaigns = mappings.map((m) => {
     const campaignAudits = audits.filter((a) => a.campaignId === m.campaignId);
     const latestAudit = campaignAudits[0]
       ? {
@@ -462,6 +520,31 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
         }
       : null;
 
+    const perf = perfMap.get(m.campaignId) || {
+      spend: 0,
+      conversions: 0,
+      clicks: 0,
+      cvr: 0,
+    };
+
+    const latestScore = latestAudit ? latestAudit.score : null;
+
+    let priority: "CRITICAL" | "MODERATE" | "HEALTHY" = "HEALTHY";
+    if (m.status === "ENABLED") {
+      if (perf.spend > 150 && (latestScore === null || latestScore < 60)) {
+        priority = "CRITICAL";
+      } else if (latestScore !== null && latestScore < 50 && perf.spend > 50) {
+        priority = "CRITICAL";
+      } else if (
+        (latestScore === null && perf.spend > 0) ||
+        (latestScore !== null && latestScore < 70)
+      ) {
+        priority = "MODERATE";
+      } else {
+        priority = "HEALTHY";
+      }
+    }
+
     return {
       id: m.id,
       campaignId: m.campaignId,
@@ -470,6 +553,11 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
       status: m.status,
       weeklySpeedCheck: m.weeklySpeedCheck ?? false,
       updatedAt: m.updatedAt,
+      spend30d: perf.spend,
+      conversions30d: perf.conversions,
+      clicks30d: perf.clicks,
+      cvr: perf.cvr,
+      priority,
       latestAudit,
       audits: campaignAudits.map((a) => ({
         id: a.id,
@@ -478,6 +566,61 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
         createdAt: a.createdAt,
       })),
     };
+  });
+
+  // Calculate Account-Level Summary Metrics
+  const totalCampaigns = campaigns.length;
+  const auditedCampaigns = campaigns.filter((c) => c.latestAudit !== null);
+  const auditedCount = auditedCampaigns.length;
+  const coveragePercent =
+    totalCampaigns > 0 ? Math.round((auditedCount / totalCampaigns) * 100) : 0;
+
+  const avgCroScore =
+    auditedCount > 0
+      ? Math.round(
+          auditedCampaigns.reduce(
+            (sum, c) => sum + (c.latestAudit?.score || 0),
+            0,
+          ) / auditedCount,
+        )
+      : null;
+
+  let spendAtRisk = 0;
+  for (const c of campaigns) {
+    if (c.status !== "ENABLED") continue;
+    if (!c.latestAudit || c.latestAudit.score < 60) {
+      spendAtRisk += c.spend30d;
+    }
+  }
+
+  let topQuickWin =
+    "Audit remaining landing pages to unlock high-intent conversion rate optimizations.";
+  for (const a of audits) {
+    const analysis = a.aiAnalysis as any;
+    if (
+      analysis?.quick_wins &&
+      Array.isArray(analysis.quick_wins) &&
+      analysis.quick_wins.length > 0
+    ) {
+      topQuickWin = analysis.quick_wins[0];
+      break;
+    }
+  }
+
+  const accountSummary = {
+    avgCroScore,
+    coverageRatio: {
+      audited: auditedCount,
+      total: totalCampaigns,
+      percent: coveragePercent,
+    },
+    spendAtRisk,
+    topQuickWin,
+  };
+
+  return Object.assign(campaigns, {
+    campaigns,
+    accountSummary,
   });
 }
 
@@ -968,4 +1111,400 @@ export async function getAuditDetailAction(auditId: number) {
     console.error("[getAuditDetailAction Error]:", error);
     return { success: false as const, error: error.message };
   }
+}
+
+// ============================================================================
+// 8. ORGANIZATION-WIDE CRO & SPEED OVERVIEW ACTION
+// ============================================================================
+export interface OrgOverviewData {
+  avgCroScore: number;
+  avgSpeedScore: number;
+  totalAccounts: number;
+  totalCampaigns: number;
+  auditedCampaigns: number;
+  speedTestedCampaigns: number;
+  coveragePercent: number;
+  totalSpendAtRisk: number;
+  topCro: Array<{
+    auditId: number;
+    accountId: number;
+    accountName: string;
+    campaignName: string;
+    url: string;
+    score: number;
+    createdAt: Date;
+    auditType: string;
+  }>;
+  bottomCro: Array<{
+    auditId: number;
+    accountId: number;
+    accountName: string;
+    campaignName: string;
+    url: string;
+    score: number;
+    createdAt: Date;
+    auditType: string;
+  }>;
+  topSpeed: Array<{
+    id: number;
+    accountId: number;
+    accountName: string;
+    url: string;
+    performanceScore: number;
+    device: string;
+    lcpDisplay: string | null;
+    createdAt: Date;
+  }>;
+  bottomSpeed: Array<{
+    id: number;
+    accountId: number;
+    accountName: string;
+    url: string;
+    performanceScore: number;
+    device: string;
+    lcpDisplay: string | null;
+    createdAt: Date;
+  }>;
+  accountBreakdown: Array<{
+    id: number;
+    name: string;
+    totalCampaigns: number;
+    auditedCount: number;
+    avgCroScore: number | null;
+    avgSpeedScore: number | null;
+    spendAtRisk: number;
+  }>;
+}
+
+export async function getOrgLandingPageOverviewAction(): Promise<{
+  success: boolean;
+  data?: OrgOverviewData;
+  error?: string;
+}> {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) return { success: false, error: "Unauthorized" };
+
+  try {
+    const accounts = await db.query.adAccounts.findMany({
+      where: and(
+        eq(adAccounts.isActive, true),
+        eq(adAccounts.organizationId, ctx.orgId),
+      ),
+      orderBy: (table, { asc }) => asc(table.name),
+    });
+
+    if (accounts.length === 0) {
+      return {
+        success: true,
+        data: {
+          avgCroScore: 0,
+          avgSpeedScore: 0,
+          totalAccounts: 0,
+          totalCampaigns: 0,
+          auditedCampaigns: 0,
+          speedTestedCampaigns: 0,
+          coveragePercent: 0,
+          totalSpendAtRisk: 0,
+          topCro: [],
+          bottomCro: [],
+          topSpeed: [],
+          bottomSpeed: [],
+          accountBreakdown: [],
+        },
+      };
+    }
+
+    const accountIds = accounts.map((a) => a.id);
+    const accountMap = new Map<number, string>();
+    for (const acc of accounts) {
+      accountMap.set(acc.id, acc.name);
+    }
+
+    const allLps = await db.query.campaignLandingPages.findMany({
+      where: inArray(campaignLandingPages.adAccountId, accountIds),
+    });
+
+    const allAudits = await db.query.landingPageAudits.findMany({
+      where: inArray(landingPageAudits.adAccountId, accountIds),
+      orderBy: [desc(landingPageAudits.createdAt)],
+    });
+
+    const allSpeedTests = await db.query.landingPageSpeedTests.findMany({
+      where: inArray(landingPageSpeedTests.adAccountId, accountIds),
+      orderBy: [desc(landingPageSpeedTests.createdAt)],
+    });
+
+    const thirtyDaysAgoDate = new Date();
+    thirtyDaysAgoDate.setUTCDate(thirtyDaysAgoDate.getUTCDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgoDate.toISOString().split("T")[0];
+
+    let perfRows: {
+      adAccountId: number;
+      campaignId: string;
+      spend: string;
+    }[] = [];
+    try {
+      perfRows = await db
+        .select({
+          adAccountId: adPerformanceDaily.adAccountId,
+          campaignId: adPerformanceDaily.campaignId,
+          spend: sql<string>`COALESCE(SUM(${adPerformanceDaily.spend}), 0)`,
+        })
+        .from(adPerformanceDaily)
+        .where(
+          and(
+            inArray(adPerformanceDaily.adAccountId, accountIds),
+            gte(adPerformanceDaily.date, thirtyDaysAgoStr),
+          ),
+        )
+        .groupBy(adPerformanceDaily.adAccountId, adPerformanceDaily.campaignId);
+    } catch (perfErr) {
+      console.error("[LP Org Overview] Failed to fetch 30d spend:", perfErr);
+    }
+
+    const spendMap = new Map<string, number>();
+    for (const row of perfRows) {
+      spendMap.set(
+        `${row.adAccountId}_${row.campaignId}`,
+        Number.parseFloat(row.spend) || 0,
+      );
+    }
+
+    const latestAuditByCampaign = new Map<string, (typeof allAudits)[0]>();
+    for (const aud of allAudits) {
+      const key = `${aud.adAccountId}_${aud.campaignId || aud.url}`;
+      if (!latestAuditByCampaign.has(key)) {
+        latestAuditByCampaign.set(key, aud);
+      }
+    }
+
+    const latestSpeedByLp = new Map<string, (typeof allSpeedTests)[0]>();
+    for (const st of allSpeedTests) {
+      const key = `${st.adAccountId}_${st.url}`;
+      if (!latestSpeedByLp.has(key)) {
+        latestSpeedByLp.set(key, st);
+      }
+    }
+
+    const croAuditsList = Array.from(latestAuditByCampaign.values());
+    const avgCroScore =
+      croAuditsList.length > 0
+        ? Math.round(
+            croAuditsList.reduce((acc, a) => acc + a.score, 0) /
+              croAuditsList.length,
+          )
+        : 0;
+
+    const speedTestsList = Array.from(latestSpeedByLp.values());
+    const avgSpeedScore =
+      speedTestsList.length > 0
+        ? Math.round(
+            speedTestsList.reduce((acc, s) => acc + s.performanceScore, 0) /
+              speedTestsList.length,
+          )
+        : 0;
+
+    const croItems = croAuditsList.map((a) => ({
+      auditId: a.id,
+      accountId: a.adAccountId,
+      accountName: accountMap.get(a.adAccountId) || "Account",
+      campaignName: a.campaignName || "General Campaign",
+      url: a.url,
+      score: a.score,
+      createdAt: a.createdAt,
+      auditType: a.auditType,
+    }));
+
+    const sortedCro = [...croItems].sort((a, b) => b.score - a.score);
+    const topCro = sortedCro.slice(0, 3);
+    const bottomCro = [...sortedCro].reverse().slice(0, 3);
+
+    const speedItems = speedTestsList.map((s) => ({
+      id: s.id,
+      accountId: s.adAccountId,
+      accountName: accountMap.get(s.adAccountId) || "Account",
+      url: s.url,
+      performanceScore: s.performanceScore,
+      device: s.device,
+      lcpDisplay: s.lcpDisplay,
+      createdAt: s.createdAt,
+    }));
+
+    const sortedSpeed = [...speedItems].sort(
+      (a, b) => b.performanceScore - a.performanceScore,
+    );
+    const topSpeed = sortedSpeed.slice(0, 3);
+    const bottomSpeed = [...sortedSpeed].reverse().slice(0, 3);
+
+    let totalSpendAtRisk = 0;
+    for (const lp of allLps) {
+      if (lp.status !== "ENABLED") continue;
+      const spend = spendMap.get(`${lp.adAccountId}_${lp.campaignId}`) || 0;
+      const aud = latestAuditByCampaign.get(
+        `${lp.adAccountId}_${lp.campaignId}`,
+      );
+      if (!aud || aud.score < 60) {
+        totalSpendAtRisk += spend;
+      }
+    }
+
+    const accountBreakdown = accounts.map((acc) => {
+      const accLps = allLps.filter((lp) => lp.adAccountId === acc.id);
+      const accAudits = accLps
+        .map((lp) => latestAuditByCampaign.get(`${acc.id}_${lp.campaignId}`))
+        .filter(Boolean);
+      const accSpeed = accLps
+        .map((lp) => latestSpeedByLp.get(`${acc.id}_${lp.url}`))
+        .filter(Boolean);
+
+      const accAvgCro =
+        accAudits.length > 0
+          ? Math.round(
+              accAudits.reduce((sum, a) => sum + a!.score, 0) /
+                accAudits.length,
+            )
+          : null;
+
+      const accAvgSpeed =
+        accSpeed.length > 0
+          ? Math.round(
+              accSpeed.reduce((sum, s) => sum + s!.performanceScore, 0) /
+                accSpeed.length,
+            )
+          : null;
+
+      let accSpendAtRisk = 0;
+      for (const lp of accLps) {
+        if (lp.status !== "ENABLED") continue;
+        const spend = spendMap.get(`${acc.id}_${lp.campaignId}`) || 0;
+        const aud = latestAuditByCampaign.get(`${acc.id}_${lp.campaignId}`);
+        if (!aud || aud.score < 60) {
+          accSpendAtRisk += spend;
+        }
+      }
+
+      return {
+        id: acc.id,
+        name: acc.name,
+        totalCampaigns: accLps.length,
+        auditedCount: accAudits.length,
+        avgCroScore: accAvgCro,
+        avgSpeedScore: accAvgSpeed,
+        spendAtRisk: accSpendAtRisk,
+      };
+    });
+
+    accountBreakdown.sort((a, b) => b.spendAtRisk - a.spendAtRisk);
+
+    const totalCampaigns = allLps.length;
+    const auditedCampaigns = latestAuditByCampaign.size;
+    const coveragePercent =
+      totalCampaigns > 0
+        ? Math.round((auditedCampaigns / totalCampaigns) * 100)
+        : 0;
+
+    return {
+      success: true,
+      data: {
+        avgCroScore,
+        avgSpeedScore,
+        totalAccounts: accounts.length,
+        totalCampaigns,
+        auditedCampaigns,
+        speedTestedCampaigns: latestSpeedByLp.size,
+        coveragePercent,
+        totalSpendAtRisk,
+        topCro,
+        bottomCro,
+        topSpeed,
+        bottomSpeed,
+        accountBreakdown,
+      },
+    };
+  } catch (error: any) {
+    console.error("[getOrgLandingPageOverviewAction Error]:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================================================
+// 9. BATCH AUDIT ACTION
+// ============================================================================
+export async function runBatchLandingPageAuditsAction(
+  adAccountId: number,
+  items: Array<{
+    campaignId: string;
+    campaignName: string;
+    url: string;
+    searchTerm?: string;
+    auditType?: "PAGE_SOURCE" | "VISUAL";
+  }>,
+) {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  if (!items || items.length === 0) {
+    return {
+      success: false as const,
+      error: "No campaign landing pages provided for batch audit.",
+    };
+  }
+
+  const results: Array<{
+    campaignId: string;
+    campaignName: string;
+    success: boolean;
+    auditId?: number;
+    score?: number;
+    error?: string;
+  }> = [];
+
+  for (const item of items) {
+    try {
+      const searchTerm = item.searchTerm?.trim()
+        ? item.searchTerm.trim()
+        : cleanCampaignNameToSearchTerm(item.campaignName);
+
+      const audit = await runLandingPageAuditInternal(
+        adAccountId,
+        item.campaignId,
+        item.campaignName,
+        item.url,
+        searchTerm,
+        item.auditType || "PAGE_SOURCE",
+      );
+
+      results.push({
+        campaignId: item.campaignId,
+        campaignName: item.campaignName,
+        success: true,
+        auditId: audit.auditId,
+        score: audit.score,
+      });
+    } catch (err: any) {
+      console.error(
+        `[Batch Audit Error] Failed for ${item.campaignName}:`,
+        err,
+      );
+      results.push({
+        campaignId: item.campaignId,
+        campaignName: item.campaignName,
+        success: false,
+        error: err.message || "Audit failed",
+      });
+    }
+  }
+
+  const processed = results.filter((r) => r.success).length;
+  const failed = results.filter((r) => !r.success).length;
+
+  return {
+    success: true as const,
+    data: {
+      total: items.length,
+      processed,
+      failed,
+      results,
+    },
+  };
 }

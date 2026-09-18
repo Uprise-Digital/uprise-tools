@@ -49,14 +49,16 @@ export function MetricGridSkeleton({
   return (
     <div className={cn("grid gap-4", columnsClassName)}>
       {Array.from({ length: count }).map((_, i) => (
-        <Card key={i} className="py-0 m-0 shadow-sm border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-2 w-full">
+        <Card key={i} className="py-0 m-0 shadow-sm border-slate-200 min-w-0 overflow-hidden">
+          <CardContent className="p-3.5 sm:p-4 min-w-0">
+            <div className="flex items-center justify-between gap-1.5 mb-1.5">
               <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-6 w-24" />
-              <Skeleton className="h-2.5 w-14" />
+              <Skeleton className="w-6 h-6 rounded-lg shrink-0" />
             </div>
-            <Skeleton className="w-7 h-7 rounded-lg shrink-0 self-start" />
+            <div className="space-y-1.5 min-w-0">
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-3 w-16" />
+            </div>
           </CardContent>
         </Card>
       ))}
