@@ -1488,3 +1488,76 @@ export async function runBatchLandingPageAuditsAction(
     },
   };
 }
+
+// ============================================================================
+// 10. INDEPENDENT / CUSTOM WEBPAGE MANAGEMENT
+// ============================================================================
+export async function addCustomLandingPageAction(
+  adAccountId: number,
+  title: string,
+  url: string,
+) {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  const cleanTitle = title.trim();
+  const cleanUrl = url.trim();
+
+  if (!cleanTitle) {
+    return { success: false as const, error: "Page title or name is required." };
+  }
+
+  if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+    return {
+      success: false as const,
+      error: "URL must begin with http:// or https://",
+    };
+  }
+
+  try {
+    const customCampaignId = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    const [inserted] = await db
+      .insert(campaignLandingPages)
+      .values({
+        organizationId: ctx.orgId,
+        adAccountId,
+        campaignId: customCampaignId,
+        campaignName: cleanTitle,
+        url: cleanUrl,
+        status: "ENABLED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return { success: true as const, data: inserted };
+  } catch (error: any) {
+    console.error("[addCustomLandingPageAction Error]:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+export async function deleteCampaignLandingPageAction(id: number) {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) throw new Error("Unauthorized");
+
+  try {
+    const existing = await db.query.campaignLandingPages.findFirst({
+      where: eq(campaignLandingPages.id, id),
+    });
+
+    if (!existing) {
+      return { success: false as const, error: "Landing page not found." };
+    }
+
+    await db
+      .delete(campaignLandingPages)
+      .where(eq(campaignLandingPages.id, id));
+
+    return { success: true as const };
+  } catch (error: any) {
+    console.error("[deleteCampaignLandingPageAction Error]:", error);
+    return { success: false as const, error: error.message };
+  }
+}

@@ -23,6 +23,7 @@ import {
   Save,
   Search,
   Sparkles,
+  Trash2,
   TrendingUp,
   Zap,
 } from "lucide-react";
@@ -31,6 +32,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
+  addCustomLandingPageAction,
+  deleteCampaignLandingPageAction,
   getCampaignLandingPagesAction,
   getOrgLandingPageOverviewAction,
   type OrgOverviewData,
@@ -182,6 +185,26 @@ export default function LpAnalysisClientPage({
   const [auditVisual, setAuditVisual] = useState(false);
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditStep, setAuditStep] = useState(1);
+
+  // Quick Audit Modal State (Global Any URL / Standalone)
+  const [isQuickAuditOpen, setIsQuickAuditOpen] = useState(false);
+  const [quickAuditAccountId, setQuickAuditAccountId] = useState<number>(
+    selectedAccountId > 0 ? selectedAccountId : accounts[0]?.id || 0,
+  );
+  const [quickAuditUrl, setQuickAuditUrl] = useState("");
+  const [quickAuditKeyword, setQuickAuditKeyword] = useState("");
+  const [quickAuditVisual, setQuickAuditVisual] = useState(false);
+  const [isQuickAuditing, setIsQuickAuditing] = useState(false);
+  const [quickAuditStep, setQuickAuditStep] = useState(1);
+
+  // Add Custom Independent Webpage Modal State
+  const [isAddPageModalOpen, setIsAddPageModalOpen] = useState(false);
+  const [addPageTitle, setAddPageTitle] = useState("");
+  const [addPageUrl, setAddPageUrl] = useState("");
+  const [isAddingPage, setIsAddingPage] = useState(false);
+
+  // Deleting Landing Page State
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const toggleExpandRow = (campaignId: string) => {
     setExpandedCampaignIds((prev) => ({
@@ -361,6 +384,128 @@ export default function LpAnalysisClientPage({
       clearInterval(stepInterval);
       toast.error(err.message || "An error occurred during auditing.");
       setIsAuditing(false);
+    }
+  };
+
+  // Open Quick Audit modal
+  const openQuickAudit = () => {
+    if (selectedAccountId > 0) {
+      setQuickAuditAccountId(selectedAccountId);
+    } else if (accounts.length > 0) {
+      setQuickAuditAccountId(accounts[0].id);
+    }
+    setQuickAuditUrl("");
+    setQuickAuditKeyword("");
+    setQuickAuditVisual(false);
+    setQuickAuditStep(1);
+    setIsQuickAuditOpen(true);
+  };
+
+  // Execute Quick Audit
+  const handleExecuteQuickAudit = async () => {
+    const targetAccountId = Number(quickAuditAccountId);
+    if (!targetAccountId || !quickAuditUrl.trim() || !quickAuditKeyword.trim()) {
+      toast.error("Please fill in the landing page URL, focus search term, and account.");
+      return;
+    }
+
+    if (!quickAuditUrl.startsWith("http://") && !quickAuditUrl.startsWith("https://")) {
+      toast.error("URL must begin with http:// or https://");
+      return;
+    }
+
+    setIsQuickAuditing(true);
+    setQuickAuditStep(1);
+
+    const stepInterval = setInterval(() => {
+      setQuickAuditStep((prev) => (prev < 4 ? prev + 1 : prev));
+    }, 4500);
+
+    try {
+      const res = await runLandingPageAuditAction(
+        targetAccountId,
+        null, // No linked campaignId for standalone quick audit
+        "Standalone Quick Audit",
+        quickAuditUrl.trim(),
+        quickAuditKeyword.trim(),
+        quickAuditVisual ? "VISUAL" : "PAGE_SOURCE",
+      );
+
+      clearInterval(stepInterval);
+
+      if (res.success && res.data) {
+        toast.success("Quick audit complete! Opening report...");
+        setIsQuickAuditOpen(false);
+        router.push(`/lp-analysis/${res.data.auditId}`);
+      } else {
+        toast.error(res.error || "Quick audit failed.");
+        setIsQuickAuditing(false);
+      }
+    } catch (err: any) {
+      clearInterval(stepInterval);
+      toast.error(err.message || "An error occurred during quick audit.");
+      setIsQuickAuditing(false);
+    }
+  };
+
+  // Handle Add Custom Independent Webpage
+  const handleAddCustomPage = async () => {
+    if (!selectedAccountId) return;
+    if (!addPageTitle.trim() || !addPageUrl.trim()) {
+      toast.error("Please enter a page title and valid URL.");
+      return;
+    }
+
+    if (!addPageUrl.startsWith("http://") && !addPageUrl.startsWith("https://")) {
+      toast.error("URL must begin with http:// or https://");
+      return;
+    }
+
+    setIsAddingPage(true);
+    try {
+      const res = await addCustomLandingPageAction(
+        selectedAccountId,
+        addPageTitle.trim(),
+        addPageUrl.trim(),
+      );
+
+      if (res.success) {
+        toast.success("Webpage added successfully!");
+        setIsAddPageModalOpen(false);
+        setAddPageTitle("");
+        setAddPageUrl("");
+        fetchCampaigns(selectedAccountId);
+      } else {
+        toast.error(res.error || "Failed to add webpage.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred adding webpage.");
+    } finally {
+      setIsAddingPage(false);
+    }
+  };
+
+  // Handle Delete Landing Page
+  const handleDeletePage = async (id: number, name: string) => {
+    if (!confirm(`Are you sure you want to remove "${name}" from this account?`)) {
+      return;
+    }
+
+    setDeletingId(id);
+    try {
+      const res = await deleteCampaignLandingPageAction(id);
+      if (res.success) {
+        toast.success("Landing page removed.");
+        if (selectedAccountId > 0) {
+          fetchCampaigns(selectedAccountId);
+        }
+      } else {
+        toast.error(res.error || "Failed to delete landing page.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred deleting landing page.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -547,13 +692,21 @@ export default function LpAnalysisClientPage({
         </div>
 
         {/* Sync / Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button
+            onClick={openQuickAudit}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm h-9 px-3.5"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+            Quick Audit
+          </Button>
+
           {selectedAccountId === 0 ? (
             <Button
               onClick={fetchOrgOverview}
               disabled={loadingOrgOverview}
               variant="outline"
-              className="border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white"
+              className="border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white h-9"
             >
               <RefreshCw
                 className={`w-3.5 h-3.5 text-slate-500 ${loadingOrgOverview ? "animate-spin text-indigo-600" : ""}`}
@@ -565,7 +718,7 @@ export default function LpAnalysisClientPage({
               onClick={handleSyncLps}
               disabled={syncingLps || loadingCampaigns}
               variant="outline"
-              className="border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white"
+              className="border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white h-9"
             >
               {syncingLps ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
@@ -1299,6 +1452,20 @@ export default function LpAnalysisClientPage({
                       </Button>
                     )}
 
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setAddPageTitle("");
+                        setAddPageUrl("");
+                        setIsAddPageModalOpen(true);
+                      }}
+                      className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs h-8 font-bold flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3 text-indigo-600" />
+                      Add Webpage
+                    </Button>
+
                     <div className="relative w-52">
                       <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                       <Input
@@ -1686,6 +1853,16 @@ export default function LpAnalysisClientPage({
                                         <TrendingUp className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                                         Compare Last Two Audits
                                       </DropdownMenuItem>
+                                      {c.campaignId.startsWith("custom_") && (
+                                        <DropdownMenuItem
+                                          disabled={deletingId === c.id}
+                                          onClick={() => handleDeletePage(c.id, c.campaignName)}
+                                          className="flex items-center gap-2 text-xs font-bold text-red-600 hover:bg-red-50 cursor-pointer p-2 rounded focus:bg-red-50 focus:text-red-700 border-t border-slate-100 mt-1"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                                          Remove Webpage
+                                        </DropdownMenuItem>
+                                      )}
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 </TableCell>
@@ -1943,6 +2120,242 @@ export default function LpAnalysisClientPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── GLOBAL QUICK AUDIT DIALOG ── */}
+      <Dialog
+        open={isQuickAuditOpen}
+        onOpenChange={(o) => !isQuickAuditing && setIsQuickAuditOpen(o)}
+      >
+        <DialogContent className="sm:max-w-[520px] bg-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-800">
+              <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
+              Quick CRO Audit (Any Webpage)
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Audit any landing page or standalone URL against search competitors on demand.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!isQuickAuditing ? (
+            <div className="space-y-4 py-3">
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="quick-audit-account"
+                  className="text-xs font-bold text-slate-700"
+                >
+                  Associated Client Account
+                </Label>
+                <select
+                  id="quick-audit-account"
+                  value={quickAuditAccountId}
+                  onChange={(e) => setQuickAuditAccountId(Number(e.target.value))}
+                  className="w-full bg-slate-50 border border-slate-200 text-xs font-semibold rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400 leading-tight">
+                  The audit report will be stored under this client account.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="quick-audit-url"
+                  className="text-xs font-bold text-slate-700"
+                >
+                  Target Webpage URL
+                </Label>
+                <Input
+                  id="quick-audit-url"
+                  value={quickAuditUrl}
+                  onChange={(e) => setQuickAuditUrl(e.target.value)}
+                  className="text-xs bg-slate-50"
+                  placeholder="https://example.com/pricing-or-landing-page"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="quick-audit-keyword"
+                  className="text-xs font-bold text-slate-700"
+                >
+                  Focus Keyword / Search Query
+                </Label>
+                <Input
+                  id="quick-audit-keyword"
+                  value={quickAuditKeyword}
+                  onChange={(e) => setQuickAuditKeyword(e.target.value)}
+                  className="text-xs bg-white"
+                  placeholder="e.g. emergency dentist perth"
+                />
+                <p className="text-[10px] text-slate-400 leading-tight">
+                  Used to benchmark against live competitor pages ranking for this query.
+                </p>
+              </div>
+
+              <div className="flex items-start gap-2.5 pt-3.5 border-t border-slate-100 mt-1">
+                <Checkbox
+                  id="quick-audit-visual"
+                  checked={quickAuditVisual}
+                  onCheckedChange={(checked) => setQuickAuditVisual(!!checked)}
+                  className="mt-0.5 border-slate-300"
+                />
+                <div className="grid gap-1">
+                  <Label
+                    htmlFor="quick-audit-visual"
+                    className="text-xs font-bold text-slate-700 cursor-pointer"
+                  >
+                    Visual CRO Audit (Headless Chromium + Screenshot)
+                  </Label>
+                  <p className="text-[10px] text-slate-400 leading-tight">
+                    Uses headless Chromium browser to capture layout screenshots and run a visual/layout analysis.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
+              <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-slate-700">
+                  Running Quick Audit
+                </h4>
+                <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
+                  Scraping webpage, querying Google search competitors, and running Gemini CRO heuristics...
+                </p>
+              </div>
+
+              <div className="w-full max-w-xs bg-slate-100 rounded-full h-1.5 mt-2">
+                <div
+                  className="bg-indigo-600 h-1.5 rounded-full transition-all duration-500"
+                  style={{ width: `${(quickAuditStep / 4) * 100}%` }}
+                />
+              </div>
+
+              <div className="space-y-0.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                {quickAuditStep === 1 && "1. Scraping target webpage..."}
+                {quickAuditStep === 2 && "2. Scanning Google SERP for competitors..."}
+                {quickAuditStep === 3 && "3. Bypassing bot blockers & scraping competitor domains..."}
+                {quickAuditStep === 4 && "4. Evaluation heuristics in progress via Gemini..."}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="sm:justify-end gap-2 pt-2 border-t mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsQuickAuditOpen(false)}
+              disabled={isQuickAuditing}
+              className="text-xs h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExecuteQuickAudit}
+              disabled={
+                isQuickAuditing ||
+                !quickAuditUrl.trim() ||
+                !quickAuditKeyword.trim() ||
+                !quickAuditAccountId
+              }
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-9 flex items-center gap-1.5"
+            >
+              {isQuickAuditing ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" /> Auditing...
+                </>
+              ) : (
+                <>
+                  Start Quick Audit <ArrowRight className="w-3.5 h-3.5" />
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── ADD CUSTOM WEBPAGE DIALOG ── */}
+      <Dialog
+        open={isAddPageModalOpen}
+        onOpenChange={(o) => !isAddingPage && setIsAddPageModalOpen(o)}
+      >
+        <DialogContent className="sm:max-w-[460px] bg-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-800">
+              <Plus className="w-5 h-5 text-indigo-600" />
+              Add Independent Webpage
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Add a standalone landing page, homepage, or subpage under{" "}
+              <span className="font-semibold text-indigo-600">{selectedAccountName}</span> to audit and benchmark.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="add-page-title"
+                className="text-xs font-bold text-slate-700"
+              >
+                Page Label / Title
+              </Label>
+              <Input
+                id="add-page-title"
+                value={addPageTitle}
+                onChange={(e) => setAddPageTitle(e.target.value)}
+                className="text-xs bg-white"
+                placeholder="e.g. Main Landing Page, Pricing Lander, Hero Demo"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="add-page-url"
+                className="text-xs font-bold text-slate-700"
+              >
+                Webpage URL
+              </Label>
+              <Input
+                id="add-page-url"
+                value={addPageUrl}
+                onChange={(e) => setAddPageUrl(e.target.value)}
+                className="text-xs bg-slate-50"
+                placeholder="https://clientdomain.com/landing-page"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="sm:justify-end gap-2 pt-2 border-t mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsAddPageModalOpen(false)}
+              disabled={isAddingPage}
+              className="text-xs h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddCustomPage}
+              disabled={isAddingPage || !addPageTitle.trim() || !addPageUrl.trim()}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-9 flex items-center gap-1.5 font-bold"
+            >
+              {isAddingPage ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" /> Adding...
+                </>
+              ) : (
+                <>Save Webpage</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
