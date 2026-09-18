@@ -1768,7 +1768,7 @@ export default function LpAnalysisClientPage({
                   </button>
                 </div>
 
-                <CardContent className="p-0">
+                <CardContent className="p-0 overflow-x-auto">
                   {loadingCampaigns ? (
                     <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
                       <Spinner size="xl" variant="brand" />
@@ -1789,35 +1789,35 @@ export default function LpAnalysisClientPage({
                       </p>
                     </div>
                   ) : (
-                    <Table>
+                    <Table className="table-fixed w-full min-w-[960px]">
                       <TableHeader className="bg-slate-50/50">
                         <TableRow>
-                          <TableHead className="w-10 pl-4">
+                          <TableHead className="w-12 pl-4">
                             <Checkbox
                               checked={isAllSelected}
                               onCheckedChange={(c) => handleSelectAll(!!c)}
                               aria-label="Select all campaigns"
                             />
                           </TableHead>
-                          <TableHead className="font-bold text-xs w-[22%]">
+                          <TableHead className="font-bold text-xs w-[23%]">
                             Campaign Name
                           </TableHead>
-                          <TableHead className="font-bold text-xs w-[14%]">
+                          <TableHead className="font-bold text-xs w-[13%]">
                             30d Performance
                           </TableHead>
                           <TableHead className="font-bold text-xs w-[10%]">
                             Priority
                           </TableHead>
-                          <TableHead className="font-bold text-xs w-[20%]">
+                          <TableHead className="font-bold text-xs w-[24%]">
                             Landing Page URL
                           </TableHead>
                           <TableHead className="font-bold text-xs text-center w-[12%]">
                             CRO Audit
                           </TableHead>
-                          <TableHead className="font-bold text-xs text-center w-[16%]">
+                          <TableHead className="font-bold text-xs text-center w-[12%]">
                             PageSpeed (Mob / Desk)
                           </TableHead>
-                          <TableHead className="text-right font-bold pr-6 text-xs w-[6%]">
+                          <TableHead className="text-right font-bold pr-4 text-xs w-[6%]">
                             Actions
                           </TableHead>
                         </TableRow>
@@ -1844,13 +1844,13 @@ export default function LpAnalysisClientPage({
                                   />
                                 </TableCell>
                                 <TableCell className="font-semibold text-slate-900 text-xs">
-                                  <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-1.5 min-w-0">
                                     {c.audits && c.audits.length > 0 ? (
                                       <button
                                         onClick={() =>
                                           toggleExpandRow(c.campaignId)
                                         }
-                                        className="text-slate-400 hover:text-indigo-600 transition-colors p-1 -ml-2 rounded-md hover:bg-slate-100"
+                                        className="text-slate-400 hover:text-indigo-600 transition-colors p-1 -ml-2 rounded-md hover:bg-slate-100 shrink-0"
                                       >
                                         {isExpanded ? (
                                           <ChevronUp className="h-3.5 w-3.5" />
@@ -1869,7 +1869,10 @@ export default function LpAnalysisClientPage({
                                       }`}
                                       title={`Status: ${c.status === "ENABLED" ? "Active" : "Paused"}`}
                                     />
-                                    <span className="truncate max-w-[220px]">
+                                    <span
+                                      className="truncate flex-1 min-w-0"
+                                      title={c.campaignName}
+                                    >
                                       {c.campaignName}
                                     </span>
                                     {c.weeklySpeedCheck && (
@@ -1909,19 +1912,19 @@ export default function LpAnalysisClientPage({
                                 {/* Landing Page URL */}
                                 <TableCell className="text-xs">
                                   {isEditing ? (
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 min-w-0">
                                       <Input
                                         value={editUrlValue}
                                         onChange={(e) =>
                                           setEditUrlValue(e.target.value)
                                         }
                                         placeholder="https://example.com/lp"
-                                        className="h-7 text-xs w-56 font-mono"
+                                        className="h-7 text-xs flex-1 min-w-0 font-mono"
                                         autoFocus
                                       />
                                       <Button
                                         size="sm"
-                                        className="h-7 px-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                        className="h-7 px-2 bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
                                         onClick={() => saveUrl(c)}
                                         disabled={savingUrl}
                                       >
@@ -1931,21 +1934,42 @@ export default function LpAnalysisClientPage({
                                           <Save className="h-3.5 w-3.5" />
                                         )}
                                       </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 px-1.5 text-slate-400 hover:text-slate-600 shrink-0"
+                                        onClick={() =>
+                                          setEditingCampaignId(null)
+                                        }
+                                        title="Cancel"
+                                      >
+                                        ✕
+                                      </Button>
                                     </div>
                                   ) : c.url ? (
-                                    <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                                    <div className="flex items-center gap-1.5 text-slate-600 font-medium min-w-0">
                                       <a
                                         href={c.url}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="hover:text-indigo-600 transition-colors flex items-center gap-1 break-all max-w-[220px]"
+                                        title={c.url}
+                                        className="hover:text-indigo-600 transition-colors truncate block flex-1 min-w-0 text-slate-700 hover:underline"
                                       >
-                                        {c.url}{" "}
-                                        <ExternalLink className="h-3 w-3 inline opacity-50 shrink-0" />
+                                        {c.url.replace(/^https?:\/\/(www\.)?/, "")}
+                                      </a>
+                                      <a
+                                        href={c.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        title="Open in new tab"
+                                        className="text-slate-400 hover:text-indigo-600 transition-colors shrink-0 p-0.5 rounded hover:bg-slate-100"
+                                      >
+                                        <ExternalLink className="h-3 w-3" />
                                       </a>
                                       <button
                                         onClick={() => startEditing(c)}
-                                        className="text-slate-400 hover:text-indigo-600 p-1 rounded transition-colors ml-1"
+                                        title="Edit URL"
+                                        className="text-slate-400 hover:text-indigo-600 p-0.5 rounded hover:bg-slate-100 transition-colors shrink-0"
                                       >
                                         <Edit2 className="h-3 w-3" />
                                       </button>
@@ -1958,7 +1982,7 @@ export default function LpAnalysisClientPage({
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 p-1"
+                                        className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 p-1 shrink-0"
                                         onClick={() => startEditing(c)}
                                       >
                                         <Plus className="h-3 w-3 mr-0.5" />{" "}
@@ -2086,7 +2110,7 @@ export default function LpAnalysisClientPage({
                                 </TableCell>
 
                                 {/* Actions Dropdown */}
-                                <TableCell className="text-right pr-6 align-middle">
+                                <TableCell className="text-right pr-4 align-middle">
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button
