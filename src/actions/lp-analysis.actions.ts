@@ -385,28 +385,8 @@ export async function getLiveCompetitorsRobust(
   return competitorUrls.slice(0, 3);
 }
 
-export function cleanCampaignNameToSearchTerm(campaignName: string): string {
-  let cleaned = campaignName.toLowerCase();
-  cleaned = cleaned.replace(/[|_\-[\]()]/g, " ");
-  cleaned = cleaned
-    .replace(
-      /\b(campaign|search|broad|phrase|exact|ppc|pmax|leads|mcc|leads|client|competitor)\b/g,
-      "",
-    )
-    .replace(
-      /\b\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/g,
-      "",
-    )
-    .replace(
-      /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/g,
-      "",
-    )
-    .replace(/\b\d{4}\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+import { cleanCampaignNameToSearchTerm } from "@/lib/utils";
 
-  return cleaned || "local services australia";
-}
 
 // ============================================================================
 // 3. MASTER ACTION: RETRIEVE CAMPAIGNS & THEIR LANDING PAGES

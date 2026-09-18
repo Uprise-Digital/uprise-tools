@@ -31,7 +31,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  cleanCampaignNameToSearchTerm,
   getCampaignLandingPagesAction,
   getOrgLandingPageOverviewAction,
   type OrgOverviewData,
@@ -40,6 +39,7 @@ import {
   saveCampaignLandingPageAction,
   syncCampaignLandingPagesAction,
 } from "@/actions/lp-analysis.actions";
+import { cleanCampaignNameToSearchTerm } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
