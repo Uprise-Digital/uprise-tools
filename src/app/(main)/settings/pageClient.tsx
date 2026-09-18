@@ -104,6 +104,7 @@ interface SettingsClientProps {
   userEmail: string;
   userRole: string;
   initialAutoJoinDomainEnabled: boolean;
+  initialPageSpeedScope?: "ALL" | "ENABLED_ONLY";
   initialBranding?: {
     brandName: string;
     logoUrl: string;
@@ -193,6 +194,7 @@ export default function SettingsClient({
   userEmail,
   userRole,
   initialAutoJoinDomainEnabled,
+  initialPageSpeedScope,
   initialBranding,
   orgId,
   onboardingSettings,
@@ -318,6 +320,7 @@ export default function SettingsClient({
               userEmail={userEmail}
               userRole={userRole}
               initialAutoJoinDomainEnabled={initialAutoJoinDomainEnabled}
+              initialPageSpeedScope={initialPageSpeedScope}
               initialBranding={initialBranding}
             />
           )}

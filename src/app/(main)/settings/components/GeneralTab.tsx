@@ -5,6 +5,8 @@ import {
   CheckCircle2,
   Database,
   Download,
+  Gauge,
+  Globe,
   Image as ImageIcon,
   Key,
   Loader2,
@@ -14,6 +16,7 @@ import {
   Trash,
   Upload,
   User as UserIcon,
+  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -36,6 +39,7 @@ import {
   updateNegativeKeywordOptionsAction,
   updateOrganizationBrandingAction,
   updateOrganizationNameAction,
+  updatePageSpeedAuditScopeAction,
 } from "@/actions/settings.actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -110,6 +114,7 @@ interface GeneralTabProps {
   userEmail: string;
   userRole: string;
   initialAutoJoinDomainEnabled: boolean;
+  initialPageSpeedScope?: "ALL" | "ENABLED_ONLY";
   initialBranding?: {
     brandName: string;
     logoUrl: string;
@@ -134,6 +139,7 @@ export function GeneralTab({
   userEmail,
   userRole,
   initialAutoJoinDomainEnabled,
+  initialPageSpeedScope = "ALL",
   initialBranding,
 }: GeneralTabProps) {
   const [orgNameInput, setOrgNameInput] = useState(orgName);
@@ -141,6 +147,36 @@ export function GeneralTab({
   const [allowDomainAutoJoin, setAllowDomainAutoJoin] = useState(
     initialAutoJoinDomainEnabled,
   );
+
+  // PageSpeed Audit Scope Setting State
+  const [pageSpeedAuditScope, setPageSpeedAuditScope] = useState<
+    "ALL" | "ENABLED_ONLY"
+  >(initialPageSpeedScope);
+  const [savingPageSpeedScope, setSavingPageSpeedScope] = useState(false);
+
+  const handleUpdatePageSpeedScope = async (scope: "ALL" | "ENABLED_ONLY") => {
+    if (savingPageSpeedScope || scope === pageSpeedAuditScope) return;
+    setSavingPageSpeedScope(true);
+    setPageSpeedAuditScope(scope);
+    try {
+      const res = await updatePageSpeedAuditScopeAction(scope);
+      if (res.success) {
+        toast.success(
+          scope === "ALL"
+            ? "PageSpeed audit scope set to All Landing Pages (including Paused campaigns)."
+            : "PageSpeed audit scope set to Enabled Campaigns Only.",
+        );
+      } else {
+        toast.error(res.error || "Failed to save PageSpeed audit scope.");
+        setPageSpeedAuditScope(initialPageSpeedScope);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred updating audit scope.");
+      setPageSpeedAuditScope(initialPageSpeedScope);
+    } finally {
+      setSavingPageSpeedScope(false);
+    }
+  };
 
   // Danger Zone Offboarding State
   const [deleteOrgDialogOpen, setDeleteOrgDialogOpen] = useState(false);
@@ -1403,6 +1439,98 @@ export function GeneralTab({
                   ? "Uploading & Saving..."
                   : "Save Agency Branding"}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* LANDING PAGE SPEED AUDITS (GOOGLE PAGESPEED) SETTING CARD */}
+        <Card className="gap-0 py-0 border-slate-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50 border-b border-slate-100 p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+                  <Gauge className="w-4 h-4 text-blue-600" />
+                  Landing Page Speed Audits (Google PageSpeed)
+                </CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  Configure default audit scope for &quot;Run All PageSpeed&quot; across your landing pages.
+                </CardDescription>
+              </div>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px] font-semibold border-none px-2.5 py-1",
+                  pageSpeedAuditScope === "ALL"
+                    ? "bg-indigo-100 text-indigo-800"
+                    : "bg-emerald-100 text-emerald-800",
+                )}
+              >
+                {pageSpeedAuditScope === "ALL"
+                  ? "All Landing Pages"
+                  : "Enabled Campaigns Only"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-5 sm:p-6 space-y-4">
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-slate-700 block">
+                Batch Audit Scope
+              </span>
+              <p className="text-[11px] text-slate-500">
+                Choose whether &quot;Run All PageSpeed&quot; tests every landing page in your portfolio or only campaigns that are currently active.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <button
+                type="button"
+                disabled={savingPageSpeedScope}
+                onClick={() => handleUpdatePageSpeedScope("ALL")}
+                className={cn(
+                  "p-4 rounded-xl border text-left transition-all cursor-pointer",
+                  pageSpeedAuditScope === "ALL"
+                    ? "bg-indigo-50/40 border-indigo-600 ring-2 ring-indigo-600/20 text-indigo-950 shadow-xs"
+                    : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
+                )}
+              >
+                <div className="font-bold flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs text-slate-900">
+                    <Globe className="w-4 h-4 text-indigo-600" />
+                    Run All Landing Pages
+                  </span>
+                  {pageSpeedAuditScope === "ALL" && (
+                    <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                  Audits all imported and custom landing pages with valid URLs, even if the Google Ads campaign is currently Paused.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                disabled={savingPageSpeedScope}
+                onClick={() => handleUpdatePageSpeedScope("ENABLED_ONLY")}
+                className={cn(
+                  "p-4 rounded-xl border text-left transition-all cursor-pointer",
+                  pageSpeedAuditScope === "ENABLED_ONLY"
+                    ? "bg-emerald-50/40 border-emerald-600 ring-2 ring-emerald-600/20 text-emerald-950 shadow-xs"
+                    : "bg-slate-50/80 border-slate-200 text-slate-600 hover:bg-white",
+                )}
+              >
+                <div className="font-bold flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs text-slate-900">
+                    <Zap className="w-4 h-4 text-emerald-600" />
+                    Run Only Enabled Campaigns
+                  </span>
+                  {pageSpeedAuditScope === "ENABLED_ONLY" && (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                  Only audits landing pages attached to active Google Ads campaigns with status <strong className="text-slate-700">ENABLED</strong>. Paused campaigns are skipped.
+                </p>
+              </button>
             </div>
           </CardContent>
         </Card>

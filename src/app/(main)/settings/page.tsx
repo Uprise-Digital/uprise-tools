@@ -171,10 +171,17 @@ export default async function SettingsPage() {
     : null;
 
   let initialAutoJoinDomainEnabled = false;
+  let initialPageSpeedAuditScope: "ALL" | "ENABLED_ONLY" = "ALL";
   if (orgRecord?.metadata) {
     try {
       const meta = JSON.parse(orgRecord.metadata);
       initialAutoJoinDomainEnabled = !!meta.autoJoinDomain;
+      if (
+        meta.pageSpeedAuditScope === "ENABLED_ONLY" ||
+        meta.pageSpeedAuditScope === "ALL"
+      ) {
+        initialPageSpeedAuditScope = meta.pageSpeedAuditScope;
+      }
     } catch (e) {
       // Ignore
     }
@@ -210,6 +217,7 @@ export default async function SettingsPage() {
       userEmail={session.user.email}
       userRole={memberRecord?.role || "member"}
       initialAutoJoinDomainEnabled={initialAutoJoinDomainEnabled}
+      initialPageSpeedScope={initialPageSpeedAuditScope}
       initialBranding={initialBranding}
       orgId={orgId}
       onboardingSettings={

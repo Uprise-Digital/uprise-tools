@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Save,
   Search,
+  SlidersHorizontal,
   Smartphone,
   Sparkles,
   Trash2,
@@ -151,12 +152,18 @@ interface AccountSummary {
 
 export default function LpAnalysisClientPage({
   accounts,
+  initialPageSpeedScope = "ALL",
 }: {
   accounts: AdAccount[];
+  initialPageSpeedScope?: "ALL" | "ENABLED_ONLY";
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paramAccountId = searchParams.get("accountId");
+
+  const [pageSpeedScope, setPageSpeedScope] = useState<"ALL" | "ENABLED_ONLY">(
+    initialPageSpeedScope,
+  );
 
   // Selection & Search State (0 = Organization Overview)
   const [selectedAccountId, setSelectedAccountId] = useState<number>(
@@ -564,28 +571,36 @@ export default function LpAnalysisClientPage({
   };
 
   // Handle Run All PageSpeed Tests
-  const handleRunAllPageSpeed = async () => {
+  const handleRunAllPageSpeed = async (
+    scopeOverride?: "ALL" | "ENABLED_ONLY",
+  ) => {
     const isOrgView = selectedAccountId === 0;
-    const label = isOrgView ? "all portfolio landing pages" : `pages in ${selectedAccountName}`;
+    const label = isOrgView
+      ? "all portfolio landing pages"
+      : `pages in ${selectedAccountName}`;
+    const effectiveScope = scopeOverride || pageSpeedScope;
 
     setIsRunningPageSpeed(true);
     try {
       const res = await runAllLandingPageSpeedTestsAction(
         isOrgView ? undefined : selectedAccountId,
         "mobile",
+        effectiveScope,
       );
 
       if (res.success) {
         toast.success(
           res.message ||
-            `Started PageSpeed audits for ${label}! Track live progress in the bottom-right task monitor.`,
+            `Started PageSpeed audits (${effectiveScope === "ALL" ? "All LPs" : "Enabled Only"}) for ${label}! Track live progress in the bottom-right task monitor.`,
           { duration: 6000 },
         );
       } else {
         toast.error(res.error || "Batch PageSpeed test failed to start.");
       }
     } catch (err: any) {
-      toast.error(err.message || "An error occurred starting batch PageSpeed tests.");
+      toast.error(
+        err.message || "An error occurred starting batch PageSpeed tests.",
+      );
     } finally {
       setIsRunningPageSpeed(false);
     }
@@ -784,25 +799,107 @@ export default function LpAnalysisClientPage({
             Quick Audit
           </Button>
 
-          <Button
-            onClick={handleRunAllPageSpeed}
-            disabled={
-              isRunningPageSpeed ||
-              loadingOrgOverview ||
-              loadingCampaigns ||
-              (selectedAccountId !== 0 && campaigns.length === 0)
-            }
-            variant="outline"
-            title="Run Google PageSpeed Insights (Lighthouse Core Web Vitals) for all landing pages"
-            className="border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white h-9 hover:border-indigo-300 hover:text-indigo-600 shadow-sm"
-          >
-            {isRunningPageSpeed ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-            ) : (
-              <Gauge className="w-3.5 h-3.5 text-blue-500" />
-            )}
-            Run All PageSpeed
-          </Button>
+          {/* Run All PageSpeed Action Group with Scope Switcher */}
+          <div className="inline-flex rounded-lg shadow-xs">
+            <Button
+              onClick={() => handleRunAllPageSpeed()}
+              disabled={
+                isRunningPageSpeed ||
+                loadingOrgOverview ||
+                loadingCampaigns ||
+                (selectedAccountId !== 0 && campaigns.length === 0)
+              }
+              variant="outline"
+              title={`Run Google PageSpeed Insights for ${pageSpeedScope === "ALL" ? "all landing pages (including paused)" : "enabled campaigns only"} (Configured in Settings)`}
+              className="rounded-r-none border-slate-200 text-xs font-semibold flex items-center gap-2 bg-white h-9 hover:border-indigo-300 hover:text-indigo-600 border-r-0 pr-2.5"
+            >
+              {isRunningPageSpeed ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+              ) : (
+                <Gauge className="w-3.5 h-3.5 text-blue-500" />
+              )}
+              <span>Run All PageSpeed</span>
+              <span
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm ${
+                  pageSpeedScope === "ALL"
+                    ? "bg-slate-100 text-slate-600 border border-slate-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}
+              >
+                {pageSpeedScope === "ALL" ? "All" : "Enabled"}
+              </span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={
+                    isRunningPageSpeed ||
+                    loadingOrgOverview ||
+                    loadingCampaigns ||
+                    (selectedAccountId !== 0 && campaigns.length === 0)
+                  }
+                  className="rounded-l-none border-slate-200 bg-white h-9 px-2 hover:border-indigo-300 hover:text-indigo-600"
+                  title="Choose audit scope or configure settings"
+                >
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <div className="px-2 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  PageSpeed Audit Scope
+                </div>
+                <DropdownMenuItem
+                  onClick={() => handleRunAllPageSpeed("ALL")}
+                  className="flex items-start gap-2 p-2 cursor-pointer"
+                >
+                  <Globe className="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-bold text-xs flex items-center justify-between">
+                      <span>All Landing Pages</span>
+                      {pageSpeedScope === "ALL" && (
+                        <span className="text-[9px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
+                      Audits all pages, including Paused campaigns
+                    </p>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleRunAllPageSpeed("ENABLED_ONLY")}
+                  className="flex items-start gap-2 p-2 cursor-pointer"
+                >
+                  <Zap className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-bold text-xs flex items-center justify-between">
+                      <span>Enabled Only</span>
+                      {pageSpeedScope === "ENABLED_ONLY" && (
+                        <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
+                      Only audits active (ENABLED) campaigns
+                    </p>
+                  </div>
+                </DropdownMenuItem>
+                <div className="h-px bg-slate-100 my-1" />
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/settings"
+                    className="flex items-center gap-2 p-2 text-xs font-semibold text-slate-600 hover:text-indigo-600 cursor-pointer w-full"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                    Configure Default in Settings
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           {selectedAccountId === 0 ? (
             <Button

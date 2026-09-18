@@ -763,3 +763,86 @@ export async function updateOrganizationBrandingAction(payload: {
     return { success: false, error: error.message };
   }
 }
+
+// --- Action: Get PageSpeed Audit Scope Setting ---
+export async function getPageSpeedAuditScopeAction(): Promise<{
+  success: boolean;
+  scope: "ALL" | "ENABLED_ONLY";
+  error?: string;
+}> {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) {
+    return { success: false, scope: "ALL", error: "Unauthorized" };
+  }
+
+  try {
+    const org = await db.query.organization.findFirst({
+      where: eq(organization.id, ctx.orgId),
+    });
+
+    let scope: "ALL" | "ENABLED_ONLY" = "ALL";
+    if (org?.metadata) {
+      try {
+        const meta = JSON.parse(org.metadata);
+        if (
+          meta.pageSpeedAuditScope === "ENABLED_ONLY" ||
+          meta.pageSpeedAuditScope === "ALL"
+        ) {
+          scope = meta.pageSpeedAuditScope;
+        }
+      } catch (e) {
+        // Ignore JSON parse error
+      }
+    }
+
+    return { success: true, scope };
+  } catch (err: any) {
+    console.error("[getPageSpeedAuditScopeAction Error]:", err);
+    return { success: false, scope: "ALL", error: err.message };
+  }
+}
+
+// --- Action: Update PageSpeed Audit Scope Setting ---
+export async function updatePageSpeedAuditScopeAction(
+  scope: "ALL" | "ENABLED_ONLY",
+): Promise<{ success: boolean; error?: string }> {
+  const ctx = await getAuthOrgContext();
+  if (!ctx) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const orgId = ctx.orgId;
+  try {
+    const org = await db.query.organization.findFirst({
+      where: eq(organization.id, orgId),
+    });
+    if (!org) throw new Error("Organization not found");
+
+    let metaObj: any = {};
+    if (org.metadata) {
+      try {
+        metaObj = JSON.parse(org.metadata);
+      } catch (e) {
+        // Ignore JSON parse error
+      }
+    }
+
+    metaObj.pageSpeedAuditScope = scope;
+
+    await db
+      .update(organization)
+      .set({
+        metadata: JSON.stringify(metaObj),
+        updatedAt: new Date(),
+      })
+      .where(eq(organization.id, orgId));
+
+    revalidatePath("/settings");
+    revalidatePath("/lp-analysis");
+    return { success: true };
+  } catch (error: any) {
+    console.error("[updatePageSpeedAuditScopeAction Error]:", error);
+    return { success: false, error: error.message };
+  }
+}
+

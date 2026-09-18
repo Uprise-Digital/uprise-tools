@@ -130,24 +130,46 @@ export async function processWeeklySpeedChecks() {
   // 1. Fetch all landing pages enrolled in weekly speed checks across active accounts
   const enrolledPages = await withBypassTenantDb(async (tx) => {
     return await tx.query.campaignLandingPages.findMany({
-      where: and(
-        eq(campaignLandingPages.weeklySpeedCheck, true),
-        eq(campaignLandingPages.status, "ENABLED"),
-      ),
+      where: eq(campaignLandingPages.weeklySpeedCheck, true),
       with: {
         account: true,
       },
     });
   });
 
+  // Fetch org audit scope settings
+  const orgSettingsMap = new Map<string, "ALL" | "ENABLED_ONLY">();
+  const orgs = await withBypassTenantDb(async (tx) => {
+    return await tx.query.organization.findMany();
+  });
+  for (const org of orgs) {
+    let scope: "ALL" | "ENABLED_ONLY" = "ALL";
+    if (org.metadata) {
+      try {
+        const meta = JSON.parse(org.metadata);
+        if (meta.pageSpeedAuditScope) scope = meta.pageSpeedAuditScope;
+      } catch (e) {}
+    }
+    orgSettingsMap.set(org.id, scope);
+  }
+
+  // Filter based on each org's pageSpeedAuditScope setting
+  const eligiblePages = enrolledPages.filter((page) => {
+    const scope = orgSettingsMap.get(page.organizationId) || "ALL";
+    if (scope === "ENABLED_ONLY") {
+      return page.status === "ENABLED";
+    }
+    return true;
+  });
+
   console.log(
-    `[Cron Speed Test] Found ${enrolledPages.length} landing pages enrolled in weekly speed audits.`,
+    `[Cron Speed Test] Found ${eligiblePages.length} landing pages eligible for weekly speed audits (${enrolledPages.length} enrolled).`,
   );
 
   const results: any[] = [];
   const orgIssuesMap = new Map<string, SpeedAlertIssue[]>();
 
-  for (const page of enrolledPages) {
+  for (const page of eligiblePages) {
     if (!page.url) continue;
 
     try {

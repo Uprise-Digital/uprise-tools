@@ -8,6 +8,7 @@ import {
   backgroundTasks,
   campaignLandingPages,
   landingPageSpeedTests,
+  organization,
 } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { getAuthOrgContext } from "@/lib/auth-helpers";
@@ -389,6 +390,7 @@ export async function toggleWeeklySpeedCheckAction(
 export async function runAllLandingPageSpeedTestsAction(
   adAccountId?: number,
   device: "mobile" | "desktop" = "mobile",
+  scopeOverride?: "ALL" | "ENABLED_ONLY",
 ): Promise<{
   success: boolean;
   taskId?: number;
@@ -403,6 +405,28 @@ export async function runAllLandingPageSpeedTestsAction(
 
     const orgId = ctx.orgId || "default-org";
 
+    // Determine audit scope (from organization settings or explicit override)
+    let auditScope: "ALL" | "ENABLED_ONLY" = "ALL";
+    const org = await db.query.organization.findFirst({
+      where: eq(organization.id, orgId),
+    });
+    if (org?.metadata) {
+      try {
+        const meta = JSON.parse(org.metadata);
+        if (
+          meta.pageSpeedAuditScope === "ENABLED_ONLY" ||
+          meta.pageSpeedAuditScope === "ALL"
+        ) {
+          auditScope = meta.pageSpeedAuditScope;
+        }
+      } catch (e) {
+        // Ignore JSON parse error
+      }
+    }
+    if (scopeOverride) {
+      auditScope = scopeOverride;
+    }
+
     let targetPages: Array<typeof campaignLandingPages.$inferSelect> = [];
     let accountName = "All Accounts";
 
@@ -412,9 +436,18 @@ export async function runAllLandingPageSpeedTestsAction(
       });
       if (account) accountName = account.name;
 
-      targetPages = await db.query.campaignLandingPages.findMany({
-        where: eq(campaignLandingPages.adAccountId, adAccountId),
-      });
+      if (auditScope === "ENABLED_ONLY") {
+        targetPages = await db.query.campaignLandingPages.findMany({
+          where: and(
+            eq(campaignLandingPages.adAccountId, adAccountId),
+            eq(campaignLandingPages.status, "ENABLED"),
+          ),
+        });
+      } else {
+        targetPages = await db.query.campaignLandingPages.findMany({
+          where: eq(campaignLandingPages.adAccountId, adAccountId),
+        });
+      }
     } else {
       // Organization level: fetch all pages across active org accounts
       const orgAccounts = await db.query.adAccounts.findMany({
@@ -432,9 +465,18 @@ export async function runAllLandingPageSpeedTestsAction(
         };
       }
 
-      targetPages = await db.query.campaignLandingPages.findMany({
-        where: inArray(campaignLandingPages.adAccountId, orgAccountIds),
-      });
+      if (auditScope === "ENABLED_ONLY") {
+        targetPages = await db.query.campaignLandingPages.findMany({
+          where: and(
+            inArray(campaignLandingPages.adAccountId, orgAccountIds),
+            eq(campaignLandingPages.status, "ENABLED"),
+          ),
+        });
+      } else {
+        targetPages = await db.query.campaignLandingPages.findMany({
+          where: inArray(campaignLandingPages.adAccountId, orgAccountIds),
+        });
+      }
     }
 
     // Filter valid HTTP/HTTPS URLs
@@ -445,14 +487,18 @@ export async function runAllLandingPageSpeedTestsAction(
     if (validPages.length === 0) {
       return {
         success: false,
-        error: "No landing pages with valid URLs found to test.",
+        error:
+          auditScope === "ENABLED_ONLY"
+            ? "No landing pages with valid URLs found on ENABLED campaigns."
+            : "No landing pages with valid URLs found to test.",
       };
     }
 
+    const scopeLabel = auditScope === "ALL" ? "All LPs" : "Enabled Campaigns";
     const taskTitle =
       adAccountId && adAccountId > 0
-        ? `PageSpeed Audit: ${accountName} (${validPages.length} pages)`
-        : `Portfolio PageSpeed Audit (${validPages.length} pages)`;
+        ? `PageSpeed Audit: ${accountName} (${validPages.length} pages • ${scopeLabel})`
+        : `Portfolio PageSpeed Audit (${validPages.length} pages • ${scopeLabel})`;
 
     // 1. Insert into background_tasks so the bottom-right indicator starts spinning immediately
     const [taskRecord] = await db
