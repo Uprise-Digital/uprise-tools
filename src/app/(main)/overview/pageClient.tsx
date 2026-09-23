@@ -331,7 +331,7 @@ export default function AgencyReportsClient() {
       deltaAbs !== null &&
       deltaAbs !== undefined
     ) {
-      text = `${isPositive ? "+" : ""}${deltaAbs} (${isPositive ? "+" : ""}${deltaPct.toFixed(1)}%)`;
+      text = `${isPositive ? "+" : ""}${fNum(deltaAbs)} (${isPositive ? "+" : ""}${deltaPct.toFixed(1)}%)`;
     }
 
     if (type === "points") {
@@ -1084,7 +1084,9 @@ export default function AgencyReportsClient() {
             <div className="space-y-1 min-w-0">
               <p
                 className="text-lg font-black text-slate-900 tracking-tight truncate"
-                title={String(portfolio?.agencyTotals?.activeAccountsCount || 0)}
+                title={String(
+                  portfolio?.agencyTotals?.activeAccountsCount || 0,
+                )}
               >
                 {portfolio?.agencyTotals?.activeAccountsCount || 0}
               </p>
@@ -2318,7 +2320,7 @@ export default function AgencyReportsClient() {
                               {acc.deltas.convDeltaPct > 0 ? "+" : ""}
                               {acc.deltas.convDeltaPct.toFixed(1)}% (
                               {acc.deltas.convDeltaAbs > 0 ? "+" : ""}
-                              {acc.deltas.convDeltaAbs})
+                              {fNum(acc.deltas.convDeltaAbs)})
                             </div>
                           ) : (
                             <div className="text-[10px] text-slate-300">—</div>

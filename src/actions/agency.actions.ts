@@ -796,7 +796,7 @@ export async function getAgencyPortfolioMetricsAction(
         const spendDeltaPct = calcPctDelta(spend, prevSpend);
         const spendDeltaAbs = calcAbsDelta(spend, prevSpend);
         const convDeltaPct = calcPctDelta(conversions, prevConversions);
-        const convDeltaAbs = conversions - prevConversions;
+        const convDeltaAbs = calcAbsDelta(conversions, prevConversions);
         const cpaDeltaPct =
           conversions > 0 && prevConversions > 0
             ? calcPctDelta(cpa, prevCpa)

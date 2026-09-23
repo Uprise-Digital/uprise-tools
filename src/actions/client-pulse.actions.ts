@@ -596,7 +596,9 @@ export async function getClientPulseBoardDataAction(
       // WoW Trend in composite risk
       let wowTrend: number | null = null;
       if (prevCompositeScore !== null) {
-        wowTrend = compositeRiskScore - prevCompositeScore;
+        wowTrend = parseFloat(
+          (compositeRiskScore - prevCompositeScore).toFixed(1),
+        );
       }
 
       // Risk Tier
