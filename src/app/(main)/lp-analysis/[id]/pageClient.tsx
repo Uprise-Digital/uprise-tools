@@ -979,8 +979,8 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
       </div>
 
       {/* ── SECTION 3: COMPETITOR INTELLIGENCE MATRIX ── */}
-      <Card className="border-slate-200 shadow-sm bg-white print:break-inside-avoid">
-        <CardHeader className="py-4 border-b border-slate-100 bg-slate-50/50">
+      <Card className="border-slate-200 shadow-sm bg-white print:break-inside-avoid gap-0 overflow-hidden">
+        <CardHeader className="py-4 border-b border-slate-100 bg-slate-50/50 [.border-b]:pb-4 gap-0">
           <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
             <TrendingUp className="w-4 h-4 text-indigo-500" /> Competitive
             Intelligence (PPC Auction)
@@ -1122,8 +1122,8 @@ export default function AuditDetailClientPage({ audit }: AuditDetailProps) {
       </Card>
 
       {/* ── SECTION 4: PRIORITIZED RECOMMENDATIONS TABLE ── */}
-      <Card className="border-slate-200 shadow-sm bg-white print:break-inside-avoid">
-        <CardHeader className="py-4 border-b border-slate-100 bg-slate-50/50">
+      <Card className="border-slate-200 shadow-sm bg-white print:break-inside-avoid gap-0 overflow-hidden">
+        <CardHeader className="py-4 border-b border-slate-100 bg-slate-50/50 [.border-b]:pb-4 gap-0">
           <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
             <Flame className="w-4 h-4 text-indigo-500" /> Prioritized CRO
             Recommendation Engine

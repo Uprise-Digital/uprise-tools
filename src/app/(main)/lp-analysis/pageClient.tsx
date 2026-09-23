@@ -1671,8 +1671,8 @@ export default function LpAnalysisClientPage({
                 })()}
 
                 {/* 3. Portfolio Accounts Conversion Health Table */}
-                <Card className="border-slate-200 shadow-sm bg-white">
-                  <CardHeader className="py-3.5 px-6 border-b bg-slate-50/50">
+                <Card className="border-slate-200 shadow-sm bg-white gap-0 overflow-hidden">
+                  <CardHeader className="py-3.5 px-6 border-b bg-slate-50/50 [.border-b]:pb-3.5 gap-0">
                     <CardTitle className="text-base font-bold text-slate-800">
                       Client Accounts Conversion Triage
                     </CardTitle>
