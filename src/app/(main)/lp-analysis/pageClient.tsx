@@ -14,6 +14,7 @@ import {
   Flame,
   Gauge,
   Globe,
+  Layers,
   ListChecks,
   Loader2,
   Monitor,
@@ -195,6 +196,12 @@ export default function LpAnalysisClientPage({
   // Org Overview State
   const [orgOverview, setOrgOverview] = useState<OrgOverviewData | null>(null);
   const [loadingOrgOverview, setLoadingOrgOverview] = useState(false);
+  const [croLeaderboardScope, setCroLeaderboardScope] = useState<
+    "ALL" | "ENABLED_ONLY"
+  >("ENABLED_ONLY");
+  const [speedLeaderboardScope, setSpeedLeaderboardScope] = useState<
+    "ALL" | "ENABLED_ONLY"
+  >("ENABLED_ONLY");
 
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -327,7 +334,10 @@ export default function LpAnalysisClientPage({
   useEffect(() => {
     const handleTaskDone = (e: any) => {
       const task = e.detail;
-      console.log("[LpAnalysis] Background task completed, refreshing table data:", task?.name);
+      console.log(
+        "[LpAnalysis] Background task completed, refreshing table data:",
+        task?.name,
+      );
       if (selectedAccountId === 0) {
         fetchOrgOverview();
       } else {
@@ -344,7 +354,10 @@ export default function LpAnalysisClientPage({
 
     window.addEventListener("uprise:background_task_completed", handleTaskDone);
     return () => {
-      window.removeEventListener("uprise:background_task_completed", handleTaskDone);
+      window.removeEventListener(
+        "uprise:background_task_completed",
+        handleTaskDone,
+      );
     };
   }, [selectedAccountId, fetchOrgOverview, fetchCampaigns, router]);
 
@@ -497,12 +510,21 @@ export default function LpAnalysisClientPage({
   // Execute Quick Audit
   const handleExecuteQuickAudit = async () => {
     const targetAccountId = Number(quickAuditAccountId);
-    if (!targetAccountId || !quickAuditUrl.trim() || !quickAuditKeyword.trim()) {
-      toast.error("Please fill in the landing page URL, focus search term, and account.");
+    if (
+      !targetAccountId ||
+      !quickAuditUrl.trim() ||
+      !quickAuditKeyword.trim()
+    ) {
+      toast.error(
+        "Please fill in the landing page URL, focus search term, and account.",
+      );
       return;
     }
 
-    if (!quickAuditUrl.startsWith("http://") && !quickAuditUrl.startsWith("https://")) {
+    if (
+      !quickAuditUrl.startsWith("http://") &&
+      !quickAuditUrl.startsWith("https://")
+    ) {
       toast.error("URL must begin with http:// or https://");
       return;
     }
@@ -549,7 +571,10 @@ export default function LpAnalysisClientPage({
       return;
     }
 
-    if (!addPageUrl.startsWith("http://") && !addPageUrl.startsWith("https://")) {
+    if (
+      !addPageUrl.startsWith("http://") &&
+      !addPageUrl.startsWith("https://")
+    ) {
       toast.error("URL must begin with http:// or https://");
       return;
     }
@@ -580,7 +605,9 @@ export default function LpAnalysisClientPage({
 
   // Handle Delete Landing Page
   const handleDeletePage = async (id: number, name: string) => {
-    if (!confirm(`Are you sure you want to remove "${name}" from this account?`)) {
+    if (
+      !confirm(`Are you sure you want to remove "${name}" from this account?`)
+    ) {
       return;
     }
 
@@ -945,7 +972,9 @@ export default function LpAnalysisClientPage({
                   <div className="flex items-center gap-2">
                     <Zap className="w-4 h-4 text-amber-500" />
                     <div>
-                      <div className="font-bold text-xs">Both Mobile & Desktop</div>
+                      <div className="font-bold text-xs">
+                        Both Mobile & Desktop
+                      </div>
                       <p className="text-[10px] text-slate-500">
                         Runs both audits sequentially
                       </p>
@@ -1282,238 +1311,364 @@ export default function LpAnalysisClientPage({
                 </div>
 
                 {/* 2. Top 3 vs Bottom 3 Leaderboards */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* CRO Leaderboard */}
-                  <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
-                    <CardHeader className="py-3 px-5 border-b bg-slate-50/50">
-                      <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-indigo-600" /> CRO
-                        Score Leaderboard
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Top 3 highest converting pages vs Bottom 3 high-friction
-                        pages
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-5 space-y-5">
-                      {/* Top 3 */}
-                      <div>
-                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                          Top 3 Performing Landing Pages
-                        </span>
-                        {orgOverview.topCro.length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">
-                            No audited pages yet.
-                          </p>
-                        ) : (
-                          <div className="space-y-2">
-                            {orgOverview.topCro.map((item, idx) => (
-                              <div
-                                key={item.auditId}
-                                className="flex items-center justify-between p-2.5 rounded-lg border border-emerald-100 bg-emerald-50/30 hover:bg-emerald-50/60 transition-all text-xs"
-                              >
-                                <div className="truncate pr-3">
-                                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                    <span className="text-[10px] font-black text-emerald-600 w-4">
-                                      #{idx + 1}
-                                    </span>
-                                    <span>{item.accountName}</span>
-                                  </div>
-                                  <div className="text-[11px] text-slate-500 truncate pl-5">
-                                    {item.campaignName}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <Badge
-                                    variant="outline"
-                                    className={`font-black ${getScoreBadgeStyles(item.score)}`}
-                                  >
-                                    {item.score} / 100
-                                  </Badge>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 p-1"
-                                    onClick={() =>
-                                      router.push(
-                                        `/lp-analysis/${item.auditId}`,
-                                      )
-                                    }
-                                  >
-                                    Report →
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                {(() => {
+                  const croListTop =
+                    croLeaderboardScope === "ENABLED_ONLY"
+                      ? (orgOverview.topCroEnabled ?? orgOverview.topCro)
+                      : orgOverview.topCro;
+                  const croListBottom =
+                    croLeaderboardScope === "ENABLED_ONLY"
+                      ? (orgOverview.bottomCroEnabled ?? orgOverview.bottomCro)
+                      : orgOverview.bottomCro;
 
-                      {/* Bottom 3 */}
-                      <div className="pt-2 border-t border-slate-100">
-                        <span className="text-[10px] font-black text-red-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                          <span className="w-2 h-2 rounded-full bg-red-500" />
-                          Bottom 3 Pages Needing Optimization
-                        </span>
-                        {orgOverview.bottomCro.length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">
-                            No audited pages yet.
-                          </p>
-                        ) : (
-                          <div className="space-y-2">
-                            {orgOverview.bottomCro.map((item, idx) => (
-                              <div
-                                key={item.auditId}
-                                className="flex items-center justify-between p-2.5 rounded-lg border border-red-100 bg-red-50/30 hover:bg-red-50/60 transition-all text-xs"
-                              >
-                                <div className="truncate pr-3">
-                                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                    <span className="text-[10px] font-black text-red-500 w-4">
-                                      #{idx + 1}
-                                    </span>
-                                    <span>{item.accountName}</span>
-                                  </div>
-                                  <div className="text-[11px] text-slate-500 truncate pl-5">
-                                    {item.campaignName}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <Badge
-                                    variant="outline"
-                                    className={`font-black ${getScoreBadgeStyles(item.score)}`}
-                                  >
-                                    {item.score} / 100
-                                  </Badge>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 p-1"
-                                    onClick={() =>
-                                      router.push(
-                                        `/lp-analysis/${item.auditId}`,
-                                      )
-                                    }
-                                  >
-                                    Fix →
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  const speedListTop =
+                    speedLeaderboardScope === "ENABLED_ONLY"
+                      ? (orgOverview.topSpeedEnabled ?? orgOverview.topSpeed)
+                      : orgOverview.topSpeed;
+                  const speedListBottom =
+                    speedLeaderboardScope === "ENABLED_ONLY"
+                      ? (orgOverview.bottomSpeedEnabled ??
+                        orgOverview.bottomSpeed)
+                      : orgOverview.bottomSpeed;
 
-                  {/* Speed Leaderboard */}
-                  <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
-                    <CardHeader className="py-3 px-5 border-b bg-slate-50/50">
-                      <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                        <Gauge className="w-4 h-4 text-blue-600" /> Page Speed
-                        Leaderboard
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        Fastest loading landing pages vs Slowest Core Web Vitals
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-5 space-y-5">
-                      {/* Top 3 Fastest */}
-                      <div>
-                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                          Top 3 Fastest Pages
-                        </span>
-                        {orgOverview.topSpeed.length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">
-                            No speed tests recorded yet.
-                          </p>
-                        ) : (
-                          <div className="space-y-2">
-                            {orgOverview.topSpeed.map((item, idx) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center justify-between p-2.5 rounded-lg border border-emerald-100 bg-emerald-50/30 hover:bg-emerald-50/60 transition-all text-xs"
+                  return (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* CRO Leaderboard */}
+                      <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
+                        <CardHeader className="py-3 px-5 border-b bg-slate-50/50">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div>
+                              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-indigo-600" />{" "}
+                                CRO Score Leaderboard
+                              </CardTitle>
+                              <CardDescription className="text-xs">
+                                {croLeaderboardScope === "ENABLED_ONLY"
+                                  ? "Top 3 highest converting pages vs Bottom 3 high-friction (enabled only)"
+                                  : "Top 3 highest converting pages vs Bottom 3 high-friction pages"}
+                              </CardDescription>
+                            </div>
+                            <div className="inline-flex items-center self-start sm:self-auto bg-slate-200/60 p-0.5 rounded-lg border border-slate-200 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setCroLeaderboardScope("ALL")}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                                  croLeaderboardScope === "ALL"
+                                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold"
+                                    : "text-slate-500 hover:text-slate-900"
+                                }`}
+                                title="Show all campaigns (including paused)"
                               >
-                                <div className="truncate pr-3">
-                                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                    <span className="text-[10px] font-black text-emerald-600 w-4">
-                                      #{idx + 1}
-                                    </span>
-                                    <span>{item.accountName}</span>
-                                  </div>
-                                  <div className="text-[11px] text-slate-500 truncate pl-5">
-                                    {item.url}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  {item.lcpDisplay && (
-                                    <span className="text-[9px] font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
-                                      LCP: {item.lcpDisplay}
-                                    </span>
-                                  )}
-                                  <Badge
-                                    variant="outline"
-                                    className={`font-black ${getScoreBadgeStyles(item.performanceScore)}`}
-                                  >
-                                    {item.performanceScore} / 100
-                                  </Badge>
-                                </div>
-                              </div>
-                            ))}
+                                <Layers className="w-3.5 h-3.5" />
+                                <span>All</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setCroLeaderboardScope("ENABLED_ONLY")
+                                }
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                                  croLeaderboardScope === "ENABLED_ONLY"
+                                    ? "bg-white text-emerald-700 shadow-xs border border-slate-200/80 font-bold"
+                                    : "text-slate-500 hover:text-slate-900"
+                                }`}
+                                title="Show enabled campaigns only"
+                              >
+                                <Zap className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500" />
+                                <span>Enabled Only</span>
+                              </button>
+                            </div>
                           </div>
-                        )}
-                      </div>
+                        </CardHeader>
+                        <CardContent className="p-5 space-y-5">
+                          {/* Top 3 */}
+                          <div>
+                            <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                              Top 3 Performing Landing Pages
+                            </span>
+                            {croListTop.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">
+                                {croLeaderboardScope === "ENABLED_ONLY"
+                                  ? "No audited pages for enabled campaigns yet."
+                                  : "No audited pages yet."}
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {croListTop.map((item, idx) => (
+                                  <div
+                                    key={item.auditId}
+                                    className="flex items-center justify-between p-2.5 rounded-lg border border-emerald-100 bg-emerald-50/30 hover:bg-emerald-50/60 transition-all text-xs"
+                                  >
+                                    <div className="truncate pr-3">
+                                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                        <span className="text-[10px] font-black text-emerald-600 w-4">
+                                          #{idx + 1}
+                                        </span>
+                                        <span>{item.accountName}</span>
+                                        {item.status &&
+                                          item.status !== "ENABLED" && (
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold border border-slate-200">
+                                              Paused
+                                            </span>
+                                          )}
+                                      </div>
+                                      <div className="text-[11px] text-slate-500 truncate pl-5">
+                                        {item.campaignName}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <Badge
+                                        variant="outline"
+                                        className={`font-black ${getScoreBadgeStyles(item.score)}`}
+                                      >
+                                        {item.score} / 100
+                                      </Badge>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 p-1"
+                                        onClick={() =>
+                                          router.push(
+                                            `/lp-analysis/${item.auditId}`,
+                                          )
+                                        }
+                                      >
+                                        Report →
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
-                      {/* Bottom 3 Slowest */}
-                      <div className="pt-2 border-t border-slate-100">
-                        <span className="text-[10px] font-black text-red-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                          <span className="w-2 h-2 rounded-full bg-red-500" />
-                          Bottom 3 Slowest Core Web Vitals
-                        </span>
-                        {orgOverview.bottomSpeed.length === 0 ? (
-                          <p className="text-xs text-slate-400 italic">
-                            No speed tests recorded yet.
-                          </p>
-                        ) : (
-                          <div className="space-y-2">
-                            {orgOverview.bottomSpeed.map((item, idx) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center justify-between p-2.5 rounded-lg border border-red-100 bg-red-50/30 hover:bg-red-50/60 transition-all text-xs"
-                              >
-                                <div className="truncate pr-3">
-                                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                    <span className="text-[10px] font-black text-red-500 w-4">
-                                      #{idx + 1}
-                                    </span>
-                                    <span>{item.accountName}</span>
-                                  </div>
-                                  <div className="text-[11px] text-slate-500 truncate pl-5">
-                                    {item.url}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  {item.lcpDisplay && (
-                                    <span className="text-[9px] font-mono font-bold bg-red-100/60 px-1.5 py-0.5 rounded text-red-700">
-                                      LCP: {item.lcpDisplay}
-                                    </span>
-                                  )}
-                                  <Badge
-                                    variant="outline"
-                                    className={`font-black ${getScoreBadgeStyles(item.performanceScore)}`}
+                          {/* Bottom 3 */}
+                          <div className="pt-2 border-t border-slate-100">
+                            <span className="text-[10px] font-black text-red-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                              <span className="w-2 h-2 rounded-full bg-red-500" />
+                              Bottom 3 Pages Needing Optimization
+                            </span>
+                            {croListBottom.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">
+                                {croLeaderboardScope === "ENABLED_ONLY"
+                                  ? "No low-performing pages for enabled campaigns found."
+                                  : "No audited pages yet."}
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {croListBottom.map((item, idx) => (
+                                  <div
+                                    key={item.auditId}
+                                    className="flex items-center justify-between p-2.5 rounded-lg border border-red-100 bg-red-50/30 hover:bg-red-50/60 transition-all text-xs"
                                   >
-                                    {item.performanceScore} / 100
-                                  </Badge>
-                                </div>
+                                    <div className="truncate pr-3">
+                                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                        <span className="text-[10px] font-black text-red-500 w-4">
+                                          #{idx + 1}
+                                        </span>
+                                        <span>{item.accountName}</span>
+                                        {item.status &&
+                                          item.status !== "ENABLED" && (
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold border border-slate-200">
+                                              Paused
+                                            </span>
+                                          )}
+                                      </div>
+                                      <div className="text-[11px] text-slate-500 truncate pl-5">
+                                        {item.campaignName}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <Badge
+                                        variant="outline"
+                                        className={`font-black ${getScoreBadgeStyles(item.score)}`}
+                                      >
+                                        {item.score} / 100
+                                      </Badge>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 p-1"
+                                        onClick={() =>
+                                          router.push(
+                                            `/lp-analysis/${item.auditId}`,
+                                          )
+                                        }
+                                      >
+                                        Fix →
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Speed Leaderboard */}
+                      <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
+                        <CardHeader className="py-3 px-5 border-b bg-slate-50/50">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div>
+                              <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <Gauge className="w-4 h-4 text-blue-600" /> Page
+                                Speed Leaderboard
+                              </CardTitle>
+                              <CardDescription className="text-xs">
+                                {speedLeaderboardScope === "ENABLED_ONLY"
+                                  ? "Fastest loading landing pages vs Slowest Core Web Vitals (enabled only)"
+                                  : "Fastest loading landing pages vs Slowest Core Web Vitals"}
+                              </CardDescription>
+                            </div>
+                            <div className="inline-flex items-center self-start sm:self-auto bg-slate-200/60 p-0.5 rounded-lg border border-slate-200 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setSpeedLeaderboardScope("ALL")}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                                  speedLeaderboardScope === "ALL"
+                                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/80 font-bold"
+                                    : "text-slate-500 hover:text-slate-900"
+                                }`}
+                                title="Show all campaigns (including paused)"
+                              >
+                                <Layers className="w-3.5 h-3.5" />
+                                <span>All</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSpeedLeaderboardScope("ENABLED_ONLY")
+                                }
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                                  speedLeaderboardScope === "ENABLED_ONLY"
+                                    ? "bg-white text-emerald-700 shadow-xs border border-slate-200/80 font-bold"
+                                    : "text-slate-500 hover:text-slate-900"
+                                }`}
+                                title="Show enabled campaigns only"
+                              >
+                                <Zap className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500" />
+                                <span>Enabled Only</span>
+                              </button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-5 space-y-5">
+                          {/* Top 3 Fastest */}
+                          <div>
+                            <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                              Top 3 Fastest Pages
+                            </span>
+                            {speedListTop.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">
+                                {speedLeaderboardScope === "ENABLED_ONLY"
+                                  ? "No speed tests recorded for enabled campaigns yet."
+                                  : "No speed tests recorded yet."}
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {speedListTop.map((item, idx) => (
+                                  <div
+                                    key={item.id}
+                                    className="flex items-center justify-between p-2.5 rounded-lg border border-emerald-100 bg-emerald-50/30 hover:bg-emerald-50/60 transition-all text-xs"
+                                  >
+                                    <div className="truncate pr-3">
+                                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                        <span className="text-[10px] font-black text-emerald-600 w-4">
+                                          #{idx + 1}
+                                        </span>
+                                        <span>{item.accountName}</span>
+                                        {item.status &&
+                                          item.status !== "ENABLED" && (
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold border border-slate-200">
+                                              Paused
+                                            </span>
+                                          )}
+                                      </div>
+                                      <div className="text-[11px] text-slate-500 truncate pl-5">
+                                        {item.url}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {item.lcpDisplay && (
+                                        <span className="text-[9px] font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                                          LCP: {item.lcpDisplay}
+                                        </span>
+                                      )}
+                                      <Badge
+                                        variant="outline"
+                                        className={`font-black ${getScoreBadgeStyles(item.performanceScore)}`}
+                                      >
+                                        {item.performanceScore} / 100
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Bottom 3 Slowest */}
+                          <div className="pt-2 border-t border-slate-100">
+                            <span className="text-[10px] font-black text-red-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                              <span className="w-2 h-2 rounded-full bg-red-500" />
+                              Bottom 3 Slowest Core Web Vitals
+                            </span>
+                            {speedListBottom.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">
+                                {speedLeaderboardScope === "ENABLED_ONLY"
+                                  ? "No slow pages for enabled campaigns found."
+                                  : "No speed tests recorded yet."}
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {speedListBottom.map((item, idx) => (
+                                  <div
+                                    key={item.id}
+                                    className="flex items-center justify-between p-2.5 rounded-lg border border-red-100 bg-red-50/30 hover:bg-red-50/60 transition-all text-xs"
+                                  >
+                                    <div className="truncate pr-3">
+                                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                        <span className="text-[10px] font-black text-red-500 w-4">
+                                          #{idx + 1}
+                                        </span>
+                                        <span>{item.accountName}</span>
+                                        {item.status &&
+                                          item.status !== "ENABLED" && (
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold border border-slate-200">
+                                              Paused
+                                            </span>
+                                          )}
+                                      </div>
+                                      <div className="text-[11px] text-slate-500 truncate pl-5">
+                                        {item.url}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {item.lcpDisplay && (
+                                        <span className="text-[9px] font-mono font-bold bg-red-100/60 px-1.5 py-0.5 rounded text-red-700">
+                                          LCP: {item.lcpDisplay}
+                                        </span>
+                                      )}
+                                      <Badge
+                                        variant="outline"
+                                        className={`font-black ${getScoreBadgeStyles(item.performanceScore)}`}
+                                      >
+                                        {item.performanceScore} / 100
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })()}
 
                 {/* 3. Portfolio Accounts Conversion Health Table */}
                 <Card className="border-slate-200 shadow-sm bg-white">
@@ -2041,7 +2196,10 @@ export default function LpAnalysisClientPage({
                                         title={c.url}
                                         className="hover:text-indigo-600 transition-colors truncate block flex-1 min-w-0 text-slate-700 hover:underline"
                                       >
-                                        {c.url.replace(/^https?:\/\/(www\.)?/, "")}
+                                        {c.url.replace(
+                                          /^https?:\/\/(www\.)?/,
+                                          "",
+                                        )}
                                       </a>
                                       <a
                                         href={c.url}
@@ -2125,7 +2283,9 @@ export default function LpAnalysisClientPage({
 
                                 {/* PageSpeed Scores (Mobile / Desktop) */}
                                 <TableCell className="align-middle text-center">
-                                  {c.speedScores?.mobile || c.speedScores?.desktop || c.latestSpeedTest ? (
+                                  {c.speedScores?.mobile ||
+                                  c.speedScores?.desktop ||
+                                  c.latestSpeedTest ? (
                                     <div className="flex flex-col gap-1 items-center justify-center">
                                       <div className="flex items-center gap-1.5 justify-center">
                                         {/* Mobile Score Badge */}
@@ -2138,14 +2298,17 @@ export default function LpAnalysisClientPage({
                                             )}`}
                                           >
                                             <Smartphone className="h-3 w-3 text-slate-700" />
-                                            <span>{c.speedScores.mobile.score}</span>
+                                            <span>
+                                              {c.speedScores.mobile.score}
+                                            </span>
                                           </Link>
                                         ) : (
                                           <span
                                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-slate-200 text-slate-400 bg-slate-50"
                                             title="Mobile PageSpeed not tested yet"
                                           >
-                                            <Smartphone className="h-2.5 w-2.5" /> —
+                                            <Smartphone className="h-2.5 w-2.5" />{" "}
+                                            —
                                           </span>
                                         )}
 
@@ -2159,22 +2322,28 @@ export default function LpAnalysisClientPage({
                                             )}`}
                                           >
                                             <Monitor className="h-3 w-3 text-slate-700" />
-                                            <span>{c.speedScores.desktop.score}</span>
+                                            <span>
+                                              {c.speedScores.desktop.score}
+                                            </span>
                                           </Link>
                                         ) : (
                                           <span
                                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-slate-200 text-slate-400 bg-slate-50"
                                             title="Desktop PageSpeed not tested yet"
                                           >
-                                            <Monitor className="h-2.5 w-2.5" /> —
+                                            <Monitor className="h-2.5 w-2.5" />{" "}
+                                            —
                                           </span>
                                         )}
                                       </div>
 
                                       {/* LCP Latency subtitle */}
-                                      {(c.speedScores?.mobile?.lcpDisplay || c.latestSpeedTest?.lcpDisplay) && (
+                                      {(c.speedScores?.mobile?.lcpDisplay ||
+                                        c.latestSpeedTest?.lcpDisplay) && (
                                         <span className="text-[9px] text-slate-400 font-mono">
-                                          LCP {c.speedScores?.mobile?.lcpDisplay || c.latestSpeedTest?.lcpDisplay}
+                                          LCP{" "}
+                                          {c.speedScores?.mobile?.lcpDisplay ||
+                                            c.latestSpeedTest?.lcpDisplay}
                                         </span>
                                       )}
                                     </div>
@@ -2189,7 +2358,9 @@ export default function LpAnalysisClientPage({
                                           Test Speed
                                         </Link>
                                       ) : (
-                                        <span className="text-slate-400 text-xs italic">—</span>
+                                        <span className="text-slate-400 text-xs italic">
+                                          —
+                                        </span>
                                       )}
                                     </div>
                                   )}
@@ -2279,7 +2450,12 @@ export default function LpAnalysisClientPage({
                                       {c.campaignId.startsWith("custom_") && (
                                         <DropdownMenuItem
                                           disabled={deletingId === c.id}
-                                          onClick={() => handleDeletePage(c.id, c.campaignName)}
+                                          onClick={() =>
+                                            handleDeletePage(
+                                              c.id,
+                                              c.campaignName,
+                                            )
+                                          }
                                           className="flex items-center gap-2 text-xs font-bold text-red-600 hover:bg-red-50 cursor-pointer p-2 rounded focus:bg-red-50 focus:text-red-700 border-t border-slate-100 mt-1"
                                         >
                                           <Trash2 className="h-3.5 w-3.5 text-red-500 shrink-0" />
@@ -2556,7 +2732,8 @@ export default function LpAnalysisClientPage({
               Quick CRO Audit (Any Webpage)
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Audit any landing page or standalone URL against search competitors on demand.
+              Audit any landing page or standalone URL against search
+              competitors on demand.
             </DialogDescription>
           </DialogHeader>
 
@@ -2572,7 +2749,9 @@ export default function LpAnalysisClientPage({
                 <select
                   id="quick-audit-account"
                   value={quickAuditAccountId}
-                  onChange={(e) => setQuickAuditAccountId(Number(e.target.value))}
+                  onChange={(e) =>
+                    setQuickAuditAccountId(Number(e.target.value))
+                  }
                   className="w-full bg-slate-50 border border-slate-200 text-xs font-semibold rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {accounts.map((acc) => (
@@ -2617,7 +2796,8 @@ export default function LpAnalysisClientPage({
                   placeholder="e.g. emergency dentist perth"
                 />
                 <p className="text-[10px] text-slate-400 leading-tight">
-                  Used to benchmark against live competitor pages ranking for this query.
+                  Used to benchmark against live competitor pages ranking for
+                  this query.
                 </p>
               </div>
 
@@ -2636,7 +2816,8 @@ export default function LpAnalysisClientPage({
                     Visual CRO Audit (Headless Chromium + Screenshot)
                   </Label>
                   <p className="text-[10px] text-slate-400 leading-tight">
-                    Uses headless Chromium browser to capture layout screenshots and run a visual/layout analysis.
+                    Uses headless Chromium browser to capture layout screenshots
+                    and run a visual/layout analysis.
                   </p>
                 </div>
               </div>
@@ -2649,7 +2830,8 @@ export default function LpAnalysisClientPage({
                   Running Quick Audit
                 </h4>
                 <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
-                  Scraping webpage, querying Google search competitors, and running Gemini CRO heuristics...
+                  Scraping webpage, querying Google search competitors, and
+                  running Gemini CRO heuristics...
                 </p>
               </div>
 
@@ -2662,9 +2844,12 @@ export default function LpAnalysisClientPage({
 
               <div className="space-y-0.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                 {quickAuditStep === 1 && "1. Scraping target webpage..."}
-                {quickAuditStep === 2 && "2. Scanning Google SERP for competitors..."}
-                {quickAuditStep === 3 && "3. Bypassing bot blockers & scraping competitor domains..."}
-                {quickAuditStep === 4 && "4. Evaluation heuristics in progress via Gemini..."}
+                {quickAuditStep === 2 &&
+                  "2. Scanning Google SERP for competitors..."}
+                {quickAuditStep === 3 &&
+                  "3. Bypassing bot blockers & scraping competitor domains..."}
+                {quickAuditStep === 4 &&
+                  "4. Evaluation heuristics in progress via Gemini..."}
               </div>
             </div>
           )}
@@ -2715,7 +2900,10 @@ export default function LpAnalysisClientPage({
             </DialogTitle>
             <DialogDescription className="text-xs">
               Add a standalone landing page, homepage, or subpage under{" "}
-              <span className="font-semibold text-indigo-600">{selectedAccountName}</span> to audit and benchmark.
+              <span className="font-semibold text-indigo-600">
+                {selectedAccountName}
+              </span>{" "}
+              to audit and benchmark.
             </DialogDescription>
           </DialogHeader>
 
@@ -2764,7 +2952,9 @@ export default function LpAnalysisClientPage({
             </Button>
             <Button
               onClick={handleAddCustomPage}
-              disabled={isAddingPage || !addPageTitle.trim() || !addPageUrl.trim()}
+              disabled={
+                isAddingPage || !addPageTitle.trim() || !addPageUrl.trim()
+              }
               className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-9 flex items-center gap-1.5 font-bold"
             >
               {isAddingPage ? (
@@ -2781,4 +2971,3 @@ export default function LpAnalysisClientPage({
     </div>
   );
 }
-

@@ -34,7 +34,7 @@ describe("Daily Audit Limits Tests", () => {
       );
       isDbAvailable = false;
     }
-  });
+  }, 60000);
 
   afterAll(async () => {
     if (!isDbAvailable) return;
@@ -49,7 +49,7 @@ describe("Daily Audit Limits Tests", () => {
     } catch (e) {
       console.warn("Could not cleanup limits test data:", e);
     }
-  });
+  }, 60000);
 
   test("should enforce the daily limit correctly", async (ctx) => {
     if (!isDbAvailable) {

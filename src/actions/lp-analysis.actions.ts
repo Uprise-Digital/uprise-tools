@@ -388,7 +388,6 @@ export async function getLiveCompetitorsRobust(
 
 import { cleanCampaignNameToSearchTerm } from "@/lib/utils";
 
-
 // ============================================================================
 // 3. MASTER ACTION: RETRIEVE CAMPAIGNS & THEIR LANDING PAGES
 // ============================================================================
@@ -517,8 +516,10 @@ export async function getCampaignLandingPagesInternal(adAccountId: number) {
       return false;
     });
 
-    const latestMobile = pageSpeedTests.find((s) => s.device === "mobile") || null;
-    const latestDesktop = pageSpeedTests.find((s) => s.device === "desktop") || null;
+    const latestMobile =
+      pageSpeedTests.find((s) => s.device === "mobile") || null;
+    const latestDesktop =
+      pageSpeedTests.find((s) => s.device === "desktop") || null;
     const latestSpeedTest = pageSpeedTests[0]
       ? {
           id: pageSpeedTests[0].id,
@@ -776,7 +777,8 @@ export async function syncCampaignLandingPagesAction(adAccountId: number) {
     if (res.count === 0) {
       return {
         success: false as const,
-        error: "No campaigns or landing page URLs returned from Google Ads API.",
+        error:
+          "No campaigns or landing page URLs returned from Google Ads API.",
       };
     }
     return res;
@@ -1238,6 +1240,7 @@ export interface OrgOverviewData {
     score: number;
     createdAt: Date;
     auditType: string;
+    status?: string;
   }>;
   bottomCro: Array<{
     auditId: number;
@@ -1248,26 +1251,77 @@ export interface OrgOverviewData {
     score: number;
     createdAt: Date;
     auditType: string;
+    status?: string;
+  }>;
+  topCroEnabled: Array<{
+    auditId: number;
+    accountId: number;
+    accountName: string;
+    campaignName: string;
+    url: string;
+    score: number;
+    createdAt: Date;
+    auditType: string;
+    status?: string;
+  }>;
+  bottomCroEnabled: Array<{
+    auditId: number;
+    accountId: number;
+    accountName: string;
+    campaignName: string;
+    url: string;
+    score: number;
+    createdAt: Date;
+    auditType: string;
+    status?: string;
   }>;
   topSpeed: Array<{
     id: number;
     accountId: number;
     accountName: string;
+    campaignName?: string;
     url: string;
     performanceScore: number;
     device: string;
     lcpDisplay: string | null;
     createdAt: Date;
+    status?: string;
   }>;
   bottomSpeed: Array<{
     id: number;
     accountId: number;
     accountName: string;
+    campaignName?: string;
     url: string;
     performanceScore: number;
     device: string;
     lcpDisplay: string | null;
     createdAt: Date;
+    status?: string;
+  }>;
+  topSpeedEnabled: Array<{
+    id: number;
+    accountId: number;
+    accountName: string;
+    campaignName?: string;
+    url: string;
+    performanceScore: number;
+    device: string;
+    lcpDisplay: string | null;
+    createdAt: Date;
+    status?: string;
+  }>;
+  bottomSpeedEnabled: Array<{
+    id: number;
+    accountId: number;
+    accountName: string;
+    campaignName?: string;
+    url: string;
+    performanceScore: number;
+    device: string;
+    lcpDisplay: string | null;
+    createdAt: Date;
+    status?: string;
   }>;
   accountBreakdown: Array<{
     id: number;
@@ -1311,8 +1365,12 @@ export async function getOrgLandingPageOverviewAction(): Promise<{
           totalSpendAtRisk: 0,
           topCro: [],
           bottomCro: [],
+          topCroEnabled: [],
+          bottomCroEnabled: [],
           topSpeed: [],
           bottomSpeed: [],
+          topSpeedEnabled: [],
+          bottomSpeedEnabled: [],
           accountBreakdown: [],
         },
       };
@@ -1408,37 +1466,72 @@ export async function getOrgLandingPageOverviewAction(): Promise<{
           )
         : 0;
 
-    const croItems = croAuditsList.map((a) => ({
-      auditId: a.id,
-      accountId: a.adAccountId,
-      accountName: accountMap.get(a.adAccountId) || "Account",
-      campaignName: a.campaignName || "General Campaign",
-      url: a.url,
-      score: a.score,
-      createdAt: a.createdAt,
-      auditType: a.auditType,
-    }));
+    const lpByCampaignKey = new Map<string, (typeof allLps)[0]>();
+    const lpByUrlKey = new Map<string, (typeof allLps)[0]>();
+    const lpById = new Map<number, (typeof allLps)[0]>();
+    for (const lp of allLps) {
+      lpByCampaignKey.set(`${lp.adAccountId}_${lp.campaignId}`, lp);
+      lpByUrlKey.set(`${lp.adAccountId}_${lp.url}`, lp);
+      lpById.set(lp.id, lp);
+    }
+
+    const croItems = croAuditsList.map((a) => {
+      const matchingLp =
+        (a.campaignId
+          ? lpByCampaignKey.get(`${a.adAccountId}_${a.campaignId}`)
+          : null) || lpByUrlKey.get(`${a.adAccountId}_${a.url}`);
+      const status = matchingLp?.status || "ENABLED";
+      return {
+        auditId: a.id,
+        accountId: a.adAccountId,
+        accountName: accountMap.get(a.adAccountId) || "Account",
+        campaignName:
+          a.campaignName || matchingLp?.campaignName || "General Campaign",
+        url: a.url,
+        score: a.score,
+        createdAt: a.createdAt,
+        auditType: a.auditType,
+        status,
+      };
+    });
 
     const sortedCro = [...croItems].sort((a, b) => b.score - a.score);
     const topCro = sortedCro.slice(0, 3);
     const bottomCro = [...sortedCro].reverse().slice(0, 3);
 
-    const speedItems = speedTestsList.map((s) => ({
-      id: s.id,
-      accountId: s.adAccountId,
-      accountName: accountMap.get(s.adAccountId) || "Account",
-      url: s.url,
-      performanceScore: s.performanceScore,
-      device: s.device,
-      lcpDisplay: s.lcpDisplay,
-      createdAt: s.createdAt,
-    }));
+    const enabledCro = sortedCro.filter((c) => c.status === "ENABLED");
+    const topCroEnabled = enabledCro.slice(0, 3);
+    const bottomCroEnabled = [...enabledCro].reverse().slice(0, 3);
+
+    const speedItems = speedTestsList.map((s) => {
+      const matchingLp =
+        (s.campaignLandingPageId
+          ? lpById.get(s.campaignLandingPageId)
+          : null) || lpByUrlKey.get(`${s.adAccountId}_${s.url}`);
+      const status = matchingLp?.status || "ENABLED";
+      return {
+        id: s.id,
+        accountId: s.adAccountId,
+        accountName: accountMap.get(s.adAccountId) || "Account",
+        campaignName: matchingLp?.campaignName,
+        url: s.url,
+        performanceScore: s.performanceScore,
+        device: s.device,
+        lcpDisplay: s.lcpDisplay,
+        createdAt: s.createdAt,
+        status,
+      };
+    });
 
     const sortedSpeed = [...speedItems].sort(
       (a, b) => b.performanceScore - a.performanceScore,
     );
     const topSpeed = sortedSpeed.slice(0, 3);
     const bottomSpeed = [...sortedSpeed].reverse().slice(0, 3);
+
+    const enabledSpeed = sortedSpeed.filter((s) => s.status === "ENABLED");
+    const topSpeedEnabled = enabledSpeed.slice(0, 3);
+    const bottomSpeedEnabled = [...enabledSpeed].reverse().slice(0, 3);
 
     let totalSpendAtRisk = 0;
     for (const lp of allLps) {
@@ -1520,8 +1613,12 @@ export async function getOrgLandingPageOverviewAction(): Promise<{
         totalSpendAtRisk,
         topCro,
         bottomCro,
+        topCroEnabled,
+        bottomCroEnabled,
         topSpeed,
         bottomSpeed,
+        topSpeedEnabled,
+        bottomSpeedEnabled,
         accountBreakdown,
       },
     };
@@ -1628,7 +1725,10 @@ export async function addCustomLandingPageAction(
   const cleanUrl = url.trim();
 
   if (!cleanTitle) {
-    return { success: false as const, error: "Page title or name is required." };
+    return {
+      success: false as const,
+      error: "Page title or name is required.",
+    };
   }
 
   if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
