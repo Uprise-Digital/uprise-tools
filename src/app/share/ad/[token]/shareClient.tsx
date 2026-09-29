@@ -13,6 +13,7 @@ import {
   Search,
   Target,
 } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import {
   Area,
@@ -470,8 +471,21 @@ export function PublicClientDashboard({
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-between p-6">
         <div className="w-full max-w-4xl flex items-center justify-between py-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center font-bold text-xs tracking-wider">
-              UD
+            <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
+              <Image
+                src="/logo_black.png"
+                alt="Uprise Digital Logo"
+                width={26}
+                height={26}
+                className="object-contain dark:hidden"
+              />
+              <Image
+                src="/logo_white.png"
+                alt="Uprise Digital Logo"
+                width={26}
+                height={26}
+                className="object-contain hidden dark:block"
+              />
             </div>
             <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-white">
               Uprise Digital
@@ -541,8 +555,21 @@ export function PublicClientDashboard({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Brand & Client Name */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center font-bold text-xs tracking-wider shrink-0">
-              UD
+            <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
+              <Image
+                src="/logo_black.png"
+                alt="Uprise Digital Logo"
+                width={26}
+                height={26}
+                className="object-contain dark:hidden"
+              />
+              <Image
+                src="/logo_white.png"
+                alt="Uprise Digital Logo"
+                width={26}
+                height={26}
+                className="object-contain hidden dark:block"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">

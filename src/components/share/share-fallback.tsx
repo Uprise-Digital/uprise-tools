@@ -1,4 +1,5 @@
 import { AlertOctagon, ArrowRight, ShieldX } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 
 interface ShareFallbackProps {
@@ -25,8 +26,21 @@ export function ShareFallbackView({ reason }: ShareFallbackProps) {
       {/* Top agency branding */}
       <div className="w-full max-w-4xl flex items-center justify-between py-4 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center font-bold text-xs tracking-wider">
-            UD
+          <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
+            <Image
+              src="/logo_black.png"
+              alt="Uprise Digital Logo"
+              width={26}
+              height={26}
+              className="object-contain dark:hidden"
+            />
+            <Image
+              src="/logo_white.png"
+              alt="Uprise Digital Logo"
+              width={26}
+              height={26}
+              className="object-contain hidden dark:block"
+            />
           </div>
           <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-white">
             Uprise Digital
