@@ -106,6 +106,13 @@
       "when": 1789093000000,
       "tag": "0014_client_platform_booleans",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790653344903,
+      "tag": "0015_furry_retro_girl",
+      "breakpoints": true
     }
   ]
 }

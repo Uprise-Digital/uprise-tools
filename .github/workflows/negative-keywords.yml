@@ -2,20 +2,55 @@ name: Nightly Negative Keywords Automation
 
 on:
   # Runs daily at 18:00 UTC (which corresponds to 4:00 AM AEST / 5:00 AM AEDT Melbourne time)
-  # This runs before the morning briefing, ensuring any auto-pushed negatives are recorded
-  #schedule:
-  #  - cron: '0 18 * * *'
+  # This runs before the morning briefing, ensuring any queued negatives are ready for review
+  schedule:
+    - cron: '0 18 * * *'
 
   # Allow manual trigger from the GitHub Actions UI
   workflow_dispatch:
+    inputs:
+      batch_size:
+        description: 'Number of accounts per batch'
+        required: false
+        default: '5'
 
 jobs:
   run-automation:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Trigger Negative Keywords Cron API Route
+      - name: Run Batched Negative Keywords Discovery
         run: |
-          curl -f -s -S -X POST "${{ secrets.PRODUCTION_APP_URL }}/api/cron/negative-keywords" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json"
+          OFFSET=0
+          BATCH_SIZE="${{ github.event.inputs.batch_size || '5' }}"
+          HAS_MORE=true
+          BATCH_NUM=1
+
+          echo "Starting batched negative keywords discovery (batch size: $BATCH_SIZE)..."
+
+          while [ "$HAS_MORE" = "true" ]; do
+            echo "=========================================================="
+            echo "Processing Batch #$BATCH_NUM (Offset: $OFFSET, Limit: $BATCH_SIZE)"
+            echo "=========================================================="
+
+            RESPONSE=$(curl -f -s -S -X POST "${{ secrets.PRODUCTION_APP_URL }}/api/cron/negative-keywords?offset=$OFFSET&limit=$BATCH_SIZE" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              -H "Content-Type: application/json")
+
+            echo "Batch #$BATCH_NUM result:"
+            echo "$RESPONSE" | jq -c '{processed: .processed, total: .total, offset: .offset, hasMore: .hasMore, nextOffset: .nextOffset}' || echo "$RESPONSE"
+
+            HAS_MORE=$(echo "$RESPONSE" | jq -r '.hasMore // false')
+            NEXT_OFFSET=$(echo "$RESPONSE" | jq -r '.nextOffset // empty')
+
+            if [ "$HAS_MORE" != "true" ] || [ -z "$NEXT_OFFSET" ]; then
+              echo "All accounts processed across $BATCH_NUM batches. Automation complete!"
+              break
+            fi
+
+            OFFSET=$NEXT_OFFSET
+            BATCH_NUM=$((BATCH_NUM + 1))
+
+            # Brief pause between batches
+            sleep 2
+          done

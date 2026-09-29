@@ -23,6 +23,7 @@ import {
   Save,
   Search,
   Settings as SettingsIcon,
+  Share2,
   ShieldAlert,
   Sparkles,
   Target,
@@ -49,6 +50,7 @@ import { saveAccountPersonaAction } from "@/actions/negative-keywords.actions";
 import { saveAccountTriageSettingsAction } from "@/actions/triage-settings.actions";
 import { AiInsights } from "@/components/ai-insights";
 import { GoogleLogo, MetaLogo } from "@/components/icons/platform-logos";
+import { ShareSettingsSheet } from "@/components/share/share-settings-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -163,6 +165,7 @@ export default function ClientDashboard({
 
   // Configuration Sheet State
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   // Extract clean text notes from targetNotes
   const getInitialNotesText = () => {
@@ -787,6 +790,15 @@ export default function ClientDashboard({
                 <Ban className="h-3.5 w-3.5 text-slate-500" />
                 Negative Keywords
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:border-indigo-200 flex items-center gap-1.5"
+                onClick={() => setIsShareOpen(true)}
+              >
+                <Share2 className="h-3.5 w-3.5 text-slate-500" />
+                Share
+              </Button>
               <Sheet open={isConfigOpen} onOpenChange={setIsConfigOpen}>
                 <SheetTrigger asChild>
                   <Button
@@ -1111,6 +1123,12 @@ export default function ClientDashboard({
                   </form>
                 </SheetContent>
               </Sheet>
+              <ShareSettingsSheet
+                open={isShareOpen}
+                onOpenChange={setIsShareOpen}
+                adAccountId={account.id}
+                clientName={account.name}
+              />
             </div>
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/80">

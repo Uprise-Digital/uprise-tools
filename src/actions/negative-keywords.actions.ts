@@ -358,7 +358,12 @@ export async function generateSuggestionsInternal(
     const adGroupId = originalTerm?.adGroupId || null;
     const adGroupName = originalTerm?.adGroupName || null;
 
-    if (account.negativeKeywordTurboMode) {
+    // When triggered by nightly cron automation, suggestions are always saved to the review queue (pending)
+    // rather than auto-pushed directly to Google Ads.
+    const shouldPushDirectly =
+      account.negativeKeywordTurboMode && actorId !== "CRON_AUTOMATION";
+
+    if (shouldPushDirectly) {
       // TURBO MODE IS ON: Push directly to Google Ads
       try {
         if (s.campaignId === "ALL") {

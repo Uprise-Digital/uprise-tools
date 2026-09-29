@@ -700,6 +700,7 @@ export const adAccountRelations = relations(adAccounts, ({ many, one }) => ({
     fields: [adAccounts.clientId],
     references: [clients.id],
   }),
+  shareLink: one(adAccountShareLinks),
 }));
 
 export const alertRuleRelations = relations(alertRules, ({ one, many }) => ({
@@ -1565,6 +1566,57 @@ export const analystMessagesRelations = relations(
     conversation: one(analystConversations, {
       fields: [analystMessages.conversationId],
       references: [analystConversations.id],
+    }),
+  }),
+);
+
+// --- 24. PUBLIC SHARE LINKS FOR AD ACCOUNTS ---
+export const adAccountShareLinks = pgTable(
+  "ad_account_share_links",
+  {
+    id: serial("id").primaryKey(),
+    adAccountId: integer("ad_account_id")
+      .notNull()
+      .references(() => adAccounts.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    token: varchar("token", { length: 16 }).notNull().unique(),
+    pinCode: text("pin_code"),
+    isPinRequired: boolean("is_pin_required").default(false).notNull(),
+    themeColor: varchar("theme_color", { length: 32 })
+      .default("violet")
+      .notNull(),
+    allowedChannels: varchar("allowed_channels", { length: 32 })
+      .default("all")
+      .notNull(),
+    visibleCharts: jsonb("visible_charts")
+      .$type<string[]>()
+      .default(["spend", "cpc", "ctr"])
+      .notNull(),
+    expiresAt: timestamp("expires_at"),
+    isActive: boolean("is_active").default(true).notNull(),
+    viewCount: integer("view_count").default(0).notNull(),
+    lastViewedAt: timestamp("last_viewed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("ad_account_share_links_token_idx").on(t.token),
+    index("ad_account_share_links_account_idx").on(t.adAccountId),
+  ],
+);
+
+export const adAccountShareLinksRelations = relations(
+  adAccountShareLinks,
+  ({ one }) => ({
+    adAccount: one(adAccounts, {
+      fields: [adAccountShareLinks.adAccountId],
+      references: [adAccounts.id],
+    }),
+    organization: one(organization, {
+      fields: [adAccountShareLinks.organizationId],
+      references: [organization.id],
     }),
   }),
 );
