@@ -25,21 +25,23 @@ export function ShareFallbackView({ reason }: ShareFallbackProps) {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-between p-6">
       {/* Top agency branding */}
       <div className="w-full max-w-4xl flex items-center justify-between py-4 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-2.5">
-          <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="relative w-9 h-9 flex items-center justify-center shrink-0">
             <Image
               src="/up_logo_black.png"
               alt="Uprise Digital Logo"
-              width={26}
-              height={26}
-              className="object-contain dark:hidden"
+              width={36}
+              height={36}
+              className="w-full h-full object-contain dark:hidden"
+              priority
             />
             <Image
               src="/up_logo_white.png"
               alt="Uprise Digital Logo"
-              width={26}
-              height={26}
-              className="object-contain hidden dark:block"
+              width={36}
+              height={36}
+              className="w-full h-full object-contain hidden dark:block"
+              priority
             />
           </div>
           <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-white">
