@@ -660,10 +660,10 @@ export function PublicClientDashboard({
         )}
 
         {/* 8 Metric KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
           {/* Spend */}
-          <Card className="rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-4">
+          <Card className="gap-0 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-1.5 space-y-0 p-3 sm:p-4">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Cost
               </CardTitle>
@@ -673,18 +673,21 @@ export function PublicClientDashboard({
                 <DollarSign className="w-4 h-4" />
               </div>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold tracking-tight">
+            <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col justify-between">
+              <div
+                className="text-lg sm:text-2xl font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis"
+                title={fCur(activeTotals.spend)}
+              >
                 {fCur(activeTotals.spend)}
               </div>
               {selectedChannel === "blended" && hasGoogle && hasMeta && (
-                <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-1.5 text-[10px] sm:text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                     G: {fCur(activeTotals.googleSpend)}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
                     M: {fCur(activeTotals.metaSpend)}
                   </span>
                 </div>
@@ -693,8 +696,8 @@ export function PublicClientDashboard({
           </Card>
 
           {/* Clicks */}
-          <Card className="rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-4">
+          <Card className="gap-0 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-1.5 space-y-0 p-3 sm:p-4">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Clicks
               </CardTitle>
@@ -704,18 +707,18 @@ export function PublicClientDashboard({
                 <MousePointerClick className="w-4 h-4" />
               </div>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold tracking-tight">
+            <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col justify-between">
+              <div className="text-lg sm:text-2xl font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
                 {fNum(activeTotals.clicks)}
               </div>
               {selectedChannel === "blended" && hasGoogle && hasMeta && (
-                <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-1.5 text-[10px] sm:text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                     G: {fNum(activeTotals.googleClicks)}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
                     M: {fNum(activeTotals.metaClicks)}
                   </span>
                 </div>
@@ -724,8 +727,8 @@ export function PublicClientDashboard({
           </Card>
 
           {/* Impressions */}
-          <Card className="rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-4">
+          <Card className="gap-0 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-1.5 space-y-0 p-3 sm:p-4">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Impressions
               </CardTitle>
@@ -735,18 +738,18 @@ export function PublicClientDashboard({
                 <Eye className="w-4 h-4" />
               </div>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold tracking-tight">
+            <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col justify-between">
+              <div className="text-lg sm:text-2xl font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
                 {fNum(activeTotals.impressions)}
               </div>
               {selectedChannel === "blended" && hasGoogle && hasMeta && (
-                <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-1.5 text-[10px] sm:text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                     G: {fNum(activeTotals.googleImpressions)}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
                     M: {fNum(activeTotals.metaImpressions)}
                   </span>
                 </div>
@@ -755,8 +758,8 @@ export function PublicClientDashboard({
           </Card>
 
           {/* CTR */}
-          <Card className="rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-4">
+          <Card className="gap-0 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-1.5 space-y-0 p-3 sm:p-4">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 CTR
               </CardTitle>
@@ -766,19 +769,19 @@ export function PublicClientDashboard({
                 <Percent className="w-4 h-4" />
               </div>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold tracking-tight">
+            <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col justify-between">
+              <div className="text-lg sm:text-2xl font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
                 {fPct(activeTotals.ctr)}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1.5">
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1.5 truncate whitespace-nowrap">
                 Click-Through Rate
               </p>
             </CardContent>
           </Card>
 
           {/* Conversions */}
-          <Card className="rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-4">
+          <Card className="gap-0 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-1.5 space-y-0 p-3 sm:p-4">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Conversions
               </CardTitle>
@@ -788,18 +791,18 @@ export function PublicClientDashboard({
                 <Target className="w-4 h-4" />
               </div>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold tracking-tight">
+            <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col justify-between">
+              <div className="text-lg sm:text-2xl font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
                 {fNum(activeTotals.conversions)}
               </div>
               {selectedChannel === "blended" && hasGoogle && hasMeta && (
-                <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-1.5 text-[10px] sm:text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                     G: {fNum(activeTotals.googleConversions)}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
                     M: {fNum(activeTotals.metaConversions)}
                   </span>
                 </div>
@@ -808,8 +811,8 @@ export function PublicClientDashboard({
           </Card>
 
           {/* Cost / Conv (CPA) */}
-          <Card className="rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-4">
+          <Card className="gap-0 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-1.5 space-y-0 p-3 sm:p-4">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Cost / Conv
               </CardTitle>
@@ -819,19 +822,22 @@ export function PublicClientDashboard({
                 <DollarSign className="w-4 h-4" />
               </div>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold tracking-tight">
+            <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col justify-between">
+              <div
+                className="text-lg sm:text-2xl font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis"
+                title={fCur(activeTotals.cpa)}
+              >
                 {fCur(activeTotals.cpa)}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1.5">
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1.5 truncate whitespace-nowrap">
                 Acquisition Cost
               </p>
             </CardContent>
           </Card>
 
           {/* Conv Rate */}
-          <Card className="rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-4">
+          <Card className="gap-0 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-1.5 space-y-0 p-3 sm:p-4">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Conv Rate
               </CardTitle>
@@ -841,19 +847,19 @@ export function PublicClientDashboard({
                 <Percent className="w-4 h-4" />
               </div>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold tracking-tight">
+            <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col justify-between">
+              <div className="text-lg sm:text-2xl font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
                 {fPct(activeTotals.convRate)}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1.5">
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1.5 truncate whitespace-nowrap">
                 Conversion Ratio
               </p>
             </CardContent>
           </Card>
 
           {/* Avg CPC */}
-          <Card className="rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-4">
+          <Card className="gap-0 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-1.5 space-y-0 p-3 sm:p-4">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Avg CPC
               </CardTitle>
@@ -863,11 +869,14 @@ export function PublicClientDashboard({
                 <DollarSign className="w-4 h-4" />
               </div>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold tracking-tight">
+            <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col justify-between">
+              <div
+                className="text-lg sm:text-2xl font-bold tracking-tight whitespace-nowrap overflow-hidden text-ellipsis"
+                title={fCur(activeTotals.cpc)}
+              >
                 {fCur(activeTotals.cpc)}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1.5">
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1.5 truncate whitespace-nowrap">
                 Cost Per Click
               </p>
             </CardContent>
