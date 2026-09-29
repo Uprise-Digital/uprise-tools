@@ -28,14 +28,14 @@ export function ShareFallbackView({ reason }: ShareFallbackProps) {
         <div className="flex items-center gap-2.5">
           <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
             <Image
-              src="/logo_black.png"
+              src="/up_logo_black.png"
               alt="Uprise Digital Logo"
               width={26}
               height={26}
               className="object-contain dark:hidden"
             />
             <Image
-              src="/logo_white.png"
+              src="/up_logo_white.png"
               alt="Uprise Digital Logo"
               width={26}
               height={26}
