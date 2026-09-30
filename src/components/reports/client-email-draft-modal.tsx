@@ -351,8 +351,8 @@ export function ClientEmailDraftModal({
                     </Badge>
                   )}
                 </SheetTitle>
-                <SheetDescription className="text-xs text-slate-500 mt-0.5">
-                  Lakshane&apos;s 3-pillar executive standard. Edit on the spot, copy to clipboard, or send now.
+                <SheetDescription className="sr-only">
+                  Executive Client Report
                 </SheetDescription>
               </div>
             </div>
@@ -416,7 +416,7 @@ export function ClientEmailDraftModal({
                 Synthesising executive performance data...
               </p>
               <p className="text-xs text-slate-400 max-w-sm">
-                Aggregating Google Ads metrics, Meta Ads conversions, and public share links into Lakshane&apos;s 3-pillar standard.
+                Aggregating Google Ads metrics, Meta Ads conversions, and public share links.
               </p>
             </div>
           ) : activeTab === "history" ? (
