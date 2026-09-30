@@ -1757,7 +1757,6 @@ export default function ReportsClient({
                       <th className="py-3 px-4">Client Account</th>
                       <th className="py-3 px-4">Schedule</th>
                       <th className="py-3 px-4">Recipient(s)</th>
-                      <th className="py-3 px-4">AI Summary</th>
                       <th className="py-3 px-4">Last Dispatched</th>
                       <th className="py-3 px-4 text-center">Status / Toggle</th>
                       <th className="py-3 px-4 text-right">Actions</th>
@@ -1767,7 +1766,7 @@ export default function ReportsClient({
                     {filteredClientItems.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={7}
+                          colSpan={6}
                           className="py-8 text-center text-slate-400"
                         >
                           No client report schedules match your criteria.
@@ -1841,26 +1840,6 @@ export default function ReportsClient({
                             )}
                           </td>
 
-                          <td className="py-3 px-4">
-                            {item.hasSchedule ? (
-                              item.useAiSummary ? (
-                                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px]">
-                                  <Sparkles className="h-2.5 w-2.5 mr-1" />
-                                  Enabled
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="outline"
-                                  className="text-slate-400 text-[10px]"
-                                >
-                                  Off
-                                </Badge>
-                              )
-                            ) : (
-                              <span className="text-slate-400">—</span>
-                            )}
-                          </td>
-
                           <td className="py-3 px-4 text-slate-600">
                             {item.lastRunAt ? (
                               <div>
@@ -1895,55 +1874,70 @@ export default function ReportsClient({
 
                           <td className="py-3 px-4 text-center">
                             {item.hasSchedule ? (
-                              <div
-                                className={cn(
-                                  "flex items-center justify-center gap-2",
-                                  !clientReportOverview?.isGloballyActive &&
-                                    "opacity-70",
-                                )}
-                                title={
-                                  !clientReportOverview?.isGloballyActive
-                                    ? "Individual switch disabled while report delivery is globally paused"
-                                    : undefined
-                                }
-                              >
-                                <Switch
-                                  checked={item.isActive}
-                                  onCheckedChange={(checked) =>
-                                    item.scheduleId &&
-                                    handleToggleSchedule(
-                                      item.scheduleId,
-                                      checked,
-                                    )
-                                  }
-                                  disabled={
-                                    !clientReportOverview?.isGloballyActive ||
-                                    togglingScheduleId === item.scheduleId
-                                  }
+                              <div className="flex flex-col items-center justify-center gap-1.5">
+                                <div
                                   className={cn(
-                                    clientReportOverview?.isGloballyActive
-                                      ? "cursor-pointer"
-                                      : "cursor-not-allowed",
-                                  )}
-                                />
-                                <span
-                                  className={cn(
-                                    "text-[10px] font-bold min-w-[72px] text-left whitespace-nowrap",
+                                    "flex items-center justify-center gap-2",
                                     !clientReportOverview?.isGloballyActive &&
-                                      item.isActive
-                                      ? "text-amber-700"
-                                      : item.isActive
-                                        ? "text-emerald-700"
-                                        : "text-slate-400",
+                                      "opacity-70",
                                   )}
+                                  title={
+                                    !clientReportOverview?.isGloballyActive
+                                      ? "Individual switch disabled while report delivery is globally paused"
+                                      : undefined
+                                  }
                                 >
-                                  {!clientReportOverview?.isGloballyActive &&
-                                  item.isActive
-                                    ? "Paused (Global)"
-                                    : item.isActive
-                                      ? "Active"
-                                      : "Paused"}
-                                </span>
+                                  <Switch
+                                    checked={item.isActive}
+                                    onCheckedChange={(checked) =>
+                                      item.scheduleId &&
+                                      handleToggleSchedule(
+                                        item.scheduleId,
+                                        checked,
+                                      )
+                                    }
+                                    disabled={
+                                      !clientReportOverview?.isGloballyActive ||
+                                      togglingScheduleId === item.scheduleId
+                                    }
+                                    className={cn(
+                                      clientReportOverview?.isGloballyActive
+                                        ? "cursor-pointer"
+                                        : "cursor-not-allowed",
+                                    )}
+                                  />
+                                  <span
+                                    className={cn(
+                                      "text-[10px] font-bold min-w-[72px] text-left whitespace-nowrap",
+                                      !clientReportOverview?.isGloballyActive &&
+                                        item.isActive
+                                        ? "text-amber-700"
+                                        : item.isActive
+                                          ? "text-emerald-700"
+                                          : "text-slate-400",
+                                    )}
+                                  >
+                                    {!clientReportOverview?.isGloballyActive &&
+                                    item.isActive
+                                      ? "Paused (Global)"
+                                      : item.isActive
+                                        ? "Active"
+                                        : "Paused"}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center justify-center">
+                                  {item.useAiSummary ? (
+                                    <Badge className="bg-indigo-50/80 text-indigo-700 border-indigo-200 text-[9.5px] px-1.5 py-0 h-4 font-medium shadow-none inline-flex items-center gap-0.5">
+                                      <Sparkles className="h-2.5 w-2.5 text-indigo-500" />
+                                      AI Enabled
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-[9.5px] text-slate-400 font-medium">
+                                      AI Off
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             ) : (
                               <span className="text-[10px] text-slate-400 italic">
