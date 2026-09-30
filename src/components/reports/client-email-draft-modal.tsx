@@ -844,10 +844,8 @@ export function ClientEmailDraftModal({
                     <PenLine className="h-3.5 w-3.5 text-slate-500" />
                     Email Body (Live Editable Plain-Formatted Text)
                   </Label>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+                  <div className="text-[11px] text-slate-400 font-mono">
                     <span>{wordCount} words</span>
-                    <span>•</span>
-                    <span>Lakshane Signature Appended</span>
                   </div>
                 </div>
 
