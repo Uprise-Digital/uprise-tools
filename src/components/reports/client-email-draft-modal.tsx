@@ -35,13 +35,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -327,17 +327,20 @@ export function ClientEmailDraftModal({
   const wordCount = bodyText.trim() ? bodyText.trim().split(/\s+/).length : 0;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden bg-white text-slate-900 border-slate-200">
-        {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/75 shrink-0">
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-2xl md:max-w-3xl lg:max-w-[920px] p-0 flex flex-col gap-0 overflow-hidden bg-white text-slate-900 border-l border-slate-200 shadow-2xl h-full"
+      >
+        {/* Sidebar Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/75 shrink-0 pr-14">
           <div>
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600">
                 <Sparkles className="h-4 w-4" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <SheetTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <span>Executive Client Report: {accountName}</span>
                   {draft?.hasMeta && (
                     <Badge
@@ -347,10 +350,10 @@ export function ClientEmailDraftModal({
                       Multi-Channel (Google + Meta)
                     </Badge>
                   )}
-                </DialogTitle>
-                <DialogDescription className="text-xs text-slate-500 mt-0.5">
+                </SheetTitle>
+                <SheetDescription className="text-xs text-slate-500 mt-0.5">
                   Lakshane&apos;s 3-pillar executive standard. Edit on the spot, copy to clipboard, or send now.
-                </DialogDescription>
+                </SheetDescription>
               </div>
             </div>
           </div>
@@ -977,7 +980,10 @@ export function ClientEmailDraftModal({
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
+
+export const ClientEmailDraftSidebar = ClientEmailDraftModal;
+
