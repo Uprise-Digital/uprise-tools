@@ -872,7 +872,7 @@ export function ClientEmailDraftModal({
                       <span>+61 426 759 756</span>
                     </div>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      Official Signature &amp; Legal Disclaimer auto-attached on send
+                      Official Uprise signature auto-attached on send
                     </span>
                   </div>
                 </div>

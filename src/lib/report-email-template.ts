@@ -90,11 +90,6 @@ export function buildReportEmailHtml(data: {
         </td>
       </tr>
     </table>
-
-    <!-- Confidentiality Footer -->
-    <div style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-      This email and any files transmitted with it are confidential and intended solely for the use of ${clientName}. If you have received this transmission in error, please notify the sender immediately.
-    </div>
   </div>
 </body>
 </html>`;
@@ -150,11 +145,6 @@ export function buildExecutiveReportEmailHtml(data: {
         </td>
       </tr>
     </table>
-
-    <!-- Confidentiality Footer -->
-    <div style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-      This email and any files transmitted with it are confidential and intended solely for the use of ${clientName}. If you have received this transmission in error, please notify the sender immediately.
-    </div>
   </div>
 </body>
 </html>`;
