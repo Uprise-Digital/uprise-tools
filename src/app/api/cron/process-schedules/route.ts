@@ -269,15 +269,30 @@ export async function GET(request: Request) {
   }
 
   try {
-    // CRITICAL AGENCY SAFEGUARD: NO EMAILS TO BE SENT THROUGH AUTOMATION
-    console.log(
-      "[Cron] Automated client report sending is strictly disabled per agency policy. Skipping.",
-    );
-    return NextResponse.json({
-      success: true,
-      message: "Automated client report sending is strictly disabled. No emails sent through automation.",
-      processed: 0,
+    // 0. Check if automated client reports are globally paused
+    const isGloballyActive = await withBypassTenantDb(async (tx) => {
+      try {
+        const setting = await tx.query.clientReportSettings.findFirst();
+        return setting ? setting.isGloballyActive : true;
+      } catch (err) {
+        console.warn(
+          "[Cron] Could not query clientReportSettings, defaulting to active:",
+          err,
+        );
+        return true;
+      }
     });
+
+    if (!isGloballyActive) {
+      console.log(
+        "[Cron] Automated client report sending is globally paused. Skipping.",
+      );
+      return NextResponse.json({
+        success: true,
+        message: "Automated client report sending is globally paused.",
+        processed: 0,
+      });
+    }
 
     // Determine today's day of the month (Melbourne context is fine)
     const today = new Date().getDate();

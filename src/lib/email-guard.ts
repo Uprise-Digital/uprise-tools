@@ -9,11 +9,11 @@
 export const SAFE_AGENT_EMAIL = "seyone@uprisedigital.com.au";
 
 /**
- * STRICT AGENCY DIRECTIVE: NO EMAILS TO BE SENT THROUGH AUTOMATION.
- * When false, background cron jobs, schedulers, and automated workers are blocked from sending.
- * Only manual user actions in the dashboard UI (or test sends) can trigger dispatch.
+ * Automated email dispatch setting:
+ * When true, scheduled background cron jobs and report pipelines are active.
+ * External client emails continue to be protected by enforceEmailSafeguard.
  */
-export const ALLOW_AUTOMATED_EMAILS = false;
+export const ALLOW_AUTOMATED_EMAILS = true;
 
 export function isAutomatedSendingAllowed(): boolean {
   return ALLOW_AUTOMATED_EMAILS;
