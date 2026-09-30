@@ -113,24 +113,30 @@ export async function POST(request: Request) {
       lastMonth,
     );
 
-    // Parallel AI Generation
-    const [pdfAi, emailAi] = await Promise.all([
-      generateReportInsights({
-        ...baseData,
-        customInstructions: schedule.customAiInstructions,
-      }),
-      generateEmailBody({
-        ...baseData,
-        customInstructions: schedule.customAiInstructions,
-      }),
-    ]);
-
-    // PDF Generation
-    const pdfElement = React.createElement(MyReportPDF, {
-      data: { ...baseData, ai: pdfAi },
+    const emailAi = await generateEmailBody({
+      ...baseData,
+      customInstructions: schedule.customAiInstructions,
     });
-    const stream = await renderToStream(pdfElement as any);
-    const pdfBuffer = await streamToBuffer(stream);
+
+    let attachments: Array<{ filename: string; content: Buffer }> | undefined = undefined;
+
+    if (schedule.attachPdf) {
+      const pdfAi = await generateReportInsights({
+        ...baseData,
+        customInstructions: schedule.customAiInstructions,
+      });
+      const pdfElement = React.createElement(MyReportPDF, {
+        data: { ...baseData, ai: pdfAi },
+      });
+      const stream = await renderToStream(pdfElement as any);
+      const pdfBuffer = await streamToBuffer(stream);
+      attachments = [
+        {
+          filename: `${clientName.replace(/\s+/g, "_")}_Report.pdf`,
+          content: pdfBuffer,
+        },
+      ];
+    }
 
     let publicReportUrl = "";
     if (schedule.adAccountId) {
@@ -170,12 +176,7 @@ export async function POST(request: Request) {
       subject: safeDelivery.subject,
       text: emailAi.emailBody,
       html: htmlBody,
-      attachments: [
-        {
-          filename: `${clientName.replace(/\s+/g, "_")}_Report.pdf`,
-          content: pdfBuffer,
-        },
-      ],
+      attachments,
     });
 
     if (emailResult.error) {

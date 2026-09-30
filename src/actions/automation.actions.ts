@@ -92,22 +92,30 @@ export async function executeReportJobDirectly(params: {
     lastMonth,
   );
 
-  const [pdfAi, emailAi] = await Promise.all([
-    generateReportInsights({
-      ...baseData,
-      customInstructions: schedule.customAiInstructions ?? undefined,
-    }),
-    generateEmailBody({
-      ...baseData,
-      customInstructions: schedule.customAiInstructions ?? undefined,
-    }),
-  ]);
-
-  const pdfElement = React.createElement(MyReportPDF, {
-    data: { ...baseData, ai: pdfAi },
+  const emailAi = await generateEmailBody({
+    ...baseData,
+    customInstructions: schedule.customAiInstructions ?? undefined,
   });
-  const stream = await renderToStream(pdfElement as any);
-  const pdfBuffer = await streamToBuffer(stream);
+
+  let attachments: Array<{ filename: string; content: Buffer }> | undefined = undefined;
+
+  if (schedule.attachPdf) {
+    const pdfAi = await generateReportInsights({
+      ...baseData,
+      customInstructions: schedule.customAiInstructions ?? undefined,
+    });
+    const pdfElement = React.createElement(MyReportPDF, {
+      data: { ...baseData, ai: pdfAi },
+    });
+    const stream = await renderToStream(pdfElement as any);
+    const pdfBuffer = await streamToBuffer(stream);
+    attachments = [
+      {
+        filename: `${clientName.replace(/\s+/g, "_")}_Report.pdf`,
+        content: pdfBuffer,
+      },
+    ];
+  }
 
   let publicReportUrl = "";
   if (schedule.adAccountId) {
@@ -147,12 +155,7 @@ export async function executeReportJobDirectly(params: {
       client_name: clientName,
       report_url: publicReportUrl,
     },
-    attachments: [
-      {
-        filename: `${clientName.replace(/\s+/g, "_")}_Report.pdf`,
-        content: pdfBuffer,
-      },
-    ],
+    attachments,
   });
 
   if (!emailResult.success) {
@@ -187,6 +190,7 @@ export async function saveReportScheduleAction(data: {
   recipientEmail: string;
   ccEmails: string;
   useAiSummary: boolean;
+  attachPdf?: boolean;
   customAiInstructions: string;
   customMessage: string;
 }) {
@@ -214,6 +218,7 @@ export async function saveReportScheduleAction(data: {
       ccEmails: data.ccEmails,
       emailSubject: `Monthly Performance Report - ${data.clientName}`,
       useAiSummary: data.useAiSummary,
+      attachPdf: data.attachPdf ?? false,
       customAiInstructions: data.customAiInstructions,
       customMessage: data.customMessage,
       isActive: true,

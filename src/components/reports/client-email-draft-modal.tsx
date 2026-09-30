@@ -8,6 +8,7 @@ import {
   Clock,
   Copy,
   ExternalLink,
+  FileText,
   History,
   Layers,
   Mail,
@@ -100,6 +101,7 @@ export function ClientEmailDraftModal({
   >("standard");
   const [includeGoogle, setIncludeGoogle] = useState(true);
   const [includeMeta, setIncludeMeta] = useState(true);
+  const [attachPdf, setAttachPdf] = useState(false);
   const [showTuning, setShowTuning] = useState(false);
 
   // Staff testing state
@@ -247,6 +249,7 @@ export function ClientEmailDraftModal({
         ccEmails,
         subject,
         bodyText,
+        attachPdf,
       });
 
       if (res.success) {
@@ -283,6 +286,7 @@ export function ClientEmailDraftModal({
         subject,
         bodyText,
         staffRecipientEmail: selectedStaffEmail,
+        attachPdf,
       });
 
       if (res.success) {
@@ -788,6 +792,24 @@ export function ClientEmailDraftModal({
                           </label>
                         </div>
                       </div>
+
+                      {/* PDF Attachment Option */}
+                      <div className="space-y-1.5 md:col-span-2 pt-1 border-t border-slate-100">
+                        <Label className="text-xs font-bold text-slate-800">
+                          PDF Report Attachment
+                        </Label>
+                        <div className="flex items-center gap-2 pt-1">
+                          <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={attachPdf}
+                              onChange={(e) => setAttachPdf(e.target.checked)}
+                              className="rounded border-slate-300 text-indigo-600 cursor-pointer"
+                            />
+                            Attach downloadable PDF report to email (Optional)
+                          </label>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex justify-end pt-2 border-t border-slate-100">
@@ -934,8 +956,24 @@ export function ClientEmailDraftModal({
             </div>
           </div>
 
-          {/* Right: Copy & Send Now */}
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          {/* Right: Attach PDF Toggle, Copy & Send Now */}
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-1.5 pr-2 border-r border-slate-200">
+              <Switch
+                id="modal-attach-pdf"
+                checked={attachPdf}
+                onCheckedChange={setAttachPdf}
+                className="scale-75 cursor-pointer"
+              />
+              <Label
+                htmlFor="modal-attach-pdf"
+                className="text-[11px] text-slate-700 font-semibold cursor-pointer flex items-center gap-1"
+              >
+                <FileText className="h-3 w-3 text-slate-500" />
+                Attach PDF
+              </Label>
+            </div>
+
             <Button
               type="button"
               variant="outline"

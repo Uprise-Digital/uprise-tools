@@ -533,6 +533,7 @@ export const reportSchedules = pgTable("report_schedules", {
   bccEmails: text("bcc_emails"),
   emailSubject: text("email_subject").notNull(),
   useAiSummary: boolean("use_ai_summary").default(true).notNull(),
+  attachPdf: boolean("attach_pdf").default(false).notNull(),
   customAiInstructions: text("custom_ai_instructions"),
   customMessage: text("custom_message"),
   isActive: boolean("is_active").default(true).notNull(),

@@ -32,6 +32,7 @@ export interface ClientReportAccountItem {
   recipientEmail: string | null;
   ccEmails: string | null;
   useAiSummary: boolean;
+  attachPdf: boolean;
   isActive: boolean;
   lastRunAt: string | null;
   createdAt: string | null;
@@ -154,6 +155,7 @@ export async function getClientReportAutomationOverviewAction(): Promise<{
         recipientEmail: primarySchedule?.recipientEmail || null,
         ccEmails: primarySchedule?.ccEmails || null,
         useAiSummary: primarySchedule?.useAiSummary ?? true,
+        attachPdf: primarySchedule?.attachPdf ?? false,
         isActive,
         lastRunAt: primarySchedule?.lastRunAt
           ? new Date(primarySchedule.lastRunAt).toISOString()

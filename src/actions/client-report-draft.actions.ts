@@ -28,8 +28,27 @@ import { decryptToken } from "@/lib/crypto";
 import { enforceEmailSafeguard, SAFE_AGENT_EMAIL } from "@/lib/email-guard";
 import { parseMetaActionsConv } from "@/lib/meta-utils";
 import { getOrCreatePublicShareUrlInternal } from "@/actions/share-dashboard.actions";
+import React from "react";
+import { renderToStream } from "@react-pdf/renderer";
+import { MyReportPDF } from "@/service/pdf-service";
+import { generateReportInsights } from "@/lib/ai-service";
+import {
+  fetchAccountDataFromDb,
+  getPreviousMonthInfo,
+  transformAdsData,
+} from "@/lib/report-utils";
+import {
+  fetchAccountKeywords,
+  fetchAccountMonthlySummary,
+} from "@/lib/google-ads";
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_build_key");
+
+async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of stream) chunks.push(chunk as any);
+  return Buffer.concat(chunks);
+}
 
 export interface ClientDraftEmailResponse {
   adAccountId: number;
@@ -443,6 +462,7 @@ export async function sendClientExecutiveEmailAction(params: {
   bodyText: string;
   isTest?: boolean;
   staffRecipientEmail?: string;
+  attachPdf?: boolean;
 }): Promise<{
   success: boolean;
   resendId?: string;
@@ -471,6 +491,7 @@ export async function sendClientExecutiveEmailAction(params: {
       subject,
       bodyText,
       staffRecipientEmail,
+      attachPdf,
     } = params;
 
     const account = await db.query.adAccounts.findFirst({
@@ -502,6 +523,60 @@ export async function sendClientExecutiveEmailAction(params: {
     // 2. Generate clean, dark-mode compatible HTML with Uprise signature
     const emailHtml = await buildHtmlFromExecutiveText(bodyText, clientName);
 
+    // Optional: Generate PDF Attachment if requested
+    let attachments: Array<{ filename: string; content: Buffer }> | undefined = undefined;
+
+    if (attachPdf && account?.googleAccountId) {
+      try {
+        const prevMonth = getPreviousMonthInfo();
+        let rawKeywords: any[] = [];
+        let rawSummary: any[] = [];
+
+        if (process.env.GOOGLE_ADS_REFRESH_TOKEN) {
+          [rawSummary, rawKeywords] = await Promise.all([
+            fetchAccountMonthlySummary(
+              account.googleAccountId,
+              prevMonth.startDate,
+              prevMonth.endDate,
+            ).catch(() => []),
+            fetchAccountKeywords(account.googleAccountId).catch(() => []),
+          ]);
+        } else {
+          rawSummary = (await fetchAccountDataFromDb(
+            account.googleAccountId,
+            prevMonth.startDate,
+            prevMonth.endDate,
+          )) || [];
+        }
+
+        const baseData = transformAdsData(
+          clientName,
+          rawSummary || [],
+          rawKeywords,
+          prevMonth.targetMonth,
+        );
+
+        const pdfAi = await generateReportInsights({
+          ...baseData,
+        });
+
+        const pdfElement = React.createElement(MyReportPDF, {
+          data: { ...baseData, ai: pdfAi },
+        });
+        const stream = await renderToStream(pdfElement as any);
+        const pdfBuffer = await streamToBuffer(stream);
+
+        attachments = [
+          {
+            filename: `${clientName.replace(/\s+/g, "_")}_Report.pdf`,
+            content: pdfBuffer,
+          },
+        ];
+      } catch (pdfErr) {
+        console.warn("Could not generate PDF attachment for executive send:", pdfErr);
+      }
+    }
+
     // 3. Dispatch via Resend
     const sendRes = await resend.emails.send({
       from: "Lakshane Fonseka <reports@uprisedigital.com.au>",
@@ -510,6 +585,7 @@ export async function sendClientExecutiveEmailAction(params: {
       subject: safeSubject,
       text: bodyText,
       html: emailHtml,
+      attachments,
     });
 
     if (sendRes.error) {

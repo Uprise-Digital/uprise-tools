@@ -8,6 +8,7 @@ import {
   Download,
   FileBarChart2,
   FileDown,
+  FileText,
   History,
   Loader2,
   Mail,
@@ -62,6 +63,7 @@ interface AutomationRule {
   ccEmails?: string;
   emailSubject: string;
   useAiSummary: boolean;
+  attachPdf?: boolean;
   customAiInstructions?: string;
   customMessage?: string;
 }
@@ -107,6 +109,7 @@ export function AutomationSidebar({
   const [recipient, setRecipient] = useState("");
   const [cc, setCc] = useState("");
   const [useAi, setUseAi] = useState(true);
+  const [attachPdf, setAttachPdf] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
   const [aiInstructions, setAiInstructions] = useState("");
 
@@ -122,6 +125,7 @@ export function AutomationSidebar({
     setRecipient("");
     setCc("");
     setUseAi(true);
+    setAttachPdf(false);
     setCustomMessage("");
     setAiInstructions("");
   };
@@ -133,6 +137,7 @@ export function AutomationSidebar({
     setRecipient(rule.recipientEmail);
     setCc(rule.ccEmails || "");
     setUseAi(rule.useAiSummary);
+    setAttachPdf(rule.attachPdf ?? false);
     setAiInstructions(rule.customAiInstructions || "");
     setCustomMessage(rule.customMessage || "");
 
@@ -226,6 +231,7 @@ export function AutomationSidebar({
         recipientEmail: recipient,
         ccEmails: cc,
         useAiSummary: useAi,
+        attachPdf,
         customAiInstructions: aiInstructions,
         customMessage: customMessage,
       });
@@ -465,6 +471,13 @@ export function AutomationSidebar({
                           {rule.useAiSummary ? "Enabled" : "Disabled"}
                         </p>
                       </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <FileText className="h-3.5 w-3.5 text-slate-400" />
+                        <p>
+                          PDF Attachment:{" "}
+                          {rule.attachPdf ? "Enabled" : "Disabled"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -699,6 +712,22 @@ export function AutomationSidebar({
                     />
                   </div>
                 )}
+              </div>
+
+              {/* PDF ATTACHMENT TOGGLE SECTION */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-slate-700" />
+                    <Label className="text-sm font-bold text-slate-900">
+                      Attach PDF Report
+                    </Label>
+                  </div>
+                  <Switch checked={attachPdf} onCheckedChange={setAttachPdf} />
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                  Optional: Attach the full performance report PDF to the email.
+                </p>
               </div>
 
               {!useAi && (
