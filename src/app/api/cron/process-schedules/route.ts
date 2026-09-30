@@ -20,6 +20,7 @@ import {
   getPreviousMonthInfo,
   transformAdsData,
 } from "@/lib/report-utils";
+import { getOrCreatePublicShareUrlInternal } from "@/actions/share-dashboard.actions";
 import { MyReportPDF } from "@/service/pdf-service";
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_build_key");
@@ -125,13 +126,30 @@ async function processReportPayload(payload: {
     const stream = await renderToStream(pdfElement as any);
     const pdfBuffer = await streamToBuffer(stream);
 
+    let publicReportUrl = "";
+    if (schedule.adAccountId) {
+      try {
+        const shareUrl = await getOrCreatePublicShareUrlInternal(
+          schedule.adAccountId,
+          schedule.organizationId,
+        );
+        if (shareUrl) {
+          publicReportUrl = `${shareUrl}${shareUrl.includes("?") ? "&" : "?"}selected=google`;
+        }
+      } catch (e) {
+        console.warn("Could not generate public share URL:", e);
+      }
+    }
+
     const emailSubjectText =
-      schedule.emailSubject || `Performance Report: ${clientName}`;
+      schedule.emailSubject || `Performance Reports - ${baseData.targetMonth} - ${clientName}`;
 
     const htmlBody = buildReportEmailHtml({
       clientName,
       introText: emailAi.emailBody,
       metrics: baseData.metrics,
+      targetMonth: baseData.targetMonth,
+      reportUrl: publicReportUrl,
     });
 
     // 6. Send the email via Resend (Guarded)

@@ -178,35 +178,46 @@ export async function generateReportInsights(data: {
 
 /**
  * USE CASE 2: EMAIL DELIVERY
- * Generates a friendly, high-level email body to accompany the PDF attachment.
+ * Generates Lakshane's 3-pillar executive email body matching Image 2 styling.
+ * Covers: Overall Snapshot (actual spend/leads/CPL), What Worked Well, What Didn't & Why, Next Steps.
+ * Strictly 0 target/benchmark mentions.
  */
 export async function generateEmailBody(data: any) {
   const { clientName, metrics, customInstructions } = data;
 
+  const rawCost = typeof metrics?.cost === "number" ? metrics.cost : parseFloat(metrics?.cost || "0");
+  const cost = isNaN(rawCost) ? "0.00" : rawCost.toFixed(2);
+  const convs = typeof metrics?.conversions === "number" ? Math.round(metrics.conversions) : parseInt(metrics?.conversions || "0", 10) || 0;
+  const rawCpl = metrics?.costPerConv ? (typeof metrics.costPerConv === "number" ? metrics.costPerConv : parseFloat(metrics.costPerConv)) : (convs > 0 ? rawCost / convs : 0);
+  const costPerConv = isNaN(rawCpl) ? "0.00" : rawCpl.toFixed(2);
+
   const fallback = {
-    emailBody: `I've attached your latest Google Ads performance report for the past month. Our team has been actively optimizing search term targeting and campaign structures to build strong momentum and capture high-intent demand. Please find the detailed metrics breakdown in the attached PDF.`,
+    emailBody: `Google has tracked at $${costPerConv} CPL across $${cost} spend with ${convs} leads generated over the period.\n\nCore high-intent search terms converted steadily, while broad queries accounted for wasted spend that we are actively pruning.\n\nOver the next 30 days, we are tightening match types, adding negative keywords, and focusing budget on top-converting ad groups.`,
   };
 
   const prompt = `
-    You are an Account Manager at Uprise Digital. 
-    Write a short, professional, and encouraging email intro for "${clientName}" to accompany their monthly Google Ads performance report PDF.
+    You are Lakshane Fonseka, Founder & Lead Digital Strategist at Uprise Digital.
+    Write the body paragraphs for a monthly Google Ads client email report for "${clientName}".
     
-    Metrics Context:
-    - Conversions: ${metrics?.conversions || 0}
-    - Spend: $${metrics?.cost || "0.00"}
-    - Clicks: ${metrics?.clicks || 0}
+    Follow Lakshane's exact executive reporting standard:
+    1. Brutal Honesty & Candour: Never hide setbacks or use corporate marketing spin. State the actual numbers plainly. If CPL increased or conversions dipped, explain the operational or search query "why".
+    2. The 3 Non-Negotiable Pillars (write exactly 3-4 short, punchy 1-2 sentence paragraphs separated by double newlines):
+       - Overall snapshot: Actual spend ($${cost}), total conversions/leads (${convs}), and actual CPL ($${costPerConv}).
+       - What worked well: High-intent converting search terms and strong engagement.
+       - What didn't perform well & why: Non-converting queries, search term leakage, or wasted spend.
+       - What happens next: Concrete tactical actions for the next 30 days (negative keyword pruning, match type adjustments, budget reallocation).
+    3. Short, Punchy Paragraphs: Strictly 1-2 sentences per paragraph with generous breathing room. NEVER write walls of text.
+    4. CRITICAL RULE - NEVER MENTION TARGETS OR BENCHMARKS:
+       - DO NOT mention target CPL, target CPA, target lead counts, or industry benchmarks. Focus strictly on actual performance delivery.
+    5. Language: Australian / UK English (optimise, prioritise, analysing, behaviour).
+    6. DO NOT include greetings ("Hi Team"), signoffs ("KR", "Let me know..."), or signature blocks. Just the 3-4 body paragraphs separated by double newlines.
     
-    ${customInstructions ? `TONE/FOCUS INSTRUCTIONS: ${customInstructions}` : ""}
+    ${customInstructions ? `SPECIAL INSTRUCTIONS / PROMPT INJECTION: ${customInstructions}` : ""}
     
-    CRITICAL TONE & LANGUAGE RULES:
-    - ALWAYS write in UK English spelling and grammar (e.g. optimise, prioritise, programme, behaviour, colour, lead generation, organisation, analyse).
-    - NEVER state negative outcomes or failures (do NOT say "we didn't get conversions", "no leads", "CTR dropped", etc.).
-    - ALWAYS reframe positively: focus on campaign momentum, valuable search data collected, brand presence established, and ongoing strategic optimizations.
-    - Keep it strictly to 2-3 sentences.
-    - Mention that the full performance breakdown PDF is attached.
-    - Do NOT include a subject line, greeting (like Hi Paul), or sign-off (like Best regards), just the body text paragraph.
-    
-    Response MUST be a JSON object: { "emailBody": "..." }
+    Response MUST be valid JSON:
+    {
+      "emailBody": "Paragraph 1\\n\\nParagraph 2\\n\\nParagraph 3\\n\\nParagraph 4"
+    }
   `;
 
   try {
@@ -222,7 +233,14 @@ export async function generateEmailBody(data: any) {
         feature: "email_body_generation",
       },
     );
-    return cleanAndParseJson(result.response.text as string, fallback);
+    const parsed = cleanAndParseJson<{ emailBody?: string }>(result.response.text as string, fallback);
+    let cleaned = (parsed.emailBody || fallback.emailBody)
+      .replace(/^Hi\s+[^\n,]+[,.]?\s*/i, "")
+      .replace(/Let\s+me\s+know\s+if\s+you\s+have\s+any\s+questions[\s\S]*$/i, "")
+      .replace(/KR[\s\S]*$/i, "")
+      .trim();
+
+    return { emailBody: cleaned || fallback.emailBody };
   } catch (error) {
     console.error("Email Body Error:", error);
     return fallback;

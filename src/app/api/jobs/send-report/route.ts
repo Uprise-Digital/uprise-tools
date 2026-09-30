@@ -20,6 +20,7 @@ import {
   getPreviousMonthInfo,
   transformAdsData,
 } from "@/lib/report-utils";
+import { getOrCreatePublicShareUrlInternal } from "@/actions/share-dashboard.actions";
 import { createOrgNotification } from "@/service/notification.service";
 import { MyReportPDF } from "@/service/pdf-service";
 
@@ -131,13 +132,30 @@ export async function POST(request: Request) {
     const stream = await renderToStream(pdfElement as any);
     const pdfBuffer = await streamToBuffer(stream);
 
+    let publicReportUrl = "";
+    if (schedule.adAccountId) {
+      try {
+        const shareUrl = await getOrCreatePublicShareUrlInternal(
+          schedule.adAccountId,
+          schedule.organizationId,
+        );
+        if (shareUrl) {
+          publicReportUrl = `${shareUrl}${shareUrl.includes("?") ? "&" : "?"}selected=google`;
+        }
+      } catch (e) {
+        console.warn("Could not generate public share URL:", e);
+      }
+    }
+
     const emailSubjectText =
-      schedule.emailSubject || `Performance Report: ${clientName}`;
+      schedule.emailSubject || `Performance Reports - ${baseData.targetMonth} - ${clientName}`;
 
     const htmlBody = buildReportEmailHtml({
       clientName,
       introText: emailAi.emailBody,
       metrics: baseData.metrics,
+      targetMonth: baseData.targetMonth,
+      reportUrl: publicReportUrl,
     });
 
     // Email Dispatch (Guarded)

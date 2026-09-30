@@ -23,6 +23,7 @@ import {
   getPreviousMonthInfo,
   transformAdsData,
 } from "@/lib/report-utils";
+import { getOrCreatePublicShareUrlInternal } from "@/actions/share-dashboard.actions";
 import { MyReportPDF } from "@/service/pdf-service";
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_build_key");
@@ -108,14 +109,30 @@ export async function executeReportJobDirectly(params: {
   const stream = await renderToStream(pdfElement as any);
   const pdfBuffer = await streamToBuffer(stream);
 
+  let publicReportUrl = "";
+  if (schedule.adAccountId) {
+    try {
+      const shareUrl = await getOrCreatePublicShareUrlInternal(
+        schedule.adAccountId,
+        schedule.organizationId,
+      );
+      if (shareUrl) {
+        publicReportUrl = `${shareUrl}${shareUrl.includes("?") ? "&" : "?"}selected=google`;
+      }
+    } catch (e) {
+      console.warn("Could not generate public share URL:", e);
+    }
+  }
+
   const emailSubjectText =
-    schedule.emailSubject || `Performance Report: ${clientName}`;
+    schedule.emailSubject || `Performance Reports - ${baseData.targetMonth} - ${clientName}`;
 
   const htmlBody = buildReportEmailHtml({
     clientName,
     introText: emailAi.emailBody,
     metrics: baseData.metrics,
     targetMonth: baseData.targetMonth,
+    reportUrl: publicReportUrl,
   });
 
   const { sendSystemEmail } = await import("@/lib/email-service");
@@ -128,7 +145,7 @@ export async function executeReportJobDirectly(params: {
     customHtml: htmlBody,
     variables: {
       client_name: clientName,
-      report_url: "",
+      report_url: publicReportUrl,
     },
     attachments: [
       {

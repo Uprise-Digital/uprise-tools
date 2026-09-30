@@ -1,5 +1,9 @@
-import { getAppUrl } from "@/lib/app-url";
-
+/**
+ * UPRISE DIGITAL EXECUTIVE REPORT EMAIL TEMPLATE
+ * Matches Lakshane Fonseka's 3-Pillar Executive Reporting Standard (Image 2 styling).
+ * Clean plain-formatted text in 14px system font, zero corporate fluff, zero purple cards,
+ * official Uprise signature footer with logo_black.png, and confidentiality notice.
+ */
 export function buildReportEmailHtml(data: {
   clientName: string;
   introText: string;
@@ -11,167 +15,89 @@ export function buildReportEmailHtml(data: {
     costPerConv?: string | number;
   };
   targetMonth?: string;
+  reportUrl?: string;
+  senderName?: string;
+  senderRole?: string;
+  senderPhone?: string;
+  senderWebsite?: string;
 }): string {
-  const { clientName, introText, metrics, targetMonth } = data;
-  const appUrl = getAppUrl();
+  const { clientName, introText, reportUrl } = data;
+  const senderName = data.senderName || "Lakshane Fonseka";
+  const senderRole = data.senderRole || "Founder | Uprise Digital";
+  const senderPhone = data.senderPhone || "+61 426 759 756";
+  const senderWebsite = data.senderWebsite || "www.uprisedigital.com.au";
+  const cleanWebsite = senderWebsite.replace(/^https?:\/\//, "");
 
-  const conversions = metrics?.conversions ?? "0";
-  const cost = metrics?.cost ? `$${metrics.cost}` : "-";
-  const clicks = metrics?.clicks ?? "-";
-  const ctr = metrics?.ctr ? `${metrics.ctr}%` : "-";
-  const monthDisplay = targetMonth || "Monthly";
+  // Linkify URLs into clean blue underline hyperlinks
+  const linkify = (text: string) => {
+    return text.replace(
+      /(https?:\/\/[^\s<]+)/g,
+      '<a href="$1" style="color: #1155cc; text-decoration: underline;" target="_blank" rel="noopener noreferrer">$1</a>',
+    );
+  };
 
-  const numConversions =
-    parseFloat(String(conversions).replace(/[^0-9.]/g, "")) || 0;
-  const numClicks = parseFloat(String(clicks).replace(/[^0-9.]/g, "")) || 0;
+  // Convert double newlines into clean paragraph spacing
+  const rawParagraphs = (introText || "")
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
-  const showMetricsSection = numConversions > 0 && numClicks > 0;
+  const paragraphsHtml = rawParagraphs
+    .map((p) => {
+      const formatted = linkify(p).replace(/\n/g, "<br />");
+      return `<p style="margin: 0 0 14px 0; line-height: 1.6; color: inherit;">${formatted}</p>`;
+    })
+    .join("\n    ");
 
-  const metricsSectionHtml = showMetricsSection
-    ? `
-              <!-- KEY METRICS PREVIEW -->
-              <div style="margin-bottom: 28px;">
-                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 1px; margin-bottom: 12px;">
-                  Key Campaign Metrics Summary
-                </div>
-                <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                  <tr>
-                    <td width="48%" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 3px solid #7c3aed; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                      <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">Conversions</div>
-                      <div style="font-size: 24px; font-weight: 800; color: #0f172a; margin-top: 4px;">${conversions}</div>
-                    </td>
-                    <td width="4%"></td>
-                    <td width="48%" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 3px solid #7c3aed; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                      <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">Total Spend</div>
-                      <div style="font-size: 24px; font-weight: 800; color: #0f172a; margin-top: 4px;">${cost}</div>
-                    </td>
-                  </tr>
-                  <tr><td height="12" colSpan="3"></td></tr>
-                  <tr>
-                    <td width="48%" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 3px solid #7c3aed; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                      <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">Total Clicks</div>
-                      <div style="font-size: 24px; font-weight: 800; color: #0f172a; margin-top: 4px;">${clicks}</div>
-                    </td>
-                    <td width="4%"></td>
-                    <td width="48%" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-top: 3px solid #7c3aed; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                      <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">Click-Through Rate</div>
-                      <div style="font-size: 24px; font-weight: 800; color: #6d28d9; margin-top: 4px;">${ctr}</div>
-                    </td>
-                  </tr>
-                </table>
-              </div>
-  `
+  const reportLinkHtml = reportUrl
+    ? `<p style="margin: 20px 0 10px 0; font-size: 15px; font-weight: bold;">
+        <a href="${reportUrl}" style="color: #1155cc; text-decoration: underline;" target="_blank">Google Report</a>
+       </p>`
     : "";
 
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${monthDisplay} Performance Report - ${clientName}</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #334155;">
-  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 40px 16px;">
-    <tr>
-      <td align="center">
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);">
-          
-          <!-- BRAND HEADER WITH OFFICIAL LOGO -->
-          <tr>
-            <td style="background-color: #ffffff; padding: 28px 36px 20px 36px; border-bottom: 1px solid #f1f5f9; text-align: left;">
-              <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td>
-                    <!-- Dynamic Agency Logo Image -->
-                    <img src="${appUrl}/logo_white.png" alt="Agency Logo" height="38" style="display: block; border: 0; max-height: 38px; width: auto;" />
-                  </td>
-                  <td align="right" valign="middle">
-                    <div style="display: inline-block; font-size: 10px; font-weight: 700; color: #6d28d9; background-color: #f3e8ff; border: 1px solid #e9d5ff; padding: 5px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.6px;">
-                      Monthly Performance Report
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+<body style="margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #111827; background-color: #ffffff;">
+  <div style="max-width: 600px; margin: 0; text-align: left;">
+    <p style="margin: 0 0 16px 0;">Hi Team,</p>
+    <p style="margin: 0 0 18px 0;">Please see the performance reports for the last month below.</p>
 
-          <!-- REPORT TITLE BAR -->
-          <tr>
-            <td style="padding: 28px 36px 16px 36px;">
-              <div style="font-size: 11px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 4px;">
-                Monthly Performance Report &bull; ${monthDisplay}
-              </div>
-              <div style="font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">
-                ${clientName}
-              </div>
-            </td>
-          </tr>
+    ${reportLinkHtml}
 
-          <!-- MAIN CONTENT -->
-          <tr>
-            <td style="padding: 0px 36px 28px 36px;">
-              <!-- INTRO PARAGRAPH -->
-              <div style="font-size: 14.5px; line-height: 1.65; color: #334155; margin-bottom: 28px; background-color: #faf5ff; border: 1px solid #f3e8ff; border-radius: 12px; padding: 18px 20px;">
-                ${introText}
-              </div>
+    ${paragraphsHtml}
 
-              ${metricsSectionHtml}
+    <p style="margin: 24px 0 18px 0;">Let me know if you have any questions.</p>
 
-              <!-- ATTACHMENT NOTICE BOX -->
-              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #fcfaff; border: 1px solid #e9d5ff; border-left: 4px solid #7c3aed; border-radius: 10px; padding: 16px 18px; margin-bottom: 24px;">
-                <tr>
-                  <td>
-                    <div style="font-size: 13.5px; font-weight: 700; color: #4c1d95;">
-                      📄 Complete PDF Performance Report Attached
-                    </div>
-                    <div style="font-size: 12.5px; color: #475569; margin-top: 4px; line-height: 1.55;">
-                      Your full monthly performance breakdown, search term analytics, top ad creative showcase, and strategic growth roadmap are attached as a PDF document.
-                    </div>
-                  </td>
-                </tr>
-              </table>
+    <p style="margin: 24px 0 14px 0; font-size: 14px; color: inherit;">KR</p>
 
-              <!-- SIGNAL CONTACT NOTICE -->
-              <div style="font-size: 13.5px; color: #475569; line-height: 1.6; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px;">
-                💬 Have questions about your report or next month's strategy? Please contact your account manager directly through <strong>Signal</strong>.
-              </div>
-            </td>
-          </tr>
+    <!-- Uprise Executive Signature Footer -->
+    <table border="0" cellspacing="0" cellpadding="0" style="margin-top: 10px; border-collapse: collapse;">
+      <tr>
+        <td valign="middle" style="padding-right: 18px; vertical-align: middle;">
+          <img src="https://tools.uprisedigital.com.au/logo_black.png" alt="Uprise Digital" width="95" style="display: block; width: 95px; height: auto;" />
+        </td>
+        <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13.5px; line-height: 1.45; vertical-align: middle;">
+          <div style="font-weight: 700; font-size: 14.5px; color: #0a2540;">${senderName}</div>
+          <div style="color: #475569; margin-top: 2px;">Founder | <strong style="color: #0a2540;">Uprise Digital</strong></div>
+          <div style="color: #475569; margin-top: 2px;">${senderPhone}</div>
+          <div style="margin-top: 2px;">
+            <a href="https://${cleanWebsite}" style="color: #1155cc; text-decoration: underline;">${cleanWebsite}</a>
+          </div>
+        </td>
+      </tr>
+    </table>
 
-          <!-- FOOTER -->
-          <tr>
-            <td style="background-color: #f8fafc; padding: 24px 36px; border-top: 1px solid #e2e8f0; text-align: left;">
-              <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td>
-                    <div style="font-size: 13.5px; font-weight: 800; color: #0f172a;">
-                      Performance Team
-                    </div>
-                    <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
-                      Strategy &bull; Marketing &bull; Sales Optimisation
-                    </div>
-                  </td>
-                  <td align="right">
-                    <a href="${appUrl}" style="display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 11px; font-weight: 700; text-decoration: none; padding: 8px 18px; border-radius: 9999px; letter-spacing: 0.3px;">
-                      Visit Website &rarr;
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              <div style="font-size: 11px; color: #94a3b8; margin-top: 16px; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 12px;">
-                This email and any files transmitted with it are confidential and intended solely for the use of ${clientName}.
-              </div>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
+    <!-- Confidentiality Footer -->
+    <div style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      This email and any files transmitted with it are confidential and intended solely for the use of ${clientName}. If you have received this transmission in error, please notify the sender immediately.
+    </div>
+  </div>
 </body>
-</html>
-  `;
+</html>`;
 }
 
 export function buildExecutiveReportEmailHtml(data: {
@@ -181,12 +107,15 @@ export function buildExecutiveReportEmailHtml(data: {
   senderTitle?: string;
   senderPhone?: string;
   senderWebsite?: string;
+  clientName?: string;
 }): string {
   const greeting = data.recipientGreeting || "Hi Team,";
   const senderName = data.senderName || "Lakshane Fonseka";
-  const senderTitle = data.senderTitle || "Founder | Uprise Digital";
+  const senderRole = data.senderTitle || "Founder | Uprise Digital";
   const senderPhone = data.senderPhone || "+61 426 759 756";
   const senderWebsite = data.senderWebsite || "www.uprisedigital.com.au";
+  const cleanWebsite = senderWebsite.replace(/^https?:\/\//, "");
+  const clientName = data.clientName || "Client";
 
   return `<!DOCTYPE html>
 <html>
@@ -194,20 +123,38 @@ export function buildExecutiveReportEmailHtml(data: {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #222222; background-color: #ffffff;">
-  <div style="max-width: 680px; margin: 0; text-align: left;">
+<body style="margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #111827; background-color: #ffffff;">
+  <div style="max-width: 600px; margin: 0; text-align: left;">
     <p style="margin: 0 0 16px 0;">${greeting}</p>
-    <p style="margin: 0 0 20px 0;">Please see the performance reports for the last month below.</p>
+    <p style="margin: 0 0 18px 0;">Please see the performance reports for the last month below.</p>
 
     ${data.reportContentHtml}
 
-    <p style="margin: 28px 0 16px 0;">Let me know if you have any questions.</p>
+    <p style="margin: 24px 0 18px 0;">Let me know if you have any questions.</p>
 
-    <p style="margin: 0 0 4px 0; color: #333333;">KR</p>
-    <p style="margin: 0; font-weight: 700; color: #111111;">${senderName}</p>
-    <p style="margin: 2px 0 0 0; color: #555555; font-size: 13px;">${senderTitle}</p>
-    <p style="margin: 2px 0 0 0; color: #555555; font-size: 13px;">${senderPhone}</p>
-    <p style="margin: 2px 0 0 0; font-size: 13px;"><a href="https://${senderWebsite.replace(/^https?:\/\//, "")}" style="color: #1a0dab; text-decoration: underline;">${senderWebsite}</a></p>
+    <p style="margin: 24px 0 14px 0; font-size: 14px; color: inherit;">KR</p>
+
+    <!-- Uprise Executive Signature Footer -->
+    <table border="0" cellspacing="0" cellpadding="0" style="margin-top: 10px; border-collapse: collapse;">
+      <tr>
+        <td valign="middle" style="padding-right: 18px; vertical-align: middle;">
+          <img src="https://tools.uprisedigital.com.au/logo_black.png" alt="Uprise Digital" width="95" style="display: block; width: 95px; height: auto;" />
+        </td>
+        <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13.5px; line-height: 1.45; vertical-align: middle;">
+          <div style="font-weight: 700; font-size: 14.5px; color: #0a2540;">${senderName}</div>
+          <div style="color: #475569; margin-top: 2px;">Founder | <strong style="color: #0a2540;">Uprise Digital</strong></div>
+          <div style="color: #475569; margin-top: 2px;">${senderPhone}</div>
+          <div style="margin-top: 2px;">
+            <a href="https://${cleanWebsite}" style="color: #1155cc; text-decoration: underline;">${cleanWebsite}</a>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Confidentiality Footer -->
+    <div style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      This email and any files transmitted with it are confidential and intended solely for the use of ${clientName}. If you have received this transmission in error, please notify the sender immediately.
+    </div>
   </div>
 </body>
 </html>`;
