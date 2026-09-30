@@ -25,7 +25,9 @@ export async function logEmail(data: {
     | "morning_briefing"
     | "scheduled_report"
     | "on_demand_report"
-    | "client_onboarding";
+    | "client_onboarding"
+    | "client_executive_report"
+    | (string & {});
   status: "success" | "failed";
   error?: string | null;
   resendId?: string | null;

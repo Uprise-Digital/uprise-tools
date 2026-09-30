@@ -8,6 +8,7 @@ import { adAccounts, reportSchedules } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
 import { logAction, logEmail } from "@/lib/audit";
 import { cleanCcEmails, parseEmailList } from "@/lib/cleaners";
+import { enforceEmailSafeguard } from "@/lib/email-guard";
 import {
   fetchAccountKeywords,
   fetchAccountLastMonthSummary,
@@ -133,12 +134,16 @@ async function processReportPayload(payload: {
       metrics: baseData.metrics,
     });
 
-    // 6. Send the email via Resend
+    // 6. Send the email via Resend (Guarded)
+    const rawTo = parseEmailList(schedule.recipientEmail);
+    const rawCc = cleanCcEmails(schedule.ccEmails);
+    const safeDelivery = enforceEmailSafeguard(rawTo, emailSubjectText, rawCc);
+
     const emailResult = await resend.emails.send({
       from: "Uprise Digital <reports@uprisedigital.com.au>",
-      to: parseEmailList(schedule.recipientEmail),
-      cc: cleanCcEmails(schedule.ccEmails),
-      subject: emailSubjectText,
+      to: safeDelivery.to,
+      cc: safeDelivery.cc.length > 0 ? safeDelivery.cc : undefined,
+      subject: safeDelivery.subject,
       text: emailAi.emailBody,
       html: htmlBody,
       attachments: [
@@ -152,8 +157,8 @@ async function processReportPayload(payload: {
     if (emailResult.error) {
       await logEmail({
         adAccountId: schedule.adAccountId,
-        recipient: schedule.recipientEmail,
-        subject: emailSubjectText,
+        recipient: safeDelivery.to[0] || schedule.recipientEmail,
+        subject: safeDelivery.subject,
         emailType: "scheduled_report",
         status: "failed",
         error: emailResult.error.message,
@@ -252,7 +257,6 @@ async function processReportPayload(payload: {
  * Queries all report schedules due today and runs them sequentially.
  */
 export async function GET(request: Request) {
-  // Security Check
   const authHeader = request.headers.get("authorization");
   const isAuthorized =
     (process.env.CRON_SECRET &&
@@ -265,30 +269,15 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 0. Check if automated client reports are globally paused
-    const isGloballyActive = await withBypassTenantDb(async (tx) => {
-      try {
-        const setting = await tx.query.clientReportSettings.findFirst();
-        return setting ? setting.isGloballyActive : true;
-      } catch (err) {
-        console.warn(
-          "[Cron] Could not query clientReportSettings, defaulting to active:",
-          err,
-        );
-        return true;
-      }
+    // CRITICAL AGENCY SAFEGUARD: NO EMAILS TO BE SENT THROUGH AUTOMATION
+    console.log(
+      "[Cron] Automated client report sending is strictly disabled per agency policy. Skipping.",
+    );
+    return NextResponse.json({
+      success: true,
+      message: "Automated client report sending is strictly disabled. No emails sent through automation.",
+      processed: 0,
     });
-
-    if (!isGloballyActive) {
-      console.log(
-        "[Cron] Automated client report sending is globally paused. Skipping.",
-      );
-      return NextResponse.json({
-        success: true,
-        message: "Automated client report sending is globally paused.",
-        processed: 0,
-      });
-    }
 
     // Determine today's day of the month (Melbourne context is fine)
     const today = new Date().getDate();

@@ -8,6 +8,7 @@ import { reportSchedules } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
 import { logAction, logEmail } from "@/lib/audit";
 import { cleanCcEmails, parseEmailList } from "@/lib/cleaners";
+import { enforceEmailSafeguard } from "@/lib/email-guard";
 import {
   fetchAccountKeywords,
   fetchAccountLastMonthSummary,
@@ -139,12 +140,16 @@ export async function POST(request: Request) {
       metrics: baseData.metrics,
     });
 
-    // Email Dispatch
+    // Email Dispatch (Guarded)
+    const rawTo = parseEmailList(schedule.recipientEmail);
+    const rawCc = cleanCcEmails(schedule.ccEmails);
+    const safeDelivery = enforceEmailSafeguard(rawTo, emailSubjectText, rawCc);
+
     const emailResult = await resend.emails.send({
       from: "Uprise Digital <reports@uprisedigital.com.au>",
-      to: parseEmailList(schedule.recipientEmail),
-      cc: cleanCcEmails(schedule.ccEmails),
-      subject: emailSubjectText,
+      to: safeDelivery.to,
+      cc: safeDelivery.cc.length > 0 ? safeDelivery.cc : undefined,
+      subject: safeDelivery.subject,
       text: emailAi.emailBody,
       html: htmlBody,
       attachments: [
@@ -158,8 +163,8 @@ export async function POST(request: Request) {
     if (emailResult.error) {
       await logEmail({
         adAccountId: schedule.adAccountId,
-        recipient: schedule.recipientEmail,
-        subject: emailSubjectText,
+        recipient: safeDelivery.to[0] || schedule.recipientEmail,
+        subject: safeDelivery.subject,
         emailType: "on_demand_report",
         status: "failed",
         error: emailResult.error.message,

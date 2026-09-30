@@ -229,6 +229,358 @@ export async function generateEmailBody(data: any) {
   }
 }
 
+export interface ExecutiveBriefingParams {
+  clientName: string;
+  recipientName?: string;
+  periodLabel?: string;
+  googleData?: {
+    spend: number;
+    conversions: number;
+    cpl: number;
+    clicks?: number;
+    ctr?: number;
+    cpc?: number;
+    priorSpend?: number;
+    priorConversions?: number;
+    priorCpl?: number;
+    targetCpl?: number | null;
+    benchmarkNotes?: string;
+    topConvertingTerms?: string[];
+    wastedSpendTerms?: string[];
+    reportUrl?: string;
+  };
+  metaData?: {
+    spend?: number;
+    conversions?: number;
+    cpl?: number;
+    targetCpl?: number | null;
+    notes?: string;
+    reportUrl?: string;
+  };
+  customInstructions?: string;
+  wordLimitTier?: "concise" | "standard" | "detailed";
+  wordLimit?: number;
+  senderName?: string;
+  senderRole?: string;
+  senderPhone?: string;
+  senderWebsite?: string;
+  organizationId?: string;
+  userId?: string;
+}
+
+export interface ExecutiveBriefingResult {
+  subject: string;
+  plainText: string;
+  htmlContent: string;
+  fullHtml: string;
+  channelReports: {
+    google?: {
+      overallSnapshot: string;
+      theGoodAndBad: string;
+      whatHappensNext: string;
+    };
+    meta?: {
+      overallSnapshot: string;
+      theGoodAndBad: string;
+      whatHappensNext: string;
+    };
+  };
+}
+
+/**
+ * USE CASE 2B: LAKSHANE'S EXECUTIVE REPORTING STANDARD
+ * Generates an honest, candid, 3-pillar executive performance briefing.
+ * Covers: Overall Snapshot, The Good and The Bad (and why), What Happens Next.
+ * Formatting is intentionally clean, plain-formatted text with zero wild CSS.
+ */
+export async function generateExecutiveBriefing(
+  data: ExecutiveBriefingParams,
+): Promise<ExecutiveBriefingResult> {
+  const period = data.periodLabel || "Last Month";
+  const senderName = data.senderName || "Lakshane Fonseka";
+  const senderRole = data.senderRole || "Founder | Uprise Digital";
+  const senderPhone = data.senderPhone || "+61 426 759 756";
+  const senderWebsite = data.senderWebsite || "www.uprisedigital.com.au";
+
+  const appendChannelParam = (url: string, channel: "google" | "meta") => {
+    if (!url) return url;
+    if (url.includes("selected=")) return url;
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}selected=${channel}`;
+  };
+
+  const rawGoogleUrl =
+    data.googleData?.reportUrl || "https://tools.uprisedigital.com.au/reports";
+  const googleUrl = appendChannelParam(rawGoogleUrl, "google");
+
+  const rawMetaUrl = data.metaData?.reportUrl || rawGoogleUrl;
+  const metaUrl = appendChannelParam(rawMetaUrl, "meta");
+
+  const prompt = `
+You are Lakshane Fonseka, Founder & Lead Digital Strategist at Uprise Digital.
+Write a monthly client performance email briefing for "${data.clientName}" following your exact, non-negotiable reporting standard.
+
+LAKSHANE'S CORE STANDARD & TONE:
+1. Brutal Honesty & Candour: Never hide setbacks or use corporate spin. If CPL increased or conversions dipped, state it immediately and provide the exact operational, campaign, or market "why" (e.g., search query leakage, seasonal changes, account maturity ramp, contractor creative delays, landing page friction).
+2. The 3 Non-Negotiable Pillars for each channel:
+   - Overall snapshot: A clear summary of the last 30 days covering actual spend, total conversions/leads, and actual Cost Per Lead (CPL), alongside period-over-period direction (comparing against prior period spend/leads/CPL if available).
+   - The good and the bad: What performed well (e.g. converting keyword clusters, strong CTR), what missed the mark (e.g. wasted spend on non-converting terms, rising CPCs), and WHY.
+   - What happens next: Concrete tactical actions and adjustments for the next 30 days (e.g. negative keyword pruning, budget reallocation, ad copy restructuring).
+3. Short, Punchy Paragraphs: Lakshane writes in short 1-2 sentence paragraphs with generous breathing room. NEVER output dense blocks of text.
+4. Plain Formatted Text: Written naturally as a direct email from an agency leader (Lakshane Fonseka) in Gmail. No marketing fluff, no wild CSS, no corporate clichés.
+5. Language: Australian / UK English (optimise, prioritise, analysing, behaviour).
+6. DO NOT include any salutation ("Hi Team") or signoff ("Let me know...", "KR", signature) inside the paragraphs. The email wrapper adds the greeting and signature automatically.
+7. CRITICAL CLIENT COMMUNICATION RULE - NEVER MENTION TARGETS OR BENCHMARKS:
+   - DO NOT mention target CPL, target CPA, target lead counts, or mature industry benchmark figures anywhere in the email narrative (especially for Google Ads and Meta).
+   - RATIONALE: Even when actual CPL is only slightly above or below an internal target or benchmark, citing target figures causes friction, unnecessary anxiety, and client pushback.
+   - WHAT TO DO INSTEAD: Focus strictly on actual delivery (exact spend, exact leads, actual CPL) and period-over-period trajectory (e.g. whether lead volume increased or efficiency improved relative to the prior month). State the actual numbers plainly and objectively without comparing against any target or benchmark numbers.
+
+DATA CONTEXT:
+- Client Name: ${data.clientName}
+- Period: ${period}
+${
+  data.googleData
+    ? `
+- Google Ads Data:
+  * Spend: $${data.googleData.spend.toFixed(2)}
+  * Conversions (Leads): ${data.googleData.conversions}
+  * Cost Per Lead (CPL): $${data.googleData.cpl.toFixed(2)}
+  * Clicks: ${data.googleData.clicks ?? "-"}, CTR: ${data.googleData.ctr ? data.googleData.ctr.toFixed(2) + "%" : "-"}, CPC: ${data.googleData.cpc ? "$" + data.googleData.cpc.toFixed(2) : "-"}
+  ${data.googleData.priorSpend ? `* Prior Period Comparison: Spend $${data.googleData.priorSpend.toFixed(2)}, Conversions: ${data.googleData.priorConversions}, Prior CPL: $${data.googleData.priorCpl?.toFixed(2)}` : ""}
+  * Top Converting Search Terms: ${data.googleData.topConvertingTerms?.join(", ") || "core high-intent product terms"}
+  * Wasted Spend / Non-Converting Terms: ${data.googleData.wastedSpendTerms?.join(", ") || "broad discovery terms"}
+  * Report Link: ${googleUrl}
+`
+    : ""
+}
+
+${
+  data.metaData
+    ? `
+- Meta Ads Data:
+  * Spend: $${data.metaData.spend?.toFixed(2) || "0.00"}
+  * Conversions (Leads): ${data.metaData.conversions || 0}
+  * Cost Per Lead (CPL): $${data.metaData.cpl?.toFixed(2) || "0.00"}
+  * Meta Context / Bottlenecks: ${data.metaData.notes || ""}
+  * Report Link: ${metaUrl}
+`
+    : ""
+}
+
+${data.customInstructions ? `SPECIAL CLIENT NOTES / PROMPT INJECTION: ${data.customInstructions}` : ""}
+${data.wordLimitTier ? `BREVITY / WORD LIMIT TIER: ${
+  data.wordLimitTier === "concise"
+    ? "CONCISE: Keep it punchy and brief (around 70-120 words per channel, strictly 1-2 short sentences per paragraph)."
+    : data.wordLimitTier === "detailed"
+      ? "DETAILED: Provide comprehensive strategic breakdown (around 220-300 words per channel with thorough operational context)."
+      : "STANDARD: Balanced brevity (around 150-200 words per channel, direct and clear)."
+}` : ""}
+${data.wordLimit ? `MAXIMUM WORD LIMIT: Strictly keep total email narrative under ${data.wordLimit} words.` : ""}
+
+Return a JSON object with this exact schema:
+{
+  "subject": "Performance Reports - ${period} - ${data.clientName}",
+  "sections": {
+    ${data.googleData ? `"google": {
+      "paragraphs": [
+        "Short paragraph (1-2 sentences) giving the overall snapshot: Spend, Leads, and actual CPL compared with the prior period. DO NOT mention target figures or benchmarks.",
+        "Short paragraph (1-2 sentences) on what performed well (core converting keywords, CTR).",
+        "Short paragraph (1-2 sentences) on what didn't perform well and WHY (exact non-converting queries and wasted spend).",
+        "Short paragraph (1-2 sentences) on what happens next: immediate 30-day tactical corrections (negative keywords, match types, budget shifts)."
+      ]
+    }${data.metaData ? "," : ""}` : ""}
+    ${data.metaData ? `"meta": {
+      "paragraphs": [
+        "Short paragraph (1-2 sentences) on overall snapshot: Meta spend, lead volume, and actual CPL compared with prior trends. DO NOT mention target figures or benchmarks.",
+        "Short paragraph (1-2 sentences) on what performed well (creative angles, form submissions vs landing page).",
+        "Short paragraph (1-2 sentences) on what didn't perform well and WHY (creative delays, ad fatigue, high CPL, learning phase).",
+        "Short paragraph (1-2 sentences) on what happens next over the next 30 days (new video creatives, audience tuning, testing lead forms)."
+      ]
+    }` : ""}
+  }
+}
+`;
+
+  try {
+    const result = await generateContentTracked(
+      {
+        model: GEMINI_MODEL_LOW,
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      },
+      {
+        organizationId: data.organizationId,
+        userId: data.userId,
+        feature: "executive_briefing_generation",
+      },
+    );
+
+    const parsed = cleanAndParseJson<any>(result.response.text as string, null);
+    const googleSec = parsed?.sections?.google || {};
+    const metaSec = parsed?.sections?.meta || {};
+
+    const stripExcess = (text: string) =>
+      (text || "")
+        .replace(/^Hi\s+[^\n,]+[,.]?\s*/i, "")
+        .replace(/Let\s+me\s+know\s+if\s+you\s+have\s+any\s+questions[\s\S]*$/i, "")
+        .replace(/KR[\s\S]*$/i, "")
+        .trim();
+
+    const parseSectionParagraphs = (sec: any, fallbackDefaults: string[]) => {
+      if (Array.isArray(sec?.paragraphs) && sec.paragraphs.length > 0) {
+        return sec.paragraphs.map(stripExcess).filter((p: string) => p.length > 0);
+      }
+      const fallbackSections = [
+        sec?.overallSnapshot,
+        sec?.theGoodAndBad,
+        sec?.whatHappensNext,
+      ]
+        .map(stripExcess)
+        .filter(Boolean);
+      return fallbackSections.length > 0 ? fallbackSections : fallbackDefaults;
+    };
+
+    const googleParagraphs = data.googleData
+      ? parseSectionParagraphs(googleSec, [
+          `Google has tracked at $${data.googleData.cpl.toFixed(2)} CPL across $${data.googleData.spend.toFixed(2)} spend with ${data.googleData.conversions} leads generated over the period.`,
+          `Core high-intent search terms converted steadily, while broad queries accounted for wasted spend that we are actively pruning.`,
+          `Over the next 30 days, we are tightening match types, adding negative keywords, and focusing budget on top-converting ad groups.`,
+        ])
+      : [];
+
+    const metaParagraphs = data.metaData
+      ? parseSectionParagraphs(metaSec, [
+          `Meta Ads generated ${data.metaData.conversions || 0} leads across $${data.metaData.spend?.toFixed(2) || "0.00"} spend at a CPL of $${data.metaData.cpl?.toFixed(2) || "0.00"}.`,
+          `Top-performing ad creatives captured steady interest, but overall CPA was impacted by creative fatigue and onboarding asset delays.`,
+          `Over the next 30 days, we are deploying refreshed video assets and testing instant lead forms to lower acquisition costs.`,
+        ])
+      : [];
+
+    const cleanWebsite = senderWebsite.replace(/^https?:\/\//, "");
+
+    const plainTextParts = [
+      "Hi Team,",
+      "",
+      "Please see the performance reports for the last month below.",
+    ];
+
+    if (googleParagraphs.length > 0) {
+      plainTextParts.push("", `Google Report (${googleUrl})`, "", googleParagraphs.join("\n\n"));
+    }
+
+    if (metaParagraphs.length > 0) {
+      plainTextParts.push("", `Meta Report (${metaUrl})`, "", metaParagraphs.join("\n\n"));
+    }
+
+    plainTextParts.push(
+      "",
+      "Let me know if you have any questions.",
+      "",
+      "KR",
+      "",
+      senderName,
+      senderRole,
+      senderPhone,
+      cleanWebsite
+    );
+
+    const plainText = plainTextParts.join("\n");
+
+    let reportContentHtml = "";
+    if (googleParagraphs.length > 0) {
+      reportContentHtml += `
+      <p style="margin: 20px 0 10px 0; font-size: 15px; font-weight: bold;">
+        <a href="${googleUrl}" style="color: #1155cc; text-decoration: underline;">Google Report</a>
+      </p>
+      ${googleParagraphs.map((p: string) => `<p style="margin: 0 0 14px 0; line-height: 1.6;">${p}</p>`).join("")}
+      `;
+    }
+
+    if (metaParagraphs.length > 0) {
+      reportContentHtml += `
+      <p style="margin: 26px 0 10px 0; font-size: 15px; font-weight: bold;">
+        <a href="${metaUrl}" style="color: #1155cc; text-decoration: underline;">Meta Report</a>
+      </p>
+      ${metaParagraphs.map((p: string) => `<p style="margin: 0 0 14px 0; line-height: 1.6;">${p}</p>`).join("")}
+      `;
+    }
+
+    const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: inherit;">
+  <div style="max-width: 600px; margin: 0; text-align: left;">
+    <p style="margin: 0 0 16px 0;">Hi Team,</p>
+    <p style="margin: 0 0 18px 0;">Please see the performance reports for the last month below.</p>
+
+    ${reportContentHtml}
+
+    <p style="margin: 24px 0 20px 0;">Let me know if you have any questions.</p>
+
+    <p style="margin: 28px 0 14px 0; font-size: 14px; color: inherit;">KR</p>
+
+    <!-- Uprise Executive Signature Footer -->
+    <table border="0" cellspacing="0" cellpadding="0" style="margin-top: 10px; border-collapse: collapse;">
+      <tr>
+        <td valign="middle" style="padding-right: 18px; vertical-align: middle;">
+          <img src="https://tools.uprisedigital.com.au/logo_black.png" alt="Uprise Digital" width="95" style="display: block; width: 95px; height: auto;" />
+        </td>
+        <td valign="middle" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13.5px; line-height: 1.45; vertical-align: middle;">
+          <div style="font-weight: 700; font-size: 14.5px; color: #0a2540;">${senderName}</div>
+          <div style="color: #475569; margin-top: 2px;">Founder | <strong style="color: #0a2540;">Uprise Digital</strong></div>
+          <div style="color: #475569; margin-top: 2px;">${senderPhone}</div>
+          <div style="margin-top: 2px;">
+            <a href="https://${cleanWebsite}" style="color: #1155cc; text-decoration: underline;">${cleanWebsite}</a>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Confidentiality Footer -->
+    <div style="margin-top: 36px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      This email and any files transmitted with it are confidential and intended solely for the use of ${data.clientName}. If you have received this transmission in error, please notify the sender immediately.
+    </div>
+  </div>
+</body>
+</html>`;
+
+    return {
+      subject:
+        parsed?.subject || `Performance Reports - ${period} - ${data.clientName}`,
+      plainText,
+      htmlContent: reportContentHtml,
+      fullHtml,
+      channelReports: {
+        ...(googleParagraphs.length > 0
+          ? {
+              google: {
+                overallSnapshot: googleParagraphs[0] || "",
+                theGoodAndBad: googleParagraphs[1] || "",
+                whatHappensNext: googleParagraphs[2] || "",
+              },
+            }
+          : {}),
+        ...(metaParagraphs.length > 0
+          ? {
+              meta: {
+                overallSnapshot: metaParagraphs[0] || "",
+                theGoodAndBad: metaParagraphs[1] || "",
+                whatHappensNext: metaParagraphs[2] || "",
+              },
+            }
+          : {}),
+      },
+    };
+  } catch (err) {
+    console.error("Executive Briefing Generation Error:", err);
+    throw err;
+  }
+}
+
+
 /**
  * USE CASE 3: DAILY MORNING BRIEFING
  * Generates the Morning Briefing email text data based on yesterday's portfolio performance and baseline data.

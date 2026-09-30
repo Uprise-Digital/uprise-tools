@@ -197,10 +197,11 @@ export async function generateContentTracked(
 
   // 6. Log the usage in usage_logs if organizationId is present
   if (organizationId) {
+    const safeUserId = userId && userId !== "system" ? userId : null;
     await withBypassTenantDb(async (tx) => {
       await tx.insert(usageLogs).values({
         organizationId: organizationId!,
-        userId,
+        userId: safeUserId,
         actionType: "gemini_query",
         unitsUsed: totalTokens,
         estimatedCost: queryCost.toFixed(6),

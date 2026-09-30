@@ -13,28 +13,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let recipientOverride: string | undefined;
-    try {
-      const body = await request.json();
-      recipientOverride = body?.recipient || body?.email;
-    } catch {
-      // no JSON body
-    }
-
-    // 2. Trigger the Weekly Client Report send
-    const result = await sendWeeklyClientReportAction(recipientOverride);
-
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
-    }
-
-    return NextResponse.json(
-      {
-        message: "Weekly Client Report sent successfully",
-        details: result.message,
-      },
-      { status: 200 },
+    // CRITICAL AGENCY SAFEGUARD: NO EMAILS TO BE SENT THROUGH AUTOMATION
+    console.log(
+      "[Cron] Weekly client report automation is strictly disabled per agency policy. Skipping.",
     );
+    return NextResponse.json({
+      success: true,
+      message: "Weekly client report automation is strictly disabled. No emails sent through automation.",
+    });
   } catch (error: any) {
     console.error("Cron weekly-client-report error:", error);
     return NextResponse.json(
@@ -62,19 +48,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const result = await sendWeeklyClientReportAction(recipient);
-
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
-    }
-
-    return NextResponse.json(
-      {
-        message: "Weekly Client Report sent successfully via GET",
-        details: result.message,
-      },
-      { status: 200 },
+    // CRITICAL AGENCY SAFEGUARD: NO EMAILS TO BE SENT THROUGH AUTOMATION
+    console.log(
+      "[Cron] Weekly client report automation is strictly disabled per agency policy. Skipping.",
     );
+    return NextResponse.json({
+      success: true,
+      message: "Weekly client report automation is strictly disabled. No emails sent through automation.",
+    });
   } catch (error: any) {
     console.error("Cron weekly-client-report GET error:", error);
     return NextResponse.json(

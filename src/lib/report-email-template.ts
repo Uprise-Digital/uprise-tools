@@ -173,3 +173,43 @@ export function buildReportEmailHtml(data: {
 </html>
   `;
 }
+
+export function buildExecutiveReportEmailHtml(data: {
+  recipientGreeting?: string;
+  reportContentHtml: string;
+  senderName?: string;
+  senderTitle?: string;
+  senderPhone?: string;
+  senderWebsite?: string;
+}): string {
+  const greeting = data.recipientGreeting || "Hi Team,";
+  const senderName = data.senderName || "Lakshane Fonseka";
+  const senderTitle = data.senderTitle || "Founder | Uprise Digital";
+  const senderPhone = data.senderPhone || "+61 426 759 756";
+  const senderWebsite = data.senderWebsite || "www.uprisedigital.com.au";
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #222222; background-color: #ffffff;">
+  <div style="max-width: 680px; margin: 0; text-align: left;">
+    <p style="margin: 0 0 16px 0;">${greeting}</p>
+    <p style="margin: 0 0 20px 0;">Please see the performance reports for the last month below.</p>
+
+    ${data.reportContentHtml}
+
+    <p style="margin: 28px 0 16px 0;">Let me know if you have any questions.</p>
+
+    <p style="margin: 0 0 4px 0; color: #333333;">KR</p>
+    <p style="margin: 0; font-weight: 700; color: #111111;">${senderName}</p>
+    <p style="margin: 2px 0 0 0; color: #555555; font-size: 13px;">${senderTitle}</p>
+    <p style="margin: 2px 0 0 0; color: #555555; font-size: 13px;">${senderPhone}</p>
+    <p style="margin: 2px 0 0 0; font-size: 13px;"><a href="https://${senderWebsite.replace(/^https?:\/\//, "")}" style="color: #1a0dab; text-decoration: underline;">${senderWebsite}</a></p>
+  </div>
+</body>
+</html>`;
+}
+

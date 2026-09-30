@@ -7,6 +7,7 @@ import {
   Clock,
   FileText,
   HeartPulse,
+  History,
   Mail,
   Pause,
   Play,
@@ -38,6 +39,8 @@ import {
   type WeeklyClientReportSettingsData,
 } from "@/actions/weekly-client-report.actions";
 import { ReportAutomationTrigger } from "@/components/reportAutomationTrigger";
+import { AgencyReportHistoryView } from "@/components/reports/agency-report-history-view";
+import { ClientEmailDraftModal } from "@/components/reports/client-email-draft-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -354,6 +357,24 @@ export default function ReportsClient({
   const [testingScheduleId, setTestingScheduleId] = useState<number | null>(
     null,
   );
+  const [clientReportSubTab, setClientReportSubTab] = useState<
+    "schedules" | "history"
+  >("schedules");
+  const [selectedDraftAccount, setSelectedDraftAccount] = useState<{
+    adAccountId: number;
+    accountName: string;
+    googleAccountId: string;
+  } | null>(null);
+  const [isDraftModalOpen, setIsDraftModalOpen] = useState(false);
+
+  const handleOpenDraftModal = (item: ClientReportAccountItem) => {
+    setSelectedDraftAccount({
+      adAccountId: item.adAccountId,
+      accountName: item.accountName,
+      googleAccountId: item.googleAccountId,
+    });
+    setIsDraftModalOpen(true);
+  };
 
   const handleToggleGlobal = async (checked: boolean) => {
     setIsTogglingGlobal(true);
@@ -1430,9 +1451,51 @@ export default function ReportsClient({
       {/* TAB 3: AUTOMATED CLIENT REPORTS                               */}
       {/* ───────────────────────────────────────────────────────────── */}
       {activeTab === "client_reports" && (
-        <div className="space-y-8 animate-in fade-in-50 duration-200">
-          {/* Top Quick Status & Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="space-y-6 animate-in fade-in-50 duration-200">
+          {/* Sub Navigation Bar: Schedules & Drafts vs Dispatch History */}
+          <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200/60">
+              <button
+                type="button"
+                onClick={() => setClientReportSubTab("schedules")}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+                  clientReportSubTab === "schedules"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "hover:text-slate-900",
+                )}
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                Client Automation &amp; Drafts
+              </button>
+              <button
+                type="button"
+                onClick={() => setClientReportSubTab("history")}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+                  clientReportSubTab === "history"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "hover:text-slate-900",
+                )}
+              >
+                <History className="h-3.5 w-3.5" />
+                Agency Dispatch History
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-500 hidden sm:block">
+              {clientReportSubTab === "schedules"
+                ? "Draft executive emails, inject custom notes, set word limits, and manage schedules."
+                : "Real-time agency audit log of all client report deliveries and test previews."}
+            </div>
+          </div>
+
+          {clientReportSubTab === "history" ? (
+            <AgencyReportHistoryView />
+          ) : (
+            <div className="space-y-8">
+              {/* Top Quick Status & Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Card 1: Global Engine Status */}
             <Card className="py-5 shadow-xs border-slate-200 overflow-hidden relative bg-white">
               <div
@@ -1891,6 +1954,17 @@ export default function ReportsClient({
 
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenDraftModal(item)}
+                                className="h-7 px-2.5 text-xs font-semibold text-indigo-700 bg-indigo-50/70 border-indigo-200 hover:bg-indigo-100 hover:text-indigo-900 cursor-pointer shadow-2xs"
+                                title="Draft, edit on the spot, and send executive client report"
+                              >
+                                <Sparkles className="h-3 w-3 mr-1 text-indigo-600" />
+                                Draft Email
+                              </Button>
                               {item.hasSchedule && (
                                 <Button
                                   type="button"
@@ -1900,7 +1974,7 @@ export default function ReportsClient({
                                     testingScheduleId === item.scheduleId
                                   }
                                   onClick={() => handleTriggerTest(item)}
-                                  className="h-7 px-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 cursor-pointer"
+                                  className="h-7 px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
                                   title="Send Test Report Email"
                                 >
                                   <Play className="h-3 w-3 mr-1" />
@@ -1925,7 +1999,24 @@ export default function ReportsClient({
               </div>
             </CardContent>
           </Card>
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Client Email Draft & Review Modal */}
+      {selectedDraftAccount && (
+        <ClientEmailDraftModal
+          isOpen={isDraftModalOpen}
+          onClose={() => {
+            setIsDraftModalOpen(false);
+            setSelectedDraftAccount(null);
+          }}
+          adAccountId={selectedDraftAccount.adAccountId}
+          accountName={selectedDraftAccount.accountName}
+          googleAccountId={selectedDraftAccount.googleAccountId}
+          teamMembers={teamMembers}
+        />
       )}
     </div>
   );

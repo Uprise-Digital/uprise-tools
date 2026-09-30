@@ -5,6 +5,7 @@ import { PublicClientDashboard } from "./shareClient";
 
 interface PageProps {
   params: Promise<{ token: string }>;
+  searchParams?: Promise<{ selected?: string; pin?: string }>;
 }
 
 export async function generateMetadata({
@@ -18,8 +19,13 @@ export async function generateMetadata({
   };
 }
 
-export default async function PublicAdAccountSharePage({ params }: PageProps) {
+export default async function PublicAdAccountSharePage({
+  params,
+  searchParams,
+}: PageProps) {
   const { token } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const selectedParam = resolvedSearchParams.selected?.toLowerCase();
 
   const result = await getPublicShareDashboardDataAction(token);
 
@@ -30,6 +36,7 @@ export default async function PublicAdAccountSharePage({ params }: PageProps) {
           token={token}
           initialData={null}
           requiresPin={true}
+          initialSelectedChannel={selectedParam}
         />
       );
     }
@@ -41,6 +48,7 @@ export default async function PublicAdAccountSharePage({ params }: PageProps) {
       token={token}
       initialData={result.data}
       requiresPin={false}
+      initialSelectedChannel={selectedParam}
     />
   );
 }

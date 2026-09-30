@@ -48,6 +48,7 @@ interface PublicClientDashboardProps {
   token: string;
   initialData: any;
   requiresPin?: boolean;
+  initialSelectedChannel?: string;
 }
 
 const THEME_STYLES: Record<
@@ -115,6 +116,7 @@ export function PublicClientDashboard({
   token,
   initialData,
   requiresPin: initialRequiresPin = false,
+  initialSelectedChannel,
 }: PublicClientDashboardProps) {
   // PIN lock state
   const [isLocked, setIsLocked] = useState(initialRequiresPin);
@@ -134,20 +136,43 @@ export function PublicClientDashboard({
   const hasGoogle = Boolean(data?.hasGoogle);
   const hasMeta = Boolean(data?.hasMeta);
 
-  const initialChannel =
-    allowed === "google"
-      ? "google"
-      : allowed === "meta"
-        ? "meta"
-        : hasGoogle && hasMeta
-          ? "blended"
-          : hasMeta
-            ? "meta"
-            : "google";
+  const computeInitialChannel = (): "blended" | "google" | "meta" => {
+    const rawParam = initialSelectedChannel?.toLowerCase();
+    if (rawParam === "google" && (allowed === "all" || allowed === "google")) {
+      return "google";
+    }
+    if (rawParam === "meta" && (allowed === "all" || allowed === "meta")) {
+      return "meta";
+    }
+    if (rawParam === "blended" && hasGoogle && hasMeta && allowed === "all") {
+      return "blended";
+    }
+
+    if (allowed === "google") return "google";
+    if (allowed === "meta") return "meta";
+    if (hasGoogle && hasMeta) return "blended";
+    if (hasMeta) return "meta";
+    return "google";
+  };
 
   const [selectedChannel, setSelectedChannel] = useState<
     "blended" | "google" | "meta"
-  >(initialChannel);
+  >(computeInitialChannel);
+
+  // Synchronize if client mounted or URL search params change
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sel = urlParams.get("selected")?.toLowerCase();
+      if (sel === "google" && (allowed === "all" || allowed === "google")) {
+        setSelectedChannel("google");
+      } else if (sel === "meta" && (allowed === "all" || allowed === "meta")) {
+        setSelectedChannel("meta");
+      } else if (sel === "blended" && hasGoogle && hasMeta && allowed === "all") {
+        setSelectedChannel("blended");
+      }
+    }
+  }, [allowed, hasGoogle, hasMeta]);
 
   // Date range state
   const today = new Date();

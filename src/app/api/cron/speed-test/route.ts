@@ -336,45 +336,11 @@ export async function processWeeklySpeedChecks() {
         continue;
       }
 
-      const subject = `🚨 [Speed Alert] Performance Issues Detected on ${issues.length} Landing Pages`;
-      const html = buildSpeedAlertHtml({
-        orgName: org?.name || "Your Agency",
-        issues,
-        appUrl,
-      });
-
-      const emailResult = await resend.emails.send({
-        from: "Uprise Tools <alerts@uprisedigital.com.au>",
-        to: recipients,
-        subject,
-        html,
-      });
-
-      if (emailResult.error) {
-        console.error(
-          `[Cron Speed Test] Resend error for org ${orgId}:`,
-          emailResult.error,
-        );
-        await logEmail({
-          recipient: recipients.join(", "),
-          subject,
-          emailType: "scheduled_report",
-          status: "failed",
-          error: emailResult.error.message,
-        });
-      } else {
-        console.log(
-          `[Cron Speed Test] Sent speed alert to ${recipients.join(", ")} (Resend ID: ${emailResult.data?.id})`,
-        );
-        await logEmail({
-          recipient: recipients.join(", "),
-          subject,
-          emailType: "scheduled_report",
-          status: "success",
-          resendId: emailResult.data?.id,
-        });
-        alertsDispatched++;
-      }
+      // Automated email dispatch is disabled per agency directive: NO EMAILS TO BE SENT THROUGH AUTOMATION
+      console.log(
+        `[Cron Speed Test] Automated email dispatch disabled. Skipping email for org ${orgId}.`,
+      );
+      continue;
     } catch (sendErr) {
       console.error(
         `[Cron Speed Test] Failed to send email alert for org ${orgId}:`,
@@ -676,26 +642,10 @@ export async function triggerAutomatedFullAuditForOrg(
           recipients.push(org.supportEmail);
         }
 
-        if (recipients.length > 0) {
-          const appUrl =
-            process.env.NEXT_PUBLIC_APP_URL ||
-            process.env.BETTER_AUTH_URL ||
-            "https://tools.uprisedigital.com.au";
-
-          const subject = `🚨 [Speed Alert] Full Automated Audit: ${issues.length} Landing Pages with Performance Issues`;
-          const html = buildSpeedAlertHtml({
-            orgName: org.name,
-            issues,
-            appUrl,
-          });
-
-          await resend.emails.send({
-            from: "Uprise Tools <alerts@uprisedigital.com.au>",
-            to: recipients,
-            subject,
-            html,
-          });
-        }
+        // Automated email dispatch is disabled per agency directive: NO EMAILS TO BE SENT THROUGH AUTOMATION
+        console.log(
+          `[Auto Speed Audit] Automated email alerts disabled. Skipping email dispatch.`,
+        );
       } catch (alertErr) {
         console.error("[Auto Speed Audit] Error dispatching alerts:", alertErr);
       }

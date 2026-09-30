@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { Resend } from "resend";
 import { db } from "@/db";
+import { enforceEmailSafeguard } from "@/lib/email-guard";
 import {
   emailLogs,
   organization,
@@ -264,12 +265,16 @@ ${websiteUrl ? `<p style="font-size: 12px; color: #64748b; margin: 0;"><a href="
       process.env.SENDER_EMAIL ||
       "Uprise Digital <reports@uprisedigital.com.au>";
 
+    // CRITICAL SAFEGUARD: Never send to external clients
+    const safeDelivery = enforceEmailSafeguard(recipients, renderedSubject);
+
     const emailResult = await resend.emails.send({
       from: fromAddress,
-      to: recipients,
+      to: safeDelivery.to,
+      cc: safeDelivery.cc.length > 0 ? safeDelivery.cc : undefined,
       replyTo: replyTo || undefined,
       headers: params.headers || undefined,
-      subject: renderedSubject,
+      subject: safeDelivery.subject,
       html: fullHtml,
       attachments: attachments?.map((a) => ({
         filename: a.filename,
@@ -279,8 +284,8 @@ ${websiteUrl ? `<p style="font-size: 12px; color: #64748b; margin: 0;"><a href="
 
     await db.insert(emailLogs).values({
       organizationId: organizationId || "default-org",
-      recipient: primaryRecipient,
-      subject: renderedSubject,
+      recipient: safeDelivery.to[0] || primaryRecipient,
+      subject: safeDelivery.subject,
       emailType: templateKey,
       status: "success",
       resendId: (emailResult as any)?.data?.id || null,

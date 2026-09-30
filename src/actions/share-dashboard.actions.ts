@@ -129,6 +129,61 @@ export async function getAdAccountShareLinkAction(
 }
 
 /**
+ * Database-level helper to obtain or create an active public share dashboard URL
+ * for reports, cron schedules, and email deliveries (no auth session required).
+ */
+export async function getOrCreatePublicShareUrlInternal(
+  adAccountId: number,
+  orgId?: string,
+): Promise<string> {
+  let link = await db.query.adAccountShareLinks.findFirst({
+    where: eq(adAccountShareLinks.adAccountId, adAccountId),
+  });
+
+  if (!link) {
+    let resolvedOrgId = orgId;
+    if (!resolvedOrgId) {
+      const acc = await db.query.adAccounts.findFirst({
+        where: eq(adAccounts.id, adAccountId),
+      });
+      resolvedOrgId = acc?.organizationId || "default-org";
+    }
+
+    let token = generateAlphabeticalToken(8);
+    let attempts = 0;
+    while (attempts < 5) {
+      const existing = await db.query.adAccountShareLinks.findFirst({
+        where: eq(adAccountShareLinks.token, token),
+      });
+      if (!existing) break;
+      token = generateAlphabeticalToken(8);
+      attempts++;
+    }
+
+    const inserted = await db
+      .insert(adAccountShareLinks)
+      .values({
+        adAccountId,
+        organizationId: resolvedOrgId,
+        token,
+        themeColor: "violet",
+        allowedChannels: "all",
+        visibleCharts: ["spend", "cpc", "ctr", "conversions"],
+        isPinRequired: false,
+        isActive: true,
+        viewCount: 0,
+      })
+      .returning();
+    link = inserted[0];
+  }
+
+  const baseUrl =
+    process.env.PRODUCTION_APP_URL || "https://tools.uprisedigital.com.au";
+  return `${baseUrl}/share/ad/${link.token}`;
+}
+
+
+/**
  * Internal authenticated action: save updated share link settings.
  */
 export async function saveShareLinkSettingsAction(
