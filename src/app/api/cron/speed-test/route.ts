@@ -12,6 +12,7 @@ import {
   user,
 } from "@/db/schema";
 import { logEmail } from "@/lib/audit";
+import { enforceEmailSafeguard, isAutomatedSendingAllowed } from "@/lib/email-guard";
 import { createOrgNotification } from "@/service/notification.service";
 import { runPageSpeedAudit } from "@/service/pagespeed.service";
 
@@ -336,6 +337,13 @@ export async function processWeeklySpeedChecks() {
         continue;
       }
 
+      if (!isAutomatedSendingAllowed()) {
+        console.warn(
+          `[Cron Speed Test] Automated email sending is paused agency-wide. Skipping email dispatch.`,
+        );
+        continue;
+      }
+
       const subject = `🚨 [Speed Alert] Performance Issues Detected on ${issues.length} Landing Pages`;
       const html = buildSpeedAlertHtml({
         orgName: org?.name || "Your Agency",
@@ -343,10 +351,13 @@ export async function processWeeklySpeedChecks() {
         appUrl,
       });
 
+      const safeDelivery = enforceEmailSafeguard(recipients, subject);
+
       const emailResult = await resend.emails.send({
         from: "Uprise Tools <alerts@uprisedigital.com.au>",
-        to: recipients,
-        subject,
+        to: safeDelivery.to,
+        cc: safeDelivery.cc.length > 0 ? safeDelivery.cc : undefined,
+        subject: safeDelivery.subject,
         html,
       });
 
@@ -676,7 +687,7 @@ export async function triggerAutomatedFullAuditForOrg(
           recipients.push(org.supportEmail);
         }
 
-        if (recipients.length > 0) {
+        if (recipients.length > 0 && isAutomatedSendingAllowed()) {
           const appUrl =
             process.env.NEXT_PUBLIC_APP_URL ||
             process.env.BETTER_AUTH_URL ||
@@ -689,10 +700,13 @@ export async function triggerAutomatedFullAuditForOrg(
             appUrl,
           });
 
+          const safeDelivery = enforceEmailSafeguard(recipients, subject);
+
           await resend.emails.send({
             from: "Uprise Tools <alerts@uprisedigital.com.au>",
-            to: recipients,
-            subject,
+            to: safeDelivery.to,
+            cc: safeDelivery.cc.length > 0 ? safeDelivery.cc : undefined,
+            subject: safeDelivery.subject,
             html,
           });
         }
