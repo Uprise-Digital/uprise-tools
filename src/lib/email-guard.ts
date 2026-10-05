@@ -1,24 +1,21 @@
 /**
- * EMAIL DISPATCH GUARD
+ * EMAIL DISPATCH GUARD - ZERO-TOLERANCE EXTERNAL SEND SHIELD
  *
- * Outward sends and team emails are enabled.
- * Moratorium on outward sends has been lifted.
+ * ABSOLUTE MANDATE:
+ * Under NO circumstances may ANY email EVER be dispatched to an address
+ * that is not an internal @uprisedigital.com.au domain email.
+ *
+ * Any external non-team recipient is immediately stripped and blocked.
+ * If all recipients are external, delivery safely diverts exclusively to SAFE_AGENT_EMAIL.
  */
 
 export const SAFE_AGENT_EMAIL = "seyone@uprisedigital.com.au";
 
 /**
  * Automated email dispatch setting:
- * When true, scheduled background cron jobs and report pipelines are active.
+ * Default to false (paused) to prevent any scheduled cron from firing unless explicitly enabled.
  */
-export const ALLOW_AUTOMATED_EMAILS = true;
-
-/**
- * Moratorium on outward sends:
- * Set to false so that sending to the team and outward recipients is enabled.
- */
-export const OUTWARD_SENDS_MORATORIUM =
-  process.env.ENABLE_OUTWARD_EMAILS === "false";
+export const ALLOW_AUTOMATED_EMAILS = false;
 
 export function isAutomatedSendingAllowed(): boolean {
   return ALLOW_AUTOMATED_EMAILS;
@@ -35,8 +32,10 @@ export interface SanitizedEmailDelivery {
 
 /**
  * Helper to identify internal agency domain team members.
+ * ONLY emails ending in @uprisedigital.com.au or matching SAFE_AGENT_EMAIL are allowed.
  */
 export function isTeamEmail(email: string): boolean {
+  if (!email) return false;
   const normalized = email.toLowerCase().trim();
   return (
     normalized.endsWith("@uprisedigital.com.au") ||
@@ -44,6 +43,10 @@ export function isTeamEmail(email: string): boolean {
   );
 }
 
+/**
+ * Enforces the zero-tolerance email firewall.
+ * NON-UPRISEDIGITAL RECIPIENTS ARE NEVER PERMITTED. EVER.
+ */
 export function enforceEmailSafeguard(
   intendedTo: string | string[],
   intendedSubject: string,
@@ -67,43 +70,41 @@ export function enforceEmailSafeguard(
   const allRecipients = [...toList, ...ccList, ...bccList];
   const originalSummary = allRecipients.join(", ");
 
-  // If moratorium is lifted, send directly to intended recipients
-  if (!OUTWARD_SENDS_MORATORIUM) {
+  // 1. Separate allowed internal team emails from external non-team emails
+  const allowedTo = toList.filter(isTeamEmail);
+  const allowedCc = ccList.filter(isTeamEmail);
+  const allowedBcc = bccList.filter(isTeamEmail);
+
+  const blockedRecipients = allRecipients.filter((e) => !isTeamEmail(e));
+
+  // 2. If ANY external recipient was present, block them completely
+  if (blockedRecipients.length > 0) {
+    console.error(
+      `🚨 [ZERO-TOLERANCE EMAIL GUARD] Blocked external non-team recipient(s): [${blockedRecipients.join(", ")}]. Intended subject: "${intendedSubject}". Diverting to internal team safely.`,
+    );
+
+    // If there are allowed team members in 'to', send only to them.
+    // Otherwise, divert to SAFE_AGENT_EMAIL so internal team can review.
+    const finalTo = allowedTo.length > 0 ? allowedTo : [SAFE_AGENT_EMAIL];
+
     return {
-      to: toList.length > 0 ? toList : [SAFE_AGENT_EMAIL],
-      cc: ccList,
-      bcc: bccList,
-      subject: intendedSubject,
-      isOverridden: false,
+      to: finalTo,
+      cc: allowedCc,
+      bcc: allowedBcc,
+      subject: `[EXTERNAL BLOCKED: ${blockedRecipients.join(", ")}] ${intendedSubject}`,
+      isOverridden: true,
       originalRecipientsSummary: originalSummary,
     };
   }
 
-  // If moratorium was explicitly active, still permit any internal team member sends
-  const hasExternalNonTeamRecipient = allRecipients.some(
-    (e) => !isTeamEmail(e),
-  );
-  if (!hasExternalNonTeamRecipient) {
-    return {
-      to: toList,
-      cc: ccList,
-      bcc: bccList,
-      subject: intendedSubject,
-      isOverridden: false,
-      originalRecipientsSummary: originalSummary,
-    };
-  }
-
-  // Otherwise, divert to safe agent email with dev tag
-  console.warn(
-    `[EMAIL SAFEGUARD INTERCEPT] Moratorium active. Diverting [${originalSummary}] to ${SAFE_AGENT_EMAIL}`,
-  );
+  // 3. All recipients are verified internal @uprisedigital.com.au team members
   return {
-    to: [SAFE_AGENT_EMAIL],
-    cc: [],
-    bcc: [],
-    subject: `[TEST / DEV - Intended for: ${originalSummary}] ${intendedSubject}`,
-    isOverridden: true,
+    to: allowedTo.length > 0 ? allowedTo : [SAFE_AGENT_EMAIL],
+    cc: allowedCc,
+    bcc: allowedBcc,
+    subject: intendedSubject,
+    isOverridden: false,
     originalRecipientsSummary: originalSummary,
   };
 }
+

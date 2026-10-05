@@ -65,13 +65,22 @@ vi.mock("@/service/pdf-service", () => ({
   MyReportPDF: () => null,
 }));
 
+// 6. Mock Email Guard for automated sending unit tests
+vi.mock("@/lib/email-guard", async () => {
+  const actual = await vi.importActual<any>("@/lib/email-guard");
+  return {
+    ...actual,
+    isAutomatedSendingAllowed: vi.fn().mockReturnValue(true),
+  };
+});
+
 describe("Cron Route Handler - Scheduled Reports Engine", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.CRON_SECRET = "cron-test-secret";
     process.env.WORKER_SECRET_KEY = "worker-test-secret";
 
-    // Mock reportSchedules query on db to prevent 500 errors in processReportPayload
+    // Mock reportSchedules & clientReportSettings query on db
     (db.query as any).reportSchedules = {
       findFirst: vi.fn().mockResolvedValue({
         id: 101,
@@ -81,6 +90,11 @@ describe("Cron Route Handler - Scheduled Reports Engine", () => {
         lastRunAt: null,
         customAiInstructions: "",
         emailSubject: "Test Email Subject",
+      }),
+    };
+    (db.query as any).clientReportSettings = {
+      findFirst: vi.fn().mockResolvedValue({
+        isGloballyActive: true,
       }),
     };
   });

@@ -8,7 +8,7 @@ import { reportSchedules } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
 import { logAction, logEmail } from "@/lib/audit";
 import { cleanCcEmails, parseEmailList } from "@/lib/cleaners";
-import { enforceEmailSafeguard } from "@/lib/email-guard";
+import { enforceEmailSafeguard, isAutomatedSendingAllowed } from "@/lib/email-guard";
 import {
   fetchAccountKeywords,
   fetchAccountLastMonthSummary,
@@ -40,6 +40,16 @@ export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.WORKER_SECRET_KEY}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isAutomatedSendingAllowed()) {
+    console.warn(
+      "[Send Report Job] Automated email sending is paused agency-wide. Rejecting job dispatch.",
+    );
+    return NextResponse.json(
+      { success: false, error: "Automated sending paused" },
+      { status: 403 },
+    );
   }
 
   let scheduleId: any = null;

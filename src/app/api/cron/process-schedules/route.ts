@@ -8,7 +8,7 @@ import { adAccounts, reportSchedules } from "@/db/schema";
 import { generateEmailBody, generateReportInsights } from "@/lib/ai-service";
 import { logAction, logEmail } from "@/lib/audit";
 import { cleanCcEmails, parseEmailList } from "@/lib/cleaners";
-import { enforceEmailSafeguard } from "@/lib/email-guard";
+import { enforceEmailSafeguard, isAutomatedSendingAllowed } from "@/lib/email-guard";
 import {
   fetchAccountKeywords,
   fetchAccountLastMonthSummary,
@@ -48,6 +48,13 @@ async function processReportPayload(payload: {
   console.log(
     `[Report Engine] Processing report for: ${clientName} (ID: ${scheduleId})`,
   );
+
+  if (!isAutomatedSendingAllowed()) {
+    console.warn(
+      `[Report Engine] Automated email sending is paused agency-wide. Skipping report dispatch for ${clientName}.`,
+    );
+    return { success: false, reason: "Automated sending paused" };
+  }
 
   let schedule: any = null;
   try {
@@ -288,17 +295,29 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 0. Check if automated client reports are globally paused
+    // 0. Check master automated sending setting from email-guard
+    if (!isAutomatedSendingAllowed()) {
+      console.log(
+        "[Cron] Automated email sending is paused in email-guard. Skipping all scheduled reports.",
+      );
+      return NextResponse.json({
+        success: true,
+        message: "Automated client report sending is globally paused.",
+        processed: 0,
+      });
+    }
+
+    // Check if automated client reports are globally paused in settings (FAIL-SAFE: default to false)
     const isGloballyActive = await withBypassTenantDb(async (tx) => {
       try {
         const setting = await tx.query.clientReportSettings.findFirst();
-        return setting ? setting.isGloballyActive : true;
+        return setting ? setting.isGloballyActive : false;
       } catch (err) {
         console.warn(
-          "[Cron] Could not query clientReportSettings, defaulting to active:",
+          "[Cron] Could not query clientReportSettings, defaulting to PAUSED:",
           err,
         );
-        return true;
+        return false;
       }
     });
 
