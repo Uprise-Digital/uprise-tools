@@ -47,6 +47,8 @@ export default async function AccountDetailPage({ params }: PageProps) {
     timeZone: string | null;
     isActive: boolean;
     accountStatus: number;
+    targetCpa?: number | null;
+    targetRoas?: number | null;
   } | null = null;
 
   if (orgId) {
@@ -97,6 +99,10 @@ export default async function AccountDetailPage({ params }: PageProps) {
         timeZone: matchedMeta.timeZone,
         isActive: matchedMeta.isActive,
         accountStatus: matchedMeta.accountStatus,
+        targetCpa: matchedMeta.targetCpa ? Number(matchedMeta.targetCpa) : null,
+        targetRoas: matchedMeta.targetRoas
+          ? Number(matchedMeta.targetRoas)
+          : null,
       };
     }
   }
@@ -123,6 +129,8 @@ export default async function AccountDetailPage({ params }: PageProps) {
     googleStatus: account.googleStatus,
     syncStatus: account.syncStatus,
     syncError: account.syncError,
+    targetCpa: account.targetCpa ? Number(account.targetCpa) : null,
+    targetRoas: account.targetRoas ? Number(account.targetRoas) : null,
     targetNotes: account.targetNotes,
     linkedMetaAccount,
   };

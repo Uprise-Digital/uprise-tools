@@ -15,9 +15,8 @@
 
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { db } from "@/db";
-import { adAccounts, agencyAiInsightsCache } from "@/db/schema";
+import { adAccounts, agencyAiInsightsCache, metaAdAccounts } from "@/db/schema";
 import { logAction } from "@/lib/audit";
 import { getAuthOrgContext } from "@/lib/auth-helpers";
 
@@ -172,6 +171,70 @@ export async function setAccountTargetsMcpAction(
     };
   } catch (error: any) {
     console.error("setAccountTargetsMcpAction error:", error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+export async function saveMultiChannelTargetsAction(params: {
+  googleAccountId: number;
+  googleTargetCpa: number | null;
+  metaAccountId?: number | null;
+  metaTargetCpa?: number | null;
+}) {
+  try {
+    const ctx = await getAuthOrgContext();
+    if (!ctx) throw new Error("Unauthorized");
+    const { session, orgId } = ctx;
+
+    // 1. Update Google Ad Account targetCpa
+    await db
+      .update(adAccounts)
+      .set({
+        targetCpa:
+          params.googleTargetCpa !== null
+            ? String(params.googleTargetCpa)
+            : null,
+      })
+      .where(
+        and(
+          eq(adAccounts.id, params.googleAccountId),
+          eq(adAccounts.organizationId, orgId),
+        ),
+      );
+
+    // 2. If Meta Ad Account is linked, update meta targetCpa
+    if (params.metaAccountId && params.metaTargetCpa !== undefined) {
+      await db
+        .update(metaAdAccounts)
+        .set({
+          targetCpa:
+            params.metaTargetCpa !== null ? String(params.metaTargetCpa) : null,
+        })
+        .where(
+          and(
+            eq(metaAdAccounts.id, params.metaAccountId),
+            eq(metaAdAccounts.organizationId, orgId),
+          ),
+        );
+    }
+
+    // Invalidate the agency god view cache for this org
+    await db
+      .delete(agencyAiInsightsCache)
+      .where(eq(agencyAiInsightsCache.organizationId, orgId));
+
+    await logAction(
+      session.user.id,
+      "SAVE_CHANNEL_TARGETS",
+      "ad_accounts",
+      params.googleAccountId,
+      params,
+    );
+
+    revalidatePath(`/accounts/${params.googleAccountId}`);
+    return { success: true as const };
+  } catch (error: any) {
+    console.error("saveMultiChannelTargetsAction error:", error);
     return { success: false as const, error: error.message };
   }
 }

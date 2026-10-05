@@ -185,10 +185,22 @@ export async function generateReportInsights(data: {
 export async function generateEmailBody(data: any) {
   const { clientName, metrics, customInstructions } = data;
 
-  const rawCost = typeof metrics?.cost === "number" ? metrics.cost : parseFloat(metrics?.cost || "0");
+  const rawCost =
+    typeof metrics?.cost === "number"
+      ? metrics.cost
+      : parseFloat(metrics?.cost || "0");
   const cost = isNaN(rawCost) ? "0.00" : rawCost.toFixed(2);
-  const convs = typeof metrics?.conversions === "number" ? Math.round(metrics.conversions) : parseInt(metrics?.conversions || "0", 10) || 0;
-  const rawCpl = metrics?.costPerConv ? (typeof metrics.costPerConv === "number" ? metrics.costPerConv : parseFloat(metrics.costPerConv)) : (convs > 0 ? rawCost / convs : 0);
+  const convs =
+    typeof metrics?.conversions === "number"
+      ? Math.round(metrics.conversions)
+      : parseInt(metrics?.conversions || "0", 10) || 0;
+  const rawCpl = metrics?.costPerConv
+    ? typeof metrics.costPerConv === "number"
+      ? metrics.costPerConv
+      : parseFloat(metrics.costPerConv)
+    : convs > 0
+      ? rawCost / convs
+      : 0;
   const costPerConv = isNaN(rawCpl) ? "0.00" : rawCpl.toFixed(2);
 
   const fallback = {
@@ -233,10 +245,16 @@ export async function generateEmailBody(data: any) {
         feature: "email_body_generation",
       },
     );
-    const parsed = cleanAndParseJson<{ emailBody?: string }>(result.response.text as string, fallback);
-    let cleaned = (parsed.emailBody || fallback.emailBody)
+    const parsed = cleanAndParseJson<{ emailBody?: string }>(
+      result.response.text as string,
+      fallback,
+    );
+    const cleaned = (parsed.emailBody || fallback.emailBody)
       .replace(/^Hi\s+[^\n,]+[,.]?\s*/i, "")
-      .replace(/Let\s+me\s+know\s+if\s+you\s+have\s+any\s+questions[\s\S]*$/i, "")
+      .replace(
+        /Let\s+me\s+know\s+if\s+you\s+have\s+any\s+questions[\s\S]*$/i,
+        "",
+      )
       .replace(/KR[\s\S]*$/i, "")
       .trim();
 
@@ -386,35 +404,47 @@ ${
 }
 
 ${data.customInstructions ? `SPECIAL CLIENT NOTES / PROMPT INJECTION: ${data.customInstructions}` : ""}
-${data.wordLimitTier ? `BREVITY / WORD LIMIT TIER: ${
-  data.wordLimitTier === "concise"
-    ? "CONCISE: Keep it punchy and brief (around 70-120 words per channel, strictly 1-2 short sentences per paragraph)."
-    : data.wordLimitTier === "detailed"
-      ? "DETAILED: Provide comprehensive strategic breakdown (around 220-300 words per channel with thorough operational context)."
-      : "STANDARD: Balanced brevity (around 150-200 words per channel, direct and clear)."
-}` : ""}
+${
+  data.wordLimitTier
+    ? `BREVITY / WORD LIMIT TIER: ${
+        data.wordLimitTier === "concise"
+          ? "CONCISE: Keep it punchy and brief (around 70-120 words per channel, strictly 1-2 short sentences per paragraph)."
+          : data.wordLimitTier === "detailed"
+            ? "DETAILED: Provide comprehensive strategic breakdown (around 220-300 words per channel with thorough operational context)."
+            : "STANDARD: Balanced brevity (around 150-200 words per channel, direct and clear)."
+      }`
+    : ""
+}
 ${data.wordLimit ? `MAXIMUM WORD LIMIT: Strictly keep total email narrative under ${data.wordLimit} words.` : ""}
 
 Return a JSON object with this exact schema:
 {
   "subject": "Performance Reports - ${period} - ${data.clientName}",
   "sections": {
-    ${data.googleData ? `"google": {
+    ${
+      data.googleData
+        ? `"google": {
       "paragraphs": [
         "Short paragraph (1-2 sentences) giving the overall snapshot: Spend, Leads, and actual CPL compared with the prior period. DO NOT mention target figures or benchmarks.",
         "Short paragraph (1-2 sentences) on what performed well (core converting keywords, CTR).",
         "Short paragraph (1-2 sentences) on what didn't perform well and WHY (exact non-converting queries and wasted spend).",
         "Short paragraph (1-2 sentences) on what happens next: immediate 30-day tactical corrections (negative keywords, match types, budget shifts)."
       ]
-    }${data.metaData ? "," : ""}` : ""}
-    ${data.metaData ? `"meta": {
+    }${data.metaData ? "," : ""}`
+        : ""
+    }
+    ${
+      data.metaData
+        ? `"meta": {
       "paragraphs": [
         "Short paragraph (1-2 sentences) on overall snapshot: Meta spend, lead volume, and actual CPL compared with prior trends. DO NOT mention target figures or benchmarks.",
         "Short paragraph (1-2 sentences) on what performed well (creative angles, form submissions vs landing page).",
         "Short paragraph (1-2 sentences) on what didn't perform well and WHY (creative delays, ad fatigue, high CPL, learning phase).",
         "Short paragraph (1-2 sentences) on what happens next over the next 30 days (new video creatives, audience tuning, testing lead forms)."
       ]
-    }` : ""}
+    }`
+        : ""
+    }
   }
 }
 `;
@@ -440,13 +470,18 @@ Return a JSON object with this exact schema:
     const stripExcess = (text: string) =>
       (text || "")
         .replace(/^Hi\s+[^\n,]+[,.]?\s*/i, "")
-        .replace(/Let\s+me\s+know\s+if\s+you\s+have\s+any\s+questions[\s\S]*$/i, "")
+        .replace(
+          /Let\s+me\s+know\s+if\s+you\s+have\s+any\s+questions[\s\S]*$/i,
+          "",
+        )
         .replace(/KR[\s\S]*$/i, "")
         .trim();
 
     const parseSectionParagraphs = (sec: any, fallbackDefaults: string[]) => {
       if (Array.isArray(sec?.paragraphs) && sec.paragraphs.length > 0) {
-        return sec.paragraphs.map(stripExcess).filter((p: string) => p.length > 0);
+        return sec.paragraphs
+          .map(stripExcess)
+          .filter((p: string) => p.length > 0);
       }
       const fallbackSections = [
         sec?.overallSnapshot,
@@ -483,11 +518,21 @@ Return a JSON object with this exact schema:
     ];
 
     if (googleParagraphs.length > 0) {
-      plainTextParts.push("", `Google Report (${googleUrl})`, "", googleParagraphs.join("\n\n"));
+      plainTextParts.push(
+        "",
+        `Google Report (${googleUrl})`,
+        "",
+        googleParagraphs.join("\n\n"),
+      );
     }
 
     if (metaParagraphs.length > 0) {
-      plainTextParts.push("", `Meta Report (${metaUrl})`, "", metaParagraphs.join("\n\n"));
+      plainTextParts.push(
+        "",
+        `Meta Report (${metaUrl})`,
+        "",
+        metaParagraphs.join("\n\n"),
+      );
     }
 
     plainTextParts.push(
@@ -499,7 +544,7 @@ Return a JSON object with this exact schema:
       senderName,
       senderRole,
       senderPhone,
-      cleanWebsite
+      cleanWebsite,
     );
 
     const plainText = plainTextParts.join("\n");
@@ -562,7 +607,8 @@ Return a JSON object with this exact schema:
 
     return {
       subject:
-        parsed?.subject || `Performance Reports - ${period} - ${data.clientName}`,
+        parsed?.subject ||
+        `Performance Reports - ${period} - ${data.clientName}`,
       plainText,
       htmlContent: reportContentHtml,
       fullHtml,
@@ -593,7 +639,6 @@ Return a JSON object with this exact schema:
   }
 }
 
-
 /**
  * USE CASE 3: DAILY MORNING BRIEFING
  * Generates the Morning Briefing email text data based on yesterday's portfolio performance and baseline data.
@@ -618,13 +663,21 @@ export async function generateMorningBriefingText(data: {
   };
   alerts: Array<{
     accountName: string;
-    type: string;
-    details: string;
+    type?: string;
+    details?: string;
+    statsText?: string;
+    targetCpa?: number | null;
+    clientNotes?: string | null;
+    [key: string]: any;
   }>;
   zeroConversionAccountsCount: number;
   successes: Array<{
     accountName: string;
-    details: string;
+    details?: string;
+    statsText?: string;
+    targetCpa?: number | null;
+    clientNotes?: string | null;
+    [key: string]: any;
   }>;
   organizationId?: string;
   userId?: string;
@@ -664,7 +717,16 @@ export async function generateMorningBriefingText(data: {
     ${
       data.alerts.length > 0
         ? data.alerts
-            .map((a) => `- [${a.type}] ${a.accountName}: ${a.details}`)
+            .map((a: any) => {
+              const targetStr = a.targetCpa
+                ? ` [Agreed Target CPL: $${Number(a.targetCpa).toFixed(2)}]`
+                : "";
+              const notesStr = a.clientNotes
+                ? ` (Client Notes: "${a.clientNotes}")`
+                : "";
+              const stats = a.statsText ? ` [${a.statsText}]` : "";
+              return `- [${a.type || "ALERT"}] ${a.accountName}${targetStr}: ${a.details || stats}${notesStr}`;
+            })
             .join("\n")
         : "None (All accounts performing within expected variance parameters)."
     }
@@ -675,10 +737,24 @@ export async function generateMorningBriefingText(data: {
     ${
       data.successes.length > 0
         ? data.successes
-            .map((s) => `- ${s.accountName}: ${s.details}`)
+            .map((s: any) => {
+              const targetStr = s.targetCpa
+                ? ` [Agreed Target CPL: $${Number(s.targetCpa).toFixed(2)}]`
+                : "";
+              const notesStr = s.clientNotes
+                ? ` (Client Notes: "${s.clientNotes}")`
+                : "";
+              const stats = s.statsText ? ` [${s.statsText}]` : "";
+              return `- ${s.accountName}${targetStr}: ${s.details || stats}${notesStr}`;
+            })
             .join("\n")
         : "None yesterday."
     }
+
+    TARGET CPL & CLIENT NOTES GUIDANCE:
+    - If an account has an agreed Target CPL or client notes, reference whether yesterday met, beat, or breached that agreed target.
+    - If CPA was well below target, acknowledge it as a strong win.
+    - If CPA breached the agreed target, highlight the overrun and suggest tightening bids, search terms, or negative keywords in the priority list.
 
     OUTPUT SCHEMA REQUIRED (JSON):
     {
@@ -689,16 +765,16 @@ export async function generateMorningBriefingText(data: {
         {
           "accountName": "Account Name",
           "isCritical": true,
-          "statsText": "Spend: $120.00 | Conv: 0 | CPA: -$0",
-          "details": "Brief 1-sentence explanation of anomaly."
+          "statsText": "Spend: $120.00 | Conv: 0 | CPA: -$0 (Target: $50.00)",
+          "details": "Brief 1-sentence explanation of anomaly referencing target or client context."
         }
       ],
       "zeroConversionFootnote": "1 sentence contextualizing zero conversion accounts if >0, otherwise empty string.",
       "successes": [
         {
           "accountName": "Account Name",
-          "statsText": "Spend: $250.00 | Conv: 4 | CPA: $62.50",
-          "details": "Brief summary of win."
+          "statsText": "Spend: $250.00 | Conv: 4 | CPA: $62.50 (Target: $80.00)",
+          "details": "Brief summary of win comparing CPA to agreed target."
         }
       ],
       "priorityList": [

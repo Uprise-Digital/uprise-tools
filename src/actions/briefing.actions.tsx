@@ -16,12 +16,15 @@ const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_build_key");
 
 const SYSTEM_ACTOR = "SYSTEM_AUTOMATION";
 
-// Date utility to get YYYY-MM-DD in Australia/Melbourne timezone
 import {
   formatUTCDate,
   getMelbourneDateStrings,
   parseUTCDate,
 } from "@/lib/date-utils";
+import {
+  extractCleanNotesText,
+  getEffectiveAccountTargetCpa,
+} from "@/lib/target-extractor";
 
 export async function getBriefingDataAction(yesterdayStrOverride?: string) {
   // 1. Get correct date strings
@@ -238,10 +241,19 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
       const baselineCpc =
         baselineAvg.clicks > 0 ? baselineAvg.spend / baselineAvg.clicks : 0;
 
+      const { effectiveCpa, isCustom } = getEffectiveAccountTargetCpa({
+        targetCpa: acc.targetCpa,
+        targetNotes: acc.targetNotes,
+        channel: "google",
+      });
+      const clientNotes = extractCleanNotesText(acc.targetNotes);
+
       accountBreakdown.push({
         accountId: acc.id,
         name: acc.name,
-        targetCpa: acc.targetCpa ? Number(acc.targetCpa) : null,
+        targetCpa: isCustom ? effectiveCpa : null,
+        isCustomTarget: isCustom,
+        clientNotes,
         spend: yesterdayMetrics.spend,
         conversions: yesterdayMetrics.conversions,
         clicks: yesterdayMetrics.clicks,
@@ -370,20 +382,85 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
     const ctrIsHighZeroConversions =
       acc.conversions === 0 && acc.ctr > ctrHigh && acc.spend > ctrHighSpend;
 
+    // Check target CPA breach (e.g. CPA 50%+ over agreed target with meaningful spend)
+    const targetBreached = Boolean(
+      targetCpaVal &&
+        ((acc.conversions > 0 &&
+          acc.cpa > targetCpaVal * 1.5 &&
+          acc.spend >= 50) ||
+          (acc.conversions === 0 &&
+            acc.spend >= targetCpaVal * 1.5 &&
+            acc.spend >= 50)),
+    );
+
     // If it's a severe issue
     const isFire =
       (acc.spend > criticalSpend && acc.conversions <= criticalConversions) ||
       isAnomaly ||
       cpcIsHigh ||
-      ctrIsHighZeroConversions;
+      ctrIsHighZeroConversions ||
+      targetBreached;
 
     if (isFire) {
+      let alertType = "WARNING";
+      const reasons: string[] = [];
+
+      if (acc.spend > criticalSpend && acc.conversions <= criticalConversions) {
+        alertType = "CRITICAL SPEND";
+        reasons.push(
+          `Spent $${acc.spend.toFixed(2)} with ${acc.conversions} conversions`,
+        );
+      }
+      if (targetBreached && targetCpaVal) {
+        if (acc.conversions > 0) {
+          reasons.push(
+            `CPA $${acc.cpa.toFixed(2)} exceeded agreed target $${targetCpaVal.toFixed(2)} by ${(((acc.cpa - targetCpaVal) / targetCpaVal) * 100).toFixed(0)}%`,
+          );
+        } else {
+          reasons.push(
+            `Spend $${acc.spend.toFixed(2)} exceeded agreed target CPA $${targetCpaVal.toFixed(2)} with 0 conversions`,
+          );
+        }
+      }
+      if (isAnomaly) {
+        alertType = alertType === "WARNING" ? "ANOMALY" : alertType;
+        if (changeSpendPct < anomalySpendChange) {
+          reasons.push(
+            `Spend dropped ${Math.abs(changeSpendPct).toFixed(0)}% vs baseline`,
+          );
+        }
+        if (changeConversionsPct < anomalyConversionsChange) {
+          reasons.push(
+            `Conversions dropped ${Math.abs(changeConversionsPct).toFixed(0)}% vs baseline`,
+          );
+        }
+      }
+      if (cpcIsHigh) {
+        reasons.push(`High CPC click ($${acc.spend.toFixed(2)})`);
+      }
+      if (ctrIsHighZeroConversions) {
+        reasons.push(
+          `High CTR (${acc.ctr.toFixed(1)}%) with 0 conversions across $${acc.spend.toFixed(2)} spend`,
+        );
+      }
+
+      const statsText = `Spend: $${acc.spend.toFixed(2)} | Conv: ${acc.conversions}${acc.conversions > 0 ? ` | CPA: $${acc.cpa.toFixed(2)}` : ""}${targetCpaVal ? ` (Target: $${targetCpaVal.toFixed(2)})` : ""}`;
+      const details =
+        reasons.join(". ") +
+        (acc.clientNotes ? ` [Client Context: ${acc.clientNotes}]` : "");
+
       alerts.push({
         accountName: acc.name,
+        type: alertType,
+        details,
+        statsText,
+        targetCpa: targetCpaVal,
+        clientNotes: acc.clientNotes,
         spend: acc.spend,
         conversions: acc.conversions,
         ctr: acc.ctr,
         cpc: acc.cpc,
+        cpa: acc.cpa,
         baselineSpend: acc.baseline.dailyAvgSpend,
         baselineConversions: acc.baseline.dailyAvgConversions,
         changeSpendPct:
@@ -395,6 +472,7 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
         isAnomaly,
         cpcIsHigh,
         ctrIsHighZeroConversions,
+        targetBreached,
       });
     } else {
       // Success Check (only if not flagged warning/critical elsewhere)
@@ -405,12 +483,35 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
           isWhale);
 
       if (isSuccess) {
+        let winNote = "";
+        if (isWhale) {
+          winNote =
+            "Still the portfolio anchor. Healthy CPA, strong volume. No action needed.";
+        } else if (targetCpaVal && acc.cpa <= targetCpaVal) {
+          const discountPct = (
+            ((targetCpaVal - acc.cpa) / targetCpaVal) *
+            100
+          ).toFixed(0);
+          winNote = `Beat target CPA ($${acc.cpa.toFixed(2)} vs agreed target $${targetCpaVal.toFixed(2)}, -${discountPct}%)`;
+        } else {
+          winNote = `Strong CPA performance ($${acc.cpa.toFixed(2)}) with ${acc.conversions} conversions`;
+        }
+        if (acc.clientNotes) {
+          winNote += ` [Client Context: ${acc.clientNotes}]`;
+        }
+
+        const statsText = `Spend: $${acc.spend.toFixed(2)} | Conv: ${acc.conversions} | CPA: $${acc.cpa.toFixed(2)}${targetCpaVal ? ` (Target: $${targetCpaVal.toFixed(2)})` : ""}`;
+
         successes.push({
           accountName: acc.name,
           cpa: acc.cpa,
-          notes: isWhale
-            ? "Still the portfolio anchor. Healthy CPA, strong volume. No action needed."
-            : undefined,
+          conversions: acc.conversions,
+          spend: acc.spend,
+          targetCpa: targetCpaVal,
+          clientNotes: acc.clientNotes,
+          statsText,
+          details: winNote,
+          notes: winNote,
         });
       } else if (acc.conversions === 0 && acc.spend > 0) {
         zeroConversionNoAlerts.push({
@@ -418,6 +519,8 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
           spend: acc.spend,
           clicks: acc.clicks,
           cpc: acc.cpc,
+          targetCpa: targetCpaVal,
+          clientNotes: acc.clientNotes,
         });
       }
     }
@@ -453,12 +556,16 @@ export async function getBriefingDataAction(yesterdayStrOverride?: string) {
   };
 }
 
-export async function generateBriefingAction() {
-  const dataRes = await getBriefingDataAction();
+export async function generateBriefingAction(dataOverride?: any) {
+  const dataRes = dataOverride
+    ? { success: true as const, data: dataOverride, error: undefined }
+    : await getBriefingDataAction();
   if (!dataRes.success || !dataRes.data) {
     return {
       success: false,
-      error: dataRes.error || "Failed to aggregate performance data.",
+      error:
+        ("error" in dataRes && dataRes.error ? dataRes.error : undefined) ||
+        "Failed to aggregate performance data.",
     };
   }
 
@@ -481,7 +588,9 @@ export async function generateBriefingAction() {
   }
 }
 
-export async function sendMorningBriefingAction() {
+export async function sendMorningBriefingAction(
+  recipientOverride?: string | string[],
+) {
   let emails: string[] = [];
   let subject = "☀️ Morning Briefing";
   try {
@@ -495,7 +604,7 @@ export async function sendMorningBriefingAction() {
       throw new Error(dataRes.error || "Failed to aggregate briefing data.");
     }
 
-    const genRes = await generateBriefingAction();
+    const genRes = await generateBriefingAction(dataRes.data);
     if (!genRes.success || !genRes.briefing) {
       throw new Error(genRes.error || "Failed to generate briefing content.");
     }
@@ -505,8 +614,12 @@ export async function sendMorningBriefingAction() {
       briefing.subject ||
       `☀️ Morning Briefing — ${dataRes.data.todayDayOfWeek} ${dataRes.data.todayDateStr}`;
 
-    // 2. Fetch recipients (fallback to all team members if empty)
-    if (settings?.recipients && settings.recipients.length > 0) {
+    // 2. Fetch recipients (support direct override or fallback to settings/team)
+    if (recipientOverride) {
+      emails = Array.isArray(recipientOverride)
+        ? recipientOverride
+        : [recipientOverride];
+    } else if (settings?.recipients && settings.recipients.length > 0) {
       emails = settings.recipients;
     } else {
       const team = await db
@@ -525,10 +638,16 @@ export async function sendMorningBriefingAction() {
     const htmlBody = buildHtmlBriefing(briefing, dataRes.data.totals, dateStr);
     const textBody = buildTextBriefing(briefing, dataRes.data.totals, dateStr);
 
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-    const orgId = session?.session?.activeOrganizationId;
+    let orgId: string | undefined;
+    try {
+      const headerList = await headers();
+      const session = await auth.api.getSession({
+        headers: headerList,
+      });
+      orgId = session?.session?.activeOrganizationId || undefined;
+    } catch {
+      // Safe fallback when executed outside Next.js request context (cron/worker/script)
+    }
 
     const { sendSystemEmail } = await import("@/lib/email-service");
 
@@ -553,11 +672,21 @@ export async function sendMorningBriefingAction() {
     }
 
     // 5. Log the audit action
-    await logAction(SYSTEM_ACTOR, "DAILY_BRIEFING_SENT", "user", SYSTEM_ACTOR, {
-      subject,
-      recipients: emails,
-      status: "SUCCESS",
-    });
+    try {
+      await logAction(
+        SYSTEM_ACTOR,
+        "DAILY_BRIEFING_SENT",
+        "user",
+        SYSTEM_ACTOR,
+        {
+          subject,
+          recipients: emails,
+          status: "SUCCESS",
+        },
+      );
+    } catch (auditErr) {
+      console.warn("Could not write briefing audit log:", auditErr);
+    }
 
     return {
       success: true,
@@ -606,8 +735,10 @@ export async function buildHtmlBriefing(
   totals: any,
   dateStr: string,
 ) {
-  const { getAppUrl } = await import("@/lib/app-url");
-  const logoUrl = `${getAppUrl()}/logo_white.png`;
+  const { getAppUrl, CANONICAL_APP_URL } = await import("@/lib/app-url");
+  const logoUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL
+    ? `${process.env.CLOUDFLARE_R2_PUBLIC_URL.replace(/\/+$/, "")}/branding/logo_white.png`
+    : `${!getAppUrl().includes("localhost") ? getAppUrl() : CANONICAL_APP_URL}/logo_white.png`;
 
   const alertsHtml =
     briefing.alerts && briefing.alerts.length > 0
@@ -741,7 +872,7 @@ export async function buildHtmlBriefing(
         
         <!-- HEADER -->
         <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 32px 24px; text-align: center; color: #ffffff; border-bottom: 4px solid #3b82f6;">
-            <img src="${logoUrl}" alt="Uprise Digital" style="max-height: 40px; margin-bottom: 12px; display: inline-block;" />
+            <img src="${logoUrl}" alt="Uprise Digital" width="95" height="40" style="width: 95px; height: 40px; max-height: 40px; margin-bottom: 12px; display: inline-block; border: 0; outline: none; text-decoration: none;" />
             <h1 style="font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.025em; line-height: 1.2; color: #ffffff;">
                 ☀️ Morning Briefing
             </h1>

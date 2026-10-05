@@ -40,6 +40,7 @@ import {
   YAxis,
 } from "recharts";
 import { toast } from "sonner";
+import { saveMultiChannelTargetsAction } from "@/actions/account-targets.actions";
 import {
   auditConversionTrackingAction,
   getImpressionShareReportAction,
@@ -74,6 +75,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { extractTargetsFromNotes } from "@/lib/target-extractor";
 
 interface ClientDashboardProps {
   account: {
@@ -87,6 +89,8 @@ interface ClientDashboardProps {
     syncStatus: string | null;
     syncError: string | null;
     targetNotes: string | null;
+    targetCpa?: number | null;
+    targetRoas?: number | null;
     linkedMetaAccount?: {
       id: number;
       metaAccountId: string;
@@ -95,6 +99,8 @@ interface ClientDashboardProps {
       timeZone: string | null;
       isActive: boolean;
       accountStatus: number;
+      targetCpa?: number | null;
+      targetRoas?: number | null;
     } | null;
   };
   orgDefaults: {
@@ -173,13 +179,38 @@ export default function ClientDashboard({
     try {
       const parsed = JSON.parse(account.targetNotes);
       if (parsed && typeof parsed === "object") {
-        return parsed.notes ?? "";
+        if (typeof parsed.notes === "string" && parsed.notes.trim()) {
+          return parsed.notes.trim();
+        }
+        if (
+          typeof parsed.targetBuyer === "string" &&
+          parsed.targetBuyer.trim()
+        ) {
+          return parsed.targetBuyer.trim();
+        }
+        for (const [_, v] of Object.entries(parsed)) {
+          if (typeof v === "string" && v.trim()) return v.trim();
+        }
       }
       return account.targetNotes;
     } catch {
       return account.targetNotes;
     }
   };
+
+  const initialNotesText = getInitialNotesText();
+  const initialExtracted = extractTargetsFromNotes(
+    initialNotesText || account.targetNotes,
+  );
+  const initialGoogleTarget =
+    account.targetCpa?.toString() ||
+    initialExtracted.googleTargetCpa?.toString() ||
+    initialExtracted.generalTargetCpa?.toString() ||
+    "";
+  const initialMetaTarget =
+    account.linkedMetaAccount?.targetCpa?.toString() ||
+    initialExtracted.metaTargetCpa?.toString() ||
+    "";
 
   const [formState, setFormState] = useState({
     criticalSpendThreshold:
@@ -194,9 +225,42 @@ export default function ClientDashboard({
       initialSettings?.anomalySpendChangeThreshold?.toString() ?? "",
     anomalyConversionsChangeThreshold:
       initialSettings?.anomalyConversionsChangeThreshold?.toString() ?? "",
+    targetCpa: initialGoogleTarget,
+    metaTargetCpa: initialMetaTarget,
     includeInBriefing: account.includeInBriefing,
-    targetNotes: getInitialNotesText(),
+    targetNotes: initialNotesText,
   });
+
+  const [configTab, setConfigTab] = useState<"google" | "meta">("google");
+
+  const detectedTarget = useMemo(() => {
+    return extractTargetsFromNotes(formState.targetNotes);
+  }, [formState.targetNotes]);
+
+  const handleNotesChange = (value: string) => {
+    const extracted = extractTargetsFromNotes(value);
+    setFormState((prev) => {
+      const updates: typeof prev = {
+        ...prev,
+        targetNotes: value,
+      };
+      // If a Google target was detected in the notes, auto-fill or update targetCpa
+      if (extracted.googleTargetCpa) {
+        updates.targetCpa = extracted.googleTargetCpa.toString();
+      } else if (
+        extracted.generalTargetCpa &&
+        (!prev.targetCpa ||
+          prev.targetCpa === detectedTarget.generalTargetCpa?.toString())
+      ) {
+        updates.targetCpa = extracted.generalTargetCpa.toString();
+      }
+      // If a Meta target was detected in the notes, auto-fill or update metaTargetCpa
+      if (extracted.metaTargetCpa) {
+        updates.metaTargetCpa = extracted.metaTargetCpa.toString();
+      }
+      return updates;
+    });
+  };
 
   const [campaignSearch, setCampaignSearch] = useState("");
   const [campaignPlatformFilter, setCampaignPlatformFilter] = useState<
@@ -584,6 +648,8 @@ export default function ClientDashboard({
       cpcHighThreshold: "",
       anomalySpendChangeThreshold: "",
       anomalyConversionsChangeThreshold: "",
+      targetCpa: "",
+      metaTargetCpa: "",
       includeInBriefing: true,
       targetNotes: "",
     });
@@ -612,7 +678,7 @@ export default function ClientDashboard({
         finalNotes = JSON.stringify({ notes: formState.targetNotes });
       }
 
-      const [resTriage, resNotes] = await Promise.all([
+      const [resTriage, resNotes, resTargets] = await Promise.all([
         saveAccountTriageSettingsAction(account.id, {
           id: initialSettings?.id ?? null,
           criticalSpendThreshold:
@@ -646,9 +712,19 @@ export default function ClientDashboard({
           includeInBriefing: formState.includeInBriefing,
         }),
         saveAccountPersonaAction(account.id, finalNotes),
+        saveMultiChannelTargetsAction({
+          googleAccountId: account.id,
+          googleTargetCpa:
+            formState.targetCpa === "" ? null : parseFloat(formState.targetCpa),
+          metaAccountId: account.linkedMetaAccount?.id ?? null,
+          metaTargetCpa:
+            formState.metaTargetCpa === ""
+              ? null
+              : parseFloat(formState.metaTargetCpa),
+        }),
       ]);
 
-      if (resTriage.success && resNotes.success) {
+      if (resTriage.success && resNotes.success && resTargets.success) {
         toast.success("Client overrides and notes saved successfully!", {
           id: toastId,
         });
@@ -820,256 +896,440 @@ export default function ClientDashboard({
                       to use organization-wide defaults.
                     </SheetDescription>
                   </SheetHeader>
+
+                  {/* Channel Tabs in Sheet */}
+                  {hasLinkedMeta && (
+                    <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold mb-6">
+                      <button
+                        type="button"
+                        onClick={() => setConfigTab("google")}
+                        className={`flex-1 py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          configTab === "google"
+                            ? "bg-white text-emerald-800 shadow-xs font-bold"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        <GoogleLogo className="w-3.5 h-3.5 shrink-0" />
+                        Google Ads Rules
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfigTab("meta")}
+                        className={`flex-1 py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          configTab === "meta"
+                            ? "bg-white text-blue-800 shadow-xs font-bold"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        <MetaLogo className="w-3.5 h-3.5 shrink-0" />
+                        Meta Ads Rules
+                      </button>
+                    </div>
+                  )}
+
                   <form onSubmit={handleSave} className="space-y-6">
-                    {/* NOTIFICATION PREFERENCES */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
-                        <Mail className="w-3.5 h-3.5 text-indigo-500" />
-                        Notification Preferences
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                          <div className="space-y-0.5">
+                    {/* GOOGLE ADS CONTENT */}
+                    {configTab === "google" && (
+                      <>
+                        {/* TARGET KPI GOALS */}
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                            <Target className="w-3.5 h-3.5 text-indigo-500" />
+                            Target KPI Goals (Google Ads)
+                          </h3>
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <Label
+                                htmlFor="targetCpa"
+                                className="text-xs font-semibold text-slate-700"
+                              >
+                                Google Target CPA / CPL (AUD $)
+                              </Label>
+                              <Input
+                                id="targetCpa"
+                                type="number"
+                                step="0.01"
+                                placeholder="e.g. 450.00"
+                                value={formState.targetCpa}
+                                onChange={(e) =>
+                                  handleInputChange("targetCpa", e.target.value)
+                                }
+                                className="text-xs font-medium"
+                              />
+                              <p className="text-[10px] text-slate-400">
+                                Agreed cost-per-lead goal for Google Ads. Used
+                                by Morning Briefings and performance health
+                                metrics to measure pacing.
+                              </p>
+                              {detectedTarget.googleTargetCpa &&
+                                (!formState.targetCpa ||
+                                  Number(formState.targetCpa) !==
+                                    detectedTarget.googleTargetCpa) && (
+                                  <div className="flex items-center justify-between p-2 bg-indigo-50/80 border border-indigo-200/60 rounded-lg text-xs text-indigo-900 mt-1.5">
+                                    <span className="flex items-center gap-1.5 text-[11px]">
+                                      <Sparkles className="w-3 h-3 text-indigo-500" />
+                                      Detected from notes:{" "}
+                                      <strong>
+                                        ${detectedTarget.googleTargetCpa}
+                                      </strong>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleInputChange(
+                                          "targetCpa",
+                                          detectedTarget.googleTargetCpa!.toString(),
+                                        )
+                                      }
+                                      className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[10px] font-bold cursor-pointer transition-colors"
+                                    >
+                                      Apply to Target CPA
+                                    </button>
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* NOTIFICATION PREFERENCES */}
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                            <Mail className="w-3.5 h-3.5 text-indigo-500" />
+                            Notification Preferences
+                          </h3>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                              <div className="space-y-0.5">
+                                <Label
+                                  htmlFor="includeInBriefing"
+                                  className="text-xs font-bold text-slate-800"
+                                >
+                                  Include in Morning Briefing
+                                </Label>
+                                <p className="text-[10px] text-slate-400 max-w-[320px]">
+                                  When disabled, this client will be excluded
+                                  from the daily automated email briefing.
+                                </p>
+                              </div>
+                              <input
+                                id="includeInBriefing"
+                                type="checkbox"
+                                checked={formState.includeInBriefing}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    "includeInBriefing",
+                                    e.target.checked,
+                                  )
+                                }
+                                className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 shrink-0"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* CRITICAL ALERTS */}
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                            Critical Fire Triggers
+                          </h3>
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <Label
+                                htmlFor="criticalSpend"
+                                className="text-xs"
+                              >
+                                Critical Spend Limit (AUD $)
+                              </Label>
+                              <Input
+                                id="criticalSpend"
+                                type="number"
+                                step="0.01"
+                                placeholder={`${(Number(resolvedDefaults?.criticalSpendThreshold) || DEFAULT_THRESHOLDS.criticalSpendThreshold).toFixed(2)} (Global Default)`}
+                                value={formState.criticalSpendThreshold}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    "criticalSpendThreshold",
+                                    e.target.value,
+                                  )
+                                }
+                                className="text-xs"
+                              />
+                              <p className="text-[10px] text-slate-400">
+                                Trigger alert if an account spends more than
+                                this with low conversions.
+                              </p>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label
+                                htmlFor="criticalConversions"
+                                className="text-xs"
+                              >
+                                Maximum Conversions Target
+                              </Label>
+                              <Input
+                                id="criticalConversions"
+                                type="number"
+                                step="1"
+                                placeholder={`${resolvedDefaults?.criticalConversionsThreshold ?? DEFAULT_THRESHOLDS.criticalConversionsThreshold} (Global Default)`}
+                                value={formState.criticalConversionsThreshold}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    "criticalConversionsThreshold",
+                                    e.target.value,
+                                  )
+                                }
+                                className="text-xs"
+                              />
+                              <p className="text-[10px] text-slate-400">
+                                The upper limit of conversions to classify as a
+                                critical conversion leak.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* INDIVIDUAL PERFORMANCE ANOMALIES */}
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                            <Activity className="w-3.5 h-3.5 text-amber-500" />
+                            Performance Anomalies
+                          </h3>
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="ctrHigh" className="text-xs">
+                                CTR Anomaly Limit (%)
+                              </Label>
+                              <Input
+                                id="ctrHigh"
+                                type="number"
+                                step="0.1"
+                                placeholder={`${resolvedDefaults?.ctrHighThreshold ?? DEFAULT_THRESHOLDS.ctrHighThreshold}% (Global Default)`}
+                                value={formState.ctrHighThreshold}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    "ctrHighThreshold",
+                                    e.target.value,
+                                  )
+                                }
+                                className="text-xs"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="ctrHighSpend" className="text-xs">
+                                Min Spend for CTR Anomaly (AUD $)
+                              </Label>
+                              <Input
+                                id="ctrHighSpend"
+                                type="number"
+                                step="0.01"
+                                placeholder={`${(Number(resolvedDefaults?.ctrHighSpendThreshold) || DEFAULT_THRESHOLDS.ctrHighSpendThreshold).toFixed(2)} (Global Default)`}
+                                value={formState.ctrHighSpendThreshold}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    "ctrHighSpendThreshold",
+                                    e.target.value,
+                                  )
+                                }
+                                className="text-xs"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="cpcHigh" className="text-xs">
+                                Single Click High CPC (AUD $)
+                              </Label>
+                              <Input
+                                id="cpcHigh"
+                                type="number"
+                                step="0.01"
+                                placeholder={`${(Number(resolvedDefaults?.cpcHighThreshold) || DEFAULT_THRESHOLDS.cpcHighThreshold).toFixed(2)} (Global Default)`}
+                                value={formState.cpcHighThreshold}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    "cpcHighThreshold",
+                                    e.target.value,
+                                  )
+                                }
+                                className="text-xs"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* HISTORICAL BASELINE DEVIATION */}
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                            Baseline Variance Deviation (%)
+                          </h3>
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="anomalySpend" className="text-xs">
+                                Spend Drop Threshold (%)
+                              </Label>
+                              <Input
+                                id="anomalySpend"
+                                type="number"
+                                step="0.1"
+                                placeholder={`${resolvedDefaults?.anomalySpendChangeThreshold ?? DEFAULT_THRESHOLDS.anomalySpendChangeThreshold}% (Global Default)`}
+                                value={formState.anomalySpendChangeThreshold}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    "anomalySpendChangeThreshold",
+                                    e.target.value,
+                                  )
+                                }
+                                className="text-xs"
+                              />
+                              <p className="text-[10px] text-slate-400">
+                                Trigger warning if spend drops by more than this
+                                percent (e.g. -30.0).
+                              </p>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label
+                                htmlFor="anomalyConversions"
+                                className="text-xs"
+                              >
+                                Conversions Drop Threshold (%)
+                              </Label>
+                              <Input
+                                id="anomalyConversions"
+                                type="number"
+                                step="0.1"
+                                placeholder={`${resolvedDefaults?.anomalyConversionsChangeThreshold ?? DEFAULT_THRESHOLDS.anomalyConversionsChangeThreshold}% (Global Default)`}
+                                value={
+                                  formState.anomalyConversionsChangeThreshold
+                                }
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    "anomalyConversionsChangeThreshold",
+                                    e.target.value,
+                                  )
+                                }
+                                className="text-xs"
+                              />
+                              <p className="text-[10px] text-slate-400">
+                                Trigger warning if conversions drop by more than
+                                this percent (e.g. -25.0).
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* CLIENT NOTES / TARGETING PERSONA */}
+                        <div className="space-y-4 pt-2">
+                          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                            <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                            Targeting Notes / Buyer Persona
+                          </h3>
+                          <div className="space-y-1.5">
                             <Label
-                              htmlFor="includeInBriefing"
-                              className="text-xs font-bold text-slate-800"
+                              htmlFor="accountNotes"
+                              className="text-xs font-semibold text-slate-700"
                             >
-                              Include in Morning Briefing
+                              Client Account Notes
                             </Label>
-                            <p className="text-[10px] text-slate-400 max-w-[320px]">
-                              When disabled, this client will be excluded from
-                              the daily automated email briefing.
+                            <textarea
+                              id="accountNotes"
+                              placeholder="Enter details about target buyer persona, service boundaries, or specific account instructions..."
+                              value={formState.targetNotes}
+                              onChange={(e) =>
+                                handleNotesChange(e.target.value)
+                              }
+                              className="flex min-h-[100px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600/20 focus-visible:border-indigo-600 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                            <p className="text-[10px] text-slate-400">
+                              These notes are referenced by the Daily Morning
+                              Briefing to evaluate performance against agreed
+                              target CPLs, and by the AI agent to verify query
+                              intent alignment.
                             </p>
                           </div>
-                          <input
-                            id="includeInBriefing"
-                            type="checkbox"
-                            checked={formState.includeInBriefing}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "includeInBriefing",
-                                e.target.checked,
-                              )
-                            }
-                            className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 shrink-0"
-                          />
                         </div>
-                      </div>
-                    </div>
+                      </>
+                    )}
 
-                    {/* CRITICAL ALERTS */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
-                        <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
-                        Critical Fire Triggers
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="criticalSpend" className="text-xs">
-                            Critical Spend Limit (AUD $)
-                          </Label>
-                          <Input
-                            id="criticalSpend"
-                            type="number"
-                            step="0.01"
-                            placeholder={`${(Number(resolvedDefaults?.criticalSpendThreshold) || DEFAULT_THRESHOLDS.criticalSpendThreshold).toFixed(2)} (Global Default)`}
-                            value={formState.criticalSpendThreshold}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "criticalSpendThreshold",
-                                e.target.value,
-                              )
-                            }
-                            className="text-xs"
-                          />
-                          <p className="text-[10px] text-slate-400">
-                            Trigger alert if an account spends more than this
-                            with low conversions.
+                    {/* META ADS TAB CONTENT */}
+                    {configTab === "meta" && (
+                      <div className="space-y-6">
+                        <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-xl space-y-1">
+                          <div className="flex items-center gap-2 text-xs font-bold text-blue-900">
+                            <MetaLogo className="w-4 h-4 shrink-0" />
+                            Linked Meta Account:{" "}
+                            {account.linkedMetaAccount?.name}
+                          </div>
+                          <p className="text-[11px] text-blue-700/80">
+                            ID:{" "}
+                            <span className="font-mono">
+                              {account.linkedMetaAccount?.metaAccountId}
+                            </span>{" "}
+                            • Currency:{" "}
+                            {account.linkedMetaAccount?.currencyCode || "AUD"}
                           </p>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor="criticalConversions"
-                            className="text-xs"
-                          >
-                            Maximum Conversions Target
-                          </Label>
-                          <Input
-                            id="criticalConversions"
-                            type="number"
-                            step="1"
-                            placeholder={`${resolvedDefaults?.criticalConversionsThreshold ?? DEFAULT_THRESHOLDS.criticalConversionsThreshold} (Global Default)`}
-                            value={formState.criticalConversionsThreshold}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "criticalConversionsThreshold",
-                                e.target.value,
-                              )
-                            }
-                            className="text-xs"
-                          />
-                          <p className="text-[10px] text-slate-400">
-                            The upper limit of conversions to classify as a
-                            critical conversion leak.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* INDIVIDUAL PERFORMANCE ANOMALIES */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
-                        <Activity className="w-3.5 h-3.5 text-amber-500" />
-                        Performance Anomalies
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="ctrHigh" className="text-xs">
-                            CTR Anomaly Limit (%)
-                          </Label>
-                          <Input
-                            id="ctrHigh"
-                            type="number"
-                            step="0.1"
-                            placeholder={`${resolvedDefaults?.ctrHighThreshold ?? DEFAULT_THRESHOLDS.ctrHighThreshold}% (Global Default)`}
-                            value={formState.ctrHighThreshold}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "ctrHighThreshold",
-                                e.target.value,
-                              )
-                            }
-                            className="text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="ctrHighSpend" className="text-xs">
-                            Min Spend for CTR Anomaly (AUD $)
-                          </Label>
-                          <Input
-                            id="ctrHighSpend"
-                            type="number"
-                            step="0.01"
-                            placeholder={`${(Number(resolvedDefaults?.ctrHighSpendThreshold) || DEFAULT_THRESHOLDS.ctrHighSpendThreshold).toFixed(2)} (Global Default)`}
-                            value={formState.ctrHighSpendThreshold}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "ctrHighSpendThreshold",
-                                e.target.value,
-                              )
-                            }
-                            className="text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="cpcHigh" className="text-xs">
-                            Single Click High CPC (AUD $)
-                          </Label>
-                          <Input
-                            id="cpcHigh"
-                            type="number"
-                            step="0.01"
-                            placeholder={`${(Number(resolvedDefaults?.cpcHighThreshold) || DEFAULT_THRESHOLDS.cpcHighThreshold).toFixed(2)} (Global Default)`}
-                            value={formState.cpcHighThreshold}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "cpcHighThreshold",
-                                e.target.value,
-                              )
-                            }
-                            className="text-xs"
-                          />
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
+                            <Target className="w-3.5 h-3.5 text-blue-600" />
+                            Meta KPI Targets
+                          </h3>
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <Label
+                                htmlFor="metaTargetCpa"
+                                className="text-xs font-semibold text-slate-700"
+                              >
+                                Meta Target CPA / CPL (AUD $)
+                              </Label>
+                              <Input
+                                id="metaTargetCpa"
+                                type="number"
+                                step="0.01"
+                                placeholder="e.g. 120.00"
+                                value={formState.metaTargetCpa}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    "metaTargetCpa",
+                                    e.target.value,
+                                  )
+                                }
+                                className="text-xs font-medium"
+                              />
+                              <p className="text-[10px] text-slate-400">
+                                Agreed cost-per-lead goal specifically for Meta
+                                Ads campaigns under this client.
+                              </p>
+                              {detectedTarget.metaTargetCpa &&
+                                (!formState.metaTargetCpa ||
+                                  Number(formState.metaTargetCpa) !==
+                                    detectedTarget.metaTargetCpa) && (
+                                  <div className="flex items-center justify-between p-2 bg-blue-50/80 border border-blue-200/60 rounded-lg text-xs text-blue-900 mt-1.5">
+                                    <span className="flex items-center gap-1.5 text-[11px]">
+                                      <Sparkles className="w-3 h-3 text-blue-500" />
+                                      Detected from notes:{" "}
+                                      <strong>
+                                        ${detectedTarget.metaTargetCpa}
+                                      </strong>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleInputChange(
+                                          "metaTargetCpa",
+                                          detectedTarget.metaTargetCpa!.toString(),
+                                        )
+                                      }
+                                      className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold cursor-pointer transition-colors"
+                                    >
+                                      Apply to Meta Target
+                                    </button>
+                                  </div>
+                                )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    {/* HISTORICAL BASELINE DEVIATION */}
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
-                        Baseline Variance Deviation (%)
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="anomalySpend" className="text-xs">
-                            Spend Drop Threshold (%)
-                          </Label>
-                          <Input
-                            id="anomalySpend"
-                            type="number"
-                            step="0.1"
-                            placeholder={`${resolvedDefaults?.anomalySpendChangeThreshold ?? DEFAULT_THRESHOLDS.anomalySpendChangeThreshold}% (Global Default)`}
-                            value={formState.anomalySpendChangeThreshold}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "anomalySpendChangeThreshold",
-                                e.target.value,
-                              )
-                            }
-                            className="text-xs"
-                          />
-                          <p className="text-[10px] text-slate-400">
-                            Trigger warning if spend drops by more than this
-                            percent (e.g. -30.0).
-                          </p>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor="anomalyConversions"
-                            className="text-xs"
-                          >
-                            Conversions Drop Threshold (%)
-                          </Label>
-                          <Input
-                            id="anomalyConversions"
-                            type="number"
-                            step="0.1"
-                            placeholder={`${resolvedDefaults?.anomalyConversionsChangeThreshold ?? DEFAULT_THRESHOLDS.anomalyConversionsChangeThreshold}% (Global Default)`}
-                            value={formState.anomalyConversionsChangeThreshold}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "anomalyConversionsChangeThreshold",
-                                e.target.value,
-                              )
-                            }
-                            className="text-xs"
-                          />
-                          <p className="text-[10px] text-slate-400">
-                            Trigger warning if conversions drop by more than
-                            this percent (e.g. -25.0).
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CLIENT NOTES / TARGETING PERSONA */}
-                    <div className="space-y-4 pt-2">
-                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-2">
-                        <FileText className="w-3.5 h-3.5 text-indigo-500" />
-                        Targeting Notes / Buyer Persona
-                      </h3>
-                      <div className="space-y-1.5">
-                        <Label
-                          htmlFor="accountNotes"
-                          className="text-xs font-semibold text-slate-700"
-                        >
-                          Client Account Notes
-                        </Label>
-                        <textarea
-                          id="accountNotes"
-                          placeholder="Enter details about target buyer persona, service boundaries, or specific account instructions..."
-                          value={formState.targetNotes}
-                          onChange={(e) =>
-                            handleInputChange("targetNotes", e.target.value)
-                          }
-                          className="flex min-h-[100px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600/20 focus-visible:border-indigo-600 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
-                        />
-                        <p className="text-[10px] text-slate-400">
-                          These notes are used by the AI agent to verify query
-                          intent alignment and avoid improper negative
-                          suggestions.
-                        </p>
-                      </div>
-                    </div>
+                    )}
 
                     <div className="flex justify-between pt-4 border-t gap-2">
                       <Button

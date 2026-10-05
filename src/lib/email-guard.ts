@@ -1,9 +1,8 @@
 /**
- * CRITICAL EMAIL DISPATCH GUARD
- * 
- * Strict agency policy: NEVER send emails to external clients.
- * For the time being, ALL emails across the entire platform are restricted exclusively 
- * to seyone@uprisedigital.com.au.
+ * EMAIL DISPATCH GUARD
+ *
+ * Outward sends and team emails are enabled.
+ * Moratorium on outward sends has been lifted.
  */
 
 export const SAFE_AGENT_EMAIL = "seyone@uprisedigital.com.au";
@@ -11,9 +10,15 @@ export const SAFE_AGENT_EMAIL = "seyone@uprisedigital.com.au";
 /**
  * Automated email dispatch setting:
  * When true, scheduled background cron jobs and report pipelines are active.
- * External client emails continue to be protected by enforceEmailSafeguard.
  */
 export const ALLOW_AUTOMATED_EMAILS = true;
+
+/**
+ * Moratorium on outward sends:
+ * Set to false so that sending to the team and outward recipients is enabled.
+ */
+export const OUTWARD_SENDS_MORATORIUM =
+  process.env.ENABLE_OUTWARD_EMAILS === "false";
 
 export function isAutomatedSendingAllowed(): boolean {
   return ALLOW_AUTOMATED_EMAILS;
@@ -28,48 +33,77 @@ export interface SanitizedEmailDelivery {
   originalRecipientsSummary: string;
 }
 
+/**
+ * Helper to identify internal agency domain team members.
+ */
+export function isTeamEmail(email: string): boolean {
+  const normalized = email.toLowerCase().trim();
+  return (
+    normalized.endsWith("@uprisedigital.com.au") ||
+    normalized === SAFE_AGENT_EMAIL.toLowerCase()
+  );
+}
+
 export function enforceEmailSafeguard(
   intendedTo: string | string[],
   intendedSubject: string,
   intendedCc?: string | string[],
-  intendedBcc?: string | string[]
+  intendedBcc?: string | string[],
 ): SanitizedEmailDelivery {
   const toList = (Array.isArray(intendedTo) ? intendedTo : [intendedTo])
     .filter(Boolean)
     .map((e) => String(e).trim());
-  const ccList = (Array.isArray(intendedCc) ? intendedCc : (intendedCc ? [intendedCc] : []))
+  const ccList = (
+    Array.isArray(intendedCc) ? intendedCc : intendedCc ? [intendedCc] : []
+  )
     .filter(Boolean)
     .map((e) => String(e).trim());
-  const bccList = (Array.isArray(intendedBcc) ? intendedBcc : (intendedBcc ? [intendedBcc] : []))
+  const bccList = (
+    Array.isArray(intendedBcc) ? intendedBcc : intendedBcc ? [intendedBcc] : []
+  )
     .filter(Boolean)
     .map((e) => String(e).trim());
 
   const allRecipients = [...toList, ...ccList, ...bccList];
-  const hasExternalRecipient = allRecipients.some(
-    (e) => e.toLowerCase() !== SAFE_AGENT_EMAIL.toLowerCase()
-  );
+  const originalSummary = allRecipients.join(", ");
 
-  if (hasExternalRecipient) {
-    const originalSummary = allRecipients.join(", ");
-    console.warn(
-      `[EMAIL SAFEGUARD INTERCEPT] Blocked sending to external recipients: [${originalSummary}]. Diverting strictly to ${SAFE_AGENT_EMAIL}`
-    );
+  // If moratorium is lifted, send directly to intended recipients
+  if (!OUTWARD_SENDS_MORATORIUM) {
     return {
-      to: [SAFE_AGENT_EMAIL],
-      cc: [],
-      bcc: [],
-      subject: `[TEST / DEV - Intended for: ${originalSummary}] ${intendedSubject}`,
-      isOverridden: true,
+      to: toList.length > 0 ? toList : [SAFE_AGENT_EMAIL],
+      cc: ccList,
+      bcc: bccList,
+      subject: intendedSubject,
+      isOverridden: false,
       originalRecipientsSummary: originalSummary,
     };
   }
 
+  // If moratorium was explicitly active, still permit any internal team member sends
+  const hasExternalNonTeamRecipient = allRecipients.some(
+    (e) => !isTeamEmail(e),
+  );
+  if (!hasExternalNonTeamRecipient) {
+    return {
+      to: toList,
+      cc: ccList,
+      bcc: bccList,
+      subject: intendedSubject,
+      isOverridden: false,
+      originalRecipientsSummary: originalSummary,
+    };
+  }
+
+  // Otherwise, divert to safe agent email with dev tag
+  console.warn(
+    `[EMAIL SAFEGUARD INTERCEPT] Moratorium active. Diverting [${originalSummary}] to ${SAFE_AGENT_EMAIL}`,
+  );
   return {
     to: [SAFE_AGENT_EMAIL],
     cc: [],
     bcc: [],
-    subject: intendedSubject,
-    isOverridden: false,
-    originalRecipientsSummary: SAFE_AGENT_EMAIL,
+    subject: `[TEST / DEV - Intended for: ${originalSummary}] ${intendedSubject}`,
+    isOverridden: true,
+    originalRecipientsSummary: originalSummary,
   };
 }

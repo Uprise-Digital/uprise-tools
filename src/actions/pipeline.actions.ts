@@ -6,7 +6,6 @@ import { withBypassTenantDb } from "@/db/db-helper";
 import { pipelineRevivalPlans, salesReminderSettings, user } from "@/db/schema";
 import { GEMINI_MODEL_LOW } from "@/lib/ai-config";
 import { generateContentTracked } from "@/lib/ai-logger";
-import { logEmail } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import { getAuthOrgContext } from "@/lib/auth-helpers";
 import {
@@ -619,7 +618,7 @@ export async function sendStalledOpportunitiesReminderAction() {
     const htmlBody = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
         <div style="text-align: center; margin-bottom: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
-          <img src="${appUrl}/logo_white.png" alt="Logo" style="height: 36px; filter: invert(1); margin-bottom: 8px;" />
+          <img src="https://tools.uprisedigital.com.au/logo_black.png" alt="Uprise Digital" width="95" height="40" style="width: 95px; height: 40px; display: inline-block; margin-bottom: 8px; border: 0;" />
           <h1 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a;">Sales Follow-up Required</h1>
         </div>
 
