@@ -725,7 +725,8 @@ export async function generateMorningBriefingText(data: {
                 ? ` (Client Notes: "${a.clientNotes}")`
                 : "";
               const stats = a.statsText ? ` [${a.statsText}]` : "";
-              return `- [${a.type || "ALERT"}] ${a.accountName}${targetStr}: ${a.details || stats}${notesStr}`;
+              const details = a.details ? `: ${a.details}` : "";
+              return `- [${a.type || "ALERT"}] ${a.accountName}${targetStr}${stats}${details}${notesStr}`;
             })
             .join("\n")
         : "None (All accounts performing within expected variance parameters)."
@@ -745,7 +746,8 @@ export async function generateMorningBriefingText(data: {
                 ? ` (Client Notes: "${s.clientNotes}")`
                 : "";
               const stats = s.statsText ? ` [${s.statsText}]` : "";
-              return `- ${s.accountName}${targetStr}: ${s.details || stats}${notesStr}`;
+              const details = s.details ? `: ${s.details}` : "";
+              return `- ${s.accountName}${targetStr}${stats}${details}${notesStr}`;
             })
             .join("\n")
         : "None yesterday."
@@ -755,6 +757,7 @@ export async function generateMorningBriefingText(data: {
     - If an account has an agreed Target CPL or client notes, reference whether yesterday met, beat, or breached that agreed target.
     - If CPA was well below target, acknowledge it as a strong win.
     - If CPA breached the agreed target, highlight the overrun and suggest tightening bids, search terms, or negative keywords in the priority list.
+    - CRITICAL STATS INTEGRITY: For all alerts and successes, you MUST preserve the exact figures from [Spend: ... | Conv: ... | CPA: ...] in the output statsText field without altering or recalculating them.
 
     OUTPUT SCHEMA REQUIRED (JSON):
     {

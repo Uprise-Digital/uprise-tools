@@ -12,7 +12,7 @@ on:
       batch_size:
         description: 'Number of accounts per batch'
         required: false
-        default: '5'
+        default: '2'
 
 jobs:
   run-automation:
@@ -22,7 +22,7 @@ jobs:
       - name: Run Batched Negative Keywords Discovery
         run: |
           OFFSET=0
-          BATCH_SIZE="${{ github.event.inputs.batch_size || '5' }}"
+          BATCH_SIZE="${{ github.event.inputs.batch_size || '2' }}"
           HAS_MORE=true
           BATCH_NUM=1
 

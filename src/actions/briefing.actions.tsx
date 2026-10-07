@@ -581,6 +581,49 @@ export async function generateBriefingAction(dataOverride?: any) {
       ...(dataRes.data as any),
       dataPoints,
     });
+
+    // Reconcile and guarantee ground-truth stats on alerts and successes.
+    // This prevents any AI hallucinations or math errors from entering email cards.
+    if (briefing && dataRes.data) {
+      if (
+        Array.isArray(briefing.alerts) &&
+        Array.isArray(dataRes.data.alerts)
+      ) {
+        const groundTruthAlertsMap = new Map(
+          dataRes.data.alerts.map((a: any) => [
+            (a.accountName || "").toLowerCase().trim(),
+            a.statsText,
+          ]),
+        );
+        for (const a of briefing.alerts) {
+          const key = (a.accountName || "").toLowerCase().trim();
+          const trueStats = groundTruthAlertsMap.get(key);
+          if (trueStats) {
+            a.statsText = trueStats;
+          }
+        }
+      }
+
+      if (
+        Array.isArray(briefing.successes) &&
+        Array.isArray(dataRes.data.successes)
+      ) {
+        const groundTruthSuccessesMap = new Map(
+          dataRes.data.successes.map((s: any) => [
+            (s.accountName || "").toLowerCase().trim(),
+            s.statsText,
+          ]),
+        );
+        for (const s of briefing.successes) {
+          const key = (s.accountName || "").toLowerCase().trim();
+          const trueStats = groundTruthSuccessesMap.get(key);
+          if (trueStats) {
+            s.statsText = trueStats;
+          }
+        }
+      }
+    }
+
     return { success: true, briefing };
   } catch (error: any) {
     console.error("Failed to generate briefing via AI:", error);

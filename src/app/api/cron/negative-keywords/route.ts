@@ -36,7 +36,7 @@ async function parseBatchParams(request: Request) {
     ? undefined
     : Number.isInteger(limit) && limit! > 0
       ? Math.min(limit!, 50)
-      : 5; // Default batch size: 5 accounts per invocation to comfortably avoid timeouts
+      : 2; // Default batch size: 2 accounts per invocation to comfortably avoid timeouts
 
   return { offset: parsedOffset, limit: parsedLimit };
 }
@@ -56,8 +56,17 @@ async function processAccountsBatch(offset = 0, limit?: number) {
       : activeAccounts;
 
   const results: any[] = [];
+  const startTime = Date.now();
+  const SOFT_TIMEOUT_MS = 210_000; // 3.5 minutes safety margin (under 300s maxDuration)
 
   for (const account of targetAccounts) {
+    if (Date.now() - startTime > SOFT_TIMEOUT_MS) {
+      console.warn(
+        `[Cron Negatives] Soft timeout margin reached (${Date.now() - startTime}ms). Stopping batch early to prevent 502 gateway timeout.`,
+      );
+      break;
+    }
+
     try {
       console.log(
         `[Cron Negatives] Running generation for account ${account.name} (ID: ${account.id})...`,
@@ -91,7 +100,7 @@ async function processAccountsBatch(offset = 0, limit?: number) {
     }
   }
 
-  const processed = targetAccounts.length;
+  const processed = results.length;
   const effectiveLimit = limit ?? total;
   const hasMore = offset + processed < total;
   const nextOffset = hasMore ? offset + processed : null;
