@@ -595,7 +595,7 @@ export async function generateBriefingAction(dataOverride?: any) {
             a.statsText,
           ]),
         );
-        for (const a of briefing.alerts) {
+        for (const a of (briefing.alerts as any[])) {
           const key = (a.accountName || "").toLowerCase().trim();
           const trueStats = groundTruthAlertsMap.get(key);
           if (trueStats) {
@@ -614,7 +614,7 @@ export async function generateBriefingAction(dataOverride?: any) {
             s.statsText,
           ]),
         );
-        for (const s of briefing.successes) {
+        for (const s of (briefing.successes as any[])) {
           const key = (s.accountName || "").toLowerCase().trim();
           const trueStats = groundTruthSuccessesMap.get(key);
           if (trueStats) {

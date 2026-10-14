@@ -137,20 +137,20 @@ describe("Morning Briefing Stats Integrity", () => {
     expect(result.success).toBe(true);
     expect(result.briefing).toBeDefined();
 
-    const aiSmartGlassSuccess = result.briefing?.successes?.find(
+    const aiSmartGlassSuccess = (result.briefing?.successes as any[])?.find(
       (s: any) => s.accountName === "AI Smart Glass (OA/OC)",
     );
     expect(aiSmartGlassSuccess).toBeDefined();
     // Must be reconciled to ground truth: 2 conversions and $50.89 spend!
-    expect(aiSmartGlassSuccess?.statsText).toBe(
+    expect((aiSmartGlassSuccess as any)?.statsText).toBe(
       "Spend: $50.89 | Conv: 2 | CPA: $25.45 (Target: $55.00)",
     );
 
-    const alertItem = result.briefing?.alerts?.find(
+    const alertItem = (result.briefing?.alerts as any[])?.find(
       (a: any) => a.accountName === "Demolition4u #2",
     );
     expect(alertItem).toBeDefined();
-    expect(alertItem?.statsText).toBe(
+    expect((alertItem as any)?.statsText).toBe(
       "Spend: $146.76 | Conv: 0 (Target: $120.00)",
     );
   });
